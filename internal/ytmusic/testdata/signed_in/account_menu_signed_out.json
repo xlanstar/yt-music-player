@@ -1,0 +1,45 @@
+{
+ "responseContext": {
+  "serviceTrackingParams": [
+   {
+    "service": "GFEEDBACK",
+    "params": [
+     {
+      "key": "logged_in",
+      "value": "0"
+     }
+    ]
+   }
+  ]
+ },
+ "actions": [
+  {
+   "openPopupAction": {
+    "popupType": "DROPDOWN",
+    "popup": {
+     "multiPageMenuRenderer": {
+      "sections": [
+       {
+        "multiPageMenuSectionRenderer": {
+         "items": [
+          {
+           "compactLinkRenderer": {
+            "title": {
+             "runs": [
+              {
+               "text": "Settings"
+              }
+             ]
+            }
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

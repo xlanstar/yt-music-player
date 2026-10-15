@@ -1,0 +1,376 @@
+package main
+
+import (
+	"context"
+	"reflect"
+	"sync/atomic"
+	"testing"
+	"time"
+	"unsafe"
+	"yt-music-player/internal/audio"
+	"yt-music-player/internal/budget"
+	"yt-music-player/internal/catalog"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// frameBudget is what a steady frame of a page may cost; builds is 1 for a
+// page that does not animate. liveKB bounds the heap the screen retains:
+// the Tester and the app, with the catalog and decoded thumbnails.
+type frameBudget struct {
+	allocs, bytes, builds float64
+	liveKB                int64
+}
+
+// frameBudgets are BenchmarkPages' ceilings.
+var frameBudgets = map[string]frameBudget{
+	"Home":              {30, 1160, 1, 2990}, // 26 allocs, 1008 B, 2594 KB today.
+	"Explore":           {11, 540, 1, 2590},  // 9 allocs, 464 B, 2200 KB today.
+	"Library/Playlists": {27, 1500, 1, 2030}, // 23 allocs, 1296 B, 1763 KB today.
+	"Library/Songs":     {33, 2030, 1, 2680}, // 28 allocs, 1760 B, 2329 KB today.
+	"Library/Albums":    {29, 1900, 1, 2090}, // 25 allocs, 1648 B, 1810 KB today.
+	"Library/Artists":   {29, 1880, 1, 2060}, // 25 allocs, 1632 B, 1785 KB today.
+	"Album":             {21, 1150, 1, 1710}, // 18 allocs, 992 B, 1485 KB today.
+	"Playlist":          {21, 1150, 1, 2150}, // 18 allocs, 992 B, 1866 KB today.
+	"LikedMusic":        {20, 1070, 1, 2130}, // 17 allocs, 928 B, 1849 KB today.
+	"Search":            {15, 1180, 1, 1760}, // 13 allocs, 1024 B, 1522 KB today.
+	"Home/PanelHidden":  {25, 980, 1, 2850},  // 21 allocs, 848 B, 2474 KB today.
+	// The equalizer only paints: the frame builds once.
+	"Home/Playing":       {30, 1160, 1, 3030}, // 26 allocs, 1008 B, 2627 KB today.
+	"Library/Songs/2000": {33, 2030, 1, 3800}, // 28 allocs, 1760 B (as 18 songs), 3299 KB today.
+	// The covers' pixels at the size they show.
+	"Library/Albums/Thumbnails": {29, 1900, 1, 8460}, // 25 allocs, 1648 B, 7350 KB today.
+	// Some 90 covers of 352 px.
+	"Home/Feed":     {30, 1160, 1, 52850}, // 26 allocs, 1008 B, 45949 KB today.
+	"Playlist/2000": {21, 1150, 1, 4010},  // 18 allocs, 992 B, 3486 KB today.
+	// The sheet's radios and segmented controls, MyGo's, built only
+	// while it is open.
+	"Home/Appearance": {74, 2300, 1, 3450}, // 64 allocs, 2000 B, 2993 KB today.
+	// The sheet cleans the pasted header once per edit, not per build.
+	"Home/SignIn":     {36, 1350, 1, 3400}, // 31 allocs, 1168 B, 2948 KB today.
+	"LikedMusic/2000": {20, 1070, 1, 4370}, // 17 allocs, 928 B, 3793 KB today.
+}
+
+// frameRuns is how many steady frames a budget averages; they cost the same.
+const frameRuns = 10
+
+func TestBudgetFrames(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	for _, pc := range pageCases {
+		t.Run(pc.name, func(t *testing.T) {
+			want, ok := frameBudgets[pc.name]
+			if !ok {
+				t.Fatal("no budget: add the page to frameBudgets")
+			}
+			s := newScreen(t, pc.setup)
+			s.steady()
+			s.builds = 0
+			got := budget.Measure(frameRuns, s.tt.Frame)
+			builds := float64(s.builds) / (frameRuns + 1)
+			live := retainedKB(t, &s)
+			t.Logf("a frame: %.0f allocs, %.0f B, %.2f builds; %d KB live", got.Allocs, got.Bytes, builds, live)
+			overBudget(t, "allocs a frame", got.Allocs, want.allocs)
+			overBudget(t, "bytes a frame", got.Bytes, want.bytes)
+			overBudget(t, "builds a frame", builds, want.builds)
+			overBudget(t, "KB live", float64(live), float64(want.liveKB))
+		})
+	}
+}
+
+func overBudget(t *testing.T, what string, got, ceiling float64) {
+	t.Helper()
+	if got > ceiling {
+		t.Errorf("%.2f %s, budget %.2f", got, what, ceiling)
+	}
+}
+
+// interactionBudget is what an op may cost, input plus settled frames,
+// averaged over runs ops after a first one; with perBuild, allocs and bytes
+// are per build instead.
+type interactionBudget struct {
+	allocs, bytes, builds float64
+	runs                  int
+	perBuild              bool
+}
+
+// interactionBudgets are BenchmarkInteractions' ceilings; builds are exact.
+// A motion's frames follow the wall clock: the Tester settles until it ends
+// (or 20 frames, each built), as many as it draws in that time. Hovers that
+// draw 20 within their motion are held at that worst case; the hero's posed
+// thumbnails rasterize slowly, so only its cost per build is repeatable.
+// Hovers take 20 ms to 400 ms an op, hence fewer runs.
+var interactionBudgets = map[string]interactionBudget{
+	"HoverRows": {35, 6120, 1, 20, false}, // 30 allocs, 5319 B today: the row's fade only paints.
+	// 20 frames in 110 ms of the lift's 180 ms.
+	"HoverCards": {598, 23240, 20, 3, false}, // 520 allocs, 20203 B today.
+	// 20 frames in 25 ms of the button's 120 ms; the bytes vary by a third
+	// between runs.
+	"HoverPlay": {664, 48380, 20, 3, false}, // 577 allocs, 42069 B today.
+	// 6 frames in 375 ms (the fan takes 260 ms), more on a faster machine.
+	"HoverHero": {31, 1180, 20, 3, true}, // 26.3 allocs, 1022 B a build today.
+	// 20 frames in 210 ms of the fan's 260 ms: a slower machine draws fewer.
+	"HoverHero/Painted": {601, 23290, 20, 3, false},  // 522 allocs, 20245 B today.
+	"ScrollSongs":       {451, 104340, 1, 10, false}, // 392 allocs, 90729 B today: rows coming into view.
+	// 3 builds deleting a letter, 2 typing one: 53 over 21 ops.
+	"TypeSearch":  {114, 8130, 2.53, 20, false}, // 99 allocs, 7065 B today.
+	"LibraryTabs": {96, 115150, 1, 8, false},    // 83 allocs, 100124 B today.
+}
+
+func TestBudgetInteractions(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	for _, ic := range interactionCases {
+		t.Run(ic.name, func(t *testing.T) {
+			want, ok := interactionBudgets[ic.name]
+			if !ok {
+				t.Fatal("no budget: add the interaction to interactionBudgets")
+			}
+			s, op := interacting(t, ic.setup, ic.start)
+			s.builds = 0
+			i := 0
+			got := budget.Measure(want.runs, func() {
+				op(i)
+				i++
+			})
+			builds := float64(s.builds) / float64(want.runs+1)
+			per := "an op"
+			if want.perBuild {
+				per = "a build"
+				got.Allocs, got.Bytes = got.Allocs/builds, got.Bytes/builds
+			}
+			t.Logf("%s: %.1f allocs, %.0f B; %.2f builds an op", per, got.Allocs, got.Bytes, builds)
+			overBudget(t, "allocs "+per, got.Allocs, want.allocs)
+			overBudget(t, "bytes "+per, got.Bytes, want.bytes)
+			overBudget(t, "builds an op", builds, want.builds)
+		})
+	}
+}
+
+// framePending reports whether the view asked tt for a frame not yet drawn
+// (an animation, Painter.After or Context.After). The Tester exposes this no
+// other way, so it reads the unexported field.
+func framePending(tb testing.TB, tt *ui.Tester) bool {
+	tb.Helper()
+	var requested reflect.Value
+	if h := reflect.ValueOf(tt).Elem().FieldByName("h"); h.Kind() == reflect.Pointer && !h.IsNil() {
+		requested = h.Elem().FieldByName("requested")
+	}
+	if !requested.IsValid() || requested.Type() != reflect.TypeFor[atomic.Bool]() {
+		tb.Fatal("ui.Tester keeps the frame asked for elsewhere than h.requested: update framePending")
+	}
+	return (*atomic.Bool)(unsafe.Pointer(requested.UnsafeAddr())).Load()
+}
+
+// thumbSource is the placeholder with thumbnailServer art, as YouTube
+// Music's, except the playing song (kept): its cover tints the window,
+// which would ease to each color as thumbnails load, 20 Tester frames each.
+type thumbSource struct {
+	*catalog.PlaceholderSource
+	kept string
+}
+
+func (s thumbSource) song(song *catalog.Song) {
+	if song.ID != s.kept {
+		song.Art = thumbArt(song.Art)
+	}
+}
+
+func (s thumbSource) songs(songs []catalog.Song) []catalog.Song {
+	for i := range songs {
+		s.song(&songs[i])
+	}
+	return songs
+}
+
+func thumbAlbums(albums []catalog.Album) []catalog.Album {
+	for i := range albums {
+		albums[i].Art = thumbArt(albums[i].Art)
+	}
+	return albums
+}
+
+func (s thumbSource) Search(ctx context.Context, q string) (catalog.Results, error) {
+	r, err := s.PlaceholderSource.Search(ctx, q)
+	r.Songs, r.Albums = s.songs(r.Songs), thumbAlbums(r.Albums)
+	return r, err
+}
+
+func (s thumbSource) Home(ctx context.Context) (catalog.Home, error) {
+	h, err := s.PlaceholderSource.Home(ctx)
+	for _, sh := range h.Shelves {
+		for i := range sh.Items {
+			it := &sh.Items[i]
+			s.song(&it.Song)
+			it.Album.Art = thumbArt(it.Album.Art)
+			it.Playlist.Art = thumbArt(it.Playlist.Art)
+			it.Artist.Art = thumbArt(it.Artist.Art)
+		}
+	}
+	return h, err
+}
+
+func (s thumbSource) Explore(ctx context.Context) (catalog.Explore, error) {
+	e, err := s.PlaceholderSource.Explore(ctx)
+	e.NewReleases, e.Trending = thumbAlbums(e.NewReleases), s.songs(e.Trending)
+	return e, err
+}
+
+func (s thumbSource) Library(ctx context.Context) (catalog.Library, error) {
+	l, err := s.PlaceholderSource.Library(ctx)
+	l.Songs, l.Albums = s.songs(l.Songs), thumbAlbums(l.Albums)
+	for i := range l.Playlists {
+		l.Playlists[i].Art = thumbArt(l.Playlists[i].Art)
+	}
+	for i := range l.Artists {
+		l.Artists[i].Art = thumbArt(l.Artists[i].Art)
+	}
+	return l, err
+}
+
+// thumbScreen shows loc over thumbSource once its thumbnails loaded.
+func thumbScreen(loc string) func(testing.TB) *screen {
+	return func(tb testing.TB) *screen {
+		// The song newDemoApp starts the player at.
+		playing := catalog.Placeholder().Songs[0].ID
+		a, q := sourceApp(thumbSource{catalog.NewPlaceholderSource(0), playing})
+		a.loader.Debounce = 0
+		a.router.Push(loc)
+		return showApp(tb, a, q)
+	}
+}
+
+func playingScreen(playing, focused bool) func(testing.TB) *screen {
+	return func(tb testing.TB) *screen {
+		a, q, f := playbackApp(&instantResolver{})
+		startPlaying(tb, a, q, f)
+		tb.Cleanup(a.playback.Stop)
+		f.Pos = 60
+		a.playback.Resync()
+		a.playback.SetFocused(focused)
+		if !playing {
+			a.player.TogglePlay()
+		}
+		return showApp(tb, a, q)
+	}
+}
+
+// Idle screens must ask for no frame for longer than any step on them: the
+// position's 1 s step while playing, else a few display frames.
+const (
+	playingQuiet = time.Second + 100*time.Millisecond
+	pageQuiet    = 250 * time.Millisecond
+)
+
+// idleCases must ask for no frame for quiet once settled: an idle window
+// draws nothing and frees GPU memory. Playing focused is the control (the
+// equalizer moves). They wait together so the playing ones' longer wait
+// overlaps the others' setup; playing unfocused comes last, as its next frame
+// is due within 5 s however slow the setup.
+var idleCases = []struct {
+	name   string
+	screen func(testing.TB) *screen
+	quiet  time.Duration
+	moves  bool
+}{
+	{"Paused", playingScreen(false, true), playingQuiet, false},
+	{"Playing/focused", playingScreen(true, true), playingQuiet, true},
+	{"Home", thumbScreen(pathHome), pageQuiet, false},
+	{"Explore", thumbScreen(pathExplore), pageQuiet, false},
+	{"Library", thumbScreen(libraryPath(tabAlbums)), pageQuiet, false},
+	{"Search", thumbScreen(searchPath("lumen")), pageQuiet, false},
+	// The next frame is due as the position shown turns 65 s.
+	{"Playing/unfocused", playingScreen(true, false), playingQuiet, false},
+}
+
+func TestBudgetIdleFrames(t *testing.T) {
+	screens := make([]*screen, len(idleCases))
+	var due time.Time
+	for i, tc := range idleCases {
+		screens[i] = tc.screen(t)
+		screens[i].steady()
+		if at := time.Now().Add(tc.quiet); at.After(due) {
+			due = at
+		}
+	}
+	time.Sleep(time.Until(due))
+	for i, tc := range idleCases {
+		t.Run(tc.name, func(t *testing.T) {
+			switch pending := framePending(t, screens[i].tt); {
+			case pending && !tc.moves:
+				t.Error("asked for a frame while idle")
+			case !pending && tc.moves:
+				t.Error("asked for no frame while the equalizer moves: framePending sees none")
+			}
+		})
+	}
+}
+
+// framesPerMinute counts the frames a minute of playing from pos asks for,
+// each drawn when the previous one asked.
+func framesPerMinute(a *app, f *audio.Fake, pos float64) int {
+	asked := 0
+	for end := pos + 60; pos < end; asked++ {
+		next := turn(a, f, pos)
+		if next <= 0 {
+			break
+		}
+		pos += next.Seconds()
+	}
+	return asked
+}
+
+func TestBudgetPlayingFrames(t *testing.T) {
+	for _, tc := range []struct {
+		name                      string
+		playing, focused, visible bool
+		want                      int
+	}{
+		{"focused", true, true, true, 60},
+		{"unfocused", true, false, true, 12},
+		{"hidden", true, true, false, 0},
+		{"paused", false, true, true, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, q, f := playbackApp(&instantResolver{})
+			startPlaying(t, a, q, f)
+			t.Cleanup(a.playback.Stop)
+			a.playback.SetFocused(tc.focused)
+			a.playback.SetShown(tc.visible)
+			if !tc.playing {
+				a.player.TogglePlay()
+			}
+			if got := framesPerMinute(a, f, 30); got != tc.want {
+				t.Errorf("%d frames a minute, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestBudgetHelpers(t *testing.T) {
+	a := helperApp()
+	for _, tc := range helperCases {
+		t.Run(tc.name, func(t *testing.T) {
+			i := 0
+			budget.Allocs(t, tc.limit, 100, func() {
+				tc.call(a, i)
+				i++
+			})
+		})
+	}
+}
+
+func TestBudgetMemo(t *testing.T) {
+	a := helperApp()
+	for _, tc := range memoCases {
+		t.Run(tc.name, func(t *testing.T) {
+			budget.Allocs(t, 0, 100, func() { tc.get(a) })
+			budget.Allocs(t, tc.miss, 20, func() {
+				a.memo = viewMemo{}
+				tc.get(a)
+			})
+		})
+	}
+}

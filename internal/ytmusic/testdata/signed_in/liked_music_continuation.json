@@ -1,0 +1,134 @@
+{
+ "responseContext": {
+  "serviceTrackingParams": [
+   {
+    "service": "GFEEDBACK",
+    "params": [
+     {
+      "key": "logged_in",
+      "value": "1"
+     }
+    ]
+   }
+  ]
+ },
+ "onResponseReceivedActions": [
+  {
+   "appendContinuationItemsAction": {
+    "continuationItems": [
+     {
+      "musicResponsiveListItemRenderer": {
+       "thumbnail": {
+        "musicThumbnailRenderer": {
+         "thumbnail": {
+          "thumbnails": [
+           {
+            "url": "https://lh3.googleusercontent.com/fake-fakevideo01=w60-h60-l90-rj",
+            "width": 60,
+            "height": 60
+           },
+           {
+            "url": "https://lh3.googleusercontent.com/fake-fakevideo01=w120-h120-l90-rj",
+            "width": 120,
+            "height": 120
+           }
+          ]
+         }
+        }
+       },
+       "overlay": {
+        "musicItemThumbnailOverlayRenderer": {
+         "content": {
+          "musicPlayButtonRenderer": {
+           "playNavigationEndpoint": {
+            "watchEndpoint": {
+             "videoId": "fakevideo01"
+            }
+           }
+          }
+         }
+        }
+       },
+       "flexColumns": [
+        {
+         "musicResponsiveListItemFlexColumnRenderer": {
+          "text": {
+           "runs": [
+            {
+             "text": "Imaginary Song",
+             "navigationEndpoint": {
+              "watchEndpoint": {
+               "videoId": "fakevideo01"
+              }
+             }
+            }
+           ]
+          }
+         }
+        },
+        {
+         "musicResponsiveListItemFlexColumnRenderer": {
+          "text": {
+           "runs": [
+            {
+             "text": "The Fictional Band",
+             "navigationEndpoint": {
+              "browseEndpoint": {
+               "browseId": "UCfakeartist0001",
+               "browseEndpointContextSupportedConfigs": {
+                "browseEndpointContextMusicConfig": {
+                 "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                }
+               }
+              }
+             }
+            }
+           ]
+          }
+         }
+        },
+        {
+         "musicResponsiveListItemFlexColumnRenderer": {
+          "text": {
+           "runs": [
+            {
+             "text": "Pretend Album",
+             "navigationEndpoint": {
+              "browseEndpoint": {
+               "browseId": "MPREb_fakealbum0001",
+               "browseEndpointContextSupportedConfigs": {
+                "browseEndpointContextMusicConfig": {
+                 "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                }
+               }
+              }
+             }
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "fixedColumns": [
+        {
+         "musicResponsiveListItemFixedColumnRenderer": {
+          "text": {
+           "runs": [
+            {
+             "text": "3:25"
+            }
+           ]
+          }
+         }
+        }
+       ],
+       "playlistItemData": {
+        "videoId": "fakevideo01"
+       }
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "Dusk",
+  "base": "default",
+  "seed": {
+    "accent": "#7AA2F7",
+    "base": "oklch(0.17 0.03 275)"
+  },
+  "color": {
+    "rise": "oklch(0.8 0.15 160)",
+    "badge": "#FFFFFF24"
+  },
+  "radius": {
+    "card": 8,
+    "large": 12
+  },
+  "layout": {
+    "sidebar": "right",
+    "density": "compact",
+    "regions": {
+      "panel": 360
+    }
+  }
+}

@@ -1,0 +1,602 @@
+package main
+
+import (
+	"context"
+	"math"
+	"runtime"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/theme"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// posts stands in for Window.Update, as tests have no window: posted funcs
+// queue here and the test runs them on its goroutine, the Tester's UI thread.
+type posts chan func()
+
+// testApp's placeholder source answers at once.
+func testApp() (*app, posts) { return sourceApp(catalog.NewPlaceholderSource(0)) }
+
+// sourceApp is an app over src; it starts with the placeholder's music
+// whatever src is.
+func sourceApp(src catalog.Source) (*app, posts) {
+	q := make(posts, 64)
+	a := newDemoApp(src)
+	a.updates.attach(func(fn func()) { q <- fn })
+	return a, q
+}
+
+// idleApp is for tests that wait for no fetch: feeds, account, library and
+// likes are preloaded, and other pages' fetches never answer.
+func idleApp() *app {
+	a, _ := testApp()
+	return preload(a)
+}
+
+func preload(a *app) *app {
+	ctx := context.Background()
+	h, err := a.src.Home(ctx)
+	must(err)
+	a.loader.KeepHome(h)
+	e, err := a.src.Explore(ctx)
+	must(err)
+	a.loader.KeepExplore(e)
+	account, err := a.src.Account(ctx)
+	must(err)
+	lib, err := a.src.Library(ctx)
+	must(err)
+	a.session.KeepAccount(account, lib)
+	liked, songs, err := a.src.Playlist(ctx, catalog.LikedID)
+	must(err)
+	a.cat.Add(songs, nil, nil)
+	a.session.KeepLikes(liked.Songs)
+	return a
+}
+
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func busy(a *app) bool {
+	return a.loader.IsBusy() || a.art != nil && a.art.Loading() || a.session.IsBusy()
+}
+
+func settleLoads(t testing.TB, tt *ui.Tester, a *app, q posts) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	for {
+		tt.Frame()
+		if !busy(a) && len(q) == 0 {
+			return
+		}
+		select {
+		case fn := <-q:
+			fn()
+		case <-timeout:
+			t.Fatalf("still loading, texts %q", tt.Texts())
+		}
+	}
+}
+
+func newTester(a *app) *ui.Tester {
+	tt := ui.NewTester(a.view, 1360, 860)
+	tt.SetTitleBar(ui.TitleBar{Height: a.theme.Layout.TitleBar, Left: 78})
+	tt.Frame()
+	return tt
+}
+
+func click(t *testing.T, tt *ui.Tester, s string) {
+	t.Helper()
+	if err := tt.Click(s); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func wantPlaying(t *testing.T, a *app, id string) {
+	t.Helper()
+	if a.player.Current() != id || !a.player.Playing {
+		t.Fatalf("playing %q (%v), want %q", a.player.Current(), a.player.Playing, id)
+	}
+}
+
+func wantPath(t *testing.T, a *app, loc string) {
+	t.Helper()
+	if got := a.router.Location(); got != loc {
+		t.Fatalf("at %q, want %q", got, loc)
+	}
+}
+
+func wantTexts(t *testing.T, tt *ui.Tester, texts ...string) {
+	t.Helper()
+	for _, s := range texts {
+		if !tt.HasText(s) {
+			t.Errorf("no %q, texts %q", s, tt.Texts())
+		}
+	}
+}
+
+func count(texts []string, s string) int {
+	n := 0
+	for _, text := range texts {
+		if text == s {
+			n++
+		}
+	}
+	return n
+}
+
+func TestPlayPause(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	click(t, tt, "Play")
+	if !a.player.Playing {
+		t.Fatal("not playing after clicking Play")
+	}
+	tt.Frame()
+	tt.Frame()
+	tt.Key(0, ui.KeySpace)
+	if a.player.Playing {
+		t.Error("still playing after Space")
+	}
+}
+
+func TestSongRowPlaysAndLikes(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	moreButtons := count(tt.Texts(), "More")
+	click(t, tt, "Paper Moons by Ivy Calder")
+	wantPlaying(t, a, "paper-moons")
+	// Focus within the row keeps its actions shown, for keyboard users.
+	tt.Move(1, 1)
+	if n := count(tt.Texts(), "More"); n != moreButtons+1 {
+		t.Errorf("%d More buttons with a row focused, want %d", n, moreButtons+1)
+	}
+	// A liked row keeps its Like button, beside the song's, not inside it.
+	click(t, tt, "Late Night Drive")
+	click(t, tt, "Like")
+	if a.session.Liked("midnight-arcade") {
+		t.Error("Unlike left midnight-arcade liked")
+	}
+}
+
+func TestNavigationAndHistory(t *testing.T) {
+	a, q := testApp()
+	tt := newTester(a)
+	// The sidebar lists the library once it loads.
+	settleLoads(t, tt, a, q)
+	click(t, tt, "Explore")
+	if !tt.HasText("Moods & genres") {
+		t.Fatalf("explore not shown, texts %q", tt.Texts())
+	}
+	click(t, tt, "Library")
+	click(t, tt, "Back")
+	wantPath(t, a, pathExplore)
+	click(t, tt, "Forward")
+	wantPath(t, a, pathLibrary)
+	click(t, tt, "Songs")
+	wantPath(t, a, libraryPath(tabSongs))
+	click(t, tt, "Late Night Drive")
+	wantPath(t, a, playlistPath("late-night-drive"))
+	settleLoads(t, tt, a, q)
+	if !tt.HasText("TITLE") || !tt.HasText("ALBUM") {
+		t.Errorf("playlist not shown, texts %q", tt.Texts())
+	}
+	click(t, tt, "Back")
+	wantPath(t, a, libraryPath(tabSongs))
+}
+
+func TestHistoryKeys(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	click(t, tt, "Explore")
+	tt.Key(0, ui.KeyBack)
+	wantPath(t, a, pathHome)
+	tt.Key(0, ui.KeyForward)
+	wantPath(t, a, pathExplore)
+	mods, back := ui.Alt, ui.KeyLeft
+	if runtime.GOOS == "darwin" {
+		mods, back = ui.Super, ui.KeyBracketLeft
+	}
+	tt.Key(mods, back)
+	wantPath(t, a, pathHome)
+}
+
+func TestAlbumPage(t *testing.T) {
+	a, q := testApp()
+	tt := newTester(a)
+	settleLoads(t, tt, a, q)
+	click(t, tt, "Library")
+	click(t, tt, "Albums")
+	click(t, tt, "Velvet Static")
+	wantPath(t, a, albumPath("velvet-static"))
+	// Album pages omit the album column; "ALBUM" is only the eyebrow.
+	if !tt.HasText("Static Bloom") || count(tt.Texts(), "ALBUM") != 1 {
+		t.Errorf("album page wrong, texts %q", tt.Texts())
+	}
+}
+
+func TestSearch(t *testing.T) {
+	a, q := testApp()
+	tt := newTester(a)
+	tt.Key(ui.Cmd, ui.KeyK)
+	if !tt.Focused("Search") {
+		t.Fatal("Cmd+K left the search field unfocused")
+	}
+	tt.Type("orb")
+	tt.Type("it")
+	settleLoads(t, tt, a, q)
+	wantPath(t, a, searchPath("orbit"))
+	if !tt.HasText("Top result") || !tt.HasText("Gravity Well") {
+		t.Errorf("no results for orbit, texts %q", tt.Texts())
+	}
+	tt.Key(0, ui.KeyEscape)
+	settleLoads(t, tt, a, q)
+	if a.search.query != "" || !tt.HasText("Quick picks") {
+		t.Errorf("Escape left query %q", a.search.query)
+	}
+	wantPath(t, a, pathHome)
+
+	a.router.Push(searchPath("zzz"))
+	settleLoads(t, tt, a, q)
+	if a.search.query != "zzz" || !tt.HasText("No results for “zzz”") {
+		t.Errorf("query %q, texts %q", a.search.query, tt.Texts())
+	}
+}
+
+func TestSearchHistory(t *testing.T) {
+	a, q := testApp()
+	tt := newTester(a)
+	click(t, tt, "Explore")
+	click(t, tt, "Search")
+	tt.Type("o")
+	tt.Type("rbit")
+	tt.Frame()
+	// Typing replaces the search page, so one Back leaves search.
+	click(t, tt, "Back")
+	wantPath(t, a, pathExplore)
+	if a.search.query != "" {
+		t.Errorf("query %q after leaving search", a.search.query)
+	}
+	click(t, tt, "Forward")
+	wantPath(t, a, searchPath("orbit"))
+	if a.search.query != "orbit" {
+		t.Errorf("query %q after returning to search", a.search.query)
+	}
+	settleLoads(t, tt, a, q)
+	click(t, tt, "Low Orbit")
+	wantPath(t, a, albumPath("low-orbit"))
+	if a.search.query != "" {
+		t.Errorf("query %q on an album", a.search.query)
+	}
+}
+
+func TestPanelToggles(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	click(t, tt, "Lyrics")
+	if !a.panel.isShown || a.panel.tab != tabLyrics {
+		t.Fatalf("lyrics tab not shown: panel %v tab %d", a.panel.isShown, a.panel.tab)
+	}
+	click(t, tt, "Hide panel")
+	if a.panel.isShown {
+		t.Fatal("panel still open")
+	}
+	// Reopen it mid-close, then close it mid-open.
+	frames(tt, 2)
+	click(t, tt, "Queue")
+	frames(tt, 2)
+	if !a.panel.isShown || a.panel.tab != tabQueue {
+		t.Fatalf("panel %v tab %d after reopening it", a.panel.isShown, a.panel.tab)
+	}
+	settle(t, tt, "panel opening", func() bool {
+		r, ok := tt.Find("Hide panel")
+		return ok && r.X+r.W < 1360-a.theme.Layout.Gutter
+	})
+	click(t, tt, "Hide panel")
+	settle(t, tt, "panel closing", func() bool {
+		return !tt.HasText("Lyrics placeholder") && !tt.HasText("From Neon Tide")
+	})
+	if _, ok := tt.Find("Hide panel"); ok {
+		t.Error("panel still built once hidden")
+	}
+}
+
+func TestOverComposites(t *testing.T) {
+	hover := theme.Default().Color.GhostHover
+	if got := over(hover, ui.Transparent); got != hover {
+		t.Errorf("over nothing %v, want %v", got, hover)
+	}
+	got := over(ui.RGBA(255, 255, 255, 0.5), ui.RGB(0, 0, 0))
+	if got.A != 255 || got.R < 127 || got.R > 128 {
+		t.Errorf("half white over black %v", got)
+	}
+}
+
+func frames(tt *ui.Tester, n int) {
+	for range n {
+		tt.Frame()
+	}
+}
+
+// settle waits up to a second: Tester frames follow the wall clock, so a
+// motion ends in its own time.
+func settle(t *testing.T, tt *ui.Tester, what string, done func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(time.Second); !done(); {
+		if time.Now().After(deadline) {
+			t.Fatalf("%s did not happen, texts %q", what, tt.Texts())
+		}
+		time.Sleep(10 * time.Millisecond)
+		tt.Frame()
+	}
+}
+
+// nowPlayingAnnouncements consumes the announcements made since the last
+// read.
+func nowPlayingAnnouncements(tt *ui.Tester) []string {
+	var out []string
+	for _, s := range tt.Announcements() {
+		if strings.HasPrefix(s, "Now playing: ") {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func TestEveryPage(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		setup func(a *app)
+		want  []string
+	}{
+		{"home", func(*app) {}, []string{
+			"Listen now", "Quick picks", "Albums for you", "Mixed for you", "Artists you love", "My Supermix", "Up next",
+		}},
+		{"explore", func(a *app) { a.router.Push(pathExplore) }, []string{"Moods & genres", "Trending"}},
+		{"library", func(a *app) { a.router.Push(libraryPath(tabPlaylists)) }, []string{"Liked music", "Late Night Drive"}},
+		{"library songs", func(a *app) { a.router.Push(libraryPath(tabSongs)) }, []string{"TITLE", "ALBUM"}},
+		{"library albums", func(a *app) { a.router.Push(libraryPath(tabAlbums)) }, []string{"Velvet Static"}},
+		{
+			"library artists", func(a *app) { a.router.Push(libraryPath(tabArtists)) },
+			[]string{"Lumen Drive", "Artist"},
+		},
+		{"album", func(a *app) { a.router.Push(albumPath("velvet-static")) }, []string{"Static Bloom"}},
+		{
+			"playlist", func(a *app) { a.router.Push(playlistPath("late-night-drive")) },
+			[]string{"TITLE", "Midnight Arcade"},
+		},
+		{"liked", func(a *app) { a.router.Push(pathLiked) }, []string{"Auto playlist", "Gravity Well"}},
+		{"liked empty", func(a *app) { a.session.KeepLikes(nil); a.router.Push(pathLiked) }, []string{"Nothing here yet"}},
+		{"search", func(a *app) { a.router.Push(searchPath("orbit")) }, []string{"Top result", "Gravity Well"}},
+		{"search empty", func(a *app) { a.router.Push(searchPath("zzz")) }, []string{"No results for “zzz”"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, q := testApp()
+			tc.setup(a)
+			tt := newTester(a)
+			settleLoads(t, tt, a, q)
+			frames(tt, 3)
+			wantTexts(t, tt, tc.want...)
+		})
+	}
+}
+
+func TestLikedEmptiesAndReturns(t *testing.T) {
+	a := idleApp()
+	current := a.player.Current()
+	a.session.KeepLikes([]string{current})
+	a.router.Push(pathLiked)
+	tt := newTester(a)
+	// The row's Like is found first: the page builds before the panel.
+	click(t, tt, "Like")
+	frames(tt, 2)
+	isEmpty := tt.HasText("Nothing here yet") && !tt.HasText("TITLE")
+	if a.session.Liked(current) || !isEmpty {
+		t.Fatalf("unliking the last song left liked %v, texts %q", a.session.Liked(current), tt.Texts())
+	}
+	// Now the panel's Like, for the same song.
+	click(t, tt, "Like")
+	frames(tt, 2)
+	isListed := !tt.HasText("Nothing here yet") && tt.HasText("TITLE")
+	if !a.session.Liked(current) || !isListed {
+		t.Errorf("liking it again left liked %v, texts %q", a.session.Liked(current), tt.Texts())
+	}
+}
+
+func TestPlaybackShortcuts(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	songs := a.cat.SongIDs()
+	tt.Key(ui.Cmd, ui.KeyRight)
+	if got := a.player.Current(); got != songs[1] {
+		t.Fatalf("Cmd+Right went to %q, want %q", got, songs[1])
+	}
+	a.player.Position = 10
+	tt.Key(ui.Cmd, ui.KeyLeft)
+	if got := a.player.Current(); got != songs[1] || a.player.Position != 0 {
+		t.Fatalf("Cmd+Left 10s in went to %q at %v, want a restart", got, a.player.Position)
+	}
+	tt.Key(ui.Cmd, ui.KeyLeft)
+	if got := a.player.Current(); got != songs[0] {
+		t.Errorf("Cmd+Left at the start went to %q, want %q", got, songs[0])
+	}
+}
+
+func TestSpaceAfterClickingNext(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	click(t, tt, "Next")
+	if tt.Focused("Next") {
+		t.Error("clicking Next took the focus")
+	}
+	playing := a.player.Playing
+	tt.Key(0, ui.KeySpace)
+	if a.player.Playing == playing {
+		t.Error("Space after clicking Next did not play or pause")
+	}
+	// Tab still reaches the transport.
+	transport := []string{"Next", "Previous", "Shuffle", "Play", "Pause"}
+	for range 40 {
+		if slices.ContainsFunc(transport, tt.Focused) {
+			return
+		}
+		tt.Key(0, ui.KeyTab)
+	}
+	t.Error("Tab never reached the transport")
+}
+
+func TestRowActionsDoNotPlayTheRow(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	before := a.player.Current()
+	r, ok := tt.Find("Paper Moons by Ivy Calder")
+	if !ok {
+		t.Fatal("no Paper Moons row")
+	}
+	tt.Move(r.X+r.W/2, r.Y+r.H/2)
+	// Hovering shows the row's actions and narrows the song's button.
+	r, _ = tt.Find("Paper Moons by Ivy Calder")
+	// Like follows the song's button, past the row's gap of 14.
+	tt.ClickAt(r.X+r.W+14+16, r.Y+r.H/2)
+	if !a.session.Liked("paper-moons") {
+		t.Fatal("the row's Like did not like the song")
+	}
+	if a.player.Current() != before || a.player.Playing {
+		t.Errorf("the row's Like played %q (playing %v)", a.player.Current(), a.player.Playing)
+	}
+}
+
+func TestSliderKeys(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	click(t, tt, "Seek")
+	a.player.Position = 100
+	tt.Key(0, ui.KeyRight)
+	if got := a.player.Position; got != 100+seekStep {
+		t.Errorf("Right moved the song from 100 to %v, want %v", got, 100+seekStep)
+	}
+	tt.Key(0, ui.KeyLeft)
+	tt.Key(0, ui.KeyLeft)
+	if got := a.player.Position; got != 100-seekStep {
+		t.Errorf("Left twice moved it to %v, want %v", got, 100-seekStep)
+	}
+	click(t, tt, "Mute")
+	click(t, tt, "Volume")
+	tt.Key(0, ui.KeyRight)
+	if a.player.Muted || math.Abs(a.player.Volume-(0.5+volumeStep)) > 1e-9 {
+		t.Errorf("Right on the volume left muted %v at %v", a.player.Muted, a.player.Volume)
+	}
+}
+
+func TestNarrowWindow(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	first, second := "Midnight Arcade by Lumen Drive", "Satellite Hearts by Lumen Drive"
+	sameRow := func() bool {
+		r1, ok1 := tt.Find(first)
+		r2, ok2 := tt.Find(second)
+		if !ok1 || !ok2 {
+			t.Fatalf("quick picks missing, texts %q", tt.Texts())
+		}
+		return r1.Y == r2.Y
+	}
+	if !sameRow() || !tt.HasText(hints.search) {
+		t.Fatal("a wide window should show quick picks in columns and the search shortcut")
+	}
+	tt.SetSize(1040, 680)
+	frames(tt, 2)
+	if sameRow() {
+		t.Error("quick picks keep several columns at 1040 wide")
+	}
+	if tt.HasText(hints.search) {
+		t.Error("the narrow search field keeps the shortcut hint")
+	}
+}
+
+func TestHiDPI(t *testing.T) {
+	tt := newTester(idleApp())
+	tt.SetScale(2)
+	frames(tt, 2)
+	if w := tt.Image().Bounds().Dx(); w != 2720 {
+		t.Errorf("image %d pixels wide at scale 2, want 2720", w)
+	}
+	if !tt.HasText("Quick picks") {
+		t.Errorf("home missing at scale 2, texts %q", tt.Texts())
+	}
+}
+
+func TestStaysDarkInLightMode(t *testing.T) {
+	tt := newTester(idleApp())
+	tt.SetDark(false)
+	frames(tt, 2)
+	px := tt.Image().RGBAAt(700, 3)
+	if px.R > 30 || px.G > 30 || px.B > 30 {
+		t.Errorf("window background %v in light mode, want dark", px)
+	}
+}
+
+func TestReduceMotion(t *testing.T) {
+	for _, reduce := range []bool{false, true} {
+		a := idleApp()
+		builds := 0
+		tt := ui.NewTester(func(c *ui.Context) { builds++; a.view(c) }, 1360, 860)
+		tt.SetPreferences(ui.Preferences{ReduceMotion: reduce})
+		frames(tt, 3)
+		builds = 0
+		a.panel.isShown = false
+		tt.Frame()
+		// The slide builds every frame; without it, hiding takes one build.
+		if snapped := builds == 1; snapped != reduce {
+			t.Errorf("reduce motion %v: hiding the panel took %d builds", reduce, builds)
+		}
+		if _, ok := tt.Find("Hide panel"); reduce && ok {
+			t.Error("the panel is still shown with reduced motion")
+		}
+	}
+}
+
+func TestHighContrast(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	tt.SetPreferences(ui.Preferences{HighContrast: true})
+	usesContrast := th == &a.contrast &&
+		th.Color.Muted == a.theme.Contrast.Muted &&
+		th.Color.Focus == a.theme.Contrast.Focus
+	if !usesContrast {
+		t.Error("High Contrast left the standard theme")
+	}
+	tt.SetPreferences(ui.Preferences{})
+	if th != &a.theme || th.Color.Muted != theme.Default().Color.Muted {
+		t.Error("turning High Contrast off kept its theme")
+	}
+}
+
+func TestAnnouncesSongChanges(t *testing.T) {
+	a := idleApp()
+	tt := newTester(a)
+	if got := nowPlayingAnnouncements(tt); len(got) != 0 {
+		t.Errorf("announced %q at start", got)
+	}
+	want := func(action, s string) {
+		t.Helper()
+		if got := nowPlayingAnnouncements(tt); len(got) != 1 || got[0] != s {
+			t.Errorf("%s announced %q, want just %q", action, got, s)
+		}
+	}
+	click(t, tt, "Next")
+	want("Next", "Now playing: Satellite Hearts by Lumen Drive")
+	tt.Key(0, ui.KeySpace)
+	if got := nowPlayingAnnouncements(tt); len(got) != 0 {
+		t.Errorf("pausing announced %q", got)
+	}
+	tt.Key(ui.Cmd, ui.KeyRight)
+	want("Cmd+Right", "Now playing: Paper Moons by Ivy Calder")
+	click(t, tt, "Midnight Arcade by Lumen Drive")
+	want("a row", "Now playing: Midnight Arcade by Lumen Drive")
+}

@@ -1,0 +1,4 @@
+# Ignored modernization suggestions
+# Format: <date> <category> <description>
+2026-10-16 reflect-fields-iter internal/theme/file.go keeps NumField/Field(i): reflect.Value.Fields() allocates each StructField (TestBudgetParse 162 -> 612 allocs)
+2026-10-16 synctest Root-package waits (settle, the dropped-screen GC wait, idle budgets) stay on the wall clock: MyGo's Tester frames and the GC run outside a synctest bubble

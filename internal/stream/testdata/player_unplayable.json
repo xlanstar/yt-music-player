@@ -1,0 +1,29 @@
+{
+ "responseContext": {
+  "visitorData": "VISITOR_UNPLAYABLE"
+ },
+ "playabilityStatus": {
+  "status": "UNPLAYABLE",
+  "reason": "Video unavailable",
+  "errorScreen": {
+   "playerErrorMessageRenderer": {
+    "reason": {
+     "runs": [
+      {
+       "text": "The page needs to be reloaded."
+      }
+     ]
+    },
+    "subreason": {
+     "simpleText": "The page needs to be reloaded."
+    }
+   }
+  }
+ },
+ "videoDetails": {
+  "videoId": "FGBhQbmPwH8",
+  "title": "Daft Punk - One More Time (Official Video)",
+  "lengthSeconds": "321",
+  "author": "Daft Punk"
+ }
+}

@@ -1,0 +1,16 @@
+{
+ "responseContext": {
+  "visitorData": "VISITOR_LOGIN"
+ },
+ "playabilityStatus": {
+  "status": "LOGIN_REQUIRED",
+  "reason": "Sign in to confirm your age",
+  "desktopLegacyAgeGateReason": 1
+ },
+ "videoDetails": {
+  "videoId": "07FYdnEawAQ",
+  "title": "Justin Timberlake - Tunnel Vision (Official Music Video) (Explicit)",
+  "lengthSeconds": "419",
+  "author": "justintimberlakeVEVO"
+ }
+}

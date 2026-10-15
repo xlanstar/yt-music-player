@@ -1,0 +1,17 @@
+# yt-music-player footprint, scripts/footprint.sh
+# source: placeholder
+# date: 2026-10-14T21:41:25Z
+# go: go version go1.27.2 darwin/arm64
+# cpu: Apple M4 Max, macOS 27.0
+# git: no commit, 251 files changed
+# window: 1280x770 points
+phase              focus shown  secs frames   /min   ms-med   ms-max MB-min     MB MB-max gfx-mean gfx-max
+idle                 yes   yes   3.0      0    0.0      0.0      0.0     60     61     61        3       3
+playing-focused      yes   yes   5.0      5   60.0      1.4      2.0    330    330    330      251     251
+paused               yes   yes   3.0      0    0.0      0.0      0.0     63     63     63        3       3
+idle-after-pages     yes   yes   3.0      0    0.0      0.0      0.0     70     70     70        3       3
+playing-unfocused     no   yes  10.0      2   12.0      8.5      8.5     70    127    337       52     251
+playing-minimized     no    no   6.0      0    0.0      0.0      0.0     70     70     71        3       3
+# one frame: 1 drawn (9.7 ms), footprint 61 MB, +268 MB at its peak, held about 1.0 s
+# pages: 27 shown, idle footprint +9 MB, +0.3 MB a page
+# end

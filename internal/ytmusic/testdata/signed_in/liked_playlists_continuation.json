@@ -1,0 +1,83 @@
+{
+ "responseContext": {
+  "serviceTrackingParams": [
+   {
+    "service": "GFEEDBACK",
+    "params": [
+     {
+      "key": "logged_in",
+      "value": "1"
+     }
+    ]
+   }
+  ]
+ },
+ "continuationContents": {
+  "gridContinuation": {
+   "items": [
+    {
+     "musicTwoRowItemRenderer": {
+      "thumbnailRenderer": {
+       "musicThumbnailRenderer": {
+        "thumbnail": {
+         "thumbnails": [
+          {
+           "url": "https://lh3.googleusercontent.com/fake-PLfakeplaylist0003=w226-h226-l90-rj",
+           "width": 226,
+           "height": 226
+          },
+          {
+           "url": "https://lh3.googleusercontent.com/fake-PLfakeplaylist0003=w544-h544-l90-rj",
+           "width": 544,
+           "height": 544
+          }
+         ]
+        }
+       }
+      },
+      "title": {
+       "runs": [
+        {
+         "text": "Late Night Pretend Mix",
+         "navigationEndpoint": {
+          "browseEndpoint": {
+           "browseId": "VLPLfakeplaylist0003",
+           "browseEndpointContextSupportedConfigs": {
+            "browseEndpointContextMusicConfig": {
+             "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+            }
+           }
+          }
+         }
+        }
+       ]
+      },
+      "subtitle": {
+       "runs": [
+        {
+         "text": "Jane Placeholder"
+        },
+        {
+         "text": " • "
+        },
+        {
+         "text": "7 tracks"
+        }
+       ]
+      },
+      "navigationEndpoint": {
+       "browseEndpoint": {
+        "browseId": "VLPLfakeplaylist0003",
+        "browseEndpointContextSupportedConfigs": {
+         "browseEndpointContextMusicConfig": {
+          "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+         }
+        }
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

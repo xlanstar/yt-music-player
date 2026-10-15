@@ -1,0 +1,176 @@
+{
+ "responseContext": {
+  "visitorData": "VISITOR_OK"
+ },
+ "playabilityStatus": {
+  "status": "OK",
+  "playableInEmbed": true
+ },
+ "streamingData": {
+  "expiresInSeconds": "21540",
+  "adaptiveFormats": [
+   {
+    "itag": 135,
+    "url": "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1791988454&id=o-FIXTURE&itag=135&source=youtube&mime=video%2Fmp4&clen=13305502&dur=321.400&c=VISIONOS&sig=FIXTURE",
+    "mimeType": "video/mp4; codecs=\"avc1.4D401E\"",
+    "bitrate": 457160,
+    "width": 640,
+    "height": 480,
+    "initRange": {
+     "start": "0",
+     "end": "739"
+    },
+    "indexRange": {
+     "start": "740",
+     "end": "1515"
+    },
+    "lastModified": "1775904587248812",
+    "contentLength": "13305502",
+    "quality": "large",
+    "fps": 25,
+    "qualityLabel": "480p",
+    "projectionType": "RECTANGULAR",
+    "averageBitrate": 331188,
+    "approxDurationMs": "321400",
+    "qualityOrdinal": "QUALITY_ORDINAL_480P"
+   },
+   {
+    "itag": 139,
+    "url": "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1791988454&id=o-FIXTURE&itag=139&source=youtube&mime=audio%2Fmp4&clen=1961587&dur=321.549&c=VISIONOS&sig=FIXTURE",
+    "mimeType": "audio/mp4; codecs=\"mp4a.40.5\"",
+    "bitrate": 50210,
+    "initRange": {
+     "start": "0",
+     "end": "731"
+    },
+    "indexRange": {
+     "start": "732",
+     "end": "1159"
+    },
+    "lastModified": "1775903926386617",
+    "contentLength": "1961587",
+    "quality": "tiny",
+    "projectionType": "RECTANGULAR",
+    "averageBitrate": 48803,
+    "audioQuality": "AUDIO_QUALITY_LOW",
+    "approxDurationMs": "321549",
+    "audioSampleRate": "22050",
+    "audioChannels": 2,
+    "loudnessDb": -0.10000038,
+    "trackAbsoluteLoudnessLkfs": -14.1,
+    "qualityOrdinal": "QUALITY_ORDINAL_UNKNOWN"
+   },
+   {
+    "itag": 140,
+    "url": "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1791988454&id=o-FIXTURE&itag=140&source=youtube&mime=audio%2Fmp4&clen=5203271&dur=321.457&c=VISIONOS&sig=FIXTURE",
+    "mimeType": "audio/mp4; codecs=\"mp4a.40.2\"",
+    "bitrate": 130655,
+    "initRange": {
+     "start": "0",
+     "end": "722"
+    },
+    "indexRange": {
+     "start": "723",
+     "end": "1150"
+    },
+    "lastModified": "1775903927547670",
+    "contentLength": "5203271",
+    "quality": "tiny",
+    "projectionType": "RECTANGULAR",
+    "averageBitrate": 129492,
+    "highReplication": true,
+    "audioQuality": "AUDIO_QUALITY_MEDIUM",
+    "approxDurationMs": "321457",
+    "audioSampleRate": "44100",
+    "audioChannels": 2,
+    "loudnessDb": -0.10000038,
+    "trackAbsoluteLoudnessLkfs": -14.1,
+    "qualityOrdinal": "QUALITY_ORDINAL_UNKNOWN"
+   },
+   {
+    "itag": 249,
+    "url": "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1791988454&id=o-FIXTURE&itag=249&source=youtube&mime=audio%2Fwebm&clen=2121421&dur=321.421&c=VISIONOS&sig=FIXTURE",
+    "mimeType": "audio/webm; codecs=\"opus\"",
+    "bitrate": 60194,
+    "initRange": {
+     "start": "0",
+     "end": "258"
+    },
+    "indexRange": {
+     "start": "259",
+     "end": "816"
+    },
+    "lastModified": "1775903836218260",
+    "contentLength": "2121421",
+    "quality": "tiny",
+    "projectionType": "RECTANGULAR",
+    "averageBitrate": 52801,
+    "audioQuality": "AUDIO_QUALITY_LOW",
+    "approxDurationMs": "321421",
+    "audioSampleRate": "48000",
+    "audioChannels": 2,
+    "loudnessDb": -0.10000038,
+    "trackAbsoluteLoudnessLkfs": -14.1,
+    "qualityOrdinal": "QUALITY_ORDINAL_UNKNOWN"
+   },
+   {
+    "itag": 250,
+    "url": "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1791988454&id=o-FIXTURE&itag=250&source=youtube&mime=audio%2Fwebm&clen=2783783&dur=321.421&c=VISIONOS&sig=FIXTURE",
+    "mimeType": "audio/webm; codecs=\"opus\"",
+    "bitrate": 80644,
+    "initRange": {
+     "start": "0",
+     "end": "258"
+    },
+    "indexRange": {
+     "start": "259",
+     "end": "816"
+    },
+    "lastModified": "1775903805023892",
+    "contentLength": "2783783",
+    "quality": "tiny",
+    "projectionType": "RECTANGULAR",
+    "averageBitrate": 69286,
+    "audioQuality": "AUDIO_QUALITY_LOW",
+    "approxDurationMs": "321421",
+    "audioSampleRate": "48000",
+    "audioChannels": 2,
+    "loudnessDb": -0.10000038,
+    "trackAbsoluteLoudnessLkfs": -14.1,
+    "qualityOrdinal": "QUALITY_ORDINAL_UNKNOWN"
+   },
+   {
+    "itag": 251,
+    "url": "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1791988454&id=o-FIXTURE&itag=251&source=youtube&mime=audio%2Fwebm&clen=5417353&dur=321.421&c=VISIONOS&sig=FIXTURE",
+    "mimeType": "audio/webm; codecs=\"opus\"",
+    "bitrate": 153652,
+    "initRange": {
+     "start": "0",
+     "end": "258"
+    },
+    "indexRange": {
+     "start": "259",
+     "end": "816"
+    },
+    "lastModified": "1775903807811613",
+    "contentLength": "5417353",
+    "quality": "tiny",
+    "projectionType": "RECTANGULAR",
+    "averageBitrate": 134835,
+    "audioQuality": "AUDIO_QUALITY_MEDIUM",
+    "approxDurationMs": "321421",
+    "audioSampleRate": "48000",
+    "audioChannels": 2,
+    "loudnessDb": -0.10000038,
+    "trackAbsoluteLoudnessLkfs": -14.1,
+    "qualityOrdinal": "QUALITY_ORDINAL_UNKNOWN"
+   }
+  ]
+ },
+ "videoDetails": {
+  "videoId": "FGBhQbmPwH8",
+  "title": "Daft Punk - One More Time (Official Video)",
+  "lengthSeconds": "321",
+  "author": "Daft Punk"
+ }
+}

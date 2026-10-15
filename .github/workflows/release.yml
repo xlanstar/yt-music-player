@@ -1,0 +1,171 @@
+# Builds a vX.Y.Z tag, which scripts/release.sh pushes, into a draft GitHub
+# release (docs/release.md). Each job has only the permissions it needs:
+# only publish, which builds and tests nothing, can write, and only build,
+# in the release environment that v* tags alone may use, has the signing
+# secrets.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  # First, so that a wrong tag builds nothing.
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # origin/main, which must hold the tag
+          persist-credentials: false
+      - run: scripts/release.sh check "$GITHUB_REF_NAME"
+
+  checks:
+    needs: tag
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: checks
+    runs-on: macos-latest
+    timeout-minutes: 45 # notarization: usually minutes, sometimes far longer
+    environment: release
+    permissions:
+      contents: read
+    env:
+      MACOS_SIGNING_IDENTITY: "Developer ID Application: PENG HUAN CHENG (LJJN3L2PS6)"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+
+      # A keychain of the job's own, discarded with the runner.
+      - name: Import the certificate and the notary credentials
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain
+          xcrun notarytool store-credentials notary --keychain "$keychain" \
+            --apple-id "$APPLE_ID" --team-id LJJN3L2PS6 --password "$APPLE_APP_PASSWORD"
+          echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+
+      # Only here: mygo.json signs nothing, so builds elsewhere stay ad hoc
+      # and need no notary credentials. mygo staples the app before it
+      # archives it, so the update carries the ticket too.
+      - name: Build, sign, notarize and sign the update
+        env:
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: |
+          jq --indent 2 --arg k "$NOTARY_KEYCHAIN" \
+            '.macos.notarize = {keychainProfile: "notary", keychain: $k}' \
+            mygo.json > "$RUNNER_TEMP/mygo.json"
+          mv "$RUNNER_TEMP/mygo.json" mygo.json
+          go tool mygo build -platform darwin/universal -sign "$MACOS_SIGNING_IDENTITY"
+
+      # A release that Gatekeeper would stop never becomes a draft.
+      - name: Check the signature and the tickets
+        run: |
+          app="build/darwin-universal/YT Music Player.app"
+          dmg="build/darwin-universal/YT Music Player ${GITHUB_REF_NAME#v}.dmg"
+          codesign --verify --deep --strict "$app"
+          spctl --assess --type execute -vv "$app"
+          spctl --assess --type open --context context:primary-signature -vv "$dmg"
+          xcrun stapler validate "$app"
+          xcrun stapler validate "$dmg"
+
+      # The update files keep their names: the manifest links to them.
+      - name: Package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          out=build/darwin-universal
+          archive="$out/yt-music-player-$version-darwin-universal.tar.gz"
+          manifest="$out/update-darwin-universal.json"
+          if [ ! -f "$archive" ] || [ ! -f "$manifest" ]; then
+            echo "::error::no signed update: is MYGO_UPDATER_PRIVATE_KEY in the release environment?"
+            exit 1
+          fi
+          mkdir dist
+          cp "$out/YT Music Player $version.dmg" \
+            "dist/YT-Music-Player-$version-macos-universal.dmg"
+          cp "$archive" "$manifest" dist/
+          # Deltas from the published versions; the first release has none.
+          for delta in "$out"/*.delta; do
+            [ ! -e "$delta" ] || cp "$delta" dist/
+          done
+          cd dist && shasum -a 256 -- * > SHA256SUMS
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the draft release
+      id-token: write # the attestation's signing certificate
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: dist
+
+      # Free plans attest public repositories only.
+      - if: github.event.repository.visibility == 'public'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          notes="$RUNNER_TEMP/notes.md"
+          scripts/release.sh notes "${GITHUB_REF_NAME#v}" > "$notes"
+          # A rerun replaces the files of its draft, never of a published release.
+          if draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null); then
+            if [ "$draft" != true ]; then
+              echo "::error::$GITHUB_REF_NAME is already published"
+              exit 1
+            fi
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$notes"
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --draft --verify-tag \
+              --title "$GITHUB_REF_NAME" --notes-file "$notes"
+          fi

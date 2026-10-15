@@ -1,0 +1,96 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - forbidigo
+    - gocritic
+    - gosec
+    - misspell
+    - modernize
+    - noctx
+    - nolintlint
+    - perfsprint
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - zerologlint
+  settings:
+    # AGENTS.md's rules on imports.
+    depguard:
+      rules:
+        json:
+          deny:
+            - pkg: encoding/json$
+              desc: encoding/json/v2 only (docs/performance.md)
+            - pkg: github.com/bytedance/sonic
+              desc: no sonic (docs/performance.md)
+        logging:
+          # The footprint harness reads MyGo's frame log off the standard logger.
+          files:
+            - $all
+            - "!**/harness_footprint.go"
+          deny:
+            - pkg: log$
+              desc: only zerolog's global logger
+            - pkg: log/slog
+              desc: only zerolog's global logger
+        ui-free:
+          # theme hands out ui.Color, so it alone may.
+          files:
+            - "**/internal/**"
+            - "!**/internal/theme/**"
+          deny:
+            - pkg: github.com/egoist/mygo/ui
+              desc: internal/ is UI-free
+    nolintlint:
+      require-specific: true
+      require-explanation: true
+    forbidigo:
+      # By type, so that an alias or a method value is caught too.
+      analyze-types: true
+      forbid:
+        - pattern: ^ui\.Oklch$
+          pkg: ^github\.com/egoist/mygo/ui$
+          msg: one wide color doubles the window's buffers; use theme.Oklch (oklch in package main)
+        - pattern: ^ui\.Painter\.(Fill|Stroke)Path(Gradient)?$
+          pkg: ^github\.com/egoist/mygo/ui$
+          msg: paths grow the shared mask atlas (16 MB + texture); draw with Fill, Stroke or FillGradient
+        - pattern: ^ui\.Router\.(Path|Query)$
+          pkg: ^github\.com/egoist/mygo/ui$
+          msg: it parses the URL each call; use a.path() or a.searchQuery()
+        # Logging goes only through zerolog's global logger: nothing makes,
+        # injects or configures another Logger.
+        - pattern: ^zerolog\.(New|Nop|Ctx|Logger)$
+          pkg: ^github\.com/rs/zerolog$
+          msg: log through zerolog's global logger (github.com/rs/zerolog/log) only
+        - pattern: ^log\.(Logger|Output|With|Level|Sample|Hook|Ctx)$
+          pkg: ^github\.com/rs/zerolog/log$
+          msg: log through zerolog's global logger as it is; don't derive or replace it
+  exclusions:
+    rules:
+      # Tests make wide colors and read the router on purpose.
+      - path: _test\.go$
+        linters:
+          - forbidigo
+        text: "`ui\\.(Oklch|Router\\.)"
+      # Tests read testdata and write into TempDir, never user input; there
+      # gosec flags only paths, file modes and table indexes.
+      - path: _test\.go$
+        linters:
+          - gosec
+      # Calling Objective-C and the Security framework needs unsafe.
+      - path: _darwin\.go$
+        linters:
+          - gosec
+        text: G103
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports

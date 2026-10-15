@@ -1,0 +1,77 @@
+{
+ "responseContext": {
+  "serviceTrackingParams": [
+   {
+    "service": "GFEEDBACK",
+    "params": [
+     {
+      "key": "logged_in",
+      "value": "1"
+     }
+    ]
+   }
+  ]
+ },
+ "actions": [
+  {
+   "openPopupAction": {
+    "popupType": "DROPDOWN",
+    "popup": {
+     "multiPageMenuRenderer": {
+      "header": {
+       "activeAccountHeaderRenderer": {
+        "accountName": {
+         "runs": [
+          {
+           "text": "Jane Placeholder"
+          }
+         ]
+        },
+        "accountPhoto": {
+         "thumbnails": [
+          {
+           "url": "https://yt3.ggpht.com/fake-photo=s88-c-k-c0x00ffffff-no-rj",
+           "width": 88,
+           "height": 88
+          },
+          {
+           "url": "https://yt3.ggpht.com/fake-photo=s176-c-k-c0x00ffffff-no-rj",
+           "width": 176,
+           "height": 176
+          }
+         ]
+        },
+        "channelHandle": {
+         "runs": [
+          {
+           "text": "@janeplaceholder"
+          }
+         ]
+        }
+       }
+      },
+      "sections": [
+       {
+        "multiPageMenuSectionRenderer": {
+         "items": [
+          {
+           "compactLinkRenderer": {
+            "title": {
+             "runs": [
+              {
+               "text": "Settings"
+              }
+             ]
+            }
+           }
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

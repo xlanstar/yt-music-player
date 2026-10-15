@@ -1,0 +1,101 @@
+default_install_hook_types = ["pre-commit"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "trailing-whitespace", args = ["--markdown-linebreak-ext=md"] },
+  { id = "end-of-file-fixer" },
+  { id = "mixed-line-ending", args = ["--fix=lf"] },
+  { id = "check-merge-conflict" },
+  { id = "check-case-conflict" },
+  { id = "check-added-large-files", args = ["--maxkb=1024"] },
+  { id = "check-json" },
+  { id = "check-toml" },
+  { id = "check-yaml" },
+  { id = "detect-private-key" },
+]
+
+# Pinned rather than `system` so every machine lints with the same version.
+[[repos]]
+repo = "https://github.com/golangci/golangci-lint"
+rev = "v2.14.0"
+hooks = [
+  { id = "golangci-lint-config-verify", name = "Go lint config is valid" },
+  # prek's Go may be older than go.mod requires; let Go fetch the right toolchain.
+  { id = "golangci-lint-fmt", name = "Go formatting", env = { GOTOOLCHAIN = "auto" } },
+  # `-full` because the diff-only hook misses cross-file linters like `unused`;
+  # it lints the whole module, so a new go.mod or config lints again too.
+  { id = "golangci-lint-full", name = "Go lint", env = { GOTOOLCHAIN = "auto" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
+  # The memprof harness, the placeholder source and the avlive tests are
+  # behind build tags, so the hook above never compiles them.
+  { id = "golangci-lint-full", name = "Go lint (memprof, placeholder, avlive build tags)", args = ["--build-tags", "memprof,placeholder,avlive"], env = { GOTOOLCHAIN = "auto" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
+]
+
+# The workflows release the app: a mistake there shows only on a tag.
+[[repos]]
+repo = "https://github.com/rhysd/actionlint"
+rev = "v1.7.12"
+hooks = [{ id = "actionlint", name = "GitHub Actions workflows (actionlint)" }]
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "go-mod-tidy"
+name = "go.mod and go.sum are tidy"
+language = "system"
+entry = "go mod tidy -diff"
+files = '(\.go|go\.mod|go\.sum)$'
+pass_filenames = false
+
+# Known vulnerabilities reachable from our code, in dependencies or the
+# standard library. It downloads the database, so it runs only when the
+# dependencies change; pinned like golangci-lint.
+[[repos.hooks]]
+id = "govulncheck"
+name = "Go vulnerabilities (govulncheck)"
+language = "system"
+entry = "go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./..."
+files = '^go\.(mod|sum)$'
+pass_filenames = false
+
+# The test hooks run the whole module, on whatever builds or tests read:
+# go.mod and go.sum, testdata, the embedded icons, not only Go files.
+[[repos.hooks]]
+id = "go-test-race"
+name = "Go tests (race detector)"
+language = "system"
+entry = "go test -race ./..."
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg)$'
+pass_filenames = false
+
+# Allocation budgets (`budget.Allocs`) skip under -race, which allocates
+# on its own, so they run once more without it.
+[[repos.hooks]]
+id = "go-alloc-budgets"
+name = "Go allocation budgets"
+language = "system"
+entry = "go test -run Budget ./..."
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg)$'
+pass_filenames = false
+
+# Every benchmark once, so that none rots between runs of
+# scripts/bench.sh: about 5 s once the tests are built, cheap enough to
+# run on every commit rather than fold into the budget tests.
+[[repos.hooks]]
+id = "go-bench-once"
+name = "Go benchmarks, each once"
+language = "system"
+entry = "go test -run '^$' -bench . -benchtime 1x ./..."
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg)$'
+pass_filenames = false
+
+# Only the staged SVGs, as every hook takes; scripts/fetch-lucide-icons.sh
+# runs this hook on the icons it fetches. Pinned like golangci-lint.
+[[repos.hooks]]
+id = "svg-compress"
+name = "SVG compression (svgo)"
+language = "bun"
+entry = "svgo --multipass --final-newline --eol lf --quiet"
+additional_dependencies = ["svgo@4.1.0"]
+files = '^resources/.*\.svg$'

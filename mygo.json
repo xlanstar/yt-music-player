@@ -1,0 +1,10 @@
+{
+  "name": "YT Music Player",
+  "identifier": "dev.lanstar.ytmusicplayer",
+  "version": "0.0.0",
+  "out": "build",
+  "updates": {
+    "publicKey": "wRLqR/n4BxqZcAEGgSrKhCyHHOSvzaDB4y5I8yGQ0tw=",
+    "github": "xlanstar/yt-music-player"
+  }
+}

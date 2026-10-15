@@ -1,0 +1,65 @@
+# The project's one check, prek, on every push to main and pull request;
+# the Release workflow calls it too before it builds a tag.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow_ref }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  prek:
+    # Linux: the darwin-only files (AVPlayer's bindings, the Keychain store)
+    # are neither linted nor tested here; prek checks them locally on macOS.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Go, prek and Bun at the versions of .tool-versions; mise-action
+      # caches the tools themselves.
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+
+      - id: go-env
+        run: |
+          echo "modcache=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+          echo "cache=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+
+      # Modules, Go's build and test cache, golangci-lint's analysis cache
+      # and prek's hook environments. Only main saves (below), so pull
+      # requests and tags start from main's latest instead of filling the
+      # quota; the newest cache for the same tools and go.sum comes first.
+      - id: cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ steps.go-env.outputs.modcache }}
+            ${{ steps.go-env.outputs.cache }}
+            ~/.cache/golangci-lint
+            ~/.cache/prek
+          key: ci-${{ runner.os }}-${{ hashFiles('.tool-versions', 'go.sum', 'prek.toml') }}-${{ github.sha }}
+          restore-keys: |
+            ci-${{ runner.os }}-${{ hashFiles('.tool-versions', 'go.sum', 'prek.toml') }}-
+            ci-${{ runner.os }}-
+
+      - run: prek run --all-files --show-diff-on-failure
+
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ steps.go-env.outputs.modcache }}
+            ${{ steps.go-env.outputs.cache }}
+            ~/.cache/golangci-lint
+            ~/.cache/prek
+          key: ${{ steps.cache.outputs.cache-primary-key }}

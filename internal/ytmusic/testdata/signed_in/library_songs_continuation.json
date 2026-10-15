@@ -1,0 +1,132 @@
+{
+ "responseContext": {
+  "serviceTrackingParams": [
+   {
+    "service": "GFEEDBACK",
+    "params": [
+     {
+      "key": "logged_in",
+      "value": "1"
+     }
+    ]
+   }
+  ]
+ },
+ "continuationContents": {
+  "musicShelfContinuation": {
+   "contents": [
+    {
+     "musicResponsiveListItemRenderer": {
+      "thumbnail": {
+       "musicThumbnailRenderer": {
+        "thumbnail": {
+         "thumbnails": [
+          {
+           "url": "https://lh3.googleusercontent.com/fake-fakevideo03=w60-h60-l90-rj",
+           "width": 60,
+           "height": 60
+          },
+          {
+           "url": "https://lh3.googleusercontent.com/fake-fakevideo03=w120-h120-l90-rj",
+           "width": 120,
+           "height": 120
+          }
+         ]
+        }
+       }
+      },
+      "overlay": {
+       "musicItemThumbnailOverlayRenderer": {
+        "content": {
+         "musicPlayButtonRenderer": {
+          "playNavigationEndpoint": {
+           "watchEndpoint": {
+            "videoId": "fakevideo03"
+           }
+          }
+         }
+        }
+       }
+      },
+      "flexColumns": [
+       {
+        "musicResponsiveListItemFlexColumnRenderer": {
+         "text": {
+          "runs": [
+           {
+            "text": "Made-Up Melody",
+            "navigationEndpoint": {
+             "watchEndpoint": {
+              "videoId": "fakevideo03"
+             }
+            }
+           }
+          ]
+         }
+        }
+       },
+       {
+        "musicResponsiveListItemFlexColumnRenderer": {
+         "text": {
+          "runs": [
+           {
+            "text": "The Fictional Band",
+            "navigationEndpoint": {
+             "browseEndpoint": {
+              "browseId": "UCfakeartist0001",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+               }
+              }
+             }
+            }
+           }
+          ]
+         }
+        }
+       },
+       {
+        "musicResponsiveListItemFlexColumnRenderer": {
+         "text": {
+          "runs": [
+           {
+            "text": "Pretend Album",
+            "navigationEndpoint": {
+             "browseEndpoint": {
+              "browseId": "MPREb_fakealbum0001",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+               }
+              }
+             }
+            }
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "fixedColumns": [
+       {
+        "musicResponsiveListItemFixedColumnRenderer": {
+         "text": {
+          "runs": [
+           {
+            "text": "2:58"
+           }
+          ]
+         }
+        }
+       }
+      ],
+      "playlistItemData": {
+       "videoId": "fakevideo03"
+      }
+     }
+    }
+   ]
+  }
+ }
+}

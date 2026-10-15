@@ -1,0 +1,13 @@
+/build/
+/.mygo/
+mygo_windows_*.syso
+.DS_Store
+tmp/
+*.local
+.env
+/yt-music-player
+*.test
+*.prof
+/perf/benchmarks-latest.txt
+/perf/benchmarks-against.txt
+/perf/footprint-latest.txt

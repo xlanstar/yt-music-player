@@ -1,0 +1,95 @@
+[
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "MPREb_7ltM34kr0mH"
+    },
+    "file": "album.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "VLOLAK5uy_k7TCLTpyYJf-tuuxK3NgI7SoEEw_2nvAI"
+    },
+    "file": "chart_playlist.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "FEmusic_charts"
+    },
+    "file": "charts.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "FEmusic_explore"
+    },
+    "file": "explore.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "FEmusic_home"
+    },
+    "file": "home.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "continuation": "4qmFsgKhAhIMRkVtdXNpY19ob21lGpACQ0FONnh3RkhTbTVYZGw5NlgzVktZMFJYYjBWQ1EyNDRTMHBJYkRCWU0wSm9XakpXWm1NeU5XaGpTRTV2WWpOU1ptSllWbnBoVjA1bVkwZEdibHBXT1hsYVYyUndZakkxYUdKQ1NXWlJWRnBFVkZkR1RHSkVhSHBqVm14b1dqQjRhV0pJVWpSaWExWlFWbGRhYmxWRlozUldhMVkwWW5odk1sUllWbnBoVjA1RllWaE9hbUl6V214amJteFJXVmRrYkZVeVZubGtiV3hxV2xNeFNGcFlVa2xpTWpGc1ZVZEdibHBSUVVKQlIxWjFRVUZHVmxWM1FVSldSbU5CUVZGRlJDMXdla2gyVVd0RFEwRlI%3D"
+    },
+    "file": "home_continuation_1.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "continuation": "4qmFsgKhAhIMRkVtdXNpY19ob21lGpACQ0FaNnh3RkhTbTVYZGw5NlgzVktZMFJYYjBWQ1EyNDRTMHBJYkRCWU0wSm9XakpXWm1NeU5XaGpTRTV2WWpOU1ptSllWbnBoVjA1bVkwZEdibHBXT1hsYVYyUndZakkxYUdKQ1NXWlJWRnBFVkZkR1RHSkVhSHBqVm14b1dqQjRhV0pJVWpSaWExWlFWbGRhYmxWRlozUldhMVkwWW5odk1sUllWbnBoVjA1RllWaE9hbUl6V214amJteFJXVmRrYkZVeVZubGtiV3hxV2xNeFNGcFlVa2xpTWpGc1ZVZEdibHBSUVVKQlIxWjFRVUZHVmxWM1FVSldSbU5CUVZGRlJDMXdla2gyVVd0RFEwRmo%3D"
+    },
+    "file": "home_continuation_2.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "FEmusic_moods_and_genres"
+    },
+    "file": "moods_and_genres.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "VLPLdoesnotexist0000000000000000000"
+    },
+    "file": "not_found.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "browseId": "VLPLw_8I7j6_QFogcNFA-ZgwnDz7X8rvnVUN"
+    },
+    "file": "playlist.json"
+  },
+  {
+    "endpoint": "browse",
+    "body": {
+      "continuation": "4qmFsgKHARIkVkxQTHdfOEk3ajZfUUZvZ2NORkEtWmd3bkR6N1g4cnZuVlVOGjplaDVRVkRwRFIxRnBSVVJSTlU1RWJFTlBWVkYzVDBSTk0xRlZSVEZSYWtHU0FRTUl1Z1R3QVFBJTNEmgIiUEx3XzhJN2o2X1FGb2djTkZBLVpnd25EejdYOHJ2blZVTg%3D%3D"
+    },
+    "file": "playlist_continuation.json"
+  },
+  {
+    "endpoint": "search",
+    "body": {
+      "params": "EgWKAQIYAWoMEA4QChADEAQQCRAF",
+      "query": "daft punk"
+    },
+    "file": "search_albums.json"
+  },
+  {
+    "endpoint": "search",
+    "body": {
+      "params": "EgWKAQIIAWoMEA4QChADEAQQCRAF",
+      "query": "daft punk"
+    },
+    "file": "search_songs.json"
+  }
+]
