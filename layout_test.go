@@ -99,7 +99,7 @@ func TestLayoutArrangements(t *testing.T) {
 				w := float32(1040)
 				for _, s := range []string{"Back", "Notifications", "Hide panel", "YT Music", "Midnight Arcade"} {
 					r, ok := tt.Find(s)
-					if !ok || r.Y > bar.bar.Height {
+					if !ok || r.Y >= bar.bar.Height {
 						continue
 					}
 					if r.X < bar.bar.Left || r.X+r.W > w-bar.bar.Right {

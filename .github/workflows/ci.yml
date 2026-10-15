@@ -17,9 +17,11 @@ concurrency:
 
 jobs:
   prek:
-    # Linux: the darwin-only files (AVPlayer's bindings, the Keychain store)
-    # are neither linted nor tested here; prek checks them locally on macOS.
-    runs-on: ubuntu-latest
+    # macOS, the one platform the app ships for: the allocation budgets and
+    # the layout tests are measured with CoreText's text, and on Linux
+    # MyGo's Pango engine allocates and measures differently. It also lints
+    # and tests the darwin-only files (AVPlayer's bindings, the Keychain).
+    runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

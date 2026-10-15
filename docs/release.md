@@ -18,7 +18,7 @@ From a clean `main` equal to `origin/main` with a non-empty Unreleased section a
 The tag starts `.github/workflows/release.yml` (`gh run watch` follows it):
 
 1. **tag**: `scripts/release.sh check` refuses a tag that is not `vX.Y.Z`, differs from `mygo.json`, has no CHANGELOG section or is not on `main`, and a `mygo.json` without `updates`.
-2. **checks**: the CI workflow, prek on Linux, as on every push and pull request.
+2. **checks**: the CI workflow, prek on macOS, as on every push and pull request.
 3. **build**, in the `release` environment: imports the Developer ID certificate and the notary credentials into a keychain of its own, then `go tool mygo build -platform darwin/universal -sign <identity>` makes one app for Apple silicon and Intel, signs it with the hardened runtime, notarizes the disk image, staples the tickets and signs the update with `MYGO_UPDATER_PRIVATE_KEY`; `codesign`, `spctl` and `stapler` check the app and the disk image. It keeps the disk image, the update files under the names their manifest links to (`yt-music-player-X.Y.Z-darwin-universal.tar.gz`, `update-darwin-universal.json`, and `…-to-X.Y.Z-darwin-universal.delta` from the last published versions, none for the first), and `SHA256SUMS` of them all.
 4. **publish**: attests the files' provenance (public repositories), then creates the **draft** release with the files and the notes.
 
