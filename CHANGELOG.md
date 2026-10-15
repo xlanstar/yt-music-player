@@ -4,6 +4,8 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-16
+
 ### Added
 
 - First release: Home, Explore, search, albums, playlists, library and liked songs, signed in with a browser cookie kept in the Keychain.
