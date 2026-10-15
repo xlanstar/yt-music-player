@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- GitHub's social preview (the link card, 1280×640): a headline and the
+     window. Uploaded in the repository's settings, never committed. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  html, body { width: 1280px; height: 640px; }
+  .glow { right: -260px; top: -120px; width: 1000px; height: 900px; }
+  .copy { position: absolute; left: 88px; top: 0; bottom: 0; width: 540px;
+    display: flex; flex-direction: column; justify-content: center; }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 34px; }
+  .brand img { width: 60px; height: 60px; margin: -6px; }
+  .brand span { font-size: 22px; font-weight: 700; letter-spacing: .2px; }
+  h1 { font-size: 64px; line-height: 1.1; font-weight: 800; letter-spacing: -1.5px; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .tagline { margin-top: 24px; font-size: 24px; line-height: 1.45; color: var(--muted); font-weight: 500; }
+  .facts { margin-top: 34px; display: flex; gap: 24px; font-size: 18px; font-weight: 600; }
+  .facts li { list-style: none; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .facts li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  /* Wider than what is left: the window runs off the right edge, the
+     sidebar and the home page in view. */
+  .app-window { left: 660px; top: 92px; width: 860px; }
+  .repo-url { position: absolute; left: 88px; bottom: 40px; font-size: 16px; color: var(--faint);
+    font-weight: 500; letter-spacing: .3px; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="copy">
+    <div class="brand"><img src="icon.svg" alt=""><span>YT Music Player</span></div>
+    <h1>YouTube Music,<br><em>native</em>.</h1>
+    <p class="tagline">A lightweight desktop player in Go: GPU-drawn, no webview, no Electron.</p>
+    <ul class="facts">
+      <li>No frames when idle</li>
+      <li>About 60 MB</li>
+      <li>macOS</li>
+    </ul>
+  </div>
+  <img class="app-window" src="app-window.png" alt="">
+  <div class="repo-url">github.com/xlanstar/yt-music-player</div>
+</body>
+</html>

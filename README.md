@@ -1,5 +1,10 @@
 # YT Music Player
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/readme-hero-dark.jpg">
+  <img src="docs/images/readme-hero-light.jpg" alt="YT Music Player's home page, a song playing and its queue beside it">
+</picture>
+
 A lightweight YouTube Music desktop player. Written in Go with [MyGo](https://mygo.egoist.dev)'s native UI: GPU-drawn, no webview, no Electron. It draws no frames when idle and uses about 60 MB of memory.
 
 Browse Home and Explore, search, open albums and playlists, play from your library and liked songs, and switch between themes or make your own ([docs/theme.md](docs/theme.md)).

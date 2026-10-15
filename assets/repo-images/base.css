@@ -1,0 +1,30 @@
+/* Shared by the repo images: the icon's colors, type and the window's
+   shadow. scripts/repo-images.sh copies it beside the pages it renders. */
+:root {
+  --bg: #f6eee2;
+  --glow: rgba(251, 92, 61, .32);
+  --ink: #1c1824;
+  --muted: #6c6474;
+  --faint: #a39aa8;
+  --accent: #fb5c3d;
+  --window-shadow: drop-shadow(0 30px 50px rgba(40, 20, 30, .30)) drop-shadow(0 6px 14px rgba(40, 20, 30, .18));
+}
+.dark {
+  --bg: #1c1824;
+  --glow: rgba(251, 92, 61, .26);
+  --ink: #f6eee2;
+  --muted: #a8a0ae;
+  --faint: #6f6778;
+  --window-shadow: drop-shadow(0 30px 60px rgba(0, 0, 0, .55)) drop-shadow(0 0 1px rgba(255, 255, 255, .35));
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, "SF Pro Display", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.glow { position: absolute; background: radial-gradient(closest-side, var(--glow), transparent); }
+.app-window { position: absolute; filter: var(--window-shadow); }
