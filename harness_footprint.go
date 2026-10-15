@@ -316,13 +316,13 @@ func (h *footprintRun) report() string {
 	var out strings.Builder
 	width, height := h.w.ContentSize()
 	fmt.Fprintf(&out, "# window: %dx%d points\n", width, height)
-	// MB is the mean of 5 samples a second: the footprint over time, as it
-	// rises with each frame and falls back.
-	fmt.Fprintf(&out, "%-18s %5s %5s %5s %6s %6s %8s %8s %6s %6s %6s %8s %7s\n",
-		"phase", "focus", "shown", "secs", "frames", "/min", "ms-med", "ms-max", "MB-min", "MB", "MB-max", "gfx-mean", "gfx-max")
+	// MB-mean is of 5 samples a second: the footprint over time, as it
+	// rises with each frame and falls back. Self-describing lines without
+	// column widths: a baseline's diff shows the phases that changed alone.
+	out.WriteString("# phases: one line each, key=value; frame-ms: frame times; MB: footprint(1)'s, sampled 5 times a second; gfx-MB: its unmapped graphics part\n")
 	for _, p := range h.phases {
 		n := len(p.mb)
-		fmt.Fprintf(&out, "%-18s %5s %5s %5.1f %6d %6.1f %8.1f %8.1f %6.0f %6.0f %6.0f %8.0f %7.0f\n",
+		fmt.Fprintf(&out, "phase=%s focus=%s shown=%s secs=%.1f frames=%d frames/min=%.1f frame-ms-median=%.1f frame-ms-max=%.1f MB-min=%.0f MB-mean=%.0f MB-max=%.0f gfx-MB-mean=%.0f gfx-MB-max=%.0f\n",
 			p.name, share(p.focused, n), share(p.shown, n), p.secs, len(p.frameMS), float64(len(p.frameMS))/p.secs*60,
 			median(p.frameMS), slices.Max(append(p.frameMS, 0)),
 			slices.Min(p.mb), mean(p.mb), slices.Max(p.mb), mean(p.graphics), slices.Max(p.graphics))

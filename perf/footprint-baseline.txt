@@ -5,13 +5,13 @@
 # cpu: Apple M4 Max, macOS 27.0
 # git: no commit, 251 files changed
 # window: 1280x770 points
-phase              focus shown  secs frames   /min   ms-med   ms-max MB-min     MB MB-max gfx-mean gfx-max
-idle                 yes   yes   3.0      0    0.0      0.0      0.0     60     61     61        3       3
-playing-focused      yes   yes   5.0      5   60.0      1.4      2.0    330    330    330      251     251
-paused               yes   yes   3.0      0    0.0      0.0      0.0     63     63     63        3       3
-idle-after-pages     yes   yes   3.0      0    0.0      0.0      0.0     70     70     70        3       3
-playing-unfocused     no   yes  10.0      2   12.0      8.5      8.5     70    127    337       52     251
-playing-minimized     no    no   6.0      0    0.0      0.0      0.0     70     70     71        3       3
+# phases: one line each, key=value; frame-ms: frame times; MB: footprint(1)'s, sampled 5 times a second; gfx-MB: its unmapped graphics part
+phase=idle focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=60 MB-mean=61 MB-max=61 gfx-MB-mean=3 gfx-MB-max=3
+phase=playing-focused focus=yes shown=yes secs=5.0 frames=5 frames/min=60.0 frame-ms-median=1.4 frame-ms-max=2.0 MB-min=330 MB-mean=330 MB-max=330 gfx-MB-mean=251 gfx-MB-max=251
+phase=paused focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=63 MB-mean=63 MB-max=63 gfx-MB-mean=3 gfx-MB-max=3
+phase=idle-after-pages focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=70 MB-mean=70 MB-max=70 gfx-MB-mean=3 gfx-MB-max=3
+phase=playing-unfocused focus=no shown=yes secs=10.0 frames=2 frames/min=12.0 frame-ms-median=8.5 frame-ms-max=8.5 MB-min=70 MB-mean=127 MB-max=337 gfx-MB-mean=52 gfx-MB-max=251
+phase=playing-minimized focus=no shown=no secs=6.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=70 MB-mean=70 MB-max=71 gfx-MB-mean=3 gfx-MB-max=3
 # one frame: 1 drawn (9.7 ms), footprint 61 MB, +268 MB at its peak, held about 1.0 s
 # pages: 27 shown, idle footprint +9 MB, +0.3 MB a page
 # end

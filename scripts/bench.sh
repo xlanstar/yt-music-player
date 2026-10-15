@@ -165,6 +165,78 @@ header() {
 	echo "# load: $load"
 }
 
+# The files' format, for diffs and readers rather than benchstat: go test's
+# aligned columns shift every row when one value widens, and its six
+# lines a benchmark, with iteration counts, change whole on any run.
+format='# format: per package, one line per benchmark and unit: name, unit, each run'\''s value in run order, or one value when every run gave it'
+
+# compact turns go test's output into the files' format: configuration
+# once, then per package (in first-run order) each benchmark's units.
+compact() {
+	awk '
+		/^[a-z][^ :]*: / {
+			k = substr($1, 1, length($1) - 1)
+			v = substr($0, length($1) + 2)
+			if (k == "pkg") {
+				pkg = v
+				if (!(pkg in seenpkg)) { seenpkg[pkg] = 1; pkgs[++npkg] = pkg }
+			} else if (!(k in conf)) { conf[k] = v; keys[++nkey] = k }
+			next
+		}
+		$1 ~ /^Benchmark/ && NF >= 4 && NF % 2 == 0 {
+			b = pkg SUBSEP $1
+			if (!(b in seen)) { seen[b] = 1; bench[pkg, ++nb[pkg]] = $1 }
+			for (i = 3; i < NF; i += 2) {
+				u = b SUBSEP $(i + 1)
+				if (!(u in vals)) { unit[b, ++nu[b]] = $(i + 1); vals[u] = first[u] = $i; same[u] = 1 }
+				else { vals[u] = vals[u] " " $i; if ($i != first[u]) same[u] = 0 }
+			}
+		}
+		END {
+			for (i = 1; i <= nkey; i++) print keys[i] ": " conf[keys[i]]
+			for (p = 1; p <= npkg; p++) {
+				pkg = pkgs[p]
+				print ""
+				print "pkg: " pkg
+				for (j = 1; j <= nb[pkg]; j++) {
+					b = pkg SUBSEP bench[pkg, j]
+					for (k = 1; k <= nu[b]; k++) {
+						u = b SUBSEP unit[b, k]
+						print bench[pkg, j], unit[b, k], same[u] ? first[u] : vals[u]
+					}
+				}
+			}
+		}
+	'
+}
+
+# expand turns the files' format back into go test's, a line a run, for
+# benchstat (which reads no iteration count but needs one).
+expand() {
+	awk '
+		function flush(   r, k, line) {
+			for (r = 1; r <= runs; r++) {
+				line = name " 1"
+				for (k = 1; k <= nu; k++) line = line " " v[k, n[k] == 1 ? 1 : r] " " unit[k]
+				print line
+			}
+			nu = runs = 0
+			name = ""
+		}
+		$1 ~ /^Benchmark/ {
+			if ($1 != name) flush()
+			name = $1
+			unit[++nu] = $2
+			n[nu] = NF - 2
+			for (i = 3; i <= NF; i++) v[nu, i - 2] = $i
+			if (n[nu] > runs) runs = n[nu]
+			next
+		}
+		{ flush(); print }
+		END { flush() }
+	'
+}
+
 # The -against mode: the committed baseline measures its day, machine state
 # and Go toolchain as much as the code (Go 1.27's allocator alone moved the
 # allocation-heavy numbers), so build <rev> here and now instead, and
@@ -250,7 +322,7 @@ if [ -n "$against" ]; then
 	exit 0
 fi
 
-header '' >"$tmp/out.txt"
+: >"$tmp/raw.txt"
 
 # bench runs the benchmarks matching $1, skipping those matching $2, at
 # the GOMAXPROCS listed in $3, in the packages that follow, appending
@@ -265,15 +337,21 @@ bench() {
 	{
 		go test -run '^$' -bench "$pattern" -benchmem -count "$count" -benchtime "$benchtime" "$@"
 		echo $? >"$tmp/status"
-	} | tee -a "$tmp/out.txt" | grep -E '^(ok|FAIL|panic|--- FAIL)' >&2 || :
+	} | tee -a "$tmp/raw.txt" | grep -E '^(ok|FAIL|panic|--- FAIL)' >&2 || :
 	[ "$(cat "$tmp/status")" = 0 ] || {
 		keep=1
-		die "go test failed; see $tmp/out.txt"
+		die "go test failed; see $tmp/raw.txt"
 	}
 }
 
 passes bench
+{
+	header ''
+	echo "$format"
+	compact <"$tmp/raw.txt"
+} >"$tmp/out.txt"
 mv "$tmp/out.txt" "$latest"
+expand <"$latest" >"$tmp/latest.txt"
 
 if [ -n "$profile" ]; then
 	echo "bench.sh: profiles of the runs: go tool pprof -top perf/cpu.prof; go tool pprof -alloc_objects -top perf/mem.prof (-http=: for a browser)" >&2
@@ -281,7 +359,7 @@ fi
 
 if [ ! -f "$baseline" ]; then
 	echo "bench.sh: no $baseline to compare with: scripts/bench.sh -update makes one" >&2
-	go run "$benchstat" "$latest"
+	go run "$benchstat" latest="$tmp/latest.txt"
 	exit 0
 fi
 
@@ -345,5 +423,5 @@ awk '
 	}
 	$1 == "pkg:" { pkg = $2 }
 	$1 !~ /^Benchmark/ || (pkg, $1) in ran
-' "$latest" "$baseline" >"$tmp/baseline.txt"
-go run "$benchstat" baseline="$tmp/baseline.txt" latest="$latest"
+' "$latest" "$baseline" | expand >"$tmp/baseline.txt"
+go run "$benchstat" baseline="$tmp/baseline.txt" latest="$tmp/latest.txt"

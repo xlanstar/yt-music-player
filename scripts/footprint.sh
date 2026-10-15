@@ -136,12 +136,20 @@ fi
 # Each phase's frames a minute and footprint, baseline then latest.
 echo
 awk '
-	/^#/ || $1 == "phase" { next }
-	FNR == NR { base[$1] = $0; next }
-	$1 in base {
-		split(base[$1], b)
-		if (!header++) printf "%-18s %15s %15s %15s\n", "phase", "frames/min", "MB", "gfx-mean"
-		printf "%-18s %6.1f → %6.1f %6.0f → %6.0f %6.0f → %6.0f\n", $1, b[6], $6, b[10], $10, b[12], $12
+	$1 !~ /^phase=/ { next }
+	{
+		for (i = 1; i <= NF; i++) {
+			k = substr($i, 1, index($i, "=") - 1)
+			f[k] = substr($i, index($i, "=") + 1)
+		}
+		line = f["frames/min"] SUBSEP f["MB-mean"] SUBSEP f["gfx-MB-mean"]
+	}
+	FNR == NR { base[f["phase"]] = line; next }
+	f["phase"] in base {
+		split(base[f["phase"]], b, SUBSEP)
+		split(line, l, SUBSEP)
+		if (!header++) printf "%-18s %15s %15s %15s\n", "phase", "frames/min", "MB-mean", "gfx-MB-mean"
+		printf "%-18s %6.1f → %6.1f %6.0f → %6.0f %6.0f → %6.0f\n", f["phase"], b[1], l[1], b[2], l[2], b[3], l[3]
 	}
 ' "$baseline" "$latest"
 exit "${invalid:-0}"

@@ -24,6 +24,7 @@
 
 ns/op is too noisy to gate. `scripts/bench.sh` runs Pages, Interactions, Memo and every `./internal/...` benchmark (6 runs of 100 ms each, about 4 minutes) into `perf/benchmarks-latest.txt`, headed by Go version, CPU, git state and load, and compares it with `perf/benchmarks-baseline.txt` through a pinned benchstat.
 
+- Both files hold, per package, one line per benchmark and unit (`BenchmarkPages/Home-16 allocs/op 26`): each run's value in run order, or one value when every run gave it, without go test's column widths and iteration counts. A refreshed baseline's diff then shows the time lines and the allocations that moved, nothing else; the script expands the files back for benchstat.
 - Six runs are the fewest benchstat gives a confidence interval for; more short runs beat fewer long ones, and 300 ms runs took 10 minutes for no narrower intervals.
 - A package (`scripts/bench.sh ./internal/artwork/`) or `-run Pages/Home` focuses it; `-count 10` for a closer look.
 - The `RunParallel` benchmarks (`innertube` `AuthSignedIn`, `stream` `Resolve/cached_parallel`) run on their own at `-cpu 1,4,<all>` in the full suite, to show how contention scales; with a package or `-run`, everything runs in one pass at all CPUs.
