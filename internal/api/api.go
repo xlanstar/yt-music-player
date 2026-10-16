@@ -102,13 +102,13 @@ type Event struct {
 // IDsArgs are songs to play or enqueue.
 type IDsArgs struct {
 	IDs []string
-	// Start is the index in IDs Play starts at.
+	// Songs describe the songs of IDs the caller knows, so the daemon,
+	// which keeps no catalog of its own, can show and announce them.
+	Songs []catalog.Song
+	// Start is the index in IDs Play and PlayAll start at.
 	Start int
 	// Next enqueues after the current song rather than at the end.
 	Next bool
-	// Songs describe the songs of IDs, which only the front-end's catalog
-	// has.
-	Songs []catalog.Song
 }
 
 // IndexArgs name a song by its index in the queue.
