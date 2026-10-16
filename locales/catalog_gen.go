@@ -2054,6 +2054,116 @@ func (msgs Messages) ViewLog() string {
 	return Catalog.Format(msgs.locale, "viewLog", nil)
 }
 
+// NoticeAutostartFailed says "Couldn’t change starting at login"
+// in the language the app shows.
+//
+// Turning on or off starting the background player when the user logs in
+// failed; the reason follows.
+func NoticeAutostartFailed() string { return In(i18n.Locale()).NoticeAutostartFailed() }
+
+// NoticeAutostartFailed says "Couldn’t change starting at login"
+// in the language of msgs.
+//
+// Turning on or off starting the background player when the user logs in
+// failed; the reason follows.
+func (msgs Messages) NoticeAutostartFailed() string {
+	return Catalog.Format(msgs.locale, "noticeAutostartFailed", nil)
+}
+
+// NoticeTerminalFailed says "Couldn’t change ytm in the terminal"
+// in the language the app shows.
+//
+// Windows: adding the app's folder to the user's Path, or removing it,
+// failed; the reason follows.
+func NoticeTerminalFailed() string { return In(i18n.Locale()).NoticeTerminalFailed() }
+
+// NoticeTerminalFailed says "Couldn’t change ytm in the terminal"
+// in the language of msgs.
+//
+// Windows: adding the app's folder to the user's Path, or removing it,
+// failed; the reason follows.
+func (msgs Messages) NoticeTerminalFailed() string {
+	return Catalog.Format(msgs.locale, "noticeTerminalFailed", nil)
+}
+
+// BackgroundPlayer says "Background player"
+// in the language the app shows.
+//
+// The settings' heading over the background player's options; the
+// background player plays the music, also when the window is closed.
+func BackgroundPlayer() string { return In(i18n.Locale()).BackgroundPlayer() }
+
+// BackgroundPlayer says "Background player"
+// in the language of msgs.
+//
+// The settings' heading over the background player's options; the
+// background player plays the music, also when the window is closed.
+func (msgs Messages) BackgroundPlayer() string {
+	return Catalog.Format(msgs.locale, "backgroundPlayer", nil)
+}
+
+// StartAtLogin says "Start background player at login"
+// in the language the app shows.
+//
+// A switch, off by default.
+func StartAtLogin() string { return In(i18n.Locale()).StartAtLogin() }
+
+// StartAtLogin says "Start background player at login"
+// in the language of msgs.
+//
+// A switch, off by default.
+func (msgs Messages) StartAtLogin() string {
+	return Catalog.Format(msgs.locale, "startAtLogin", nil)
+}
+
+// StartAtLoginHint says "Closing the window never stops the music. This also starts the player when you log in, ready for the media keys and ytm."
+// in the language the app shows.
+//
+// Under the switch Start background player at login. ytm is the terminal
+// app, a command's name.
+func StartAtLoginHint() string { return In(i18n.Locale()).StartAtLoginHint() }
+
+// StartAtLoginHint says "Closing the window never stops the music. This also starts the player when you log in, ready for the media keys and ytm."
+// in the language of msgs.
+//
+// Under the switch Start background player at login. ytm is the terminal
+// app, a command's name.
+func (msgs Messages) StartAtLoginHint() string {
+	return Catalog.Format(msgs.locale, "startAtLoginHint", nil)
+}
+
+// YtmInTerminal says "Use ytm in a terminal"
+// in the language the app shows.
+//
+// A switch, Windows only, off by default. ytm is the terminal app, a
+// command's name.
+func YtmInTerminal() string { return In(i18n.Locale()).YtmInTerminal() }
+
+// YtmInTerminal says "Use ytm in a terminal"
+// in the language of msgs.
+//
+// A switch, Windows only, off by default. ytm is the terminal app, a
+// command's name.
+func (msgs Messages) YtmInTerminal() string {
+	return Catalog.Format(msgs.locale, "ytmInTerminal", nil)
+}
+
+// YtmInTerminalHint says "Adds the app’s folder to your Path, for terminals you open from now on."
+// in the language the app shows.
+//
+// Under the switch Use ytm in a terminal: Path is Windows' list of folders
+// where commands are found.
+func YtmInTerminalHint() string { return In(i18n.Locale()).YtmInTerminalHint() }
+
+// YtmInTerminalHint says "Adds the app’s folder to your Path, for terminals you open from now on."
+// in the language of msgs.
+//
+// Under the switch Use ytm in a terminal: Path is Windows' list of folders
+// where commands are found.
+func (msgs Messages) YtmInTerminalHint() string {
+	return Catalog.Format(msgs.locale, "ytmInTerminalHint", nil)
+}
+
 // CliFailed says "{what}: {why}"
 // in the language the app shows.
 //

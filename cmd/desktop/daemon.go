@@ -31,9 +31,6 @@ type ytmd struct {
 type daemonState struct {
 	ytmd ytmd
 	link remote.Link
-	// notices are the daemon's and the failed controls', waiting for a
-	// build to tell them.
-	notices []notice.Notice
 	// stopping stops ytmd for Quit and Stop Playback; quit then quits,
 	// mygo.App.Quit but in tests.
 	stopping job.Job
@@ -48,7 +45,7 @@ func (a *app) daemonHandler() remote.Handler {
 		Library: func(l catalog.Library) { a.session.ApplyLibrary(l) },
 		Likes:   func(l api.Likes) { a.session.ApplyLikes(l) },
 		Failed:  func(e api.FailedEvent) { a.session.ApplyFailed(e) },
-		Notice:  func(n notice.Notice) { a.daemon.notices = append(a.daemon.notices, n) },
+		Notice:  a.tellLater,
 		Link:    a.linked,
 	}
 }
@@ -73,12 +70,15 @@ func (a *app) linked(l remote.Link) {
 	}
 }
 
-func (a *app) syncDaemon(c *ui.Context) {
-	for _, n := range a.daemon.notices {
+// tellLater tells n in the next build: tell needs its Context.
+func (a *app) tellLater(n notice.Notice) { a.notices = append(a.notices, n) }
+
+func (a *app) syncNotices(c *ui.Context) {
+	for _, n := range a.notices {
 		a.tell(c, n)
 	}
-	clear(a.daemon.notices)
-	a.daemon.notices = a.daemon.notices[:0]
+	clear(a.notices)
+	a.notices = a.notices[:0]
 }
 
 // foreground tells the Supervisor the window came to the front: it checks

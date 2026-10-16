@@ -43,6 +43,8 @@ const (
 	SignedOut                 // Signed out
 	Reason                    // {an error’s text}, as is
 	ControlFailed             // Couldn’t change playback
+	AutostartFailed           // Couldn’t change starting at login
+	TerminalFailed            // Couldn’t change ytm in the terminal
 
 	// NumCodes is the length of a table indexed by Code.
 	NumCodes

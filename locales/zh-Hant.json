@@ -198,6 +198,13 @@
   "frontendOutdated": "背景播放器（{daemon}）比這個 App（{app}）新。請更新 YT Music Player。",
   "daemonRestart": "重新啟動",
   "viewLog": "查看記錄檔",
+  "noticeAutostartFailed": "無法變更登入時啟動的設定",
+  "noticeTerminalFailed": "無法變更在終端機使用 ytm 的設定",
+  "backgroundPlayer": "背景播放器",
+  "startAtLogin": "登入時啟動背景播放器",
+  "startAtLoginHint": "關閉視窗不會停止音樂。開啟後，登入時也會啟動播放器，媒體鍵和 ytm 隨時可用。",
+  "ytmInTerminal": "在終端機使用 ytm",
+  "ytmInTerminalHint": "把 App 的資料夾加入 Path，之後開啟的終端機就能使用。",
 
   "cliFailed": "{what}：{why}",
   "cliNoPaths": "找不到 App 的資料夾",

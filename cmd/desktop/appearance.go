@@ -278,6 +278,7 @@ func (a *app) appearanceSheet(c *ui.Context) {
 					a.layoutChoice(c, i)
 				}
 			})
+			a.backgroundPlayer(c)
 		})
 		ui.Row(c).Justify(ui.End).Children(func() {
 			if pill(c, "appearance-done", nil, locales.Done(), pillLight).Clicked() {
@@ -348,4 +349,52 @@ func (a *app) layoutChoice(c *ui.Context, choice int) {
 			}
 		})
 	})
+}
+
+// backgroundPlayer is ytmd's settings: starting at login and, on Windows,
+// ytm in terminals. A switch waits while its change is made.
+func (a *app) backgroundPlayer(c *ui.Context) {
+	st := &a.startup
+	ui.Column(c).Gap(th.Space(3)).Children(func() {
+		eyebrow(c, locales.BackgroundPlayer())
+		isBusy := !st.isKnown || st.login.IsRunning()
+		if settingSwitch(c, "start-at-login", &st.atLogin, locales.StartAtLogin(), locales.StartAtLoginHint(), isBusy) {
+			a.setAtLogin(st.atLogin)
+		}
+		if !st.hasTerminal {
+			return
+		}
+		isBusy = st.terminal.IsRunning()
+		if settingSwitch(c, "ytm-in-terminal", &st.inTerminal, locales.YtmInTerminal(), locales.YtmInTerminalHint(), isBusy) {
+			a.setInTerminal(st.inTerminal)
+		}
+	})
+}
+
+// settingSwitch is a row that switches *on, its label and hint before the
+// switch's track; it reports whether the user switched it.
+func settingSwitch(c *ui.Context, key string, on *bool, label, hint string, isDisabled bool) bool {
+	ty, col := &th.Type, &th.Color
+	sw := ui.SwitchBase(c.Key(key), on).Gap(th.Space(4)).AlignItems(ui.Center).Label(label).Description(hint).
+		Disabled(isDisabled).Cursor(ui.CursorPointer)
+	track, knob := col.Track, col.Muted
+	if *on {
+		track, knob = col.Accent, col.AccentText
+	}
+	if sw.IsDisabled() {
+		sw.Opacity(0.6)
+	}
+	sw.Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(th.Space(0.5)).Children(func() {
+			ui.Text(c, label).FontSize(ty.Label).TextColor(col.Text)
+			ui.Text(c, hint).FontSize(ty.Small).TextColor(col.Faint)
+		})
+		row := ui.Row(c).Size(40, 24).Shrink(0).Padding(0, 3).AlignItems(ui.Center).Radius(12).Background(track).
+			Transition(colorFade)
+		if *on {
+			row.Justify(ui.End)
+		}
+		row.Children(func() { ui.Box(c).Size(18, 18).Radius(9).Background(knob) })
+	})
+	return sw.Changed()
 }

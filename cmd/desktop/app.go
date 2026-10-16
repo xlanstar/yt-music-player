@@ -8,6 +8,7 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
+	"yt-music-player/internal/notice"
 	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/settings"
@@ -59,6 +60,10 @@ type app struct {
 
 	session *session.Session
 	sheet   sheetState
+	// notices wait for a build to be told: the daemon's, the failed
+	// controls' and the settings'.
+	notices []notice.Notice
+	startup startupState
 	memo    viewMemo
 
 	theme, contrast theme.Theme
@@ -208,7 +213,7 @@ func (a *app) reconcile(c *ui.Context) {
 	a.syncLoad()
 	a.syncAccount(c)
 	a.syncLook(c)
-	a.syncDaemon(c)
+	a.syncNotices(c)
 	a.announceLink(c)
 	a.syncPlayback(c)
 	a.announceSong(c)

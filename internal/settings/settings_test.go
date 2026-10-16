@@ -49,7 +49,10 @@ func TestLoadCorrupt(t *testing.T) {
 
 func TestSaveLoad(t *testing.T) {
 	s := store(t)
-	want := Settings{Theme: "midnight", Layout: theme.Arrangement{Sidebar: "right", Density: "compact"}}
+	want := Settings{
+		Theme: "midnight", Layout: theme.Arrangement{Sidebar: "right", Density: "compact"},
+		TerminalPath: `C:\Users\ada\AppData\Local\Programs\YT Music Player`,
+	}
 	if err := s.Save(want); err != nil {
 		t.Fatal(err)
 	}

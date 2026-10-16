@@ -42,7 +42,7 @@ var frameBudgets = map[string]frameBudget{
 	"Playlist/2000": {21, 1150, 1, 4010},  // 18 allocs, 992 B, 3486 KB today.
 	// The sheet's radios and segmented controls, MyGo's, built only
 	// while it is open.
-	"Home/Appearance": {69, 2230, 1, 3450}, // 60 allocs, 1936 B, 3094 KB today.
+	"Home/Appearance": {69, 2230, 1, 3450}, // 61 allocs, 1952 B, 3245 KB today, with the background player's switches.
 	// The sheet cleans the pasted header once per edit, not per build.
 	"Home/SignIn":     {36, 1350, 1, 3400}, // 31 allocs, 1168 B, 2948 KB today.
 	"LikedMusic/2000": {20, 1070, 1, 4370}, // 17 allocs, 928 B, 3793 KB today.

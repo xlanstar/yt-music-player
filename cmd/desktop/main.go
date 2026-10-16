@@ -3,6 +3,7 @@ package main
 
 import (
 	"os"
+	"runtime"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/logfile"
 	"yt-music-player/internal/remote"
@@ -52,6 +53,8 @@ func main() {
 	if dir, err := settings.DefaultDir(); err == nil {
 		a.useSettings(dir)
 	}
+	a.startup.hasTerminal = runtime.GOOS == "windows"
+	a.startStartup(systemStartup(), mygo.IsDev())
 	a.quiet.start()
 	// In the app's language. Builds that cannot update themselves (go run,
 	// the placeholder) never check; Check for Updates… says why.
