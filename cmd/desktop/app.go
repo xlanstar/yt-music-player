@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-	"yt-music-player/internal/account"
 	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
-	"yt-music-player/internal/playback"
-	"yt-music-player/internal/player"
+	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/theme"
@@ -28,10 +26,15 @@ const (
 // app is the UI state.
 type app struct {
 	// cat is UI-thread only.
-	cat      *catalog.Catalog
-	src      catalog.Source
-	player   *player.Player
-	playback *playback.Playback
+	cat *catalog.Catalog
+	// client is ytmd: the loader's and session's Source, the Controller
+	// of playback, and the Mirror of what plays. sup keeps it connected;
+	// nil until connect.
+	client   *remote.Client
+	mirror   *remote.Mirror
+	sup      *remote.Supervisor
+	daemon   daemonState
+	progress progress
 	bar      barText
 	router   *ui.Router
 
@@ -54,7 +57,6 @@ type app struct {
 	showLook func()
 	actions  actions
 
-	account *account.Account
 	session *session.Session
 	sheet   sheetState
 	memo    viewMemo
@@ -100,54 +102,58 @@ type pageState struct {
 }
 
 // seenState is what reconcile last acted on (the loader's location, the
-// announced song, the language), so it acts once per change.
+// announced song, the language), so it acts once per change. hasSong
+// tells that song is the daemon's: the song current as the app connects
+// is not announced.
 type seenState struct {
 	loc, song, lang string
+	hasSong         bool
 }
 
-// newApp starts with nothing queued. Nothing plays until a.playback has a
-// Resolver.
-func newApp(src catalog.Source) *app {
-	return appWith(src, catalog.New(nil, nil, nil), player.New(nil))
+// newApp starts with an empty catalog; ytmd has the queue.
+func newApp(post func(func())) *app {
+	return appWith(catalog.New(nil, nil, nil), post)
 }
 
-// newDemoApp queues the placeholder's songs; only the placeholder source
-// serves them. Apart from newApp so that the release build, which calls
-// it only behind the constant demo, links no placeholder catalog.
-func newDemoApp(src catalog.Source) *app {
+// newDemoApp starts with the placeholder's music, which only a
+// placeholder ytmd serves. Apart from newApp so that the release build,
+// which calls it only behind the constant demo, links no placeholder
+// catalog.
+func newDemoApp(post func(func())) *app {
 	cat := catalog.Placeholder()
-	// The library and likes come from src's account.
+	// The library and likes come from ytmd's account.
 	cat.SetLibrary(nil)
-	queue := player.New(cat.SongIDs())
-	// Part-way in, so the demo shows progress.
-	queue.Position = 84
-	return appWith(src, cat, queue)
+	return appWith(cat, post)
 }
 
-func appWith(src catalog.Source, cat *catalog.Catalog, queue *player.Player) *app {
+// appWith makes the app over cat. clientPost runs the remote Client's
+// funcs on the UI thread; nil is a.post, which tests replace to run them
+// apart from the app's own.
+func appWith(cat *catalog.Catalog, clientPost func(func())) *app {
 	r := ui.NewRouter(pathHome)
 	// Pages draw over the panel's glow; a slide would paint an opaque
 	// backdrop over it while they move.
 	r.Transition = ui.TransitionFade
 	a := &app{
 		cat:    cat,
-		src:    src,
-		player: queue,
 		router: r,
 		panel:  panelState{isShown: true},
-		// The song current at start is not announced.
-		seen: seenState{song: queue.Current()},
 	}
 	a.post = a.updates.post
-	a.loader = loader.New(src, &a.fetches, cat, a.post)
-	a.connectAccount(src, cat)
-	a.playback = playback.New(cat, queue, a.post)
+	if clientPost == nil {
+		clientPost = a.post
+	}
+	a.client = remote.NewClient(clientPost, a.daemonHandler())
+	a.mirror = a.client.Mirror()
+	a.loader = loader.New(a.client, &a.fetches, cat, a.post)
+	a.connectAccount(cat)
 	for i, path := range [...]string{pathHome, pathExplore, pathLibrary} {
 		a.goTo[i] = func() { a.router.Push(path) }
 	}
 	a.showLook = a.openLook
+	ctl := a.client
 	a.actions = actions{
-		togglePlay: queue.TogglePlay, next: queue.Next, prev: queue.Prev,
+		togglePlay: ctl.Toggle, next: ctl.Next, prev: ctl.Prev,
 		// The app has one window, which Focus finds without a Context.
 		focusSearch: func() { a.search.field.Focus() },
 		search:      func() { a.searchFor(a.search.query) },
@@ -200,6 +206,7 @@ func (a *app) reconcile(c *ui.Context) {
 	a.syncLoad()
 	a.syncAccount(c)
 	a.syncLook(c)
+	a.syncDaemon(c)
 	a.syncPlayback(c)
 	a.announceSong(c)
 }
@@ -219,12 +226,16 @@ func (a *app) shortcuts(c *ui.Context) {
 // announceSong tells screen readers of a new current song: a shortcut or
 // a song ending changes it without moving focus.
 func (a *app) announceSong(c *ui.Context) {
-	id := a.player.Current()
-	if id == a.seen.song {
+	if a.mirror.StateGen() == 0 {
 		return
 	}
-	a.seen.song = id
-	if s, ok := a.cat.Song(id); ok {
+	id := a.currentID()
+	if id == a.seen.song && a.seen.hasSong {
+		return
+	}
+	isFirst := !a.seen.hasSong
+	a.seen.song, a.seen.hasSong = id, true
+	if s := a.currentSong(); !isFirst && s.ID != "" {
 		c.Announce(locales.NowPlayingSong(locales.SongByArtist(s.Title, s.Artist)))
 	}
 }
@@ -365,12 +376,6 @@ func cornerPainter(right bool) func(*ui.Painter, ui.Rect) {
 		outline := ui.Rect{X: x, Y: r.Y - size, W: size + 2*radius, H: size + 2*radius}
 		p.Clip(r, 0, func() { p.Stroke(outline, th.Color.Base, 2*radius, radius) })
 	}
-}
-
-// currentSong is the zero Song with an empty queue.
-func (a *app) currentSong() catalog.Song {
-	s, _ := a.cat.Song(a.player.Current())
-	return s
 }
 
 // clocks caches clock's results by second: every row shows its song's

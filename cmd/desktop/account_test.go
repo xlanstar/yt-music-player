@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -14,7 +15,7 @@ import (
 
 func signedOutApp(t *testing.T) (catalogtest.Accounts, *app, posts, *ui.Tester) {
 	t.Helper()
-	src, a, q := accountApp()
+	src, a, q := accountApp(t)
 	return src, a, q, signedOut(t, src.Source, a, q)
 }
 
@@ -42,7 +43,7 @@ var (
 
 func signedInApp(t *testing.T) (catalogtest.Accounts, *app, posts, *ui.Tester) {
 	t.Helper()
-	src, a, q := accountApp()
+	src, a, q := accountApp(t)
 	tt := newTester(a)
 	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
 	calls["account"].Reply <- reply{Account: ada}
@@ -78,7 +79,7 @@ func TestSignedOut(t *testing.T) {
 	}
 
 	// Liking signed out asks to sign in, and never asks the source.
-	current := a.player.Current()
+	current := a.currentID()
 	click(t, tt, "Like")
 	if a.session.Liked(current) || !toasted(tt, "Sign in to like songs") {
 		t.Errorf("liking signed out left liked %v, announced %q", a.session.Liked(current), tt.Announcements())
@@ -100,22 +101,31 @@ func TestSignedOut(t *testing.T) {
 	}
 }
 
+// A ytmd whose source signs no one in says so when asked to.
 func TestSignedOutWithoutAccounts(t *testing.T) {
 	src := catalogtest.New()
-	a, q := sourceApp(src)
+	a, q := sourceApp(t, src)
 	fetchedFeeds(a)
 	tt := signedOut(t, src, a, q)
 	a.router.Push(pathLibrary)
 	tt.Frame()
-	// A source that cannot sign in offers no way to.
-	if !tt.HasText("Sign in to see your library") || count(tt.Texts(), "Sign in") != 0 {
+	if !tt.HasText("Sign in to see your library") {
 		t.Errorf("texts %q", tt.Texts())
 	}
 	a.openSignIn()
 	tt.Frame()
-	if a.sheet.isOpen || tt.HasText("Cookie header") {
-		t.Error("a source without accounts shows the sign-in sheet")
+	tt.Type("SID=any")
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	eventually(t, tt, q, "failed to sign in", func() bool { return a.sheet.failure != "" })
+	if a.session.IsSignedIn() || !hasTextWith(tt, ytmdFailed) {
+		t.Errorf("signed in without accounts, texts %q", tt.Texts())
 	}
+	src.None(t, tt.Frame, 50*time.Millisecond)
+}
+
+// hasTextWith reports whether any text shown contains s.
+func hasTextWith(tt *ui.Tester, s string) bool {
+	return slices.ContainsFunc(tt.Texts(), func(text string) bool { return strings.Contains(text, s) })
 }
 
 func TestSignIn(t *testing.T) {
@@ -140,9 +150,8 @@ func TestSignIn(t *testing.T) {
 	if a.sheet.credentials != "" || !tt.HasText("Signing in…") {
 		t.Errorf("credentials %q kept while signing in, texts %q", a.sheet.credentials, tt.Texts())
 	}
-	answer(t, tt, q, c, reply{Err: errors.New("these cookies are signed out")})
-	showsErr := tt.HasText("Couldn’t sign in: these cookies are signed out") &&
-		toasted(tt, "these cookies are signed out")
+	answer(t, tt, q, c, reply{Err: fmt.Errorf("%w: these cookies are signed out", catalog.ErrInvalidCredentials)})
+	showsErr := hasTextWith(tt, "these cookies are signed out") && toasted(tt, "these cookies are signed out")
 	if !a.sheet.isOpen || !showsErr {
 		t.Fatalf("no error, texts %q, announced %q", tt.Texts(), tt.Announcements())
 	}
@@ -182,11 +191,12 @@ func TestSignInClosedWhileSigningIn(t *testing.T) {
 	c := src.Next(t, tt.Frame, "signin", "SID=slow")
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
-	if a.sheet.isOpen || c.Ctx.Err() == nil {
+	if a.sheet.isOpen || a.session.IsSigningIn() {
 		t.Fatal("closing the sheet left it signing in")
 	}
-	c.Reply <- reply{Err: c.Ctx.Err()}
-	runPosts(tt, q)
+	// ytmd's source answers all the same.
+	c.Reply <- reply{Err: errors.New("these cookies are signed out")}
+	runPosts(t, tt, q)
 	src.None(t, tt.Frame, 50*time.Millisecond)
 	if a.session.IsSignedIn() || a.sheet.failure != "" {
 		t.Error("a sign-in given up on still told")
@@ -231,24 +241,23 @@ func TestSignOutFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	answer(t, tt, q, src.Next(t, tt.Frame, "signout", ""), reply{Err: errors.New("keychain locked")})
-	if !a.session.IsSignedIn() || !tt.HasText("Engine Notes") || !toasted(tt, "keychain locked") {
+	if !a.session.IsSignedIn() || !tt.HasText("Engine Notes") || !toasted(tt, ytmdFailed) {
 		t.Errorf("a failed sign-out, texts %q, announced %q", tt.Texts(), tt.Announcements())
 	}
 }
 
 func TestLibraryLoadsFailsAndRetries(t *testing.T) {
-	src, a, q := accountApp()
+	src, a, q := accountApp(t)
 	tt := newTester(a)
 	a.router.Push(libraryPath(tabAlbums))
 	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
-	calls["account"].Reply <- reply{Account: ada}
+	answer(t, tt, q, calls["account"], reply{Account: ada})
 	answer(t, tt, q, calls["playlist LM"], reply{Playlist: adaLikes, Songs: remoteTracks})
-	waitPost(t, tt, q)
 	if !tt.HasText("Loading…") || !tt.HasText("Albums") || tt.HasText("Velvet Static") {
 		t.Fatalf("library not loading, texts %q", tt.Texts())
 	}
 	answer(t, tt, q, calls["library"], reply{Err: errors.New("network is down")})
-	if !tt.HasText("Couldn’t load your library") || !tt.HasText("network is down") {
+	if !tt.HasText("Couldn’t load your library") || !tt.HasText(ytmdFailed) {
 		t.Fatalf("no error, texts %q", tt.Texts())
 	}
 	// A failure is not retried behind the user's back.
@@ -298,7 +307,7 @@ func TestSidebarListsTheLibraryOnly(t *testing.T) {
 }
 
 func TestLikedMusicSeedsLikes(t *testing.T) {
-	src, a, q := accountApp()
+	src, a, q := accountApp(t)
 	tt := newTester(a)
 	a.router.Push(pathLiked)
 	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
@@ -357,7 +366,7 @@ func TestLikeRevertsOnError(t *testing.T) {
 	if !a.session.Liked("far-2") || !tt.HasText("Dead Air by Nova Static") {
 		t.Errorf("a failed unlike stayed, texts %q", tt.Texts())
 	}
-	if !toasted(tt, "Couldn’t unlike “Dead Air”") || !tt.HasText("quota exceeded") {
+	if !toasted(tt, "Couldn’t unlike “Dead Air”") || !tt.HasText(ytmdFailed) {
 		t.Errorf("no error, texts %q, announced %q", tt.Texts(), tt.Announcements())
 	}
 	// Restored in its place, first.

@@ -3,8 +3,8 @@ package main
 import (
 	"strconv"
 	"time"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
-	"yt-music-player/internal/player"
 	"yt-music-player/internal/theme"
 	"yt-music-player/locales"
 
@@ -70,12 +70,20 @@ func (a *app) songZone(c *ui.Context, song catalog.Song, onTop bool) {
 
 func (a *app) seekRow(c *ui.Context, song catalog.Song) {
 	ui.Row(c).FillWidth().Gap(th.Space(2)).AlignItems(ui.Center).Children(func() {
-		length := a.playback.SongLength(song)
-		ui.Text(c, clock(int(a.player.Position))).FontSize(th.Type.Time).TextColor(th.Color.Muted).FontFeatures("tnum").
+		length := a.mirror.State().Duration
+		if length <= 0 {
+			length = float64(song.Seconds)
+		}
+		pos := &a.bar.pos
+		if pos.sync(a.position(c), a.mirror.StateGen()) {
+			a.client.Seek(pos.v)
+		}
+		ui.Text(c, clock(int(pos.v))).FontSize(th.Type.Time).TextColor(th.Color.Muted).FontFeatures("tnum").
 			Width(40).TextAlign(ui.End)
-		spoken := a.bar.seekValue(int(a.player.Position), int(length))
+		spoken := a.bar.seekValue(int(pos.v), int(length))
 		// At least a second, so the bar never divides by zero.
-		seekBar(c, &a.bar.seekPaint, "seek", &a.player.Position, max(length, 1), locales.Seek(), spoken, seekStep).Grow(1)
+		seek := seekBar(c, &a.bar.seekPaint, "seek", &pos.v, max(length, 1), locales.Seek(), spoken, seekStep).Grow(1)
+		pos.release(seek)
 		ui.Text(c, clock(int(length))).FontSize(th.Type.Time).TextColor(th.Color.Muted).FontFeatures("tnum").Width(40)
 	})
 }
@@ -93,23 +101,27 @@ func (a *app) volumeZone(c *ui.Context, onTop bool) {
 				a.panelButton(c, "lyrics", icLyrics, locales.Lyrics(), tabLyrics)
 				a.panelButton(c, "queue", icQueue, locales.Queue(), tabQueue)
 			}
-			silent := a.player.IsSilent()
+			st := a.mirror.State()
+			silent := st.Muted || st.Volume == 0
 			mute := iconOpts{isToggle: true, isChecked: silent}
 			muteIcon := icVolume
 			if silent {
 				muteIcon, mute.tip = icVolumeMuted, locales.Unmute()
 			}
 			if iconButton(c, "mute", muteIcon, locales.Mute(), 36, 18, mute).Clicked() {
-				a.player.ToggleMute()
+				a.client.ToggleMute()
 			}
 		})
-		spoken := percent(int(a.player.Volume*100 + 0.5))
-		volume := seekBar(c, &a.bar.volumePaint, "volume", &a.player.Volume, 1, locales.Volume(), spoken, volumeStep).Width(112)
-		if a.player.Muted {
-			volume.Opacity(0.4)
+		vol := &a.bar.volume
+		// The daemon unmutes as the volume moves.
+		if vol.sync(a.mirror.State().Volume, a.mirror.StateGen()) {
+			a.client.SetVolume(vol.v)
 		}
-		if volume.Changed() {
-			a.player.Muted = false
+		spoken := percent(int(vol.v*100 + 0.5))
+		volume := seekBar(c, &a.bar.volumePaint, "volume", &vol.v, 1, locales.Volume(), spoken, volumeStep).Width(112)
+		vol.release(volume)
+		if a.mirror.State().Muted {
+			volume.Opacity(0.4)
 		}
 	})
 }
@@ -133,10 +145,11 @@ func barArt(c *ui.Context, art catalog.Art) {
 type barText struct {
 	seek                   kept[[2]int, string] // by position and length
 	from                   kept[string, string] // by album
-	upNext                 []string
 	tint                   ui.Color
 	paintTint              func(*ui.Painter, ui.Rect)
 	seekPaint, volumePaint seekPaint
+	// pos and volume are the sliders' values.
+	pos, volume held
 }
 
 // seekValue is the seek bar's value as screen readers say it.
@@ -165,12 +178,12 @@ func (a *app) transport(c *ui.Context) {
 		a.shuffleButton(c, 34, 17)
 		prev := iconOpts{fg: th.Color.Text, keys: hints.prev}
 		if iconButton(c, "prev", icSkipBack, locales.Previous(), 38, 20, prev).Clicked() {
-			a.player.Prev()
+			a.client.Prev()
 		}
 		a.playButton(c)
 		next := iconOpts{fg: th.Color.Text, keys: hints.next}
 		if iconButton(c, "next", icSkipForward, locales.Next(), 38, 20, next).Clicked() {
-			a.player.Next()
+			a.client.Next()
 		}
 		a.repeatButton(c)
 	})
@@ -178,7 +191,7 @@ func (a *app) transport(c *ui.Context) {
 
 func (a *app) playButton(c *ui.Context) {
 	icon, label := icPlay, locales.Play()
-	if a.player.Playing {
+	if a.isPlaying() {
 		icon, label = icPause, locales.Pause()
 	}
 	play := ui.ButtonBase(c.Key("play")).Size(44, 44).Radius(22).Center().Background(th.Color.Text).
@@ -192,7 +205,7 @@ func (a *app) playButton(c *ui.Context) {
 	play.AnimatePose(ui.Pose{Scale: 1 + 0.06*grow}, ui.Animation{Duration: 120 * time.Millisecond})
 	play.Children(func() { ui.Icon(c, icon).Size(18, 18).TextColor(th.Color.Base) })
 	if play.Clicked() {
-		a.player.TogglePlay()
+		a.client.Toggle()
 	}
 }
 
@@ -200,14 +213,15 @@ func (a *app) playButton(c *ui.Context) {
 // value.
 func (a *app) repeatButton(c *ui.Context) {
 	icon, mode, opts := icRepeat, locales.RepeatModeOff(), iconOpts{tip: locales.RepeatOff()}
-	switch a.player.Repeat {
-	case player.RepeatAll:
+	repeat := a.mirror.State().Repeat
+	switch repeat {
+	case api.RepeatAll:
 		mode, opts.tip = locales.RepeatModeAll(), locales.RepeatAll()
-	case player.RepeatOne:
+	case api.RepeatOne:
 		icon, mode, opts.tip = icRepeatOne, locales.RepeatModeOne(), locales.RepeatOne()
 	}
-	opts.isOn = a.player.Repeat != player.RepeatOff
+	opts.isOn = repeat == api.RepeatAll || repeat == api.RepeatOne
 	if iconButton(c, "repeat", icon, locales.Repeat(), 34, 17, opts).Value(mode).Clicked() {
-		a.player.CycleRepeat()
+		a.client.CycleRepeat()
 	}
 }

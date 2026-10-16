@@ -32,8 +32,11 @@ type viewMemo struct {
 	themesHint kept[settings.Dir, string]
 	// noCredentials is whether the sign-in sheet's text cleans to nothing.
 	noCredentials kept[string, bool]
-	devtoolsStep  string
-	rows          map[string]*rowText
+	// current and upNext are the Mirror's, never copied per build.
+	current      kept[playingKey, catalog.Song]
+	upNext       kept[playingKey, []catalog.Song]
+	devtoolsStep string
+	rows         map[string]*rowText
 }
 
 // maxRowTexts bounds rows: a session sees a few thousand songs at most.

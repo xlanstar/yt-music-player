@@ -45,14 +45,14 @@ func remoteHome() catalog.Home {
 // feedApp is an anonApp on Home whose home feed was answered with home.
 func feedApp(t *testing.T, home catalog.Home) (catalogtest.Source, *app, posts, *ui.Tester) {
 	t.Helper()
-	src, a, q := anonApp()
+	src, a, q := anonApp(t)
 	tt := newTester(a)
 	answer(t, tt, q, src.Next(t, tt.Frame, "home", ""), reply{Home: home})
 	return src, a, q, tt
 }
 
 func TestHomeLoadsThenShows(t *testing.T) {
-	src, a, q := anonApp()
+	src, a, q := anonApp(t)
 	tt := newTester(a)
 	call := src.Next(t, tt.Frame, "home", "")
 	if !tt.HasText("Loading…") || tt.HasText("Fresh picks") || a.router.Title() != "Home" {
@@ -97,9 +97,13 @@ func TestHomeShelvesOpenAndPlay(t *testing.T) {
 	src, a, q, tt := feedApp(t, remoteHome())
 
 	click(t, tt, "Play all")
-	upNext := a.player.AppendUpNext(nil, 5)
-	if a.player.Current() != "far-1" || !a.player.Playing || !slices.Equal(upNext, []string{"far-2"}) {
-		t.Errorf("Play all at %q (%v), up next %q", a.player.Current(), a.player.Playing, upNext)
+	st := state(t, a)
+	var upNext []string
+	for _, s := range a.upNext() {
+		upNext = append(upNext, s.ID)
+	}
+	if st.Current != "far-1" || !st.Playing || !slices.Equal(upNext, []string{"far-2"}) {
+		t.Errorf("Play all at %q (%v), up next %q", st.Current, st.Playing, upNext)
 	}
 
 	// The album shows the feed's songs while it loads.
@@ -143,7 +147,7 @@ func TestHeroPlaysItsPlaylist(t *testing.T) {
 	click(t, tt, "Play")
 	wantPath(t, a, playlistPath(remoteMix.ID))
 	call := src.Next(t, tt.Frame, "playlist", remoteMix.ID)
-	if a.player.Current() == "far-2" {
+	if state(t, a).Current == "far-2" {
 		t.Fatal("played before the songs came")
 	}
 	mix := remoteMix
@@ -152,7 +156,8 @@ func TestHeroPlaysItsPlaylist(t *testing.T) {
 	wantPlaying(t, a, "far-2")
 
 	// Now known, it plays at once from Home.
-	a.player.Play("far-1")
+	farOne, _ := a.cat.Song("far-1")
+	a.playSong(&farOne)
 	click(t, tt, "Back")
 	click(t, tt, "Play")
 	wantPath(t, a, pathHome)
@@ -160,16 +165,16 @@ func TestHeroPlaysItsPlaylist(t *testing.T) {
 
 	// Leaving its page before the songs come cancels the play.
 	src, a, q, tt = feedApp(t, remoteHome())
-	before := a.player.Current()
+	before := a.currentID()
 	click(t, tt, "Play")
 	call = src.Next(t, tt.Frame, "playlist", remoteMix.ID)
 	click(t, tt, "Back")
 	call.Reply <- reply{Playlist: mix, Songs: remoteTracks}
-	runPosts(tt, q)
+	runPosts(t, tt, q)
 	a.router.Forward()
 	answer(t, tt, q, src.Next(t, tt.Frame, "playlist", remoteMix.ID), reply{Playlist: mix, Songs: remoteTracks})
-	if a.player.Current() != before || a.player.Playing {
-		t.Errorf("playing %q (%v) after leaving the hero's playlist", a.player.Current(), a.player.Playing)
+	if st := state(t, a); st.Current != before || st.Playing {
+		t.Errorf("playing %q (%v) after leaving the hero's playlist", st.Current, st.Playing)
 	}
 }
 
@@ -183,10 +188,10 @@ func TestHomeWithoutPlaylistsHasNoHero(t *testing.T) {
 }
 
 func TestHomeErrorThenRetry(t *testing.T) {
-	src, a, q := anonApp()
+	src, a, q := anonApp(t)
 	tt := newTester(a)
 	answer(t, tt, q, src.Next(t, tt.Frame, "home", ""), reply{Err: errors.New("network is down")})
-	if !tt.HasText("Couldn’t load your home") || !tt.HasText("network is down") {
+	if !tt.HasText("Couldn’t load your home") || !tt.HasText(ytmdFailed) {
 		t.Fatalf("no error, texts %q", tt.Texts())
 	}
 	// A failure is not retried behind the user's back.
@@ -204,7 +209,7 @@ func TestHomeErrorThenRetry(t *testing.T) {
 }
 
 func TestStaleFeedRejected(t *testing.T) {
-	src, a, q := anonApp()
+	src, a, q := anonApp(t)
 	tt := newTester(a)
 	first := src.Next(t, tt.Frame, "home", "")
 	stale := remoteHome()
@@ -214,12 +219,12 @@ func TestStaleFeedRejected(t *testing.T) {
 	// Leave Home while its result is being posted.
 	a.router.Push(pathExplore)
 	explore := src.Next(t, tt.Frame, "explore", "")
-	if first.Ctx.Err() == nil {
+	if !canceled(first) {
 		t.Fatal("leaving Home left its fetch running")
 	}
 	a.router.Back()
 	second := src.Next(t, tt.Frame, "home", "")
-	if explore.Ctx.Err() == nil {
+	if !canceled(explore) {
 		t.Fatal("leaving Explore left its fetch running")
 	}
 	finish()
@@ -229,7 +234,7 @@ func TestStaleFeedRejected(t *testing.T) {
 	}
 	// A late failure of the page left is dropped too.
 	explore.Reply <- reply{Err: errors.New("late")}
-	runPosts(tt, q)
+	runPosts(t, tt, q)
 	if a.fetches.State(loader.ExploreFeed).State != fetchstate.Idle {
 		t.Error("a canceled fetch's error was recorded")
 	}
@@ -240,7 +245,7 @@ func TestStaleFeedRejected(t *testing.T) {
 }
 
 func TestExploreLoadsThenShows(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	a.loader.Forget(loader.ExploreFeed)
 	tt := newTester(a)
 	a.router.Push(pathExplore)
@@ -249,7 +254,7 @@ func TestExploreLoadsThenShows(t *testing.T) {
 		t.Fatalf("loading explore wrong, texts %q", tt.Texts())
 	}
 	answer(t, tt, q, call, reply{Err: errors.New("rate limited")})
-	if !tt.HasText("Couldn’t load Explore") || !tt.HasText("rate limited") {
+	if !tt.HasText("Couldn’t load Explore") || !tt.HasText(ytmdFailed) {
 		t.Fatalf("no error, texts %q", tt.Texts())
 	}
 
@@ -284,7 +289,7 @@ func TestExploreLoadsThenShows(t *testing.T) {
 }
 
 func TestExploreEmpty(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	a.loader.Forget(loader.ExploreFeed)
 	tt := newTester(a)
 	a.router.Push(pathExplore)
@@ -295,7 +300,7 @@ func TestExploreEmpty(t *testing.T) {
 }
 
 func TestLibraryKeepsFeedPlaylistsOut(t *testing.T) {
-	a, q := testApp()
+	a, q := testApp(t)
 	tt := newTester(a)
 	settleLoads(t, tt, a, q)
 	if !tt.HasText("My Supermix") {

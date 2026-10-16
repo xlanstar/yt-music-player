@@ -7,7 +7,7 @@ import (
 
 // Back online, a page that failed loads without a click on Retry.
 func TestReconnectedRetries(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(albumPath("remote"))
 	answer(t, tt, q, src.Next(t, tt.Frame, "album", "remote"), reply{Err: errors.New("offline")})

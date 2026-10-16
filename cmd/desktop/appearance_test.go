@@ -20,7 +20,7 @@ func lookApp(t *testing.T, prepare func(dir settings.Dir)) (*app, posts, setting
 	if prepare != nil {
 		prepare(dir)
 	}
-	a, q := testApp()
+	a, q := testApp(t)
 	preload(a)
 	a.useSettings(dir)
 	t.Cleanup(a.look.saver.Wait)
@@ -257,7 +257,7 @@ func TestAppearanceKeyboard(t *testing.T) {
 }
 
 func TestAppearanceKeepsNothingWithoutDir(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	a.chooseTheme("orchid")
 	a.look.saver.Wait()
 	if a.look.dir != "" || len(a.look.notes) != 0 {

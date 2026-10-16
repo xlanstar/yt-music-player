@@ -4,7 +4,6 @@ package main
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -16,8 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"yt-music-player/internal/audio"
-	"yt-music-player/internal/stream"
 
 	"github.com/egoist/mygo"
 )
@@ -26,8 +23,9 @@ import (
 // counts it (footprint(1), Activity Monitor's number) and the frames
 // drawn: idle, after one frame, after every page, and while a song plays
 // focused, unfocused, minimized and paused ("Memory on macOS" in
-// docs/performance.md). Songs play through a silent clock engine: frames
-// without sound, network or the engine's own memory.
+// docs/performance.md). ytmd plays, a placeholder one (footprint.sh)
+// through its silent clock engine: frames without sound or network, and
+// none of the daemon's memory, which is its own process's.
 func footprintHarness(a *app, w *mygo.Window) {
 	if os.Getenv("MYGO_FRAME_STATS") != "all" {
 		fmt.Fprintln(os.Stderr, "footprint: MYGO_FRAME_STATS=all is needed to count frames")
@@ -38,11 +36,6 @@ func footprintHarness(a *app, w *mygo.Window) {
 	// MyGo logs each frame through the standard logger.
 	stdlog.SetOutput(frames)
 	h := &footprintRun{a: a, w: w, frames: frames}
-	a.playback.Resolver = silentResolver{}
-	a.playback.NewEngine = func(ev func(audio.Event)) (audio.Engine, error) {
-		h.engine = &clockEngine{events: ev}
-		return h.engine, nil
-	}
 	go h.run()
 }
 
@@ -50,7 +43,6 @@ type footprintRun struct {
 	a      *app
 	w      *mygo.Window
 	frames *frameCounter
-	engine *clockEngine // UI thread only
 	phases []footprintPhase
 	notes  []string
 }
@@ -60,11 +52,11 @@ const (
 	// takes about 15 ms): often enough to catch Metal's ~1 s hold after
 	// each frame several times.
 	sampleEvery = 200 * time.Millisecond
-	// Playback's position steps (internal/playback). A playing phase
+	// The position's steps (playback.go). A playing phase
 	// measures whole steps, as the footprint rises with each step's frame
 	// and falls back.
-	focusedStep = time.Second
-	blurredStep = 5 * time.Second
+	focusedTick = focusedStep * time.Second
+	blurredTick = blurredStep * time.Second
 )
 
 type windowState uint8
@@ -112,15 +104,15 @@ func (h *footprintRun) run() {
 	h.oneFrame()
 
 	h.focus()
-	w.Update(func() { h.a.player.PlayAll(h.a.cat.SongIDs()) })
+	w.Update(func() { h.a.playAll(h.a.cat.SongIDs()) })
 	h.waitFor(10*time.Second, func() bool { return h.position() > 0 })
 	// Wait out the song-start and focus animations, which draw far more
 	// often than a step.
-	h.quiet(focusedStep/2, 10*time.Second)
-	h.align(focusedStep)
-	h.measure("playing-focused", 5*focusedStep, stateFocused)
+	h.quiet(focusedTick/2, 10*time.Second)
+	h.align(focusedTick)
+	h.measure("playing-focused", 5*focusedTick, stateFocused)
 
-	w.Update(func() { h.a.player.Playing = false })
+	w.Update(h.a.client.Pause)
 	h.settle(30 * time.Second)
 	h.measure("paused", 3*time.Second, stateShown)
 
@@ -136,7 +128,7 @@ func (h *footprintRun) run() {
 	grew := mean(h.phases[len(h.phases)-1].mb) - idle
 	h.note("pages: %d shown, idle footprint %+.0f MB, %+.1f MB a page", len(paths), grew, grew/float64(len(paths)))
 
-	w.Update(func() { h.a.player.Playing = true })
+	w.Update(h.a.client.Resume)
 	yieldFocus()
 	if err := exec.CommandContext(context.Background(), "open", "-a", "Finder").Run(); err != nil {
 		h.note("could not focus Finder: %v", err)
@@ -145,16 +137,16 @@ func (h *footprintRun) run() {
 	// Wait out the frames of losing focus and Metal's hold for them, so
 	// the mean has only the steps' own frames and holds.
 	h.settle(15 * time.Second)
-	h.align(blurredStep)
-	h.measure("playing-unfocused", 2*blurredStep, stateUnfocused)
+	h.align(blurredTick)
+	h.measure("playing-unfocused", 2*blurredTick, stateUnfocused)
 
 	w.Minimize()
 	h.waitFor(10*time.Second, w.IsMinimized)
 	h.settle(15 * time.Second)
 	// Longer than a blurred step, to show none is drawn while minimized.
-	h.measure("playing-minimized", blurredStep+time.Second, stateHidden)
+	h.measure("playing-minimized", blurredTick+time.Second, stateHidden)
 
-	w.Update(func() { h.a.player.Playing = false })
+	w.Update(h.a.client.Pause)
 	w.Restore()
 	if _, err := os.Stdout.WriteString(h.report()); err != nil {
 		fmt.Fprintln(os.Stderr, "footprint:", err)
@@ -220,13 +212,14 @@ func (h *footprintRun) shown(path string) {
 	fmt.Fprintln(os.Stderr, "footprint: still loading after 5 s:", path)
 }
 
-// position is -1 before a song loaded.
+// position is -1 before a song plays.
 func (h *footprintRun) position() time.Duration {
 	return onUI(func() time.Duration {
-		if h.engine == nil {
+		st := h.a.mirror.State()
+		if !st.Playing || st.Waiting {
 			return -1
 		}
-		return time.Duration(h.engine.Position() * float64(time.Second))
+		return time.Duration(h.a.mirror.Position(time.Now()) * float64(time.Second))
 	})
 }
 
@@ -393,61 +386,6 @@ func (f *frameCounter) lastFrame() time.Time {
 	return f.last
 }
 
-type silentResolver struct{}
-
-func (silentResolver) Resolve(_ context.Context, id string) (stream.Stream, error) {
-	return stream.Stream{URL: "silent:" + id}, nil
-}
-
-func (silentResolver) Forget(string) {}
-
-// clockEngine plays silence: its position is the time it has played.
-type clockEngine struct {
-	events func(audio.Event)
-	loads  uint64
-	at     float64   // position in seconds when paused or sought
-	since  time.Time // when it started playing from at, zero while paused
-	dur    float64   // seconds
-}
-
-func (e *clockEngine) Load(s audio.Media, at float64) {
-	e.loads++
-	e.at, e.since, e.dur = at, time.Time{}, cmp.Or(s.Seconds, 600)
-	ev := audio.Event{Kind: audio.Ready, Load: e.loads}
-	// Engine forbids sending events from within its own methods.
-	go e.events(ev)
-}
-
-func (e *clockEngine) Play() {
-	if e.since.IsZero() {
-		e.since = time.Now()
-	}
-}
-
-func (e *clockEngine) Pause() { e.at, e.since = e.Position(), time.Time{} }
-
-func (e *clockEngine) Seek(sec float64) {
-	e.at = sec
-	if !e.since.IsZero() {
-		e.since = time.Now()
-	}
-}
-
-func (e *clockEngine) Position() float64 {
-	p := e.at
-	if !e.since.IsZero() {
-		p += time.Since(e.since).Seconds()
-	}
-	return min(p, e.dur)
-}
-
-func (e *clockEngine) Duration() float64  { return e.dur }
-func (e *clockEngine) SetVolume(float64)  {}
-func (e *clockEngine) SetInfo(audio.Info) {}
-func (e *clockEngine) Close()             {}
-
-// onUI returns f's result run on the UI thread, where the catalog lives,
-// without the frame Window.Update would draw.
 func onUI[T any](f func() T) T {
 	var v T
 	mygo.RunOnMain(func() { v = f() })

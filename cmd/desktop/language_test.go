@@ -5,7 +5,7 @@ import "testing"
 // The view follows the app's language as it changes, the text it keeps
 // between builds too.
 func TestLanguageChanges(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	wantTexts(t, tt, "Home", "Liked music", "Paper Moons by Ivy Calder")
 

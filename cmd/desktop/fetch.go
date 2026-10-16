@@ -43,7 +43,7 @@ func resourceAt(loc string) fetchstate.Resource {
 }
 
 // syncLoad tells the loader what the location shows, however the router
-// got there, and starts the session.
+// got there.
 func (a *app) syncLoad() {
 	if loc := a.router.Location(); loc != a.seen.loc {
 		a.seen.loc = loc
@@ -54,14 +54,13 @@ func (a *app) syncLoad() {
 		}
 		a.loader.Search(query)
 	}
-	a.session.Start()
 }
 
 // playPlaylist opens a playlist whose songs are not known yet (as from a
 // feed), and plays it once fetched.
 func (a *app) playPlaylist(id string) {
 	if pl, ok := a.cat.Playlist(id); ok && len(pl.Songs) > 0 {
-		a.player.PlayAll(pl.Songs)
+		a.playAll(pl.Songs)
 		return
 	}
 	res := fetchstate.Resource{Kind: fetchstate.Playlist, ID: id}
@@ -69,7 +68,7 @@ func (a *app) playPlaylist(id string) {
 	case fetchstate.Idle, fetchstate.Loading, fetchstate.Failed:
 		a.loader.OnLoad(res, func() {
 			pl, _ := a.cat.Playlist(id)
-			a.player.PlayAll(pl.Songs)
+			a.playAll(pl.Songs)
 		})
 	}
 	a.router.Push(playlistPath(id))
@@ -82,8 +81,7 @@ func (a *app) stopWork() {
 	if a.art != nil {
 		a.art.Close()
 	}
-	a.account.Stop()
-	a.playback.Stop()
+	a.disconnect()
 	a.look.scan.Stop()
 	a.look.saver.Wait()
 }

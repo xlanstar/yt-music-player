@@ -78,10 +78,10 @@ func (a *app) likeButton(c *ui.Context, id string, size float32) {
 }
 
 func (a *app) shuffleButton(c *ui.Context, size, iconSize float32) {
-	isShuffled := a.player.IsShuffled()
+	isShuffled := a.mirror.State().Shuffled
 	opts := iconOpts{isOn: isShuffled, isToggle: true, isChecked: isShuffled}
 	if iconButton(c, "shuffle", icShuffle, locales.Shuffle(), size, iconSize, opts).Clicked() {
-		a.player.ToggleShuffle()
+		a.client.ToggleShuffle()
 	}
 }
 
@@ -264,11 +264,11 @@ func paintEq(p *ui.Painter, r ui.Rect, isDancing bool, col ui.Color) {
 // frames a second would hold the Metal driver's ~250 MB for as long as a song
 // plays in the background.
 func (a *app) eqDancing() bool {
-	return a.player.Playing && a.playback.IsWatched()
+	return a.isPlaying() && a.progress.isWatched()
 }
 
 func (a *app) thumb(c *ui.Context, s catalog.Song, size, radius float32, hovered bool) {
-	isCurrent := s.ID == a.player.Current()
+	isCurrent := s.ID == a.currentID()
 	coverArt(c, s.Art, size, size, radius).Children(func() {
 		if !hovered && !isCurrent {
 			return
@@ -277,7 +277,7 @@ func (a *app) thumb(c *ui.Context, s catalog.Song, size, radius float32, hovered
 			switch {
 			case isCurrent && !hovered:
 				eqBars(c, a.eqDancing(), th.Color.Light, size*0.34)
-			case isCurrent && a.player.Playing:
+			case isCurrent && a.isPlaying():
 				ui.Icon(c, icPause).Size(size*0.38, size*0.38).TextColor(th.Color.Light)
 			default:
 				ui.Icon(c, icPlay).Size(size*0.38, size*0.38).TextColor(th.Color.Light)

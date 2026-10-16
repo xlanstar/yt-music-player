@@ -3,11 +3,12 @@ package main
 
 import (
 	"os"
-	"yt-music-player/internal/audio"
+	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/logfile"
+	"yt-music-player/internal/remote"
 	"yt-music-player/internal/settings"
-	"yt-music-player/internal/stream"
 	"yt-music-player/internal/theme"
+	"yt-music-player/internal/version"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
@@ -34,17 +35,17 @@ func main() {
 	}
 	var a *app
 	if demo {
-		a = newDemoApp(newSource())
+		a = newDemoApp(nil)
 	} else {
-		a = newApp(newSource())
+		a = newApp(nil)
 	}
-	// Prefetching draws nothing, so it needs no frame.
-	a.playback.Wake = mygo.RunOnMain
-	if !demo {
-		// yt-dlp is only a fallback: it tracks YouTube's changes within
-		// days but takes seconds per song.
-		a.playback.Resolver = stream.New(stream.Options{YTDLP: stream.LookYTDLP()})
-		a.playback.NewEngine = audio.New
+	// Connecting, starting ytmd if need be, takes a while: from now,
+	// while the window opens. What it reports waits for the window.
+	if d, err := systemYtmd(); err == nil {
+		a.connect(d)
+	} else {
+		log.Error().Err(err).Msg("ytmd's paths")
+		a.daemon.link.Health = remote.Unavailable
 	}
 	// Before the window is made, so it opens in the user's theme.
 	if dir, err := settings.DefaultDir(); err == nil {
@@ -104,19 +105,47 @@ func (a *app) openWindow() {
 	})
 	a.updates.attach(w.Update)
 	// Listeners run on the main thread, where the view builds. Hidden or
-	// unfocused, playback draws no frames; regaining sight goes through
-	// Update so a frame shows the current position.
-	a.playback.SetFocused(w.IsFocused())
-	w.OnFocus(func() { w.Update(func() { a.playback.SetFocused(true) }) })
-	w.OnBlur(func() { a.playback.SetFocused(false) })
-	w.OnMinimize(func() { a.playback.SetShown(false) })
-	w.OnHide(func() { a.playback.SetShown(false) })
-	w.OnRestore(func() { w.Update(func() { a.playback.SetShown(true) }) })
-	w.OnShow(func() { w.Update(func() { a.playback.SetShown(true) }) })
+	// unfocused, the position draws fewer frames or none; regaining sight
+	// goes through Update so a frame shows where the song is. Coming to
+	// the front checks that ytmd answers.
+	a.progress.setFocused(w.IsFocused())
+	w.OnFocus(func() {
+		a.foreground()
+		w.Update(func() { a.progress.setFocused(true) })
+	})
+	w.OnBlur(func() { a.progress.setFocused(false) })
+	w.OnMinimize(func() { a.progress.setShown(false) })
+	w.OnHide(func() { a.progress.setShown(false) })
+	w.OnRestore(func() { w.Update(func() { a.progress.setShown(true) }) })
+	w.OnShow(func() { w.Update(func() { a.progress.setShown(true) }) })
 	stopNetwork := a.followNetwork()
 	w.OnClosed(func() {
 		stopNetwork()
 		a.stopWork()
 	})
 	harness(a, w)
+}
+
+// appVersion is the app's: mygo.json's, or a development build's, which
+// takes part in no version check (docs/plans/daemon.md §8).
+func appVersion() string {
+	if mygo.IsDev() {
+		return version.Dev
+	}
+	return mygo.App.Version()
+}
+
+// systemYtmd is the ytmd of this build: its socket, under the names of a
+// development or placeholder build, and the ytmd found beside the app or
+// at YTMD_PATH to start.
+func systemYtmd() (ytmd, error) {
+	paths, err := ipc.Default(mygo.IsDev())
+	if err != nil {
+		return ytmd{}, err
+	}
+	return ytmd{
+		dialer:  &ipc.Dialer{Socket: paths.Socket, Spawn: ipc.SpawnDaemon},
+		version: appVersion(),
+		log:     paths.Log("ytmd"),
+	}, nil
 }

@@ -13,9 +13,18 @@ func (a *app) followNetwork() (stop func()) {
 	})
 }
 
-// reconnected retries the shown page, the search and the account's
-// resources that failed; what loaded stays.
+// reconnected connects to ytmd at once if it is away, and retries what
+// failed.
 func (a *app) reconnected() {
+	if a.sup != nil {
+		a.sup.Retry()
+	}
+	a.retryFailed()
+}
+
+// retryFailed retries the shown page, the search and the account's
+// resources that failed; what loaded stays.
+func (a *app) retryFailed() {
 	a.loader.RetryFailed()
 	a.session.RetryFailed()
 }

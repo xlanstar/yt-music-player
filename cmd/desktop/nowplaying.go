@@ -99,11 +99,8 @@ func (a *app) queueView(c *ui.Context) {
 				})
 			})
 			ui.Column(c).Margin(0, -th.Space(2)).FocusGroup(ui.Vertical).Children(func() {
-				a.bar.upNext = a.player.AppendUpNext(a.bar.upNext[:0], 8)
-				for _, id := range a.bar.upNext {
-					if next, ok := a.cat.Song(id); ok {
-						a.songRow(c, next, songRowOpts{art: 42, isCompact: true})
-					}
+				for _, next := range a.upNext() {
+					a.songRow(c, next, songRowOpts{art: 42, isCompact: true})
 				}
 			})
 		})

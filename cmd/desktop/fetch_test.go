@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 	"time"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 	"yt-music-player/internal/fetchstate"
@@ -16,29 +17,36 @@ import (
 // reply answers a catalogtest.Source call.
 type reply = catalogtest.Reply
 
+// ytmdFailed is what the app shows of an error ytmd's source failed with:
+// its text stays in the daemon, which may hold anything.
+var ytmdFailed = api.ErrInternal.Error()
+
 // anonApp is signed out, so only its pages ask the source for music.
-func anonApp() (catalogtest.Source, *app, posts) {
+func anonApp(tb testing.TB) (catalogtest.Source, *app, posts) {
+	tb.Helper()
 	src := catalogtest.New()
-	a, q := sourceApp(src)
-	for _, res := range session.Resources {
-		a.fetches.Set(res, fetchstate.Fetch{State: fetchstate.SignedOut})
-	}
+	a, q := startApp(tb, src, ytmdOptions{signedOut: true})
+	q.ytmd.until(tb, "signed out", func() bool {
+		return a.fetches.State(session.AccountRes).State == fetchstate.SignedOut
+	})
 	return src, a, q
 }
 
 // scriptedApp is an anonApp with empty feeds marked fetched, so only the
 // pages a test opens ask for music.
-func scriptedApp() (catalogtest.Source, *app, posts) {
-	src, a, q := anonApp()
+func scriptedApp(tb testing.TB) (catalogtest.Source, *app, posts) {
+	tb.Helper()
+	src, a, q := anonApp(tb)
 	fetchedFeeds(a)
 	return src, a, q
 }
 
 // accountApp is over catalogtest.Accounts with empty feeds marked
-// fetched, so it asks first for the account, library and likes.
-func accountApp() (catalogtest.Accounts, *app, posts) {
+// fetched, so ytmd asks first for the account, library and likes.
+func accountApp(tb testing.TB) (catalogtest.Accounts, *app, posts) {
+	tb.Helper()
 	src := catalogtest.Accounts{Source: catalogtest.New()}
-	a, q := sourceApp(src)
+	a, q := sourceApp(tb, src)
 	fetchedFeeds(a)
 	return src, a, q
 }
@@ -48,34 +56,76 @@ func fetchedFeeds(a *app) {
 	a.fetches.Set(loader.ExploreFeed, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
-func runPosts(tt *ui.Tester, q posts) {
+// runPosts runs what was posted once ytmd answered all it was asked.
+func runPosts(t testing.TB, tt *ui.Tester, q posts) {
+	t.Helper()
+	syncDaemon(t, q)
 	drain(q)
 	tt.Frame()
 }
 
-// heldPost waits for one result and returns it unrun, so a test can run
-// it after making it stale.
+// heldPost waits for one of the app's results, running the Client's
+// posts meanwhile, and returns it unrun, so a test can run it after making
+// it stale.
 func heldPost(t testing.TB, q posts) func() {
 	t.Helper()
-	select {
-	case fn := <-q:
-		return fn
-	case <-time.After(5 * time.Second):
-		t.Fatal("no result came back")
-		return nil
+	timeout := time.After(wait)
+	for {
+		select {
+		case fn := <-q.app:
+			return fn
+		case fn := <-q.client:
+			fn()
+		case <-timeout:
+			t.Fatal("no result came back")
+			return nil
+		}
 	}
 }
 
+// answer replies to call and waits until the app has the answer: ytmd
+// took it, the loader's result for a page came back, and what the daemon
+// sent with it arrived.
 func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply) {
 	t.Helper()
+	src := q.ytmd.src
+	n := src.count(call.Kind, call.ID)
 	call.Reply <- r
-	waitPost(t, tt, q)
+	q.ytmd.until(t, "answered "+call.Kind, func() bool { return src.count(call.Kind, call.ID) > n })
+	if isPage(call) {
+		heldPost(t, q)()
+	}
+	syncDaemon(t, q)
+	tt.Frame()
+}
+
+// isPage reports whether the loader asked for call, rather than ytmd's
+// account.
+func isPage(call catalogtest.Call) bool {
+	switch call.Kind {
+	case "album", "search", "home", "explore":
+		return true
+	case "playlist":
+		return call.ID != catalog.LikedID
+	}
+	return false
 }
 
 func waitPost(t *testing.T, tt *ui.Tester, q posts) {
 	t.Helper()
 	heldPost(t, q)()
 	tt.Frame()
+}
+
+// canceled waits until ytmd canceled call: the app's cancel crosses the
+// socket.
+func canceled(call catalogtest.Call) bool {
+	select {
+	case <-call.Ctx.Done():
+		return true
+	case <-time.After(wait):
+		return false
+	}
 }
 
 // remoteAlbum and remoteTracks are not in the placeholder catalog.
@@ -96,7 +146,7 @@ var (
 )
 
 func TestAlbumLoadsThenShows(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(albumPath("remote"))
 	c := src.Next(t, tt.Frame, "album", "remote")
@@ -128,7 +178,7 @@ func TestAlbumLoadsThenShows(t *testing.T) {
 }
 
 func TestCachedAlbumShowsWhileLoading(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(albumPath("velvet-static"))
 	c := src.Next(t, tt.Frame, "album", "velvet-static")
@@ -144,11 +194,11 @@ func TestCachedAlbumShowsWhileLoading(t *testing.T) {
 }
 
 func TestPlaylistErrorThenRetry(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(playlistPath("remote-list"))
 	answer(t, tt, q, src.Next(t, tt.Frame, "playlist", "remote-list"), reply{Err: errors.New("network is down")})
-	if !tt.HasText("Couldn’t load this playlist") || !tt.HasText("network is down") || a.router.Title() != "Playlist" {
+	if !tt.HasText("Couldn’t load this playlist") || !tt.HasText(ytmdFailed) || a.router.Title() != "Playlist" {
 		t.Fatalf("no error, title %q, texts %q", a.router.Title(), tt.Texts())
 	}
 	// A failure is not retried behind the user's back.
@@ -179,7 +229,7 @@ func TestPlaylistErrorThenRetry(t *testing.T) {
 
 func TestNotFound(t *testing.T) {
 	for _, path := range []string{albumPath("nope"), playlistPath("nope")} {
-		a, q := testApp()
+		a, q := testApp(t)
 		tt := newTester(a)
 		a.router.Push(path)
 		tt.Frame()
@@ -195,7 +245,7 @@ func TestNotFound(t *testing.T) {
 }
 
 func TestStaleFetchRejected(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(albumPath("remote"))
 	first := src.Next(t, tt.Frame, "album", "remote")
@@ -245,7 +295,7 @@ func TestStaleFetchRejected(t *testing.T) {
 }
 
 func TestSearchDebouncesAndCancels(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	// Long enough to type a word in, even with the race detector slowing
 	// each letter's frame.
@@ -309,11 +359,11 @@ func TestSearchDebouncesAndCancels(t *testing.T) {
 }
 
 func TestSearchErrorThenRetry(t *testing.T) {
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(searchPath("zzz"))
 	answer(t, tt, q, src.Next(t, tt.Frame, "search", "zzz"), reply{Err: errors.New("rate limited")})
-	showsErr := tt.HasText("Couldn’t search for “zzz”") && tt.HasText("rate limited")
+	showsErr := tt.HasText("Couldn’t search for “zzz”") && tt.HasText(ytmdFailed)
 	if !showsErr || tt.HasText("No results for “zzz”") {
 		t.Fatalf("no search error, texts %q", tt.Texts())
 	}
@@ -338,13 +388,13 @@ func TestSearchErrorThenRetry(t *testing.T) {
 	// canceled all the same, and its answer is dropped.
 	select {
 	case late := <-src.Calls:
-		if late.Ctx.Err() == nil {
+		if !canceled(late) {
 			t.Errorf("search for %q still running after leaving search", late.ID)
 		}
 		late.Reply <- reply{Results: catalog.Results{Songs: remoteTracks}}
 	case <-time.After(a.loader.Debounce + 50*time.Millisecond):
 	}
-	runPosts(tt, q)
+	runPosts(t, tt, q)
 	if query := a.loader.Found().Query; query != "zzz" {
 		t.Errorf("a canceled search's results were kept, for %q", query)
 	}

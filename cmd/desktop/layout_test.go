@@ -8,8 +8,8 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-func arranged(change func(l *theme.Layout)) *app {
-	a := idleApp()
+func arranged(tb testing.TB, change func(l *theme.Layout)) *app {
+	a := idleApp(tb)
 	t := theme.Default()
 	change(&t.Layout)
 	a.setTheme(t)
@@ -60,7 +60,7 @@ func TestLayoutArrangements(t *testing.T) {
 			bar  ui.TitleBar
 		}{{"mac", ui.TitleBar{Height: 52, Left: 78}}, {"linux", ui.TitleBar{Height: 52, Right: 138}}} {
 			t.Run(tc.name+"/"+bar.name, func(t *testing.T) {
-				a := arranged(tc.change)
+				a := arranged(t, tc.change)
 				tt := ui.NewTester(a.view, 1040, 680)
 				tt.SetTitleBar(bar.bar)
 				frames(tt, 2)
@@ -117,7 +117,7 @@ func TestLayoutArrangements(t *testing.T) {
 func TestLayoutPanelSlidesFromItsEdge(t *testing.T) {
 	const width, shown = 1040, 0.4
 	for _, side := range []theme.Side{theme.Left, theme.Right} {
-		a := arranged(func(l *theme.Layout) { l.SidebarSide, l.PanelSide = theme.Left+theme.Right-side, side })
+		a := arranged(t, func(l *theme.Layout) { l.SidebarSide, l.PanelSide = theme.Left+theme.Right-side, side })
 		tt := ui.NewTester(func(c *ui.Context) {
 			a.applyTheme(c)
 			edge := ui.Row(c).Fill().AlignItems(ui.Stretch)
@@ -165,8 +165,8 @@ func TestLayoutNoPanel(t *testing.T) {
 		}
 		return find(t, tt, "Notifications").X
 	}
-	with := bellAt(idleApp())
-	without := bellAt(arranged(func(l *theme.Layout) { l.PanelSide = theme.Hidden }))
+	with := bellAt(idleApp(t))
+	without := bellAt(arranged(t, func(l *theme.Layout) { l.PanelSide = theme.Hidden }))
 	if d := theme.Default().Layout; without-with != d.Panel+d.Gutter {
 		t.Errorf("top bar's end moved by %v without the panel, want %v", without-with, d.Panel+d.Gutter)
 	}
@@ -174,7 +174,7 @@ func TestLayoutNoPanel(t *testing.T) {
 
 // Without a sidebar, its pages stay reachable by shortcut.
 func TestLayoutNoSidebarNavigates(t *testing.T) {
-	a := arranged(func(l *theme.Layout) { l.SidebarSide = theme.Hidden })
+	a := arranged(t, func(l *theme.Layout) { l.SidebarSide = theme.Hidden })
 	tt := newTester(a)
 	for _, tc := range []struct {
 		key  ui.Key
@@ -188,7 +188,7 @@ func TestLayoutNoSidebarNavigates(t *testing.T) {
 
 func TestLayoutCompact(t *testing.T) {
 	apart := func(d theme.Density) float32 {
-		a, q := testApp()
+		a, q := testApp(t)
 		custom := theme.Default()
 		custom.Layout.Density = d
 		a.setTheme(custom)

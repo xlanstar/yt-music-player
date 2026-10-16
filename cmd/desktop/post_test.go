@@ -5,8 +5,6 @@ import (
 	"sync"
 	"testing"
 	"yt-music-player/internal/catalog"
-
-	"github.com/egoist/mygo/ui"
 )
 
 func TestPosterWaitsForAttach(t *testing.T) {
@@ -50,19 +48,18 @@ func TestPosterConcurrent(t *testing.T) {
 // The first build may run before Update is attached; its fetches still
 // show once attached, with no extra frame requested.
 func TestBuildBeforeAttach(t *testing.T) {
-	a := newDemoApp(catalog.NewPlaceholderSource(0))
-	tt := ui.NewTester(a.view, 1360, 860)
-	tt.Frame()
-	q := make(posts, 64)
-	a.updates.attach(func(fn func()) { q <- fn })
+	a, q := startApp(t, catalog.NewPlaceholderSource(0), ytmdOptions{isDetached: true})
+	tt := newTester(a)
+	a.updates.attach(func(fn func()) { q.app <- fn })
 	settleLoads(t, tt, a, q)
 	wantTexts(t, tt, "Quick picks")
 }
 
-// newApp queues none of the placeholder's songs: they cannot play.
+// newApp starts with none of the placeholder's music: only a placeholder
+// ytmd plays it.
 func TestNewAppWithoutDemo(t *testing.T) {
-	a := newApp(catalog.NewPlaceholderSource(0))
-	if len(a.cat.Songs) != 0 || a.player.Current() != "" || a.player.Position != 0 {
-		t.Fatalf("started with %d songs, at %q, %v s", len(a.cat.Songs), a.player.Current(), a.player.Position)
+	a := newApp(nil)
+	if len(a.cat.Songs) != 0 || a.currentID() != "" {
+		t.Fatalf("started with %d songs, at %q", len(a.cat.Songs), a.currentID())
 	}
 }

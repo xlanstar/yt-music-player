@@ -26,7 +26,7 @@ type songRowOpts struct {
 // assistive technology reads a button as one leaf, hiding buttons nested
 // in it.
 func (a *app) songRow(c *ui.Context, s catalog.Song, opts songRowOpts) {
-	isCurrent := s.ID == a.player.Current()
+	isCurrent := s.ID == a.currentID()
 	text := a.rowText(&s)
 	row := ui.Row(c.Key(text.key)).Radius(th.Radius.Control).AlignItems(ui.Center).Cursor(ui.CursorPointer)
 	gap := th.Space(3.5)
@@ -77,13 +77,13 @@ func (a *app) songRow(c *ui.Context, s catalog.Song, opts songRowOpts) {
 			}
 		})
 		if songButton.Clicked() {
-			a.player.Play(s.ID)
+			a.playSong(&s)
 		}
 		a.songActions(c, s, opts, hovered)
 	})
 	// Clicks on the row's padding and duration miss the button.
 	if row.Clicked() {
-		a.player.Play(s.ID)
+		a.playSong(&s)
 	}
 }
 
@@ -136,7 +136,7 @@ func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hover
 func (a *app) trackNumber(c *ui.Context, index int, isCurrent, hovered bool) {
 	ui.Row(c).Width(28).Justify(ui.Center).Children(func() {
 		switch {
-		case hovered && isCurrent && a.player.Playing:
+		case hovered && isCurrent && a.isPlaying():
 			ui.Icon(c, icPause).Size(14, 14).TextColor(th.Color.Text)
 		case hovered:
 			ui.Icon(c, icPlay).Size(14, 14).TextColor(th.Color.Text)

@@ -177,7 +177,7 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 		FocusGroup(ui.Horizontal)
 	row.Children(func() {
 		icon, label := icPlay, locales.Play()
-		if holdsCurrent && a.player.Playing {
+		if holdsCurrent && a.isPlaying() {
 			icon, label = icPause, locales.Pause()
 		}
 		play := ui.ButtonBase(c.Key("play-all")).Size(56, 56).Radius(28).Center().Background(th.Color.Accent).
@@ -188,9 +188,9 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 		play.Children(func() { ui.Icon(c, icon).Size(22, 22).TextColor(th.Color.AccentText) })
 		if play.Clicked() && len(songs) > 0 {
 			if holdsCurrent {
-				a.player.TogglePlay()
+				a.client.Toggle()
 			} else {
-				a.player.Play(songs[0].ID)
+				a.playSong(&songs[0])
 			}
 		}
 		ui.Box(c).Width(th.Space(1.5))
@@ -204,7 +204,7 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 // holdsCurrent is memoized, as a scan of thousands of songs would run
 // every frame.
 func (a *app) holdsCurrent(songs []catalog.Song) bool {
-	current := a.player.Current()
+	current := a.currentID()
 	key := holdsKey{n: len(songs), current: current}
 	if len(songs) > 0 {
 		key.first = &songs[0]

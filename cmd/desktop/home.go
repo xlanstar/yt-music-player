@@ -143,10 +143,11 @@ func (a *app) songShelf(c *ui.Context, w float32, sh *catalog.Shelf, playAll boo
 		}
 		if sectionHeader(c, "play-all", sh.Strapline, sh.Title, action) {
 			ids := make([]string, len(sh.Items))
+			songs := make([]catalog.Song, len(sh.Items))
 			for i, it := range sh.Items {
-				ids[i] = it.Song.ID
+				ids[i], songs[i] = it.Song.ID, it.Song
 			}
-			a.player.PlayAll(ids)
+			a.client.PlayAll(ids, songs)
 		}
 		cols := columnsFor(w, 300, 1, 3)
 		grid := ui.Grid(c).Columns(cols).GapX(th.Space(4)).GapY(th.Space(0.5)).Margin(0, -th.Space(2)).
@@ -177,7 +178,7 @@ func (a *app) feedCard(c *ui.Context, it *catalog.Item, text cardText, size floa
 	case catalog.ItemSong:
 		s := &it.Song
 		if mediaCard(c, text.key, s.Art, s.Title, text.sub, size, false).Clicked() {
-			a.player.Play(s.ID)
+			a.playSong(s)
 		}
 	case catalog.ItemAlbum:
 		album := &it.Album

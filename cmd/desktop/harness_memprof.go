@@ -66,8 +66,8 @@ func drive(a *app, w *mygo.Window, paths []string) {
 					a.panel.isShown = !a.panel.isShown
 				}
 				if i%3 == 0 {
-					a.player.Next()
-					a.player.Playing = true
+					a.client.Next()
+					a.client.Resume()
 				}
 			})
 			if i%7 == 0 {
@@ -80,7 +80,7 @@ func drive(a *app, w *mygo.Window, paths []string) {
 	w.Update(func() {
 		a.router.Push(pathHome)
 		a.panel.isShown = true
-		a.player.Playing = false
+		a.client.Pause()
 	})
 	w.SetSize(1360, 860)
 	var m runtime.MemStats

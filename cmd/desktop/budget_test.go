@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 	"time"
-	"yt-music-player/internal/audio"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/budget"
 	"yt-music-player/internal/catalog"
 )
@@ -210,9 +210,9 @@ func (s thumbSource) Library(ctx context.Context) (catalog.Library, error) {
 // thumbScreen shows loc over thumbSource once its thumbnails loaded.
 func thumbScreen(loc string) func(testing.TB) *screen {
 	return func(tb testing.TB) *screen {
-		// The song newDemoApp starts the player at.
+		// The song ytmd's queue starts at.
 		playing := catalog.Placeholder().Songs[0].ID
-		a, q := sourceApp(thumbSource{catalog.NewPlaceholderSource(0), playing})
+		a, q := sourceApp(tb, thumbSource{catalog.NewPlaceholderSource(0), playing})
 		a.loader.Debounce = 0
 		a.router.Push(loc)
 		return showApp(tb, a, q)
@@ -221,15 +221,14 @@ func thumbScreen(loc string) func(testing.TB) *screen {
 
 func playingScreen(playing, focused bool) func(testing.TB) *screen {
 	return func(tb testing.TB) *screen {
-		a, q, f := playbackApp(&instantResolver{})
-		startPlaying(tb, a, q, f)
-		tb.Cleanup(a.playback.Stop)
-		f.Pos = 60
-		a.playback.Resync()
-		a.playback.SetFocused(focused)
+		a, q, e := playbackApp(tb, &instantResolver{})
+		startPlaying(tb, a, q, e)
+		a.client.Seek(60)
+		a.progress.setFocused(focused)
 		if !playing {
-			a.player.TogglePlay()
+			a.client.Pause()
 		}
+		syncDaemon(tb, q)
 		return showApp(tb, a, q)
 	}
 }
@@ -281,12 +280,12 @@ func TestBudgetIdleFrames(t *testing.T) {
 	}
 }
 
-// framesPerMinute counts the frames a minute of playing from pos asks for,
-// each drawn when the previous one asked.
-func framesPerMinute(a *app, f *audio.Fake, pos float64) int {
+// framesPerMinute counts the frames a minute of s playing from pos asks
+// for, each drawn when the previous one asked.
+func framesPerMinute(p *progress, s *api.State, pos float64) int {
 	asked := 0
 	for end := pos + 60; pos < end; asked++ {
-		next := turn(a, f, pos)
+		next := p.nextFrame(s, pos)
 		if next <= 0 {
 			break
 		}
@@ -307,15 +306,11 @@ func TestBudgetPlayingFrames(t *testing.T) {
 		{"paused", false, true, true, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			a, q, f := playbackApp(&instantResolver{})
-			startPlaying(t, a, q, f)
-			t.Cleanup(a.playback.Stop)
-			a.playback.SetFocused(tc.focused)
-			a.playback.SetShown(tc.visible)
-			if !tc.playing {
-				a.player.TogglePlay()
-			}
-			if got := framesPerMinute(a, f, 30); got != tc.want {
+			s := api.State{Playing: tc.playing, Current: "s", Duration: 200}
+			var p progress
+			p.setFocused(tc.focused)
+			p.setShown(tc.visible)
+			if got := framesPerMinute(&p, &s, 30); got != tc.want {
 				t.Errorf("%d frames a minute, want %d", got, tc.want)
 			}
 		})
@@ -323,7 +318,7 @@ func TestBudgetPlayingFrames(t *testing.T) {
 }
 
 func TestBudgetHelpers(t *testing.T) {
-	a := helperApp()
+	a := helperApp(t)
 	for _, tc := range helperCases {
 		t.Run(tc.name, func(t *testing.T) {
 			i := 0
@@ -336,7 +331,7 @@ func TestBudgetHelpers(t *testing.T) {
 }
 
 func TestBudgetMemo(t *testing.T) {
-	a := helperApp()
+	a := helperApp(t)
 	for _, tc := range memoCases {
 		t.Run(tc.name, func(t *testing.T) {
 			budget.Allocs(t, 0, 100, func() { tc.get(a) })

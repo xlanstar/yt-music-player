@@ -120,6 +120,6 @@ func (a *app) topResult(c *ui.Context, s catalog.Song) {
 		playBadge(c, 50, hovered).Absolute().Right(th.Space(5)).Bottom(th.Space(5))
 	})
 	if card.Clicked() {
-		a.player.Play(s.ID)
+		a.playSong(&s)
 	}
 }

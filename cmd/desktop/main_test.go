@@ -8,49 +8,52 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/theme"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// posts stands in for Window.Update, as tests have no window: posted funcs
-// queue here and the test runs them on its goroutine, the Tester's UI thread.
-type posts chan func()
-
-// testApp's placeholder source answers at once.
-func testApp() (*app, posts) { return sourceApp(catalog.NewPlaceholderSource(0)) }
-
-// sourceApp is an app over src; it starts with the placeholder's music
-// whatever src is.
-func sourceApp(src catalog.Source) (*app, posts) {
-	q := make(posts, 64)
-	a := newDemoApp(src)
-	a.updates.attach(func(fn func()) { q <- fn })
+// testApp's placeholder source answers at once; the account's fetches
+// have come.
+func testApp(tb testing.TB) (*app, posts) {
+	tb.Helper()
+	a, q := sourceApp(tb, catalog.NewPlaceholderSource(0))
+	q.ytmd.until(tb, "fetched the account", func() bool { return !a.session.IsBusy() })
 	return a, q
+}
+
+// sourceApp is an app over ytmd serving src; it starts with the
+// placeholder's music whatever src is.
+func sourceApp(tb testing.TB, src catalog.Source) (*app, posts) {
+	tb.Helper()
+	return startApp(tb, src, ytmdOptions{})
 }
 
 // idleApp is for tests that wait for no fetch: feeds, account, library and
 // likes are preloaded, and other pages' fetches never answer.
-func idleApp() *app {
-	a, _ := testApp()
+func idleApp(tb testing.TB) *app {
+	tb.Helper()
+	a, _ := testApp(tb)
 	return preload(a)
 }
 
 func preload(a *app) *app {
 	ctx := context.Background()
-	h, err := a.src.Home(ctx)
+	src := catalog.NewPlaceholderSource(0)
+	h, err := src.Home(ctx)
 	must(err)
 	a.loader.KeepHome(h)
-	e, err := a.src.Explore(ctx)
+	e, err := src.Explore(ctx)
 	must(err)
 	a.loader.KeepExplore(e)
-	account, err := a.src.Account(ctx)
+	account, err := src.Account(ctx)
 	must(err)
-	lib, err := a.src.Library(ctx)
+	lib, err := src.Library(ctx)
 	must(err)
 	a.session.KeepAccount(account, lib)
-	liked, songs, err := a.src.Playlist(ctx, catalog.LikedID)
+	liked, songs, err := src.Playlist(ctx, catalog.LikedID)
 	must(err)
 	a.cat.Add(songs, nil, nil)
 	a.session.KeepLikes(liked.Songs)
@@ -67,16 +70,24 @@ func busy(a *app) bool {
 	return a.loader.IsBusy() || a.art != nil && a.art.Loading() || a.session.IsBusy()
 }
 
+// settleLoads draws frames and runs posts until nothing loads, no post is
+// due and a round trip to ytmd brought nothing more.
 func settleLoads(t testing.TB, tt *ui.Tester, a *app, q posts) {
 	t.Helper()
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(wait)
 	for {
 		tt.Frame()
-		if !busy(a) && len(q) == 0 {
-			return
+		if !busy(a) && len(q.app) == 0 && len(q.client) == 0 {
+			syncDaemon(t, q)
+			tt.Frame()
+			if !busy(a) && len(q.app) == 0 && len(q.client) == 0 {
+				return
+			}
 		}
 		select {
-		case fn := <-q:
+		case fn := <-q.app:
+			fn()
+		case fn := <-q.client:
 			fn()
 		case <-timeout:
 			t.Fatalf("still loading, texts %q", tt.Texts())
@@ -84,11 +95,10 @@ func settleLoads(t testing.TB, tt *ui.Tester, a *app, q posts) {
 	}
 }
 
-func newTester(a *app) *ui.Tester {
-	tt := ui.NewTester(a.view, 1360, 860)
-	tt.SetTitleBar(ui.TitleBar{Height: a.theme.Layout.TitleBar, Left: 78})
-	tt.Frame()
-	return tt
+// settled waits for what the daemon does with the controls sent so far.
+func settled(t testing.TB, a *app) {
+	t.Helper()
+	syncDaemon(t, ytmdOf(a).q)
 }
 
 func click(t *testing.T, tt *ui.Tester, s string) {
@@ -98,11 +108,20 @@ func click(t *testing.T, tt *ui.Tester, s string) {
 	}
 }
 
+// wantPlaying waits for the controls sent, then wants id playing.
 func wantPlaying(t *testing.T, a *app, id string) {
 	t.Helper()
-	if a.player.Current() != id || !a.player.Playing {
-		t.Fatalf("playing %q (%v), want %q", a.player.Current(), a.player.Playing, id)
+	settled(t, a)
+	if st := a.mirror.State(); st.Current != id || !st.Playing {
+		t.Fatalf("playing %q (%v), want %q", st.Current, st.Playing, id)
 	}
+}
+
+// state is the daemon's, once it did what the app asked.
+func state(t testing.TB, a *app) api.State {
+	t.Helper()
+	settled(t, a)
+	return a.mirror.State()
 }
 
 func wantPath(t *testing.T, a *app, loc string) {
@@ -132,22 +151,22 @@ func count(texts []string, s string) int {
 }
 
 func TestPlayPause(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	click(t, tt, "Play")
-	if !a.player.Playing {
+	if !state(t, a).Playing {
 		t.Fatal("not playing after clicking Play")
 	}
 	tt.Frame()
 	tt.Frame()
 	tt.Key(0, ui.KeySpace)
-	if a.player.Playing {
+	if state(t, a).Playing {
 		t.Error("still playing after Space")
 	}
 }
 
 func TestSongRowPlaysAndLikes(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	moreButtons := count(tt.Texts(), "More")
 	click(t, tt, "Paper Moons by Ivy Calder")
@@ -166,7 +185,7 @@ func TestSongRowPlaysAndLikes(t *testing.T) {
 }
 
 func TestNavigationAndHistory(t *testing.T) {
-	a, q := testApp()
+	a, q := testApp(t)
 	tt := newTester(a)
 	// The sidebar lists the library once it loads.
 	settleLoads(t, tt, a, q)
@@ -192,7 +211,7 @@ func TestNavigationAndHistory(t *testing.T) {
 }
 
 func TestHistoryKeys(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	click(t, tt, "Explore")
 	tt.Key(0, ui.KeyBack)
@@ -208,7 +227,7 @@ func TestHistoryKeys(t *testing.T) {
 }
 
 func TestAlbumPage(t *testing.T) {
-	a, q := testApp()
+	a, q := testApp(t)
 	tt := newTester(a)
 	settleLoads(t, tt, a, q)
 	click(t, tt, "Library")
@@ -222,7 +241,7 @@ func TestAlbumPage(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	a, q := testApp()
+	a, q := testApp(t)
 	tt := newTester(a)
 	tt.Key(ui.Cmd, ui.KeyK)
 	if !tt.Focused("Search") {
@@ -250,7 +269,7 @@ func TestSearch(t *testing.T) {
 }
 
 func TestSearchHistory(t *testing.T) {
-	a, q := testApp()
+	a, q := testApp(t)
 	tt := newTester(a)
 	click(t, tt, "Explore")
 	click(t, tt, "Search")
@@ -277,7 +296,7 @@ func TestSearchHistory(t *testing.T) {
 }
 
 func TestPanelToggles(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	click(t, tt, "Lyrics")
 	if !a.panel.isShown || a.panel.tab != tabLyrics {
@@ -379,7 +398,7 @@ func TestEveryPage(t *testing.T) {
 		{"search empty", func(a *app) { a.router.Push(searchPath("zzz")) }, []string{"No results for “zzz”"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			a, q := testApp()
+			a, q := testApp(t)
 			tc.setup(a)
 			tt := newTester(a)
 			settleLoads(t, tt, a, q)
@@ -390,8 +409,8 @@ func TestEveryPage(t *testing.T) {
 }
 
 func TestLikedEmptiesAndReturns(t *testing.T) {
-	a := idleApp()
-	current := a.player.Current()
+	a := idleApp(t)
+	current := a.currentID()
 	a.session.KeepLikes([]string{current})
 	a.router.Push(pathLiked)
 	tt := newTester(a)
@@ -412,34 +431,35 @@ func TestLikedEmptiesAndReturns(t *testing.T) {
 }
 
 func TestPlaybackShortcuts(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	songs := a.cat.SongIDs()
 	tt.Key(ui.Cmd, ui.KeyRight)
-	if got := a.player.Current(); got != songs[1] {
+	if got := state(t, a).Current; got != songs[1] {
 		t.Fatalf("Cmd+Right went to %q, want %q", got, songs[1])
 	}
-	a.player.Position = 10
+	a.client.Seek(10)
+	settled(t, a)
 	tt.Key(ui.Cmd, ui.KeyLeft)
-	if got := a.player.Current(); got != songs[1] || a.player.Position != 0 {
-		t.Fatalf("Cmd+Left 10s in went to %q at %v, want a restart", got, a.player.Position)
+	if st := state(t, a); st.Current != songs[1] || st.Position != 0 {
+		t.Fatalf("Cmd+Left 10s in went to %q at %v, want a restart", st.Current, st.Position)
 	}
 	tt.Key(ui.Cmd, ui.KeyLeft)
-	if got := a.player.Current(); got != songs[0] {
+	if got := state(t, a).Current; got != songs[0] {
 		t.Errorf("Cmd+Left at the start went to %q, want %q", got, songs[0])
 	}
 }
 
 func TestSpaceAfterClickingNext(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	click(t, tt, "Next")
 	if tt.Focused("Next") {
 		t.Error("clicking Next took the focus")
 	}
-	playing := a.player.Playing
+	playing := state(t, a).Playing
 	tt.Key(0, ui.KeySpace)
-	if a.player.Playing == playing {
+	if state(t, a).Playing == playing {
 		t.Error("Space after clicking Next did not play or pause")
 	}
 	// Tab still reaches the transport.
@@ -454,9 +474,9 @@ func TestSpaceAfterClickingNext(t *testing.T) {
 }
 
 func TestRowActionsDoNotPlayTheRow(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
-	before := a.player.Current()
+	before := a.currentID()
 	r, ok := tt.Find("Paper Moons by Ivy Calder")
 	if !ok {
 		t.Fatal("no Paper Moons row")
@@ -469,35 +489,40 @@ func TestRowActionsDoNotPlayTheRow(t *testing.T) {
 	if !a.session.Liked("paper-moons") {
 		t.Fatal("the row's Like did not like the song")
 	}
-	if a.player.Current() != before || a.player.Playing {
-		t.Errorf("the row's Like played %q (playing %v)", a.player.Current(), a.player.Playing)
+	if st := state(t, a); st.Current != before || st.Playing {
+		t.Errorf("the row's Like played %q (playing %v)", st.Current, st.Playing)
 	}
 }
 
 func TestSliderKeys(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	click(t, tt, "Seek")
-	a.player.Position = 100
+	a.client.Seek(100)
+	settled(t, a)
+	tt.Frame()
 	tt.Key(0, ui.KeyRight)
-	if got := a.player.Position; got != 100+seekStep {
+	if got := state(t, a).Position; got != 100+seekStep {
 		t.Errorf("Right moved the song from 100 to %v, want %v", got, 100+seekStep)
 	}
+	tt.Frame()
 	tt.Key(0, ui.KeyLeft)
 	tt.Key(0, ui.KeyLeft)
-	if got := a.player.Position; got != 100-seekStep {
+	if got := state(t, a).Position; got != 100-seekStep {
 		t.Errorf("Left twice moved it to %v, want %v", got, 100-seekStep)
 	}
 	click(t, tt, "Mute")
 	click(t, tt, "Volume")
+	settled(t, a)
+	tt.Frame()
 	tt.Key(0, ui.KeyRight)
-	if a.player.Muted || math.Abs(a.player.Volume-(0.5+volumeStep)) > 1e-9 {
-		t.Errorf("Right on the volume left muted %v at %v", a.player.Muted, a.player.Volume)
+	if st := state(t, a); st.Muted || math.Abs(st.Volume-(0.5+volumeStep)) > 1e-9 {
+		t.Errorf("Right on the volume left muted %v at %v", st.Muted, st.Volume)
 	}
 }
 
 func TestNarrowWindow(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	first, second := "Midnight Arcade by Lumen Drive", "Satellite Hearts by Lumen Drive"
 	sameRow := func() bool {
@@ -522,7 +547,7 @@ func TestNarrowWindow(t *testing.T) {
 }
 
 func TestHiDPI(t *testing.T) {
-	tt := newTester(idleApp())
+	tt := newTester(idleApp(t))
 	tt.SetScale(2)
 	frames(tt, 2)
 	if w := tt.Image().Bounds().Dx(); w != 2720 {
@@ -534,7 +559,7 @@ func TestHiDPI(t *testing.T) {
 }
 
 func TestStaysDarkInLightMode(t *testing.T) {
-	tt := newTester(idleApp())
+	tt := newTester(idleApp(t))
 	tt.SetDark(false)
 	frames(tt, 2)
 	px := tt.Image().RGBAAt(700, 3)
@@ -545,7 +570,7 @@ func TestStaysDarkInLightMode(t *testing.T) {
 
 func TestReduceMotion(t *testing.T) {
 	for _, reduce := range []bool{false, true} {
-		a := idleApp()
+		a := idleApp(t)
 		builds := 0
 		tt := ui.NewTester(func(c *ui.Context) { builds++; a.view(c) }, 1360, 860)
 		tt.SetPreferences(ui.Preferences{ReduceMotion: reduce})
@@ -564,7 +589,7 @@ func TestReduceMotion(t *testing.T) {
 }
 
 func TestHighContrast(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	tt.SetPreferences(ui.Preferences{HighContrast: true})
 	usesContrast := th == &a.contrast &&
@@ -580,13 +605,15 @@ func TestHighContrast(t *testing.T) {
 }
 
 func TestAnnouncesSongChanges(t *testing.T) {
-	a := idleApp()
+	a := idleApp(t)
 	tt := newTester(a)
 	if got := nowPlayingAnnouncements(tt); len(got) != 0 {
 		t.Errorf("announced %q at start", got)
 	}
 	want := func(action, s string) {
 		t.Helper()
+		settled(t, a)
+		tt.Frame()
 		if got := nowPlayingAnnouncements(tt); len(got) != 1 || got[0] != s {
 			t.Errorf("%s announced %q, want just %q", action, got, s)
 		}
@@ -594,6 +621,8 @@ func TestAnnouncesSongChanges(t *testing.T) {
 	click(t, tt, "Next")
 	want("Next", "Now playing: Satellite Hearts by Lumen Drive")
 	tt.Key(0, ui.KeySpace)
+	settled(t, a)
+	tt.Frame()
 	if got := nowPlayingAnnouncements(tt); len(got) != 0 {
 		t.Errorf("pausing announced %q", got)
 	}

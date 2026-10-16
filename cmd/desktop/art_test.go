@@ -108,7 +108,7 @@ func TestCoverShowsThumbnailOnceLoaded(t *testing.T) {
 		{"stretched", "/blue.png", blue, 0, 160, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			a, q := testApp()
+			a, q := testApp(t)
 			art := catalog.Art(s.URL + tc.path)
 			builds := 0
 			tt := ui.NewTester(func(c *ui.Context) {
@@ -137,7 +137,7 @@ func TestCoverShowsThumbnailOnceLoaded(t *testing.T) {
 				t.Errorf("a frame built %d times", builds)
 			}
 			select {
-			case <-q:
+			case <-q.app:
 				t.Error("posted again")
 			case <-time.After(50 * time.Millisecond):
 			}
@@ -162,7 +162,7 @@ func TestLoadingCovers(t *testing.T) {
 
 func TestSearchResultsShowThumbnails(t *testing.T) {
 	s := newImageServer(t)
-	src, a, q := scriptedApp()
+	src, a, q := scriptedApp(t)
 	tt := newTester(a)
 	a.router.Push(searchPath("far"))
 	songs := []catalog.Song{

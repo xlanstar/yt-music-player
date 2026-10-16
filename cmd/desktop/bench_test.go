@@ -37,7 +37,7 @@ var pageCases = []struct {
 	}},
 	{"Home/PanelHidden", func(a *app) { a.panel.isShown = false }},
 	// The current song's equalizer should paint without building the view.
-	{"Home/Playing", func(a *app) { a.player.Playing = true }},
+	{"Home/Playing", func(a *app) { a.client.Resume() }},
 	{"Library/Songs/2000", func(a *app) {
 		useCatalog(a, bigCatalog())
 		a.router.Push(libraryPath(tabSongs))
@@ -198,7 +198,7 @@ type screen struct {
 // newScreen waits for fetches: pages are measured loaded, not loading.
 func newScreen(tb testing.TB, setup func(a *app)) *screen {
 	tb.Helper()
-	a, q := testApp()
+	a, q := testApp(tb)
 	setup(a)
 	return showApp(tb, a, q)
 }
@@ -206,7 +206,12 @@ func newScreen(tb testing.TB, setup func(a *app)) *screen {
 func showApp(tb testing.TB, a *app, q posts) *screen {
 	tb.Helper()
 	s := &screen{a: a, q: q}
-	s.tt = ui.NewTester(func(c *ui.Context) { s.builds++; a.view(c) }, 1360, 860)
+	y := q.ytmd
+	s.tt = ui.NewTester(func(c *ui.Context) {
+		s.builds++
+		y.runClient()
+		a.view(c)
+	}, 1360, 860)
 	s.tt.SetTitleBar(ui.TitleBar{Height: a.theme.Layout.TitleBar, Left: 78})
 	settleLoads(tb, s.tt, a, q)
 	return s
@@ -231,6 +236,9 @@ func (s *screen) steady() {
 func retainedKB(tb testing.TB, s **screen) int64 {
 	tb.Helper()
 	with := liveHeap()
+	// The daemon is another process in the app: its heap does not count.
+	// Its Service stays, only the app's connection to it goes.
+	(*s).q.ytmd.disconnect()
 	app := weak.Make((*s).a)
 	// The app being built stays reachable through th and thumbs until
 	// another view runs.
@@ -413,10 +421,13 @@ func rowsAt(tb testing.TB, tt *ui.Tester, songs []catalog.Song) []float32 {
 	return ys
 }
 
+// drain runs what was posted, the app's and its Client's.
 func drain(q posts) {
 	for {
 		select {
-		case fn := <-q:
+		case fn := <-q.app:
+			fn()
+		case fn := <-q.client:
 			fn()
 		default:
 			return
@@ -484,9 +495,9 @@ var (
 
 // helperApp is an app as helpers find it in a build: a large library, all
 // liked, a full-size Home, Explore fetched, on an album page.
-func helperApp() *app {
+func helperApp(tb testing.TB) *app {
 	thumbs = nil
-	a := idleApp()
+	a := idleApp(tb)
 	// Before useCatalog replaces the catalog the feed's music joins.
 	a.loader.KeepHome(feedHome())
 	useCatalog(a, bigCatalog())
@@ -551,7 +562,7 @@ var helperCases = []struct {
 // benchHelper runs fn's helperCases: the one named fn, or each fn/case as a
 // sub-benchmark.
 func benchHelper(b *testing.B, fn string) {
-	a := helperApp()
+	a := helperApp(b)
 	for _, tc := range helperCases {
 		bench := func(b *testing.B) {
 			tc.call(a, 0)
@@ -626,7 +637,7 @@ var memoCases = []struct {
 // BenchmarkMemo measures each memoized value kept (hit) and remade (miss),
 // as after the catalog, the likes or a feed changed.
 func BenchmarkMemo(b *testing.B) {
-	a := helperApp()
+	a := helperApp(b)
 	for _, tc := range memoCases {
 		b.Run(tc.name+"/hit", func(b *testing.B) {
 			tc.get(a)
