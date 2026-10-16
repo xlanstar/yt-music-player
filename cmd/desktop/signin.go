@@ -3,7 +3,7 @@ package main
 import (
 	"runtime"
 	"strconv"
-	"yt-music-player/internal/account"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/theme"
@@ -125,7 +125,7 @@ func (a *app) signInSheet(c *ui.Context) {
 func (a *app) noCredentials() bool {
 	m := &a.memo.noCredentials
 	if m.stale(a.sheet.credentials) {
-		m.v = account.CleanCredentials(a.sheet.credentials) == ""
+		m.v = api.CleanCredentials(a.sheet.credentials) == ""
 	}
 	return m.v
 }

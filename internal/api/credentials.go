@@ -1,4 +1,4 @@
-package account
+package api
 
 import (
 	"strings"
@@ -7,7 +7,8 @@ import (
 )
 
 // CleanCredentials normalizes a pasted Cookie header, with or without its
-// name, on one line or several.
+// name, on one line or several. The daemon signs in with what it returns;
+// a front-end offers to sign in only when that is not "".
 func CleanCredentials(pasted string) string {
 	const name = "cookie:"
 	cleaned := collapseSpace(pasted)

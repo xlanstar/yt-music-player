@@ -2,6 +2,7 @@ package main
 
 import (
 	"yt-music-player/internal/account"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/noticetext"
@@ -82,7 +83,7 @@ func (a *app) signIn() {
 	credentials := a.sheet.credentials
 	a.sheet.credentials = ""
 	a.sheet.attempt++
-	if a.session.CanSignIn() && account.CleanCredentials(credentials) != "" {
+	if a.session.CanSignIn() && api.CleanCredentials(credentials) != "" {
 		a.sheet.failure = ""
 		a.session.SignIn(credentials)
 	}

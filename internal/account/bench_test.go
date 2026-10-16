@@ -3,13 +3,9 @@ package account
 import (
 	"context"
 	"strconv"
-	"strings"
 	"testing"
 	"yt-music-player/internal/catalog"
 )
-
-// sinkString keeps the compiler from optimizing measured calls away.
-var sinkString string
 
 // likedSource answers Liked music with songs alone, so the account makes
 // the IDs.
@@ -87,30 +83,6 @@ func BenchmarkLike(b *testing.B) {
 	for b.Loop() {
 		likeRoundTrip(a, q, id, on)
 		on = !on
-	}
-}
-
-// cookieHeader is a pasted Cookie header the size of YouTube Music's,
-// over several lines.
-var cookieHeader = func() string {
-	var sb strings.Builder
-	sb.WriteString("Cookie: ")
-	for i := range 40 {
-		sb.WriteString("NAME" + strconv.Itoa(i) + "=" + strings.Repeat("v", 40) + ";")
-		if i%8 == 7 {
-			sb.WriteString("\n ")
-		} else {
-			sb.WriteString(" ")
-		}
-	}
-	return sb.String()
-}()
-
-func BenchmarkCleanCredentials(b *testing.B) {
-	b.SetBytes(int64(len(cookieHeader)))
-	b.ReportAllocs()
-	for b.Loop() {
-		sinkString = CleanCredentials(cookieHeader)
 	}
 }
 

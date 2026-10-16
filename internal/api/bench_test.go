@@ -3,6 +3,8 @@ package api
 import (
 	"bytes"
 	"encoding/gob"
+	"strconv"
+	"strings"
 	"testing"
 	"yt-music-player/internal/catalog"
 )
@@ -83,5 +85,32 @@ func BenchmarkValidate(b *testing.B) {
 		if call.Validate() == nil {
 			sinkInt++
 		}
+	}
+}
+
+// sinkString keeps the compiler from optimizing measured calls away.
+var sinkString string
+
+// cookieHeader is a pasted Cookie header the size of YouTube Music's,
+// over several lines.
+var cookieHeader = func() string {
+	var sb strings.Builder
+	sb.WriteString("Cookie: ")
+	for i := range 40 {
+		sb.WriteString("NAME" + strconv.Itoa(i) + "=" + strings.Repeat("v", 40) + ";")
+		if i%8 == 7 {
+			sb.WriteString("\n ")
+		} else {
+			sb.WriteString(" ")
+		}
+	}
+	return sb.String()
+}()
+
+func BenchmarkCleanCredentials(b *testing.B) {
+	b.SetBytes(int64(len(cookieHeader)))
+	b.ReportAllocs()
+	for b.Loop() {
+		sinkString = CleanCredentials(cookieHeader)
 	}
 }

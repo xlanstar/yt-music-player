@@ -248,7 +248,7 @@ func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 	case !s.acct.CanSignIn():
 		c.fail(id, errNoAccounts)
 		return
-	case account.CleanCredentials(credentials) == "":
+	case api.CleanCredentials(credentials) == "":
 		c.fail(id, errNoCookie)
 		return
 	}

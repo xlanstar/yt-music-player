@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/job"
 
@@ -311,7 +312,7 @@ func (a *Account) CanSignIn() bool { return a.accounts != nil }
 // sign-in before done.
 func (a *Account) SignIn(credentials string, done func(catalog.Account, error)) {
 	accounts := a.accounts
-	creds := CleanCredentials(credentials)
+	creds := api.CleanCredentials(credentials)
 	if accounts == nil || creds == "" {
 		return
 	}
