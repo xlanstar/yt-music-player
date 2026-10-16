@@ -35,10 +35,19 @@ type daemonApp struct {
 	a *app
 }
 
+// signingSource is the placeholder's music, over which anyone signs in.
+type signingSource struct{ catalog.Source }
+
+func (signingSource) SignIn(context.Context, string) (catalog.Account, error) {
+	return catalog.Account{Name: "Grace Hopper"}, nil
+}
+
+func (signingSource) SignOut() error { return nil }
+
 func newDaemonApp(t *testing.T) *daemonApp {
 	t.Helper()
 	svc, err := daemon.New(daemon.Options{
-		Source:  catalog.NewPlaceholderSource(0),
+		Source:  signingSource{catalog.NewPlaceholderSource(0)},
 		Seed:    catalog.Placeholder().Songs,
 		Version: "1.2.3",
 	})
@@ -109,6 +118,27 @@ func TestOverDaemon(t *testing.T) {
 	d.send(keyMsg("down"))
 	d.send(keyMsg("enter"))
 	d.until("opened a playlist", func() bool { return d.shows("Late Night Drive") && d.shows("Play all") })
+}
+
+// Signing in switches accounts: the daemon empties its queue, the
+// previous account's, and stops; the TUI shows nothing of it.
+func TestSignInEmptiesTheQueue(t *testing.T) {
+	d := newDaemonApp(t)
+	m := d.a.m
+	d.until("showed the queue", func() bool { return d.shows("Satellite Hearts") && !m.session.IsBusy() })
+	d.send(keyMsg("space"))
+	d.until("played", func() bool { return m.mirror.State().Playing && d.shows("… Midnight Arcade") })
+
+	m.session.SignIn("SID=good")
+	d.until("signed in", func() bool { return d.shows("Grace Hopper") && len(m.mirror.Queue()) == 0 })
+	for _, text := range []string{"Midnight Arcade", "Satellite Hearts"} {
+		if d.shows(text) {
+			t.Errorf("%q still shows:\n%s", text, m.content)
+		}
+	}
+	if !d.shows("Nothing playing") || !d.shows("The queue is empty") || m.mirror.State().Playing || m.wantsTicks() {
+		t.Errorf("the player plays on:\n%s", m.content)
+	}
 }
 
 // post never blocks, from any goroutine, and one message runs all the

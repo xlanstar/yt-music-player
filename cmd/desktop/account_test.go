@@ -375,3 +375,52 @@ func TestLikeRevertsOnError(t *testing.T) {
 		t.Errorf("Dead Air moved, texts %q", texts)
 	}
 }
+
+// Signing in switches accounts: ytmd empties its queue, the previous
+// account's, and stops. Nothing of it stays on screen, and rows play
+// again.
+func TestSignInEmptiesTheQueue(t *testing.T) {
+	src, a, q, tt := signedOutApp(t)
+	a.panel.isShown, a.panel.tab = true, tabQueue
+	click(t, tt, "Play")
+	settled(t, a)
+	frames(tt, 2)
+	before := append([]catalog.Song{a.currentSong()}, a.upNext()...)
+	if !a.isPlaying() || len(before) < 2 || !tt.HasText(before[0].Title) || !tt.HasText(before[1].Title) {
+		t.Fatalf("not playing the placeholder's queue, texts %q", tt.Texts())
+	}
+
+	a.openSignIn()
+	tt.Frame()
+	tt.Type("SID=good")
+	tt.Key(ui.Cmd, ui.KeyEnter)
+	answer(t, tt, q, src.Next(t, tt.Frame, "signin", "SID=good"), reply{Account: ada})
+	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM", "home")
+	calls["account"].Reply <- reply{Account: ada}
+	calls["library"].Reply <- reply{Library: adaLibrary}
+	calls["playlist LM"].Reply <- reply{Playlist: adaLikes, Songs: remoteTracks}
+	calls["home"].Reply <- reply{}
+	settleLoads(t, tt, a, q)
+
+	st := a.mirror.State()
+	if st.Playing || st.Current != "" || len(a.mirror.Queue()) != 0 || a.currentID() != "" || len(a.upNext()) != 0 {
+		t.Fatalf("after switching accounts: state %+v, queue %q, up next %+v", st, a.mirror.Queue(), a.upNext())
+	}
+	for _, s := range before {
+		if tt.HasText(s.Title) {
+			t.Errorf("%q still shows, texts %q", s.Title, tt.Texts())
+		}
+	}
+	if _, ok := tt.Find("Play"); !ok || a.bar.pos.v != 0 || a.progress.nextFrame(&st, a.mirror.Position(time.Now())) != 0 {
+		t.Errorf("the player bar plays on: position %v, texts %q", a.bar.pos.v, tt.Texts())
+	}
+
+	a.router.Push(pathLiked)
+	tt.Frame()
+	click(t, tt, "Carrier Wave by Nova Static")
+	wantPlaying(t, a, "far-1")
+	tt.Frame()
+	if !tt.HasText("Carrier Wave") || len(a.mirror.Queue()) != 1 {
+		t.Errorf("queue %q, texts %q", a.mirror.Queue(), tt.Texts())
+	}
+}
