@@ -249,5 +249,7 @@
   "noticePlaybackStopped": "Playback stopped.",
   "noticePlaybackStoppedAfter": "Playback stopped: {count, plural, one {# song} other {# songs in a row}} couldn’t play.",
   "@noticePlaybackStoppedAfter": { "placeholders": { "count": { "type": "int" } } },
-  "noticeSkipped": "Skipped to the next song."
+  "noticeSkipped": "Skipped to the next song.",
+  "noticeControlFailed": "Couldn’t change playback",
+  "@noticeControlFailed": { "description": "A play, pause, seek, volume or queue command the background player failed or did not answer." }
 }

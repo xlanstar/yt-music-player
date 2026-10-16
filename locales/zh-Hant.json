@@ -187,5 +187,6 @@
   "noticeUnplayable": "〈{title}〉無法播放",
   "noticePlaybackStopped": "已停止播放。",
   "noticePlaybackStoppedAfter": "已停止播放：連續 {count, plural, other {# 首歌曲}}無法播放。",
-  "noticeSkipped": "已跳到下一首。"
+  "noticeSkipped": "已跳到下一首。",
+  "noticeControlFailed": "無法變更播放"
 }

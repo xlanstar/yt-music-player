@@ -42,6 +42,7 @@ const (
 	SignOutFailed             // Couldn’t sign out
 	SignedOut                 // Signed out
 	Reason                    // {an error’s text}, as is
+	ControlFailed             // Couldn’t change playback
 
 	// NumCodes is the length of a table indexed by Code.
 	NumCodes
@@ -65,4 +66,5 @@ type Notice struct {
 const (
 	Playback = "playback" // a song failed to play
 	SignIn   = "sign-in"  // something needs an account
+	Control  = "control"  // the daemon failed a control or did not answer
 )

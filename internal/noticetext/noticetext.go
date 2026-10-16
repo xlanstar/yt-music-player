@@ -56,6 +56,7 @@ var messages = [notice.NumCodes]message{
 	notice.SignedInAs:           named(locales.Messages.SignedInAs),
 	notice.SignOutFailed:        plain(locales.Messages.NoticeSignOutFailed),
 	notice.SignedOut:            plain(locales.Messages.NoticeSignedOut),
+	notice.ControlFailed:        plain(locales.Messages.NoticeControlFailed),
 	// An error's text is in no language of ours.
 	notice.Reason: {args: 1, say: func(_ locales.Messages, args []string, _ int) string { return args[0] }},
 }

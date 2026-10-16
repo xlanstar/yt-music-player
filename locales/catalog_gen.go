@@ -1907,3 +1907,19 @@ func NoticeSkipped() string { return In(i18n.Locale()).NoticeSkipped() }
 func (msgs Messages) NoticeSkipped() string {
 	return Catalog.Format(msgs.locale, "noticeSkipped", nil)
 }
+
+// NoticeControlFailed says "Couldn’t change playback"
+// in the language the app shows.
+//
+// A play, pause, seek, volume or queue command the background player failed
+// or did not answer.
+func NoticeControlFailed() string { return In(i18n.Locale()).NoticeControlFailed() }
+
+// NoticeControlFailed says "Couldn’t change playback"
+// in the language of msgs.
+//
+// A play, pause, seek, volume or queue command the background player failed
+// or did not answer.
+func (msgs Messages) NoticeControlFailed() string {
+	return Catalog.Format(msgs.locale, "noticeControlFailed", nil)
+}
