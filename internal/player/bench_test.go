@@ -167,3 +167,46 @@ func BenchmarkAppendUpNext(b *testing.B) {
 	}
 	sinkIDs = dst
 }
+
+// BenchmarkAppendPlayOrder mirrors a daemon telling its queue: every song
+// into a slice it keeps.
+func BenchmarkAppendPlayOrder(b *testing.B) {
+	p := bigPlayer()
+	dst := make([]string, 0, bigQueue)
+	b.ReportAllocs()
+	for b.Loop() {
+		dst = p.AppendPlayOrder(dst[:0])
+	}
+	sinkIDs = dst
+}
+
+// BenchmarkMove moves a song across the queue and back, around the
+// current one.
+func BenchmarkMove(b *testing.B) {
+	for _, tc := range []struct {
+		name    string
+		shuffle bool
+	}{{"in_order", false}, {"shuffled", true}} {
+		b.Run(tc.name, func(b *testing.B) {
+			p := bigPlayer()
+			p.isShuffled = tc.shuffle
+			b.ReportAllocs()
+			for b.Loop() {
+				p.Move(10, bigQueue-10)
+				p.Move(bigQueue-10, 10)
+			}
+		})
+	}
+}
+
+// BenchmarkEnqueueRemove adds a song after the current one and removes
+// it, so the queue stays bigQueue long.
+func BenchmarkEnqueueRemove(b *testing.B) {
+	p := bigPlayer()
+	ids := []string{"new"}
+	b.ReportAllocs()
+	for b.Loop() {
+		p.Enqueue(ids, true)
+		p.Remove(p.at + 1)
+	}
+}

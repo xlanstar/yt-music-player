@@ -78,3 +78,26 @@ func TestBudgetAppendUpNext(t *testing.T) {
 	// 0 allocs today: the panel's slice is kept.
 	budget.Allocs(t, 0, 100, func() { dst = p.AppendUpNext(dst[:0], 20) })
 }
+
+func TestBudgetAppendPlayOrder(t *testing.T) {
+	p := bigPlayer()
+	dst := make([]string, 0, bigQueue)
+	// 0 allocs today: the daemon's slice is kept.
+	budget.Allocs(t, 0, 100, func() { dst = p.AppendPlayOrder(dst[:0]) })
+}
+
+// TestBudgetQueueEdits: a front-end's edits of a long queue.
+func TestBudgetQueueEdits(t *testing.T) {
+	p := bigPlayer()
+	// 0 allocs today: in place.
+	budget.Allocs(t, 0, 100, func() {
+		p.Move(10, bigQueue-10)
+		p.Move(bigQueue-10, 10)
+	})
+	ids := []string{"new"}
+	// 0 allocs today: the queue and order keep the room Remove leaves.
+	budget.Allocs(t, 0, 100, func() {
+		p.Enqueue(ids, true)
+		p.Remove(p.at + 1)
+	})
+}

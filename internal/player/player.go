@@ -4,6 +4,7 @@
 package player
 
 import (
+	"math"
 	"math/rand/v2"
 	"slices"
 )
@@ -44,6 +45,8 @@ type Player struct {
 	order      []int
 	at         int
 	isShuffled bool
+	// gen counts changes to queue and order.
+	gen uint64
 }
 
 // New returns a paused player at the start of queue.
@@ -53,8 +56,37 @@ func New(queue []string) *Player {
 	return p
 }
 
+// Restore returns a paused player over queue as Queued and Order gave it,
+// at index in play order: what a daemon saved. An order that is not one of
+// queue's is put back in sequence, unshuffled.
+func Restore(queue []string, order []int, index int, shuffled bool) *Player {
+	p := &Player{Volume: defaultVolume, queue: slices.Clone(queue)}
+	if isPermutation(order, len(queue)) {
+		p.order, p.isShuffled = slices.Clone(order), shuffled
+	} else {
+		p.resetOrder()
+	}
+	p.at = min(max(index, 0), max(len(p.order)-1, 0))
+	return p
+}
+
+func isPermutation(order []int, n int) bool {
+	if len(order) != n {
+		return false
+	}
+	seen := make([]bool, n)
+	for _, i := range order {
+		if i < 0 || i >= n || seen[i] {
+			return false
+		}
+		seen[i] = true
+	}
+	return true
+}
+
 // resetOrder puts the queue back in sequence, keeping the current song.
 func (p *Player) resetOrder() {
+	p.gen++
 	current := 0
 	if p.at < len(p.order) {
 		current = p.order[p.at]
@@ -77,6 +109,30 @@ func (p *Player) Current() string {
 // Len returns the number of songs in the queue.
 func (p *Player) Len() int { return len(p.queue) }
 
+// Index returns the current song's index in play order, 0 with an empty
+// queue.
+func (p *Player) Index() int { return p.at }
+
+// QueueGen changes whenever the queue or its play order does, so a daemon
+// tells its front-ends only then.
+func (p *Player) QueueGen() uint64 { return p.gen }
+
+// AppendPlayOrder appends the queue's songs to dst in play order: shuffled
+// while shuffling.
+func (p *Player) AppendPlayOrder(dst []string) []string {
+	for _, i := range p.order {
+		dst = append(dst, p.queue[i])
+	}
+	return dst
+}
+
+// Queued returns a copy of the queue in the order its songs came, which
+// Order indexes.
+func (p *Player) Queued() []string { return slices.Clone(p.queue) }
+
+// Order returns a copy of the play order, as indices into Queued.
+func (p *Player) Order() []int { return slices.Clone(p.order) }
+
 // Play starts song id from the beginning, or pauses or resumes it when it
 // is already current. A song outside the queue is inserted after the
 // current one.
@@ -95,17 +151,140 @@ func (p *Player) Play(id string) {
 
 // PlayAll makes ids the queue and plays it from the first song; while
 // shuffling, the rest follow in random order.
-func (p *Player) PlayAll(ids []string) {
+func (p *Player) PlayAll(ids []string) { p.PlayFrom(ids, 0) }
+
+// PlayFrom makes ids the queue and plays it from ids[start]; while
+// shuffling, that song comes first and the others follow in random order.
+func (p *Player) PlayFrom(ids []string, start int) {
 	if len(ids) == 0 {
 		return
 	}
 	p.queue = slices.Clone(ids)
 	p.order, p.at = nil, 0
 	p.resetOrder()
+	p.at = min(max(start, 0), len(p.order)-1)
 	if p.isShuffled {
 		p.shuffleRest()
 	}
 	p.Position, p.Playing = 0, true
+}
+
+// Enqueue adds ids after the current song, with next, or else at the end
+// of the play order. Into an empty queue, the first becomes current,
+// paused.
+func (p *Player) Enqueue(ids []string, next bool) {
+	k := len(ids)
+	if k == 0 {
+		return
+	}
+	// Unshuffled, order stays the identity, as queue and order grow at the
+	// same index.
+	queueIndex, orderIndex := len(p.queue), len(p.order)
+	if next && len(p.order) > 0 {
+		queueIndex, orderIndex = p.order[p.at]+1, p.at+1
+	}
+	p.queue = slices.Insert(p.queue, queueIndex, ids...)
+	for j, i := range p.order {
+		if i >= queueIndex {
+			p.order[j] = i + k
+		}
+	}
+	n := len(p.order)
+	p.order = slices.Grow(p.order, k)[:n+k]
+	copy(p.order[orderIndex+k:], p.order[orderIndex:n])
+	for j := range k {
+		p.order[orderIndex+j] = queueIndex + j
+	}
+	p.gen++
+}
+
+// Remove takes the song at index in play order out of the queue. The song
+// after a current one removed becomes current, from its start; past the
+// end it wraps, and stops unless repeating.
+func (p *Player) Remove(index int) {
+	if index < 0 || index >= len(p.order) {
+		return
+	}
+	queueIndex := p.order[index]
+	p.queue = slices.Delete(p.queue, queueIndex, queueIndex+1)
+	p.order = slices.Delete(p.order, index, index+1)
+	for j, i := range p.order {
+		if i > queueIndex {
+			p.order[j] = i - 1
+		}
+	}
+	p.gen++
+	switch {
+	case len(p.order) == 0:
+		p.at, p.Position, p.Playing = 0, 0, false
+	case index < p.at:
+		p.at--
+	case index == p.at:
+		p.Position = 0
+		if p.at == len(p.order) {
+			p.at = 0
+			if p.Repeat == RepeatOff {
+				p.Playing = false
+			}
+		}
+	}
+}
+
+// Move moves the song at from in play order to to; the current song stays
+// current wherever it goes. Unshuffled, the queue itself changes order, so
+// unshuffling after a shuffle keeps the move.
+func (p *Player) Move(from, to int) {
+	n := len(p.order)
+	if from < 0 || from >= n || to < 0 || to >= n || from == to {
+		return
+	}
+	if p.isShuffled {
+		move(p.order, from, to)
+	} else {
+		move(p.queue, from, to)
+	}
+	switch {
+	case p.at == from:
+		p.at = to
+	case from < p.at && to >= p.at:
+		p.at--
+	case from > p.at && to <= p.at:
+		p.at++
+	}
+	p.gen++
+}
+
+// move moves s[from] to s[to], shifting what lies between.
+func move[T any](s []T, from, to int) {
+	v := s[from]
+	if from < to {
+		copy(s[from:to], s[from+1:to+1])
+	} else {
+		copy(s[to+1:from+1], s[to:from])
+	}
+	s[to] = v
+}
+
+// ClearUpNext removes the songs after the current one in play order.
+func (p *Player) ClearUpNext() {
+	if p.at+1 >= len(p.order) {
+		return
+	}
+	kept := make([]string, p.at+1)
+	for i := range kept {
+		kept[i] = p.queue[p.order[i]]
+	}
+	p.queue, p.order = kept, nil
+	at := p.at
+	p.resetOrder()
+	p.at = at
+}
+
+// Clear empties the queue and stops.
+func (p *Player) Clear() {
+	p.queue, p.order, p.at = p.queue[:0], p.order[:0], 0
+	p.Position, p.Playing = 0, false
+	p.gen++
 }
 
 // insert places id after the current song, in both queue and order, and
@@ -115,6 +294,7 @@ func (p *Player) insert(id string) int {
 	if len(p.order) > 0 {
 		queueIndex = p.order[p.at] + 1
 	}
+	p.gen++
 	p.queue = slices.Insert(p.queue, queueIndex, id)
 	for k, i := range p.order {
 		if i >= queueIndex {
@@ -131,6 +311,27 @@ func (p *Player) insert(id string) int {
 
 // TogglePlay pauses or resumes.
 func (p *Player) TogglePlay() { p.Playing = !p.Playing }
+
+// Pause pauses.
+func (p *Player) Pause() { p.Playing = false }
+
+// Resume plays the current song, if any.
+func (p *Player) Resume() { p.Playing = p.Current() != "" }
+
+// Seek moves to sec seconds into the current song, if any.
+func (p *Player) Seek(sec float64) {
+	if p.Current() != "" && !math.IsNaN(sec) {
+		p.Position = max(sec, 0)
+	}
+}
+
+// SetVolume sets the volume, kept within 0 to 1, and unmutes: moving the
+// volume is meant to be heard.
+func (p *Player) SetVolume(v float64) {
+	if !math.IsNaN(v) {
+		p.Volume, p.Muted = min(max(v, 0), 1), false
+	}
+}
 
 // Next skips to the next song. Past the end it wraps, and stops unless
 // repeating.
@@ -221,6 +422,7 @@ func (p *Player) shuffleRest() {
 			order = append(order, i)
 		}
 	}
+	p.gen++
 	rest := order[1:]
 	//nolint:gosec // a play order, no secret
 	rand.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
