@@ -1,6 +1,6 @@
 # YT Music Player
 
-An efficient, lightweight YouTube Music desktop player with a modern UI, written in Go 1.27 with MyGo native UI (GPU-drawn, no webview).
+An efficient, lightweight YouTube Music desktop player with a modern UI, written in Go 1.27 with MyGo native UI (GPU-drawn, no webview). Songs play in a background player, `ytmd`, which the Desktop and `ytm` (terminal player and command line) control.
 
 MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `.html`).
 
@@ -10,13 +10,13 @@ MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `
 - `scripts/dev.sh`: the Desktop on YouTube Music. It plays and signs in through ytmd (signed-in account from ytmd's Keychain; songs play through the Go engine, `internal/audio`, on every system), which it starts if none runs: beside the app, or at `YTMD_PATH`, which `scripts/dev.sh` sets to the ytmd it builds. A bare `go run ./cmd/desktop` finds none unless `YTMD_PATH` names one, and shows the banner.
 - `scripts/dev.sh -placeholder` (`go run -tags placeholder ./cmd/desktop` with `YTMD_PATH` naming a placeholder ytmd): offline fake, always signed in, playing silently on a clock; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in. Quitting leaves ytmd running: the app menu's Quit and Stop Playback, or `ytm daemon stop`, stops it.
 - `YT_LOG=debug|info|warn|error` (default `warn`): `debug` tells why fetches, likes, sign-ins and streams failed.
-- `go run ./cmd/ytmd` (`-tags placeholder`: the fake, playing silently on a clock): the background player (`docs/plans/daemon.md`); dev builds use `-dev` files (socket, `daemon-dev.json`, `<cache>/logs/ytmd-dev.log`); Ctrl+C stops it. `scripts/dev.sh [-placeholder] [desktop|ytm]` builds it into `build/dev/` and runs a front-end with `YTMD_PATH` set.
-- Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` and `go test -tags audiolive -run LiveDaemon -v ./internal/daemon/` (play sound); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
+- `go run ./cmd/ytmd` (`-tags placeholder`: the fake, playing silently on a clock): the background player (`docs/daemon.md`: protocol, paths, hand-off); dev builds use `-dev` files (socket, `daemon-dev.json`, `<cache>/logs/ytmd-dev.log`); Ctrl+C stops it. `scripts/dev.sh [-placeholder] [desktop|ytm] [args…]` builds it into `build/dev/` and runs a front-end with `YTMD_PATH` set: `scripts/dev.sh ytm` the TUI, `scripts/dev.sh ytm help` its commands.
+- Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` and `go test -tags audiolive -run LiveDaemon -v ./internal/daemon/` (play sound); `scripts/footprint.sh -daemon` (below); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
 - `locales/`: the messages, `en.json` (the source, with descriptions) and `zh-Hant.json`, in ICU MessageFormat; `go tool mygo generate .` writes `locales/catalog_gen.go` (committed) from them, which `prek` checks.
 - `scripts/render-app-icon.sh`: renders the icon's one source, `assets/icon/icon.svg`, into `resources/icon.png` and `assets/icon/` (PNGs of every size, `.icns`, `.ico`); edit the SVG, never the renders.
 - `scripts/repo-images.sh [-readme]`: renders the social preview (uploaded in the repository's settings, not committed) and README's top image from `assets/repo-images/` and a capture of the placeholder build; `-readme` updates `docs/images/`. Run it with `-readme` when the window's look changes.
 - Release: `scripts/release.sh patch|minor|major`, then `publish X.Y.Z` after checking the draft, which also updates the Homebrew tap (`docs/release.md`); the version lives only in `mygo.json`, user-visible changes go under `## [Unreleased]` in `CHANGELOG.md` in the same change. The cask is `packaging/homebrew/yt-music-player.rb`; never edit it in the tap. A local `go tool mygo build` ships ytmd and ytm only after `scripts/build-helpers.sh <platform>…` (e.g. `darwin-arm64`) builds them into `resources/<platform>/`.
-- Performance: `docs/performance.md`; benchmarks and budgets: `docs/benchmarks.md`; memory and frames of the real window: `scripts/footprint.sh` (macOS, about 70 seconds). Both compare with their committed `perf/*-baseline.txt`; a run writes `perf/*-latest.txt` (gitignored).
+- Performance: `docs/performance.md`; benchmarks and budgets: `docs/benchmarks.md`; memory and frames of the real window: `scripts/footprint.sh` (macOS, about 70 seconds); `-daemon`: ytmd's memory and wake-ups, paused, playing and after a Desktop (about 50 seconds headless; a paused ytmd must wake nothing). Both compare with their committed `perf/*-baseline.txt`; a run writes `perf/*-latest.txt` (gitignored).
 
 ## Layout
 
@@ -36,6 +36,9 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `ytmusic`: `catalog.Source` over InnerTube, after ytmusicapi. Song = videoId, Album = `MPREb_…`, Playlist = playlistId without `VL`. Responses decode into the structs of `response.go`. Tests are offline against `testdata/`.
 - `stream`: resolves a song's Opus stream; `audio`: the engine (fetches, decodes Opus in Go, plays through MyGo's `audio`; Now Playing on macOS, MPRIS on Linux) and `Fake`; `webm`: an audio track's frames out of WebM.
 - `player`: queue, shuffle, repeat, volume; `playback`: drives the engine from the player, on ytmd's loop; the Desktop times the position's frames itself (`cmd/desktop/playback.go`).
+- `api`: the protocol between ytmd and its front-ends (`Frame`, methods, events, error codes, `Proto`), types and pure functions only; `ipc`: ytmd's paths (`-placeholder`/`-dev` suffixes), single-instance lock, listening, dialing and starting ytmd, `Conn` (gob frames, sends that never block).
+- `remote`: a front-end's side of ytmd: `Client` (`catalog.Source`, `Accounts`, `Controller`, the `Mirror` of playback) and `Supervisor` (reconnects, versions, hand-off; its `Link` is the daemon's health).
+- `version`: ytmd's and ytm's version (`-ldflags -X`, else `dev`); `logfile`: ytmd's and ytm's size-bounded log files; `autostart`: ytmd at login (LaunchAgent, systemd user unit, HKCU Run) and, on Windows, the app's folder on the Path.
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's `Service` (player, playback, account, engine and `daemon.json` on the loop; serves the protocol of `api` over `ipc`).
 - `tui`: `ytm`'s player in the terminal (Bubble Tea, Lip Gloss): its tabs over the player bar and the daemon's health; `Update` is the UI thread, where posted funcs run as one message; screens are golden files in `testdata/` (`-update` rewrites them).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
@@ -54,6 +57,8 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 `cmd/ytmd`: the daemon's `main` (lock, state, socket, run loop, signals); `source.go` / `source_placeholder.go` as Desktop's; `TestDeps` keeps the UI, `locales`, `session` and `loader` out of it.
 
+`cmd/ytm`: `ytm`, the TUI (`tui`) without arguments, else one command to ytmd (`ytm help`), run against a fake daemon in tests (`env`); `status --json` is held by `testdata/status.json`; `TestDeps` keeps the window, audio and everything that plays or signs in out of it.
+
 ## Rules
 
 - Read the relevant docs and skills before changing code.
@@ -64,7 +69,8 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 ### Threading
 
-- Never call a `Source` or touch `a.cat` (or the player) from a goroutine: fetch off-thread with `job.Run`, whose `done` runs on the UI thread through `post`, dropped when stale, and merges.
+- ytmd's player, playback, account and engine live on its loop (`loop.Post`), which never waits on a socket; the Desktop and TUI only mirror them.
+- Never call a `Source` or touch `a.cat` from a goroutine: fetch off-thread with `job.Run`, whose `done` runs on the UI thread through `post`, dropped when stale, and merges.
 - Goroutines return plain values; loader, account, playback, artwork and settings change shared state only in posted funcs.
 
 ### UI
