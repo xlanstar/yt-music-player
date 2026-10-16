@@ -1,4 +1,4 @@
-package main
+package logfile
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func TestLogLevel(t *testing.T) {
+func TestLevel(t *testing.T) {
 	for _, tc := range []struct {
 		env     string
 		want    zerolog.Level
@@ -18,7 +18,7 @@ func TestLogLevel(t *testing.T) {
 		{"error", zerolog.ErrorLevel, false},
 		{"loud", zerolog.WarnLevel, true},
 	} {
-		got, err := logLevel(tc.env)
+		got, err := Level(tc.env)
 		if (err != nil) != tc.wantErr {
 			t.Errorf("YT_LOG=%q: err %v", tc.env, err)
 		}

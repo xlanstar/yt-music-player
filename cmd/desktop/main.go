@@ -4,6 +4,7 @@ package main
 import (
 	"os"
 	"yt-music-player/internal/audio"
+	"yt-music-player/internal/logfile"
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/stream"
 	"yt-music-player/internal/theme"
@@ -25,7 +26,7 @@ func main() {
 	}
 	// zerolog's global level only: MyGo's own log.Printf output (frame
 	// stats) is not affected.
-	level, err := logLevel(os.Getenv("YT_LOG"))
+	level, err := logfile.Level(os.Getenv("YT_LOG"))
 	zerolog.SetGlobalLevel(level)
 	if err != nil {
 		log.Warn().Err(err).Msg("YT_LOG")

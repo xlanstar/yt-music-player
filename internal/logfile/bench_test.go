@@ -33,3 +33,10 @@ func BenchmarkWrite(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkLevel(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		_, sinkErr = Level(" Debug ")
+	}
+}

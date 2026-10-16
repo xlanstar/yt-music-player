@@ -9,6 +9,8 @@
 // process, which runs on without its log. A failed open is tried again at
 // the next write, so a log that comes back is written again.
 //
+// Level reads YT_LOG's level, the same for every binary.
+//
 // One process writes a file: a second one (two ytm at once) counts the size
 // on its own and may rotate the file under the first, which then fills the
 // .1 file for a while; lines are lost at worst, never mixed within a line.

@@ -1,4 +1,4 @@
-package main
+package logfile
 
 import (
 	"fmt"
@@ -7,8 +7,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// logLevel returns warn, the default, with an error for an unknown name.
-func logLevel(name string) (zerolog.Level, error) {
+// Level reads the level YT_LOG names: debug, info, warn (the default,
+// also for an empty name) or error. An unknown name is warn, with an
+// error to log.
+func Level(name string) (zerolog.Level, error) {
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "debug":
 		return zerolog.DebugLevel, nil
