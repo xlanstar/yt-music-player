@@ -106,6 +106,11 @@ func (a *app) quitAndStop() {
 	}
 	a.disconnect()
 	d := a.daemon.ytmd
+	if d.dialer == nil {
+		// No paths, so no ytmd of this app's to stop.
+		a.daemon.quit()
+		return
+	}
 	job.Run(&a.daemon.stopping, a.post, func(ctx context.Context) (struct{}, error) {
 		ctx, cancel := context.WithTimeout(ctx, remote.RestartGrace)
 		defer cancel()
