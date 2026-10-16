@@ -1923,3 +1923,549 @@ func NoticeControlFailed() string { return In(i18n.Locale()).NoticeControlFailed
 func (msgs Messages) NoticeControlFailed() string {
 	return Catalog.Format(msgs.locale, "noticeControlFailed", nil)
 }
+
+// CliFailed says "{what}: {why}"
+// in the language the app shows.
+//
+// A command of ytm, the terminal app, that failed, on one line: what
+// failed, then why.
+func CliFailed(what string, why string) string { return In(i18n.Locale()).CliFailed(what, why) }
+
+// CliFailed says "{what}: {why}"
+// in the language of msgs.
+//
+// A command of ytm, the terminal app, that failed, on one line: what
+// failed, then why.
+func (msgs Messages) CliFailed(what string, why string) string {
+	return Catalog.Format(msgs.locale, "cliFailed", map[string]any{"what": what, "why": why})
+}
+
+// CliNoPaths says "Couldn’t find the app’s folders"
+// in the language the app shows.
+//
+// ytm can't work out the user's config and cache folders.
+func CliNoPaths() string { return In(i18n.Locale()).CliNoPaths() }
+
+// CliNoPaths says "Couldn’t find the app’s folders"
+// in the language of msgs.
+//
+// ytm can't work out the user's config and cache folders.
+func (msgs Messages) CliNoPaths() string {
+	return Catalog.Format(msgs.locale, "cliNoPaths", nil)
+}
+
+// CliUnknownCommand says "Unknown command “{name}”. Run “ytm help” for the commands."
+// in the language the app shows.
+func CliUnknownCommand(name string) string { return In(i18n.Locale()).CliUnknownCommand(name) }
+
+// CliUnknownCommand says "Unknown command “{name}”. Run “ytm help” for the commands."
+// in the language of msgs.
+func (msgs Messages) CliUnknownCommand(name string) string {
+	return Catalog.Format(msgs.locale, "cliUnknownCommand", map[string]any{"name": name})
+}
+
+// CliUsage says "Usage: {synopsis}"
+// in the language the app shows.
+//
+// A ytm command given the wrong arguments; the synopsis is the command and
+// its arguments, untranslated.
+func CliUsage(synopsis string) string { return In(i18n.Locale()).CliUsage(synopsis) }
+
+// CliUsage says "Usage: {synopsis}"
+// in the language of msgs.
+//
+// A ytm command given the wrong arguments; the synopsis is the command and
+// its arguments, untranslated.
+func (msgs Messages) CliUsage(synopsis string) string {
+	return Catalog.Format(msgs.locale, "cliUsage", map[string]any{"synopsis": synopsis})
+}
+
+// CliHelpTitle says "Control YT Music Player from the terminal. Commands:"
+// in the language the app shows.
+//
+// The first line of `ytm help`, over the list of commands.
+func CliHelpTitle() string { return In(i18n.Locale()).CliHelpTitle() }
+
+// CliHelpTitle says "Control YT Music Player from the terminal. Commands:"
+// in the language of msgs.
+//
+// The first line of `ytm help`, over the list of commands.
+func (msgs Messages) CliHelpTitle() string {
+	return Catalog.Format(msgs.locale, "cliHelpTitle", nil)
+}
+
+// CliHelpTUI says "Open the player in the terminal"
+// in the language the app shows.
+//
+// `ytm` without a command, in `ytm help`.
+func CliHelpTUI() string { return In(i18n.Locale()).CliHelpTUI() }
+
+// CliHelpTUI says "Open the player in the terminal"
+// in the language of msgs.
+//
+// `ytm` without a command, in `ytm help`.
+func (msgs Messages) CliHelpTUI() string {
+	return Catalog.Format(msgs.locale, "cliHelpTUI", nil)
+}
+
+// CliHelpStatus says "Show what is playing"
+// in the language the app shows.
+func CliHelpStatus() string { return In(i18n.Locale()).CliHelpStatus() }
+
+// CliHelpStatus says "Show what is playing"
+// in the language of msgs.
+func (msgs Messages) CliHelpStatus() string {
+	return Catalog.Format(msgs.locale, "cliHelpStatus", nil)
+}
+
+// CliHelpPlay says "Play, pause, or switch between them"
+// in the language the app shows.
+func CliHelpPlay() string { return In(i18n.Locale()).CliHelpPlay() }
+
+// CliHelpPlay says "Play, pause, or switch between them"
+// in the language of msgs.
+func (msgs Messages) CliHelpPlay() string {
+	return Catalog.Format(msgs.locale, "cliHelpPlay", nil)
+}
+
+// CliHelpNext says "Skip to the next or the previous song"
+// in the language the app shows.
+func CliHelpNext() string { return In(i18n.Locale()).CliHelpNext() }
+
+// CliHelpNext says "Skip to the next or the previous song"
+// in the language of msgs.
+func (msgs Messages) CliHelpNext() string {
+	return Catalog.Format(msgs.locale, "cliHelpNext", nil)
+}
+
+// CliHelpSeek says "Go to a time in the song, or forward or back by seconds"
+// in the language the app shows.
+func CliHelpSeek() string { return In(i18n.Locale()).CliHelpSeek() }
+
+// CliHelpSeek says "Go to a time in the song, or forward or back by seconds"
+// in the language of msgs.
+func (msgs Messages) CliHelpSeek() string {
+	return Catalog.Format(msgs.locale, "cliHelpSeek", nil)
+}
+
+// CliHelpVolume says "Set the volume, or turn it up or down"
+// in the language the app shows.
+func CliHelpVolume() string { return In(i18n.Locale()).CliHelpVolume() }
+
+// CliHelpVolume says "Set the volume, or turn it up or down"
+// in the language of msgs.
+func (msgs Messages) CliHelpVolume() string {
+	return Catalog.Format(msgs.locale, "cliHelpVolume", nil)
+}
+
+// CliHelpLogin says "Sign in with a Cookie header, pasted or piped in"
+// in the language the app shows.
+func CliHelpLogin() string { return In(i18n.Locale()).CliHelpLogin() }
+
+// CliHelpLogin says "Sign in with a Cookie header, pasted or piped in"
+// in the language of msgs.
+func (msgs Messages) CliHelpLogin() string {
+	return Catalog.Format(msgs.locale, "cliHelpLogin", nil)
+}
+
+// CliHelpLogout says "Sign out"
+// in the language the app shows.
+func CliHelpLogout() string { return In(i18n.Locale()).CliHelpLogout() }
+
+// CliHelpLogout says "Sign out"
+// in the language of msgs.
+func (msgs Messages) CliHelpLogout() string {
+	return Catalog.Format(msgs.locale, "cliHelpLogout", nil)
+}
+
+// CliHelpDaemon says "Start, stop or restart the background player"
+// in the language the app shows.
+func CliHelpDaemon() string { return In(i18n.Locale()).CliHelpDaemon() }
+
+// CliHelpDaemon says "Start, stop or restart the background player"
+// in the language of msgs.
+func (msgs Messages) CliHelpDaemon() string {
+	return Catalog.Format(msgs.locale, "cliHelpDaemon", nil)
+}
+
+// CliHelpLogs says "Show where the log files are"
+// in the language the app shows.
+func CliHelpLogs() string { return In(i18n.Locale()).CliHelpLogs() }
+
+// CliHelpLogs says "Show where the log files are"
+// in the language of msgs.
+func (msgs Messages) CliHelpLogs() string {
+	return Catalog.Format(msgs.locale, "cliHelpLogs", nil)
+}
+
+// CliHelpVersion says "Show the versions of ytm and the background player"
+// in the language the app shows.
+func CliHelpVersion() string { return In(i18n.Locale()).CliHelpVersion() }
+
+// CliHelpVersion says "Show the versions of ytm and the background player"
+// in the language of msgs.
+func (msgs Messages) CliHelpVersion() string {
+	return Catalog.Format(msgs.locale, "cliHelpVersion", nil)
+}
+
+// CliHelpHelp says "Show this list"
+// in the language the app shows.
+func CliHelpHelp() string { return In(i18n.Locale()).CliHelpHelp() }
+
+// CliHelpHelp says "Show this list"
+// in the language of msgs.
+func (msgs Messages) CliHelpHelp() string {
+	return Catalog.Format(msgs.locale, "cliHelpHelp", nil)
+}
+
+// CliTuiUnavailable says "The player in the terminal isn’t available yet. Run “ytm help” for the commands."
+// in the language the app shows.
+//
+// `ytm` without a command, before the terminal player ships.
+func CliTuiUnavailable() string { return In(i18n.Locale()).CliTuiUnavailable() }
+
+// CliTuiUnavailable says "The player in the terminal isn’t available yet. Run “ytm help” for the commands."
+// in the language of msgs.
+//
+// `ytm` without a command, before the terminal player ships.
+func (msgs Messages) CliTuiUnavailable() string {
+	return Catalog.Format(msgs.locale, "cliTuiUnavailable", nil)
+}
+
+// CliDaemonOlder says "The background player ({daemon}) is older than ytm ({ours}). Run “ytm daemon restart” to update it."
+// in the language the app shows.
+//
+// A warning: the background player is an older version than the ytm
+// command. Versions are numbers like 0.3.0.
+func CliDaemonOlder(daemon string, ours string) string {
+	return In(i18n.Locale()).CliDaemonOlder(daemon, ours)
+}
+
+// CliDaemonOlder says "The background player ({daemon}) is older than ytm ({ours}). Run “ytm daemon restart” to update it."
+// in the language of msgs.
+//
+// A warning: the background player is an older version than the ytm
+// command. Versions are numbers like 0.3.0.
+func (msgs Messages) CliDaemonOlder(daemon string, ours string) string {
+	return Catalog.Format(msgs.locale, "cliDaemonOlder", map[string]any{"daemon": daemon, "ours": ours})
+}
+
+// CliDaemonIncompatible says "The background player ({daemon}) doesn’t understand this ytm ({ours}). Run “ytm daemon restart” to update it."
+// in the language the app shows.
+func CliDaemonIncompatible(daemon string, ours string) string {
+	return In(i18n.Locale()).CliDaemonIncompatible(daemon, ours)
+}
+
+// CliDaemonIncompatible says "The background player ({daemon}) doesn’t understand this ytm ({ours}). Run “ytm daemon restart” to update it."
+// in the language of msgs.
+func (msgs Messages) CliDaemonIncompatible(daemon string, ours string) string {
+	return Catalog.Format(msgs.locale, "cliDaemonIncompatible", map[string]any{"daemon": daemon, "ours": ours})
+}
+
+// CliDaemonNewerIncompatible says "The background player ({daemon}) is newer than this ytm ({ours}) and doesn’t understand it. Update YT Music Player."
+// in the language the app shows.
+func CliDaemonNewerIncompatible(daemon string, ours string) string {
+	return In(i18n.Locale()).CliDaemonNewerIncompatible(daemon, ours)
+}
+
+// CliDaemonNewerIncompatible says "The background player ({daemon}) is newer than this ytm ({ours}) and doesn’t understand it. Update YT Music Player."
+// in the language of msgs.
+func (msgs Messages) CliDaemonNewerIncompatible(daemon string, ours string) string {
+	return Catalog.Format(msgs.locale, "cliDaemonNewerIncompatible", map[string]any{"daemon": daemon, "ours": ours})
+}
+
+// CliWhyNotRunning says "the background player isn’t running"
+// in the language the app shows.
+//
+// Why a ytm command failed, after a colon: lowercase where the language has
+// case.
+func CliWhyNotRunning() string { return In(i18n.Locale()).CliWhyNotRunning() }
+
+// CliWhyNotRunning says "the background player isn’t running"
+// in the language of msgs.
+//
+// Why a ytm command failed, after a colon: lowercase where the language has
+// case.
+func (msgs Messages) CliWhyNotRunning() string {
+	return Catalog.Format(msgs.locale, "cliWhyNotRunning", nil)
+}
+
+// CliWhyNotFound says "the background player (ytmd) wasn’t found next to ytm; set YTMD_PATH to its path"
+// in the language the app shows.
+//
+// Why a ytm command failed, after a colon. ytmd and YTMD_PATH stay as they
+// are.
+func CliWhyNotFound() string { return In(i18n.Locale()).CliWhyNotFound() }
+
+// CliWhyNotFound says "the background player (ytmd) wasn’t found next to ytm; set YTMD_PATH to its path"
+// in the language of msgs.
+//
+// Why a ytm command failed, after a colon. ytmd and YTMD_PATH stay as they
+// are.
+func (msgs Messages) CliWhyNotFound() string {
+	return Catalog.Format(msgs.locale, "cliWhyNotFound", nil)
+}
+
+// CliWhyUnavailable says "the background player didn’t answer"
+// in the language the app shows.
+func CliWhyUnavailable() string { return In(i18n.Locale()).CliWhyUnavailable() }
+
+// CliWhyUnavailable says "the background player didn’t answer"
+// in the language of msgs.
+func (msgs Messages) CliWhyUnavailable() string {
+	return Catalog.Format(msgs.locale, "cliWhyUnavailable", nil)
+}
+
+// CliWhyDisconnected says "the background player stopped"
+// in the language the app shows.
+func CliWhyDisconnected() string { return In(i18n.Locale()).CliWhyDisconnected() }
+
+// CliWhyDisconnected says "the background player stopped"
+// in the language of msgs.
+func (msgs Messages) CliWhyDisconnected() string {
+	return Catalog.Format(msgs.locale, "cliWhyDisconnected", nil)
+}
+
+// CliWhyTimeout says "the background player took too long to answer"
+// in the language the app shows.
+func CliWhyTimeout() string { return In(i18n.Locale()).CliWhyTimeout() }
+
+// CliWhyTimeout says "the background player took too long to answer"
+// in the language of msgs.
+func (msgs Messages) CliWhyTimeout() string {
+	return Catalog.Format(msgs.locale, "cliWhyTimeout", nil)
+}
+
+// CliWhyCanceled says "canceled"
+// in the language the app shows.
+func CliWhyCanceled() string { return In(i18n.Locale()).CliWhyCanceled() }
+
+// CliWhyCanceled says "canceled"
+// in the language of msgs.
+func (msgs Messages) CliWhyCanceled() string {
+	return Catalog.Format(msgs.locale, "cliWhyCanceled", nil)
+}
+
+// CliWhySignedOut says "you’re not signed in"
+// in the language the app shows.
+func CliWhySignedOut() string { return In(i18n.Locale()).CliWhySignedOut() }
+
+// CliWhySignedOut says "you’re not signed in"
+// in the language of msgs.
+func (msgs Messages) CliWhySignedOut() string {
+	return Catalog.Format(msgs.locale, "cliWhySignedOut", nil)
+}
+
+// CliWhyDaemonFailed says "the background player ran into a problem; its log is at {path}"
+// in the language the app shows.
+func CliWhyDaemonFailed(path string) string { return In(i18n.Locale()).CliWhyDaemonFailed(path) }
+
+// CliWhyDaemonFailed says "the background player ran into a problem; its log is at {path}"
+// in the language of msgs.
+func (msgs Messages) CliWhyDaemonFailed(path string) string {
+	return Catalog.Format(msgs.locale, "cliWhyDaemonFailed", map[string]any{"path": path})
+}
+
+// CliStatusFailed says "Couldn’t read the background player’s status"
+// in the language the app shows.
+func CliStatusFailed() string { return In(i18n.Locale()).CliStatusFailed() }
+
+// CliStatusFailed says "Couldn’t read the background player’s status"
+// in the language of msgs.
+func (msgs Messages) CliStatusFailed() string {
+	return Catalog.Format(msgs.locale, "cliStatusFailed", nil)
+}
+
+// CliStartFailed says "Couldn’t start the background player"
+// in the language the app shows.
+func CliStartFailed() string { return In(i18n.Locale()).CliStartFailed() }
+
+// CliStartFailed says "Couldn’t start the background player"
+// in the language of msgs.
+func (msgs Messages) CliStartFailed() string {
+	return Catalog.Format(msgs.locale, "cliStartFailed", nil)
+}
+
+// CliStopFailed says "Couldn’t stop the background player"
+// in the language the app shows.
+func CliStopFailed() string { return In(i18n.Locale()).CliStopFailed() }
+
+// CliStopFailed says "Couldn’t stop the background player"
+// in the language of msgs.
+func (msgs Messages) CliStopFailed() string {
+	return Catalog.Format(msgs.locale, "cliStopFailed", nil)
+}
+
+// CliRestartFailed says "Couldn’t restart the background player"
+// in the language the app shows.
+func CliRestartFailed() string { return In(i18n.Locale()).CliRestartFailed() }
+
+// CliRestartFailed says "Couldn’t restart the background player"
+// in the language of msgs.
+func (msgs Messages) CliRestartFailed() string {
+	return Catalog.Format(msgs.locale, "cliRestartFailed", nil)
+}
+
+// CliDaemonNotRunning says "The background player isn’t running."
+// in the language the app shows.
+func CliDaemonNotRunning() string { return In(i18n.Locale()).CliDaemonNotRunning() }
+
+// CliDaemonNotRunning says "The background player isn’t running."
+// in the language of msgs.
+func (msgs Messages) CliDaemonNotRunning() string {
+	return Catalog.Format(msgs.locale, "cliDaemonNotRunning", nil)
+}
+
+// CliDaemonRunning says "The background player {version} is running (process {pid})."
+// in the language the app shows.
+func CliDaemonRunning(version string, pid string) string {
+	return In(i18n.Locale()).CliDaemonRunning(version, pid)
+}
+
+// CliDaemonRunning says "The background player {version} is running (process {pid})."
+// in the language of msgs.
+func (msgs Messages) CliDaemonRunning(version string, pid string) string {
+	return Catalog.Format(msgs.locale, "cliDaemonRunning", map[string]any{"version": version, "pid": pid})
+}
+
+// CliDaemonStopped says "Stopped the background player."
+// in the language the app shows.
+func CliDaemonStopped() string { return In(i18n.Locale()).CliDaemonStopped() }
+
+// CliDaemonStopped says "Stopped the background player."
+// in the language of msgs.
+func (msgs Messages) CliDaemonStopped() string {
+	return Catalog.Format(msgs.locale, "cliDaemonStopped", nil)
+}
+
+// CliQueueEmpty says "Nothing is playing: the queue is empty."
+// in the language the app shows.
+func CliQueueEmpty() string { return In(i18n.Locale()).CliQueueEmpty() }
+
+// CliQueueEmpty says "Nothing is playing: the queue is empty."
+// in the language of msgs.
+func (msgs Messages) CliQueueEmpty() string {
+	return Catalog.Format(msgs.locale, "cliQueueEmpty", nil)
+}
+
+// CliPausedSong says "Paused: {song}"
+// in the language the app shows.
+func CliPausedSong(song string) string { return In(i18n.Locale()).CliPausedSong(song) }
+
+// CliPausedSong says "Paused: {song}"
+// in the language of msgs.
+func (msgs Messages) CliPausedSong(song string) string {
+	return Catalog.Format(msgs.locale, "cliPausedSong", map[string]any{"song": song})
+}
+
+// CliQueuePosition says "song {index} of {count}"
+// in the language the app shows.
+//
+// Where the current song is in the queue, after the time into it.
+func CliQueuePosition(index int, count int) string {
+	return In(i18n.Locale()).CliQueuePosition(index, count)
+}
+
+// CliQueuePosition says "song {index} of {count}"
+// in the language of msgs.
+//
+// Where the current song is in the queue, after the time into it.
+func (msgs Messages) CliQueuePosition(index int, count int) string {
+	return Catalog.Format(msgs.locale, "cliQueuePosition", map[string]any{"index": index, "count": count})
+}
+
+// CliVolume says "Volume {percent}%"
+// in the language the app shows.
+func CliVolume(percent int) string { return In(i18n.Locale()).CliVolume(percent) }
+
+// CliVolume says "Volume {percent}%"
+// in the language of msgs.
+func (msgs Messages) CliVolume(percent int) string {
+	return Catalog.Format(msgs.locale, "cliVolume", map[string]any{"percent": percent})
+}
+
+// CliVolumeMuted says "Volume {percent}% (muted)"
+// in the language the app shows.
+func CliVolumeMuted(percent int) string { return In(i18n.Locale()).CliVolumeMuted(percent) }
+
+// CliVolumeMuted says "Volume {percent}% (muted)"
+// in the language of msgs.
+func (msgs Messages) CliVolumeMuted(percent int) string {
+	return Catalog.Format(msgs.locale, "cliVolumeMuted", map[string]any{"percent": percent})
+}
+
+// CliShuffleOn says "Shuffle on"
+// in the language the app shows.
+func CliShuffleOn() string { return In(i18n.Locale()).CliShuffleOn() }
+
+// CliShuffleOn says "Shuffle on"
+// in the language of msgs.
+func (msgs Messages) CliShuffleOn() string {
+	return Catalog.Format(msgs.locale, "cliShuffleOn", nil)
+}
+
+// CliShuffleOff says "Shuffle off"
+// in the language the app shows.
+func CliShuffleOff() string { return In(i18n.Locale()).CliShuffleOff() }
+
+// CliShuffleOff says "Shuffle off"
+// in the language of msgs.
+func (msgs Messages) CliShuffleOff() string {
+	return Catalog.Format(msgs.locale, "cliShuffleOff", nil)
+}
+
+// CliSignedOut says "Not signed in"
+// in the language the app shows.
+func CliSignedOut() string { return In(i18n.Locale()).CliSignedOut() }
+
+// CliSignedOut says "Not signed in"
+// in the language of msgs.
+func (msgs Messages) CliSignedOut() string {
+	return Catalog.Format(msgs.locale, "cliSignedOut", nil)
+}
+
+// CliCookiePrompt says "Cookie header (hidden as you paste): "
+// in the language the app shows.
+//
+// Where `ytm login` waits for the Cookie header, which the terminal doesn't
+// show. Ends with a space.
+func CliCookiePrompt() string { return In(i18n.Locale()).CliCookiePrompt() }
+
+// CliCookiePrompt says "Cookie header (hidden as you paste): "
+// in the language of msgs.
+//
+// Where `ytm login` waits for the Cookie header, which the terminal doesn't
+// show. Ends with a space.
+func (msgs Messages) CliCookiePrompt() string {
+	return Catalog.Format(msgs.locale, "cliCookiePrompt", nil)
+}
+
+// CliLoginTooLong says "the input is longer than 64 KiB; paste only the Cookie header"
+// in the language the app shows.
+func CliLoginTooLong() string { return In(i18n.Locale()).CliLoginTooLong() }
+
+// CliLoginTooLong says "the input is longer than 64 KiB; paste only the Cookie header"
+// in the language of msgs.
+func (msgs Messages) CliLoginTooLong() string {
+	return Catalog.Format(msgs.locale, "cliLoginTooLong", nil)
+}
+
+// CliLoginEmpty says "nothing was pasted"
+// in the language the app shows.
+func CliLoginEmpty() string { return In(i18n.Locale()).CliLoginEmpty() }
+
+// CliLoginEmpty says "nothing was pasted"
+// in the language of msgs.
+func (msgs Messages) CliLoginEmpty() string {
+	return Catalog.Format(msgs.locale, "cliLoginEmpty", nil)
+}
+
+// CliLoginInvalid says "YouTube Music didn’t take that Cookie header. Copy it again from a signed-in tab, then run “ytm login”."
+// in the language the app shows.
+func CliLoginInvalid() string { return In(i18n.Locale()).CliLoginInvalid() }
+
+// CliLoginInvalid says "YouTube Music didn’t take that Cookie header. Copy it again from a signed-in tab, then run “ytm login”."
+// in the language of msgs.
+func (msgs Messages) CliLoginInvalid() string {
+	return Catalog.Format(msgs.locale, "cliLoginInvalid", nil)
+}
