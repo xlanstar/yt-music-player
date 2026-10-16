@@ -2088,6 +2088,16 @@ func (msgs Messages) CliHelpDaemon() string {
 	return Catalog.Format(msgs.locale, "cliHelpDaemon", nil)
 }
 
+// CliHelpAutostart says "Start the background player when you log in, or not"
+// in the language the app shows.
+func CliHelpAutostart() string { return In(i18n.Locale()).CliHelpAutostart() }
+
+// CliHelpAutostart says "Start the background player when you log in, or not"
+// in the language of msgs.
+func (msgs Messages) CliHelpAutostart() string {
+	return Catalog.Format(msgs.locale, "cliHelpAutostart", nil)
+}
+
 // CliHelpLogs says "Show where the log files are"
 // in the language the app shows.
 func CliHelpLogs() string { return In(i18n.Locale()).CliHelpLogs() }
@@ -2468,4 +2478,34 @@ func CliLoginInvalid() string { return In(i18n.Locale()).CliLoginInvalid() }
 // in the language of msgs.
 func (msgs Messages) CliLoginInvalid() string {
 	return Catalog.Format(msgs.locale, "cliLoginInvalid", nil)
+}
+
+// CliAutostartFailed says "Couldn’t change starting at login"
+// in the language the app shows.
+func CliAutostartFailed() string { return In(i18n.Locale()).CliAutostartFailed() }
+
+// CliAutostartFailed says "Couldn’t change starting at login"
+// in the language of msgs.
+func (msgs Messages) CliAutostartFailed() string {
+	return Catalog.Format(msgs.locale, "cliAutostartFailed", nil)
+}
+
+// CliAutostartOn says "The background player starts when you log in."
+// in the language the app shows.
+func CliAutostartOn() string { return In(i18n.Locale()).CliAutostartOn() }
+
+// CliAutostartOn says "The background player starts when you log in."
+// in the language of msgs.
+func (msgs Messages) CliAutostartOn() string {
+	return Catalog.Format(msgs.locale, "cliAutostartOn", nil)
+}
+
+// CliAutostartOff says "The background player doesn’t start when you log in."
+// in the language the app shows.
+func CliAutostartOff() string { return In(i18n.Locale()).CliAutostartOff() }
+
+// CliAutostartOff says "The background player doesn’t start when you log in."
+// in the language of msgs.
+func (msgs Messages) CliAutostartOff() string {
+	return Catalog.Format(msgs.locale, "cliAutostartOff", nil)
 }

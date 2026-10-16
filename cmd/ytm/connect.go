@@ -26,6 +26,9 @@ const (
 	// startRetry each start of it.
 	startTimeout = remote.HandoffWait + 10*time.Second
 	startRetry   = time.Second
+	// repairWait is how long a command waits, at its end, for the
+	// autostart repair it started.
+	repairWait = time.Second
 )
 
 // errNotRunning is a daemon that took no connection, for a command that

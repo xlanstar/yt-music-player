@@ -231,24 +231,73 @@ func (d *dialer) spawned() int {
 	return d.spawns
 }
 
-// world is ytm's surroundings in a test: a dialer, the terminal.
+// fakeAutostart records package autostart's calls.
+type fakeAutostart struct {
+	mu        sync.Mutex
+	isEnabled bool
+	ytmd      string
+	repairs   []string
+	repairErr error
+}
+
+func (f *fakeAutostart) starter() autostarter {
+	return autostarter{
+		enable: func(ytmd string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.isEnabled, f.ytmd = true, ytmd
+			return nil
+		},
+		disable: func() error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.isEnabled, f.ytmd = false, ""
+			return nil
+		},
+		status: func() (bool, string, error) {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			return f.isEnabled, f.ytmd, nil
+		},
+		repair: func(ytmd string) error {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+			f.repairs = append(f.repairs, ytmd)
+			return f.repairErr
+		},
+	}
+}
+
+func (f *fakeAutostart) repaired() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.repairs
+}
+
+// world is ytm's surroundings in a test: a dialer, autostart, the
+// terminal.
 type world struct {
-	dialer *dialer
-	env    *env
-	stdout *bytes.Buffer
-	stderr *bytes.Buffer
+	dialer    *dialer
+	autostart *fakeAutostart
+	env       *env
+	stdout    *bytes.Buffer
+	stderr    *bytes.Buffer
 }
 
 // ytmVersion is the ytm under test's version.
 const ytmVersion = "1.0.0"
 
+// daemonPath is where the fake ytmd is.
+var daemonPath = filepath.Join(string(filepath.Separator)+"opt", "ytmd")
+
 // newWorld returns a world where running runs, nil for none, and spawns
 // start next in turn.
 func newWorld(running *daemon, next ...*daemon) *world {
 	w := &world{
-		dialer: &dialer{running: running, next: next},
-		stdout: &bytes.Buffer{},
-		stderr: &bytes.Buffer{},
+		dialer:    &dialer{running: running, next: next},
+		autostart: &fakeAutostart{},
+		stdout:    &bytes.Buffer{},
+		stderr:    &bytes.Buffer{},
 	}
 	w.env = &env{
 		stdin:      strings.NewReader(""),
@@ -258,6 +307,8 @@ func newWorld(running *daemon, next ...*daemon) *world {
 		rawInput:   func() (func(), error) { return nil, errors.New("not a terminal") },
 		paths:      ipc.Paths{Socket: "ytmd.sock", Logs: filepath.Join("cache", "logs")},
 		dialer:     w.dialer,
+		findDaemon: func() (string, error) { return daemonPath, nil },
+		autostart:  w.autostart.starter(),
 		version:    ytmVersion,
 	}
 	w.env.spawn = w.dialer.spawn

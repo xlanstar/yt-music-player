@@ -24,6 +24,7 @@ var usages = []usage{
 	{"login", locales.CliHelpLogin},
 	{"logout", locales.CliHelpLogout},
 	{"daemon start|stop|restart|status", locales.CliHelpDaemon},
+	{"autostart on|off|status", locales.CliHelpAutostart},
 	{"logs", locales.CliHelpLogs},
 	{"version", locales.CliHelpVersion},
 	{"help", locales.CliHelpHelp},
@@ -31,19 +32,20 @@ var usages = []usage{
 
 // synopses are the arguments each command takes, for its usage error.
 var synopses = map[string]string{
-	"status":  "status [--json]",
-	"play":    "play",
-	"pause":   "pause",
-	"toggle":  "toggle",
-	"next":    "next",
-	"prev":    "prev",
-	"seek":    "seek <sec|+sec|-sec>",
-	"volume":  "volume <0-100|+n|-n>",
-	"login":   "login",
-	"logout":  "logout",
-	"daemon":  "daemon start|stop|restart|status",
-	"logs":    "logs",
-	"version": "version",
+	"status":    "status [--json]",
+	"play":      "play",
+	"pause":     "pause",
+	"toggle":    "toggle",
+	"next":      "next",
+	"prev":      "prev",
+	"seek":      "seek <sec|+sec|-sec>",
+	"volume":    "volume <0-100|+n|-n>",
+	"login":     "login",
+	"logout":    "logout",
+	"daemon":    "daemon start|stop|restart|status",
+	"autostart": "autostart on|off|status",
+	"logs":      "logs",
+	"version":   "version",
 }
 
 // help writes the list of commands.

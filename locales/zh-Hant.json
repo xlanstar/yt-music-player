@@ -204,6 +204,7 @@
   "cliHelpLogin": "以貼上或從管線輸入的 Cookie 標頭登入",
   "cliHelpLogout": "登出",
   "cliHelpDaemon": "啟動、停止或重新啟動背景播放器",
+  "cliHelpAutostart": "設定登入時是否啟動背景播放器",
   "cliHelpLogs": "顯示 log 檔的位置",
   "cliHelpVersion": "顯示 ytm 與背景播放器的版本",
   "cliHelpHelp": "顯示這份清單",
@@ -237,5 +238,8 @@
   "cliCookiePrompt": "Cookie 標頭（貼上時不會顯示）：",
   "cliLoginTooLong": "輸入超過 64 KiB，請只貼上 Cookie 標頭",
   "cliLoginEmpty": "沒有貼上任何內容",
-  "cliLoginInvalid": "YouTube Music 不接受這個 Cookie 標頭。請從已登入的分頁重新複製，再執行「ytm login」。"
+  "cliLoginInvalid": "YouTube Music 不接受這個 Cookie 標頭。請從已登入的分頁重新複製，再執行「ytm login」。",
+  "cliAutostartFailed": "無法變更登入時啟動的設定",
+  "cliAutostartOn": "登入時會啟動背景播放器。",
+  "cliAutostartOff": "登入時不會啟動背景播放器。"
 }

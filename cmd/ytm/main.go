@@ -6,8 +6,8 @@
 // then: an older daemon gets a warning, never a restart, so that a
 // script's `ytm next` never interrupts the music. Controls, seek, volume,
 // login, logout, `daemon start` and `daemon restart` start ytmd when none
-// answers; status, `daemon status`, `daemon stop`, version and logs never
-// do.
+// answers; status, `daemon status`, `daemon stop`, version, logs and
+// autostart never do.
 //
 // Words people read come from locales, in the language language.go picks;
 // what scripts read (status --json, versions, paths) stays untranslated.
@@ -26,7 +26,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/autostart"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/logfile"
 	"yt-music-player/internal/remote"
@@ -60,8 +62,19 @@ type env struct {
 	dialer remote.Dialer
 	// spawn starts this ytm's own ytmd (`daemon restart`).
 	spawn func() error
+	// findDaemon returns the path of that ytmd (autostart).
+	findDaemon func() (string, error)
+	autostart  autostarter
 	// version is this ytm's.
 	version string
+}
+
+// autostarter is package autostart's switch, a fake's in tests.
+type autostarter struct {
+	enable  func(ytmd string) error
+	disable func() error
+	status  func() (enabled bool, ytmd string, err error)
+	repair  func(ytmd string) error
 }
 
 func main() {
@@ -100,7 +113,14 @@ func processEnv(paths ipc.Paths) *env {
 		paths:      paths,
 		dialer:     &ipc.Dialer{Socket: paths.Socket, Spawn: ipc.SpawnDaemon},
 		spawn:      ipc.SpawnDaemon,
-		version:    version.Version,
+		findDaemon: ipc.FindDaemon,
+		autostart: autostarter{
+			enable:  autostart.Enable,
+			disable: autostart.Disable,
+			status:  autostart.Status,
+			repair:  autostart.Repair,
+		},
+		version: version.Version,
 	}
 }
 
@@ -120,6 +140,17 @@ func startLog(paths ipc.Paths) func() {
 
 // run runs the command of args and returns its exit code.
 func run(ctx context.Context, args []string, e *env) int {
+	if len(args) > 0 && args[0] == "autostart" {
+		// It switches the entry itself.
+		return e.autostartCommand(args[1:])
+	}
+	repaired := e.repairAutostart()
+	defer func() {
+		select {
+		case <-repaired:
+		case <-time.After(repairWait):
+		}
+	}()
 	if len(args) == 0 {
 		return runTUI(ctx, e)
 	}

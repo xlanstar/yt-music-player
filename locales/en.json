@@ -279,6 +279,7 @@
   "cliHelpLogin": "Sign in with a Cookie header, pasted or piped in",
   "cliHelpLogout": "Sign out",
   "cliHelpDaemon": "Start, stop or restart the background player",
+  "cliHelpAutostart": "Start the background player when you log in, or not",
   "cliHelpLogs": "Show where the log files are",
   "cliHelpVersion": "Show the versions of ytm and the background player",
   "cliHelpHelp": "Show this list",
@@ -333,5 +334,8 @@
   "@cliCookiePrompt": { "description": "Where `ytm login` waits for the Cookie header, which the terminal doesn't show. Ends with a space." },
   "cliLoginTooLong": "the input is longer than 64 KiB; paste only the Cookie header",
   "cliLoginEmpty": "nothing was pasted",
-  "cliLoginInvalid": "YouTube Music didn’t take that Cookie header. Copy it again from a signed-in tab, then run “ytm login”."
+  "cliLoginInvalid": "YouTube Music didn’t take that Cookie header. Copy it again from a signed-in tab, then run “ytm login”.",
+  "cliAutostartFailed": "Couldn’t change starting at login",
+  "cliAutostartOn": "The background player starts when you log in.",
+  "cliAutostartOff": "The background player doesn’t start when you log in."
 }

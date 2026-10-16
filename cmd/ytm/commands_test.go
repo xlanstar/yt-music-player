@@ -23,6 +23,7 @@ func TestSpawn(t *testing.T) {
 		{[]string{"daemon", "stop"}, 0, exitOK, 0},
 		{[]string{"version"}, 0, exitOK, 0},
 		{[]string{"logs"}, 0, exitOK, 0},
+		{[]string{"autostart", "status"}, 0, exitOK, 0},
 		{[]string{"help"}, 0, exitOK, 0},
 		{[]string{"play"}, 1, exitOK, api.MethodResume},
 		{[]string{"pause"}, 1, exitOK, api.MethodPause},
@@ -97,6 +98,7 @@ func TestUsage(t *testing.T) {
 		{"login", "--cookie", "x"},
 		{"daemon"},
 		{"daemon", "reload"},
+		{"autostart", "maybe"},
 		{"logs", "all"},
 		{"version", "--short"},
 	} {
@@ -121,7 +123,7 @@ func TestHelp(t *testing.T) {
 		if code := w.run(t, arg); code != exitOK {
 			t.Errorf("%s: exit %d", arg, code)
 		}
-		for _, command := range []string{"ytm status [--json]", "ytm daemon start|stop|restart|status"} {
+		for _, command := range []string{"ytm status [--json]", "ytm daemon start|stop|restart|status", "ytm autostart on|off|status"} {
 			if !strings.Contains(w.stdout.String(), command) {
 				t.Errorf("%s: no %q in %q", arg, command, w.stdout)
 			}
