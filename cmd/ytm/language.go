@@ -7,9 +7,9 @@ import "github.com/egoist/mygo/i18n"
 const fallbackLanguage = "en"
 
 // useLanguage makes the catalogs' messages speak the user's language
-// (docs/plans/daemon.md §7.3). ytm links no MyGo App, which would set the
-// locale function itself, so it sets it here, once, before anything says
-// a message; the TUI reads it as the commands do.
+// (language). ytm links no MyGo App, which would set the locale function
+// itself, so it sets it here, once, before anything says a message; the
+// TUI reads it as the commands do.
 func useLanguage(getenv func(string) string, system func() []string) {
 	lang := language(getenv, system)
 	i18n.SetLocaleFunc(func() string { return lang })

@@ -57,7 +57,7 @@ func (e *env) daemonPath() (string, error) {
 }
 
 // repairAutostart points the login entry, when on, at this ytm's ytmd, as
-// after the app moved (docs/plans/daemon.md §4.6), on its own goroutine:
+// after the app moved (docs/daemon.md, Start at login), on its own goroutine:
 // the returned channel closes when it is done. It never fails a command,
 // and a development build never repairs, which would point the user's
 // login at it.

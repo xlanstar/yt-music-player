@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// The Supervisor's times (docs/plans/daemon.md §4.3, §4.5).
+// The Supervisor's times (docs/daemon.md, Health; Versions and hand-off).
 const (
 	// PingTimeout is how long a Ping waits before the daemon is
 	// Unresponsive.
@@ -51,7 +51,7 @@ type Options struct {
 	kill    func(pid int) error
 }
 
-// Supervisor keeps a Client connected (docs/plans/daemon.md §4.3, §4.5):
+// Supervisor keeps a Client connected (docs/daemon.md, Health; Versions and hand-off):
 // it greets each daemon and compares versions, hands an older daemon off
 // to this front-end's own ytmd once per version, connects again with
 // backoff whenever the connection ends, and pings when the front-end

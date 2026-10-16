@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// forbidden are what the Desktop must not link (docs/plans/daemon.md §2):
+// forbidden are what the Desktop must not link (docs/daemon.md, Programs):
 // everything that plays or signs in, which only ytmd does.
 var forbidden = []string{
 	"yt-music-player/internal/audio",

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// forbidden are the packages ytm must not link (docs/plans/daemon.md §2):
+// forbidden are the packages ytm must not link (docs/daemon.md, Programs):
 // the window, MyGo's App and audio, and everything that plays or signs in,
 // which only ytmd does.
 var forbidden = []string{

@@ -7,7 +7,7 @@ import (
 )
 
 // TestDeps keeps what plays and signs in, which only ytmd does, out of
-// the package front-ends link (docs/plans/daemon.md §2).
+// the package front-ends link (docs/daemon.md, Programs).
 func TestDeps(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")

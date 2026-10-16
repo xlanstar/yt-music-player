@@ -15,8 +15,8 @@ import (
 )
 
 // startupState is the settings' Background player: whether ytmd starts at
-// login (docs/plans/daemon.md §4.6), and on Windows whether terminals
-// find ytm (§9.3). Each switch shows what was last read or set; switching
+// login (docs/daemon.md, Start at login), and on Windows whether
+// terminals find ytm. Each switch shows what was last read or set; switching
 // runs package autostart, which may take seconds, off the UI thread, and
 // a failure turns the switch back.
 type startupState struct {

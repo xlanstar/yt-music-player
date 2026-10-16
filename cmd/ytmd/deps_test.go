@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// forbidden are what ytmd must not link (docs/plans/daemon.md §2): the UI,
+// forbidden are what ytmd must not link (docs/daemon.md, Programs): the UI,
 // MyGo's App and its languages, and the front-ends' state.
 var forbidden = []string{
 	"github.com/egoist/mygo",

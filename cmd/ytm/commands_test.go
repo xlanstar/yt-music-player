@@ -7,8 +7,8 @@ import (
 	"yt-music-player/internal/api"
 )
 
-// TestSpawn checks which commands start ytmd when none runs (§7.4), and
-// their exit codes then.
+// TestSpawn checks which commands start ytmd when none runs
+// (docs/daemon.md), and their exit codes then.
 func TestSpawn(t *testing.T) {
 	for _, tc := range []struct {
 		args   []string

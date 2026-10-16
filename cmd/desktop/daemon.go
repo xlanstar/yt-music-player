@@ -13,7 +13,7 @@ import (
 )
 
 // ytmd is how the app reaches the daemon, which plays and owns the
-// account (docs/plans/daemon.md): its socket in the app, an in-process
+// account (docs/daemon.md): its socket in the app, an in-process
 // Service over a pipe in tests.
 type ytmd struct {
 	dialer remote.Dialer
@@ -97,7 +97,7 @@ func (a *app) disconnect() {
 }
 
 // quitAndStop stops ytmd, and the music with it, then quits
-// (docs/plans/daemon.md §4.4). The Supervisor goes first, or it would
+// (docs/daemon.md, Starting and stopping). The Supervisor goes first, or it would
 // start ytmd again; a connection of its own then asks ytmd to stop, and
 // waits until it closed. A ytmd not running needs no stopping.
 func (a *app) quitAndStop() {

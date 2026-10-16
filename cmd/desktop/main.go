@@ -134,7 +134,7 @@ func (a *app) openWindow() {
 }
 
 // appVersion is the app's: mygo.json's, or a development build's, which
-// takes part in no version check (docs/plans/daemon.md §8).
+// takes part in no version check (docs/daemon.md, Versions and hand-off).
 func appVersion() string {
 	if mygo.IsDev() {
 		return version.Dev

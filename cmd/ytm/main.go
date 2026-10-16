@@ -1,6 +1,6 @@
 // Command ytm is YT Music Player in the terminal: without arguments the
 // player (runTUI), otherwise one command to the background player, ytmd
-// (docs/plans/daemon.md §7.4).
+// (docs/daemon.md).
 //
 // A command connects once (remote.Connect) and compares versions only
 // then: an older daemon gets a warning, never a restart, so that a

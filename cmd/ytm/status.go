@@ -70,7 +70,7 @@ func writeJSON(w io.Writer, v any) error {
 	return err
 }
 
-// The JSON of `ytm status --json` (docs/plans/daemon.md §7.4): its field
+// The JSON of `ytm status --json` (docs/daemon.md): its field
 // names are an interface scripts read, held by testdata/status.json.
 type (
 	// stoppedJSON is no daemon running.

@@ -185,7 +185,7 @@ func TestFileEntryFailures(t *testing.T) {
 	}
 }
 
-// TestSwitchingStopsNothing holds §4.6: switching decides the next login
+// TestSwitchingStopsNothing holds that switching decides the next login
 // only, so turning it off does not stop the music.
 func TestSwitchingStopsNothing(t *testing.T) {
 	for _, tc := range fileCases {

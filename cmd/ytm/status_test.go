@@ -30,7 +30,7 @@ func playingStatus() api.Status {
 	}
 }
 
-// TestStatusJSON holds the fields scripts read (§7.4).
+// TestStatusJSON holds the fields scripts read.
 func TestStatusJSON(t *testing.T) {
 	d := newDaemon("0.3.0", 7)
 	d.status = playingStatus()

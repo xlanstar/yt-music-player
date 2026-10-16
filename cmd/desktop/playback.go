@@ -9,7 +9,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// ytmd plays (docs/plans/daemon.md): the views read its Mirror and drive
+// ytmd plays (docs/daemon.md): the views read its Mirror and drive
 // it through the client, the Controller. The position moves on in the
 // app, from the State's position and when it came, so ytmd sends nothing
 // while a song plays; progress schedules the frames that show it.
@@ -163,7 +163,7 @@ func (a *app) playAll(ids []string) {
 }
 
 // held is a slider's value: the Mirror's, but while the user moves it
-// (docs/plans/daemon.md §7.1). A State that comes meanwhile does not pull
+// (remote.Mirror). A State that comes meanwhile does not pull
 // it from under the pointer, and once let go it waits for the State that
 // answers the last change before following the Mirror again.
 type held struct {
