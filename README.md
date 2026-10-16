@@ -9,6 +9,7 @@ A lightweight YouTube Music desktop player for macOS, Linux and Windows. Native,
 
 - Home, Explore, search, albums, playlists, your library and liked songs
 - Queue, shuffle, repeat, media keys
+- Plays on in the background when the window closes; `ytm` plays and controls it from a terminal
 - Themes, or [your own](docs/theme.md)
 
 > Not affiliated with YouTube or Google.
@@ -30,7 +31,15 @@ Downloads are on [Releases](../../releases). The app updates itself (the `.deb` 
 
 In your browser's developer tools, copy the `Cookie` header of any `music.youtube.com` request and paste it into the app's sign-in sheet. It's kept in the macOS Keychain, or a private file in your config directory elsewhere.
 
+`ytm login` signs in from a terminal instead: paste the header, or pipe it (`pbpaste | ytm login`). After upgrading from 0.1 on macOS, sign in once more: the background player can't read the app's Keychain item.
+
 If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is on your `PATH`, it's used for songs the app can't play on its own.
+
+## Background player and `ytm`
+
+Songs play in a small background player, `ytmd`, which the app starts as it opens and leaves playing when its window closes; paused, it wakes nothing. *Quit and Stop Playback* in the app menu, or `ytm daemon stop`, stops it. To have it ready for the media keys from login, turn on *Start background player at login* in Settings (or `ytm autostart on`).
+
+`ytm` is the player in a terminal, and a command line for scripts: `ytm status [--json]`, `ytm play|pause|next|prev`, `ytm volume 50`, `ytm help` for the rest. Homebrew and the Linux packages put it on your `PATH`; on Windows, turn on *Use ytm in a terminal* in Settings. The macOS app has it at `/Applications/YT Music Player.app/Contents/Resources/ytm`.
 
 ## Build from source
 
