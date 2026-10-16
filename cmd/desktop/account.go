@@ -25,8 +25,33 @@ type sheetState struct {
 // which keeps what the account reports for the pages: in one process, a
 // report is a call.
 func (a *app) connectAccount(src catalog.Source, cat *catalog.Catalog) {
-	a.account = account.New(src, a.post, func(c account.Change) { a.session.Apply(c) })
-	a.session = session.New(a.account, &a.fetches, a.loader, cat)
+	a.account = account.New(src, a.post, func(c account.Change) { applyChange(a.session, c) })
+	a.session = session.New(inProcess{a.account}, &a.fetches, a.loader, cat)
+}
+
+// inProcess is the session's Daemon over the account in this process.
+// Temporary until the Desktop talks to ytmd (docs/plans/daemon.md P4-3).
+type inProcess struct{ *account.Account }
+
+// Refresh never fails to ask: the account reports the fetch's failure.
+func (d inProcess) Refresh(p api.Part, _ func(error)) { d.Fetch(account.Part(p - 1)) }
+
+// applyChange gives s the account's change as ytmd's event. Temporary
+// until the Desktop talks to ytmd (docs/plans/daemon.md P4-3).
+func applyChange(s *session.Session, c account.Change) {
+	switch {
+	case c.Status != nil:
+		s.ApplyAccount(api.AccountEvent{Account: c.Status.Account, SignedIn: c.Status.SignedIn, Switched: c.Status.Switched})
+	case c.Library != nil:
+		s.ApplyLibrary(*c.Library)
+	case c.Likes != nil:
+		s.ApplyLikes(api.Likes(*c.Likes))
+	case c.Failed != nil:
+		// Detail keeps the error's text, as the in-process pages showed it.
+		e := api.Encode(c.Failed.Err)
+		e.Detail = c.Failed.Err.Error()
+		s.ApplyFailed(api.FailedEvent{Part: api.Part(c.Failed.Part + 1), Err: e})
+	}
 }
 
 func (a *app) syncAccount(c *ui.Context) {

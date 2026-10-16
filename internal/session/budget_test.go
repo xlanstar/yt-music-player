@@ -9,7 +9,7 @@ import (
 // TestBudgetIdle: every build asks these, as do each row's Like and Liked
 // music's count, so they must not allocate.
 func TestBudgetIdle(t *testing.T) {
-	s, _ := idleSession(t, bigLikes)
+	s := idleSession(t, bigLikes)
 	cases := append(idleCases(s), idleCase{"LikedCount", func() { sinkInt = s.LikedCount() }})
 	for _, tc := range cases {
 		// 0 allocs today for each.
@@ -18,13 +18,13 @@ func TestBudgetIdle(t *testing.T) {
 }
 
 func TestBudgetLikedSongs(t *testing.T) {
-	s, _ := idleSession(t, bigLikes)
+	s := idleSession(t, bigLikes)
 	// 1 alloc today: the list.
 	budget.Allocs(t, 1, 20, func() { sinkSongs = s.LikedSongs() })
 }
 
 func TestBudgetLikes(t *testing.T) {
-	s, _ := idleSession(t, bigLikes)
+	s := idleSession(t, bigLikes)
 	on := false
 	// 0 allocs today.
 	budget.Allocs(t, 0, 100, func() {
@@ -37,24 +37,21 @@ func TestBudgetLikes(t *testing.T) {
 }
 
 func TestBudgetSetLiked(t *testing.T) {
-	s, q := idleSession(t, bigLikes)
+	s := idleSession(t, bigLikes)
 	id := catalog.Placeholder().Songs[0].ID
 	on := !s.Liked(id)
-	// 5 allocs today: the answer's func, the account's goroutine func and
-	// post, and the change it reports (Likes and its slice). Raised from 2
-	// when sending likes moved to package account, which reports each that
-	// went through.
-	budget.Allocs(t, 6, 100, func() {
-		likeRoundTrip(s, q, id, on)
+	// 1 alloc today: the answer's func. Down from 5 since the daemon, not
+	// package account in this process, sends the like.
+	budget.Allocs(t, 1, 100, func() {
+		s.SetLiked(id, on)
 		on = !on
 	})
 }
 
 func TestBudgetRetry(t *testing.T) {
-	s, q := idleSession(t, 0)
-	// 11 allocs today.
-	budget.Allocs(t, 13, 100, func() {
-		s.Retry(LikedRes)
-		(<-q)()
-	})
+	s := idleSession(t, 0)
+	likes := placeholderLikes(t)
+	// 3 allocs today: the answer's func and the map of likes. Down from
+	// 11 since the daemon, not package account in this process, fetches.
+	budget.Allocs(t, 4, 100, func() { retryLikes(s, likes) })
 }

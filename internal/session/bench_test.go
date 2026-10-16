@@ -1,9 +1,10 @@
 package session
 
 import (
+	"context"
 	"strconv"
 	"testing"
-	"yt-music-player/internal/account"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
@@ -21,22 +22,50 @@ var (
 
 const bigLikes = 2000
 
-// idleSession is a Session as a build finds it: signed in to the
-// placeholder (which answers at once), library fetched, and likeCount
-// songs liked, all in the catalog.
-func idleSession(tb testing.TB, likeCount int) (*Session, posts) {
+// instantDaemon answers every request at once, so only the session's
+// cost is measured.
+type instantDaemon struct{}
+
+func (instantDaemon) CanSignIn() bool                         { return true }
+func (instantDaemon) Refresh(_ api.Part, done func(error))    { done(nil) }
+func (instantDaemon) Like(_ string, _ bool, done func(error)) { done(nil) }
+func (instantDaemon) SignIn(_ string, done func(catalog.Account, error)) {
+	done(catalog.Account{}, nil)
+}
+func (instantDaemon) CancelSignIn()            {}
+func (instantDaemon) SignOut(done func(error)) { done(nil) }
+
+// placeholderLikes are the placeholder's liked songs, as the daemon's
+// event.
+func placeholderLikes(tb testing.TB) api.Likes {
 	tb.Helper()
-	cat, q := catalog.Placeholder(), make(posts, 16)
-	post := func(fn func()) { q <- fn }
-	src := catalog.NewPlaceholderSource(0)
-	var states fetchstate.Registry
-	var s *Session
-	acct := account.New(src, post, func(c account.Change) { s.Apply(c) })
-	s = New(acct, &states, loader.New(src, &states, cat, post), cat)
-	s.Start()
-	for range Resources {
-		(<-q)()
+	pl, songs, err := catalog.NewPlaceholderSource(0).Playlist(context.Background(), catalog.LikedID)
+	if err != nil {
+		tb.Fatal(err)
 	}
+	return api.Likes{Full: true, IDs: pl.Songs, Songs: songs}
+}
+
+// idleSession is a Session as a build finds it: signed in to the
+// placeholder, library fetched, and likeCount songs liked, all in the
+// catalog.
+func idleSession(tb testing.TB, likeCount int) *Session {
+	tb.Helper()
+	cat, src := catalog.Placeholder(), catalog.NewPlaceholderSource(0)
+	var states fetchstate.Registry
+	s := New(instantDaemon{}, &states, loader.New(src, &states, cat, func(func()) {}), cat)
+	s.Start()
+	user, err := src.Account(context.Background())
+	if err != nil {
+		tb.Fatal(err)
+	}
+	lib, err := src.Library(context.Background())
+	if err != nil {
+		tb.Fatal(err)
+	}
+	s.ApplyAccount(api.AccountEvent{Account: user, SignedIn: true})
+	s.ApplyLibrary(lib)
+	s.ApplyLikes(placeholderLikes(tb))
 	if !s.IsSignedIn() || s.IsBusy() {
 		tb.Fatal("not signed in")
 	}
@@ -48,12 +77,12 @@ func idleSession(tb testing.TB, likeCount int) (*Session, posts) {
 	}
 	cat.Add(songs, nil, nil)
 	s.KeepLikes(ids)
-	return s, q
+	return s
 }
 
 // BenchmarkIdle measures what every build asks of the session.
 func BenchmarkIdle(b *testing.B) {
-	s, _ := idleSession(b, bigLikes)
+	s := idleSession(b, bigLikes)
 	for _, tc := range idleCases(s) {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
@@ -86,7 +115,7 @@ func idleCases(s *Session) []idleCase {
 
 // BenchmarkLikedCount: Liked music's card asks it once the likes change.
 func BenchmarkLikedCount(b *testing.B) {
-	s, _ := idleSession(b, bigLikes)
+	s := idleSession(b, bigLikes)
 	b.ReportAllocs()
 	for b.Loop() {
 		sinkInt = s.LikedCount()
@@ -96,7 +125,7 @@ func BenchmarkLikedCount(b *testing.B) {
 // BenchmarkLikedSongs: Liked music's page asks it once the likes or the
 // catalog change.
 func BenchmarkLikedSongs(b *testing.B) {
-	s, _ := idleSession(b, bigLikes)
+	s := idleSession(b, bigLikes)
 	b.ReportAllocs()
 	for b.Loop() {
 		sinkSongs = s.LikedSongs()
@@ -104,7 +133,7 @@ func BenchmarkLikedSongs(b *testing.B) {
 }
 
 func BenchmarkApplyLike(b *testing.B) {
-	s, _ := idleSession(b, bigLikes)
+	s := idleSession(b, bigLikes)
 	b.ReportAllocs()
 	on := false
 	for b.Loop() {
@@ -114,7 +143,7 @@ func BenchmarkApplyLike(b *testing.B) {
 }
 
 func BenchmarkSeedLikes(b *testing.B) {
-	s, _ := idleSession(b, bigLikes)
+	s := idleSession(b, bigLikes)
 	ids := s.likeOrder
 	b.ReportAllocs()
 	for b.Loop() {
@@ -122,31 +151,32 @@ func BenchmarkSeedLikes(b *testing.B) {
 	}
 }
 
-// likeRoundTrip is a Like click and its answer from a source that answers
-// at once, so only the session's and the account's cost is measured.
-func likeRoundTrip(s *Session, q posts, id string, on bool) {
-	s.SetLiked(id, on)
-	(<-q)()
-}
-
+// BenchmarkSetLiked measures a Like click and its answer, from a daemon
+// that answers at once.
 func BenchmarkSetLiked(b *testing.B) {
-	s, q := idleSession(b, bigLikes)
+	s := idleSession(b, bigLikes)
 	id := catalog.Placeholder().Songs[0].ID
 	on := !s.Liked(id)
 	b.ReportAllocs()
 	for b.Loop() {
-		likeRoundTrip(s, q, id, on)
+		s.SetLiked(id, on)
 		on = !on
 	}
 }
 
-// BenchmarkRetry measures the account's fetch, the placeholder and the
-// seeding, from a source that answers at once.
+// retryLikes is a Retry of Liked music and the event of its fetch.
+func retryLikes(s *Session, likes api.Likes) {
+	s.Retry(LikedRes)
+	s.ApplyLikes(likes)
+}
+
+// BenchmarkRetry measures the request and the seeding of the
+// placeholder's likes, from a daemon that answers at once.
 func BenchmarkRetry(b *testing.B) {
-	s, q := idleSession(b, 0)
+	s := idleSession(b, 0)
+	likes := placeholderLikes(b)
 	b.ReportAllocs()
 	for b.Loop() {
-		s.Retry(LikedRes)
-		(<-q)()
+		retryLikes(s, likes)
 	}
 }

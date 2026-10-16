@@ -30,7 +30,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `notice`: messages for the user, made by session and playback, as codes and arguments; `noticetext`: their words, which `tell` shows (`Render`).
 - `loader`: page fetches (album, playlist, feeds, search) for the page shown.
 - `account`: sign-in/out, fetching the account, library and likes, sending likes; reports changes as plain values and holds no UI state, so a process without a window can own it.
-- `session`: what `account` reports, as pages read it (fetch states, the catalog, notices); every like through `SetLiked`, shown at once and undone on failure.
+- `session`: what ytmd's `account` reports (`api` events, through the `Apply` methods), as pages read it (fetch states, the catalog, notices); asks through a `Daemon` (`Remote`, over `remote.Client`); every like through `SetLiked`, shown at once and undone on failure.
 - `auth`: browser-cookie credentials and their store (Keychain on macOS).
 - `innertube`: InnerTube transport; knows nothing about music.
 - `ytmusic`: `catalog.Source` over InnerTube, after ytmusicapi. Song = videoId, Album = `MPREb_…`, Playlist = playlistId without `VL`. Responses decode into the structs of `response.go`. Tests are offline against `testdata/`.
