@@ -130,6 +130,16 @@ func (s *Session) Retry(res fetchstate.Resource) {
 	}
 }
 
+// RetryFailed fetches again the Resources that failed, as when the
+// computer is back online.
+func (s *Session) RetryFailed() {
+	for _, res := range Resources {
+		if s.states.State(res).State == fetchstate.Failed {
+			s.fetch(res)
+		}
+	}
+}
+
 func (s *Session) fetch(res fetchstate.Resource) {
 	s.states.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	src := s.src

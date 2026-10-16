@@ -348,3 +348,37 @@ func TestSearchErrorThenRetry(t *testing.T) {
 		t.Errorf("a canceled search's results were kept, for %q", found.Query)
 	}
 }
+
+func TestRetryFailed(t *testing.T) {
+	src, l, _, queue := scripted()
+	l.Debounce = 0
+	// Nothing failed: nothing is asked.
+	l.RetryFailed()
+	src.None(t, nil, 30*time.Millisecond)
+
+	l.Show(remote)
+	src.Next(t, nil, "album", "remote").Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	held(t, queue)()
+	l.Search("zzz")
+	src.Next(t, nil, "search", "zzz").Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	held(t, queue)()
+	l.RetryFailed()
+	wantState(t, l, remote, fetchstate.Loading)
+	src.Take(t, nil, "album remote", "search zzz")
+	drain(queue)
+
+	// What failed but no longer shows waits to be shown again.
+	l.Stop()
+	l.Show(remote)
+	src.Next(t, nil, "album", "remote").Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	held(t, queue)()
+	l.Search("zzz")
+	src.Next(t, nil, "search", "zzz").Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	held(t, queue)()
+	l.Show(HomeFeed)
+	src.Next(t, nil, "home", "").Reply <- catalogtest.Reply{}
+	held(t, queue)()
+	l.Search("")
+	l.RetryFailed()
+	src.None(t, nil, 30*time.Millisecond)
+}

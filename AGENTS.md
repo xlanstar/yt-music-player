@@ -39,7 +39,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 Root (`package main`):
 
-- `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `log.go`, `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop).
+- `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `log.go`, `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online, what failed is fetched again).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
 - `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.

@@ -58,9 +58,10 @@ type Loader struct {
 	explore catalog.Explore
 
 	// searchJob runs the debounce, then the source's search for
-	// pendingQuery.
+	// pendingQuery. wanted is the search page's query, "" off it.
 	searchJob    job.Job
 	pendingQuery string
+	wanted       string
 	found        Found
 }
 
@@ -100,6 +101,18 @@ func (l *Loader) Retry(res fetchstate.Resource) {
 	job.Run(&l.pageJob, l.post,
 		func(ctx context.Context) (func(*Loader), error) { return fetch(ctx, src, res) },
 		func(keep func(*Loader), err error) { l.finish(res, keep, err) })
+}
+
+// RetryFailed fetches again what failed and is still shown: the page's
+// resource and the search page's query, as when the computer is back
+// online.
+func (l *Loader) RetryFailed() {
+	if l.shown != (fetchstate.Resource{}) && l.states.State(l.shown).State == fetchstate.Failed {
+		l.Retry(l.shown)
+	}
+	if l.found.Err != nil && l.found.FailedQuery == l.wanted {
+		l.RetrySearch(l.wanted)
+	}
 }
 
 // Forget makes res refetch: now if its page is shown, else when it next
@@ -250,6 +263,7 @@ func shelfMusic(shelves []catalog.Shelf) (songs []catalog.Song, albums []catalog
 // ("" means no search page). A failed search stays failed until
 // RetrySearch or the next Search.
 func (l *Loader) Search(query string) {
+	l.wanted = query
 	switch {
 	case query == "" || query == l.found.Query:
 		l.searchJob.Stop()

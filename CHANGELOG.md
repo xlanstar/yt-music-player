@@ -12,6 +12,10 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 - Songs play through the app's own audio engine instead of AVPlayer: YouTube's Opus streams (about 130 kbit/s, 256 where YouTube Music has them) rather than AAC 128k, decoded in Go. It plays on Linux and Windows too, with media keys and the desktop's player controls on Linux (MPRIS).
 
+### Fixed
+
+- Pages, search and your library that failed to load while offline load again by themselves once the computer is back online, without a click on Retry.
+
 ## [0.1.0] - 2026-10-16
 
 ### Added

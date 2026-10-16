@@ -592,3 +592,24 @@ func FuzzCollapseSpace(f *testing.F) {
 		}
 	})
 }
+
+func TestRetryFailed(t *testing.T) {
+	f := newFixture()
+	f.s.Start()
+	calls := f.take(t, "account", "library", "playlist LM")
+	calls["account"].Reply <- catalogtest.Reply{Account: ada}
+	calls["library"].Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	calls["playlist LM"].Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	f.settle(t)
+	// Only what failed is fetched again.
+	f.s.RetryFailed()
+	wantState(t, f, LibraryRes, fetchstate.Loading)
+	wantState(t, f, LikedRes, fetchstate.Loading)
+	calls = f.take(t, "library", "playlist LM")
+	calls["library"].Reply <- catalogtest.Reply{Library: adaLibrary()}
+	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: adaLikes, Songs: tracks}
+	f.settle(t)
+	wantState(t, f, LibraryRes, fetchstate.Loaded)
+	f.s.RetryFailed()
+	f.none(t)
+}

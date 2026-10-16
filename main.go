@@ -102,6 +102,10 @@ func (a *app) openWindow() {
 	w.OnHide(func() { a.playback.SetShown(false) })
 	w.OnRestore(func() { w.Update(func() { a.playback.SetShown(true) }) })
 	w.OnShow(func() { w.Update(func() { a.playback.SetShown(true) }) })
-	w.OnClosed(a.stopWork)
+	stopNetwork := a.followNetwork()
+	w.OnClosed(func() {
+		stopNetwork()
+		a.stopWork()
+	})
 	harness(a, w)
 }
