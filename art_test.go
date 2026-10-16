@@ -174,9 +174,10 @@ func TestSearchResultsShowThumbnails(t *testing.T) {
 	if pixels(tt, green) != 0 || pixels(tt, blue) != 0 {
 		t.Fatal("thumbnails shown before they loaded")
 	}
-	// Loads that finish together redraw once; give them all time.
+	// Loads that finish together redraw once; give them all time, and
+	// the Tester's clock the time to fade them in.
 	deadline := time.Now().Add(5 * time.Second)
-	for pixels(tt, green) == 0 || pixels(tt, blue) == 0 {
+	for tt.Advance(time.Second); pixels(tt, green) == 0 || pixels(tt, blue) == 0; tt.Advance(time.Second) {
 		if time.Now().After(deadline) {
 			t.Fatalf("thumbnails not shown: %d green, %d blue pixels", pixels(tt, green), pixels(tt, blue))
 		}

@@ -15,9 +15,9 @@
 - Where a benchmark has a case table, the limits live in it, and the budget ranges over the same cases: a case without its limit does not compile.
 - Screens (root `budget_test.go`), together about 7 s:
   - `TestBudgetFrames`: every `BenchmarkPages` case to allocs and bytes per steady frame, 1 build a frame, and the heap the screen retains (`retainedKB`: with it, less once it is collected; the same alone or after other pages).
-  - `TestBudgetInteractions`: every `BenchmarkInteractions` case to allocs, bytes and builds per op. A motion's frames follow the wall clock (MyGo's Tester has no clock to set): hovers that draw the Tester's 20 frames within it are held at that worst case, the hero's slow ones per build.
+  - `TestBudgetInteractions`: every `BenchmarkInteractions` case to allocs, bytes and builds per op. The Tester's clock stands still between ops (MyGo 0.5.5), so a hover settles its 20 frames, each built, at the input's instant: the counts repeat on any machine; the hero's slow ones are held per build.
   - Both use the cases as data (`pageCases`, `interactionCases`, `newScreen`, `interacting`): a new case needs its budget.
-  - `TestBudgetIdleFrames`: settled pages with thumbnails, and a paused song, ask for no frame (`framePending` reads the Tester), with playing in the focused window as the control.
+  - `TestBudgetIdleFrames`: settled pages with thumbnails, and a paused song, draw no frame while `tt.Advance` moves the Tester's clock past their quiet time (no build, no `FramePending`, the same pixels for repaint-only frames), with playing in the focused window as the control.
   - `TestBudgetPlayingFrames`: a frame per shown step (60 a minute focused, 12 unfocused, none hidden or paused).
 
 ## Comparing time

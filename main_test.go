@@ -288,9 +288,9 @@ func TestPanelToggles(t *testing.T) {
 		t.Fatal("panel still open")
 	}
 	// Reopen it mid-close, then close it mid-open.
-	frames(tt, 2)
+	tt.Advance(2 * frameTime)
 	click(t, tt, "Queue")
-	frames(tt, 2)
+	tt.Advance(2 * frameTime)
 	if !a.panel.isShown || a.panel.tab != tabQueue {
 		t.Fatalf("panel %v tab %d after reopening it", a.panel.isShown, a.panel.tab)
 	}
@@ -324,16 +324,18 @@ func frames(tt *ui.Tester, n int) {
 	}
 }
 
-// settle waits up to a second: Tester frames follow the wall clock, so a
-// motion ends in its own time.
+// frameTime is a display frame at 60 Hz, the Tester's refresh.
+const frameTime = time.Second / 60
+
+// settle moves the Tester's clock a frame at a time, up to a second:
+// it stands still otherwise, so a motion would never end.
 func settle(t *testing.T, tt *ui.Tester, what string, done func() bool) {
 	t.Helper()
-	for deadline := time.Now().Add(time.Second); !done(); {
-		if time.Now().After(deadline) {
+	for end := tt.Now().Add(time.Second); !done(); {
+		if !tt.Now().Before(end) {
 			t.Fatalf("%s did not happen, texts %q", what, tt.Texts())
 		}
-		time.Sleep(10 * time.Millisecond)
-		tt.Frame()
+		tt.Advance(frameTime)
 	}
 }
 

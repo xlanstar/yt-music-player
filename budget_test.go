@@ -1,17 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"reflect"
-	"sync/atomic"
+	"slices"
 	"testing"
 	"time"
-	"unsafe"
 	"yt-music-player/internal/audio"
 	"yt-music-player/internal/budget"
 	"yt-music-player/internal/catalog"
-
-	"github.com/egoist/mygo/ui"
 )
 
 // frameBudget is what a steady frame of a page may cost; builds is 1 for a
@@ -96,23 +93,18 @@ type interactionBudget struct {
 }
 
 // interactionBudgets are BenchmarkInteractions' ceilings; builds are exact.
-// A motion's frames follow the wall clock: the Tester settles until it ends
-// (or 20 frames, each built), as many as it draws in that time. Hovers that
-// draw 20 within their motion are held at that worst case; the hero's posed
-// thumbnails rasterize slowly, so only its cost per build is repeatable.
-// Hovers take 20 ms to 400 ms an op, hence fewer runs.
+// The Tester's clock stands still between ops, so a hover's motion never
+// ends: the Tester settles its 20 frames, each built, at the instant of the
+// input. The hero's posed thumbnails rasterize slowly, hence its cost per
+// build. Hovers take 20 ms to 400 ms an op, hence fewer runs.
 var interactionBudgets = map[string]interactionBudget{
-	"HoverRows": {35, 6120, 1, 20, false}, // 30 allocs, 5319 B today: the row's fade only paints.
-	// 20 frames in 110 ms of the lift's 180 ms.
+	"HoverRows":  {35, 6120, 1, 20, false},   // 30 allocs, 5319 B today: the row's fade only paints.
 	"HoverCards": {598, 23240, 20, 3, false}, // 520 allocs, 20203 B today.
-	// 20 frames in 25 ms of the button's 120 ms; the bytes vary by a third
-	// between runs.
-	"HoverPlay": {664, 48380, 20, 3, false}, // 577 allocs, 42069 B today.
-	// 6 frames in 375 ms (the fan takes 260 ms), more on a faster machine.
-	"HoverHero": {31, 1180, 20, 3, true}, // 26.3 allocs, 1022 B a build today.
-	// 20 frames in 210 ms of the fan's 260 ms: a slower machine draws fewer.
+	"HoverPlay":  {664, 48380, 20, 3, false}, // 560 allocs, 27621 B today.
+	"HoverHero":  {31, 1180, 20, 3, true},    // 26.1 allocs, 1012 B a build today.
+	// The placeholder's painted sleeves.
 	"HoverHero/Painted": {601, 23290, 20, 3, false},  // 522 allocs, 20245 B today.
-	"ScrollSongs":       {451, 104340, 1, 10, false}, // 392 allocs, 90729 B today: rows coming into view.
+	"ScrollSongs":       {451, 104340, 1, 10, false}, // 394 allocs, 65391 B today, up to 108 KiB in benchmarks: rows coming into view.
 	// 3 builds deleting a letter, 2 typing one: 53 over 21 ops.
 	"TypeSearch":  {114, 8130, 2.53, 20, false}, // 99 allocs, 7065 B today.
 	"LibraryTabs": {96, 115150, 1, 8, false},    // 83 allocs, 100124 B today.
@@ -147,21 +139,6 @@ func TestBudgetInteractions(t *testing.T) {
 			overBudget(t, "builds an op", builds, want.builds)
 		})
 	}
-}
-
-// framePending reports whether the view asked tt for a frame not yet drawn
-// (an animation, Painter.After or Context.After). The Tester exposes this no
-// other way, so it reads the unexported field.
-func framePending(tb testing.TB, tt *ui.Tester) bool {
-	tb.Helper()
-	var requested reflect.Value
-	if h := reflect.ValueOf(tt).Elem().FieldByName("h"); h.Kind() == reflect.Pointer && !h.IsNil() {
-		requested = h.Elem().FieldByName("requested")
-	}
-	if !requested.IsValid() || requested.Type() != reflect.TypeFor[atomic.Bool]() {
-		tb.Fatal("ui.Tester keeps the frame asked for elsewhere than h.requested: update framePending")
-	}
-	return (*atomic.Bool)(unsafe.Pointer(requested.UnsafeAddr())).Load()
 }
 
 // thumbSource is the placeholder with thumbnailServer art, as YouTube
@@ -264,11 +241,9 @@ const (
 	pageQuiet    = 250 * time.Millisecond
 )
 
-// idleCases must ask for no frame for quiet once settled: an idle window
+// idleCases must draw no frame for quiet once settled: an idle window
 // draws nothing and frees GPU memory. Playing focused is the control (the
-// equalizer moves). They wait together so the playing ones' longer wait
-// overlaps the others' setup; playing unfocused comes last, as its next frame
-// is due within 5 s however slow the setup.
+// equalizer moves).
 var idleCases = []struct {
 	name   string
 	screen func(testing.TB) *screen
@@ -286,23 +261,21 @@ var idleCases = []struct {
 }
 
 func TestBudgetIdleFrames(t *testing.T) {
-	screens := make([]*screen, len(idleCases))
-	var due time.Time
-	for i, tc := range idleCases {
-		screens[i] = tc.screen(t)
-		screens[i].steady()
-		if at := time.Now().Add(tc.quiet); at.After(due) {
-			due = at
-		}
-	}
-	time.Sleep(time.Until(due))
-	for i, tc := range idleCases {
+	for _, tc := range idleCases {
 		t.Run(tc.name, func(t *testing.T) {
-			switch pending := framePending(t, screens[i].tt); {
-			case pending && !tc.moves:
-				t.Error("asked for a frame while idle")
-			case !pending && tc.moves:
-				t.Error("asked for no frame while the equalizer moves: framePending sees none")
+			s := tc.screen(t)
+			s.steady()
+			// The equalizer only repaints (Painter.After), which builds
+			// nothing: its frames show in the pixels.
+			before := slices.Clone(s.tt.Image().Pix)
+			s.builds = 0
+			s.tt.Advance(tc.quiet)
+			moved := s.builds > 0 || s.tt.FramePending() || !bytes.Equal(before, s.tt.Image().Pix)
+			switch {
+			case moved && !tc.moves:
+				t.Errorf("drew while idle: %d builds, frame pending %v", s.builds, s.tt.FramePending())
+			case !moved && tc.moves:
+				t.Error("drew nothing while the equalizer moves")
 			}
 		})
 	}

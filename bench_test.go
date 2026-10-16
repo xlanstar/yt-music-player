@@ -215,10 +215,12 @@ func showApp(tb testing.TB, a *app, q posts) *screen {
 // steady draws frames until the view stops animating and caches are warm:
 // a thumbnail's color eases the glow in for a while.
 func (s *screen) steady() {
-	deadline := time.Now().Add(2 * time.Second)
-	for i := 0; i < 5 || s.builds > 1 && time.Now().Before(deadline); i++ {
-		s.builds = 0
+	for range 5 {
 		s.tt.Frame()
+	}
+	// The Tester's clock stands still until moved: motions end only so.
+	for end := s.tt.Now().Add(5 * time.Second); s.tt.FramePending() && s.tt.Now().Before(end); {
+		s.tt.Advance(100 * time.Millisecond)
 	}
 }
 
@@ -233,8 +235,8 @@ func retainedKB(tb testing.TB, s **screen) int64 {
 	// The app being built stays reachable through th and thumbs until
 	// another view runs.
 	*s, th, thumbs = nil, new(theme.Default()), nil
-	// A timer the view armed (a caret's blink, Painter.After) keeps the
-	// Tester, and so the app, until it fires.
+	// The Tester arms no real timers (its clock is the test's), so a
+	// collection or two lets it go; the wait guards against a leak.
 	for wait := time.Now().Add(2 * time.Second); app.Value() != nil; time.Sleep(10 * time.Millisecond) {
 		if time.Now().After(wait) {
 			tb.Fatal("the dropped screen stays reachable")
@@ -433,9 +435,9 @@ func interacting(tb testing.TB, setup func(a *app), start func(testing.TB, *scre
 	return s, op
 }
 
-// BenchmarkInteractions measures an input plus the frames it settles (up
-// to 20 while it animates, as many as the Tester draws while a hover's motion
-// lasts); builds/op counts view builds, live-KB is as BenchmarkPages'.
+// BenchmarkInteractions measures an input plus the frames it settles (20
+// while it animates, as the Tester's clock stands still between ops);
+// builds/op counts view builds, live-KB is as BenchmarkPages'.
 func BenchmarkInteractions(b *testing.B) {
 	for _, ic := range interactionCases {
 		b.Run(ic.name, func(b *testing.B) {
