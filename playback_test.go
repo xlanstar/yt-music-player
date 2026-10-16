@@ -75,7 +75,7 @@ func TestPlaybackThroughTheView(t *testing.T) {
 	click(t, tt, "Next")
 	settleLoads(t, tt, a, q)
 	tt.Frame()
-	if !toasted(tt, "isn’t available") {
+	if !toasted(tt, "isn’t available") || !tt.HasText("Playback stopped: 5 songs in a row couldn’t play.") {
 		t.Errorf("no error announced, texts %q", tt.Texts())
 	}
 }

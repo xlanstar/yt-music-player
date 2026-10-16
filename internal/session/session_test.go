@@ -2,6 +2,7 @@ package session
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -96,20 +97,10 @@ func wantState(t *testing.T, f *fixture, res fetchstate.Resource, want fetchstat
 	}
 }
 
-// wantNotices compares kind, title and topic, and detail when wanted.
 func wantNotices(t *testing.T, f *fixture, want ...notice.Notice) {
 	t.Helper()
-	got := f.s.TakeNotices()
-	if len(got) != len(want) {
-		t.Fatalf("notices %+v, want %+v", got, want)
-	}
-	for i := range got {
-		g, w := got[i], want[i]
-		isSame := g.Kind == w.Kind && g.Title == w.Title && g.Topic == w.Topic
-		isDetailSame := w.Detail == "" || g.Detail == w.Detail
-		if !isSame || !isDetailSame {
-			t.Errorf("notice %+v, want %+v", g, w)
-		}
+	if got := f.s.TakeNotices(); !reflect.DeepEqual(got, want) {
+		t.Errorf("notices %+v, want %+v", got, want)
 	}
 }
 
@@ -252,7 +243,7 @@ func TestSignedOutEverywhere(t *testing.T) {
 	if f.s.Liked("far-1") {
 		t.Error("liked while signed out")
 	}
-	wantNotices(t, f, notice.Notice{Kind: notice.NeedsAccount, Title: "Sign in to like songs", Topic: notice.SignIn})
+	wantNotices(t, f, notice.Notice{Kind: notice.NeedsAccount, Title: notice.SignInToLike, Topic: notice.SignIn})
 	f.none(t)
 	f.s.Start()
 	f.none(t)
@@ -269,7 +260,7 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 	wantState(t, f, LibraryRes, fetchstate.SignedOut)
 	// Home was Ada's, so it is refetched.
 	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
-	wantNotices(t, f, notice.Notice{Kind: notice.NeedsAccount, Title: "Sign in to like songs", Topic: notice.SignIn})
+	wantNotices(t, f, notice.Notice{Kind: notice.NeedsAccount, Title: notice.SignInToLike, Topic: notice.SignIn})
 }
 
 func TestLibraryFailsAndRetries(t *testing.T) {
@@ -324,7 +315,10 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 	if got := f.s.LikedSongs(); len(got) != 2 || got[0].ID != "far-2" {
 		t.Errorf("liked songs %+v", got)
 	}
-	wantNotices(t, f, notice.Notice{Kind: notice.Failure, Title: "Couldn’t unlike “Dead Air”", Detail: "quota exceeded"})
+	wantNotices(t, f, notice.Notice{
+		Kind: notice.Failure, Title: notice.UnlikeFailed, Detail: notice.Reason,
+		Args: []string{"Dead Air", "quota exceeded"},
+	})
 
 	// A song the catalog lacks is counted but not listed, and its
 	// failure has no title.
@@ -334,7 +328,10 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 	}
 	f.next(t, "like", "+unknown").Reply <- catalogtest.Reply{Err: errors.New("no such song")}
 	f.held(t)()
-	wantNotices(t, f, notice.Notice{Kind: notice.Failure, Title: "Couldn’t like the song"})
+	wantNotices(t, f, notice.Notice{
+		Kind: notice.Failure, Title: notice.LikeFailedSong, Detail: notice.Reason,
+		Args: []string{"no such song"},
+	})
 }
 
 func TestLaterLikeDecides(t *testing.T) {
@@ -395,7 +392,10 @@ func TestSignIn(t *testing.T) {
 	}
 	signIn.Reply <- catalogtest.Reply{Err: errors.New("these cookies are signed out")}
 	f.held(t)()
-	wantNotices(t, f, notice.Notice{Kind: notice.SignInFailed, Title: "Couldn’t sign in", Detail: "these cookies are signed out"})
+	wantNotices(t, f, notice.Notice{
+		Kind: notice.SignInError, Title: notice.SignInFailed, Detail: notice.Reason,
+		Args: []string{"these cookies are signed out"},
+	})
 	if f.s.IsSignedIn() || f.s.IsSigningIn() || f.changed() {
 		t.Error("a failed sign-in signed in")
 	}
@@ -403,7 +403,7 @@ func TestSignIn(t *testing.T) {
 	f.s.SignIn("SID=good")
 	f.next(t, "signin", "SID=good").Reply <- catalogtest.Reply{Account: ada}
 	f.held(t)()
-	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: "Signed in as Ada Lovelace"})
+	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
 	if !f.s.IsSignedIn() || f.s.Account() != ada || !f.changed() {
 		t.Error("not signed in as Ada")
 	}
@@ -443,7 +443,7 @@ func TestSignInCanceled(t *testing.T) {
 	if !f.s.IsSignedIn() {
 		t.Error("credentials stored did not sign in")
 	}
-	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: "Signed in as Ada Lovelace"})
+	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
 }
 
 func TestSignInWithoutAccounts(t *testing.T) {
@@ -479,7 +479,7 @@ func TestSignOut(t *testing.T) {
 		wantState(t, f, res, fetchstate.SignedOut)
 	}
 	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
-	wantNotices(t, f, notice.Notice{Kind: notice.Info, Title: "Signed out"})
+	wantNotices(t, f, notice.Notice{Kind: notice.Info, Title: notice.SignedOut})
 }
 
 func TestSignOutFails(t *testing.T) {
@@ -490,7 +490,10 @@ func TestSignOutFails(t *testing.T) {
 	if !f.s.IsSignedIn() || len(f.cat.LibraryPlaylists()) != 1 || f.changed() {
 		t.Error("a failed sign-out signed out")
 	}
-	wantNotices(t, f, notice.Notice{Kind: notice.Failure, Title: "Couldn’t sign out", Detail: "keychain locked"})
+	wantNotices(t, f, notice.Notice{
+		Kind: notice.Failure, Title: notice.SignOutFailed, Detail: notice.Reason,
+		Args: []string{"keychain locked"},
+	})
 }
 
 func TestStaleResultsRejected(t *testing.T) {

@@ -2,8 +2,9 @@
 // passes on whatever changed in the player (click, shortcut, media key).
 // It resolves streams off the UI thread, prefetches the next song near the
 // end, resolves a stream that fails once loaded anew (once), and skips
-// unplayable songs, stopping after a few in a row. It knows no UI: Follow
-// returns when the shown position next moves, and failures become notices.
+// unplayable songs, stopping after a few in a row. It knows no UI and says
+// no words: Follow returns when the shown position next moves, and
+// failures become notices.
 //
 // A Playback belongs to the UI thread, which owns the player and the
 // engine. Resolves run on goroutines that call only the Resolver; their
@@ -22,7 +23,6 @@ import (
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/player"
 	"yt-music-player/internal/stream"
-	"yt-music-player/locales"
 
 	"github.com/rs/zerolog/log"
 )
@@ -312,7 +312,7 @@ func (pb *Playback) startEngine() bool {
 	eng, err := pb.NewEngine(func(ev audio.Event) { post(func() { pb.audioEvent(ev) }) })
 	if err != nil {
 		log.Debug().Err(err).Msg("no audio engine")
-		pb.notice = failure(locales.NoticeNoAudio(), err.Error())
+		pb.notice = failure(notice.NoAudio, notice.Reason, err.Error())
 		pb.Resolver, pb.state = nil, unloaded
 		return false
 	}
@@ -405,32 +405,31 @@ func (pb *Playback) playFailed(err error) {
 	title := pb.currentSong().Title
 	pb.state, pb.isPlaying = unloaded, false
 	pb.failures++
-	heading := locales.NoticePlayFailed(title)
+	heading := notice.PlayFailed
 	if errors.Is(err, stream.ErrUnplayable) {
-		heading = locales.NoticeUnplayable(title)
+		heading = notice.Unplayable
 	}
 	if pb.failures >= min(maxSkips, p.Len()) {
-		detail := locales.NoticePlaybackStopped()
+		pb.notice = failure(heading, notice.PlaybackStopped, title)
 		if pb.failures > 1 {
-			detail = locales.NoticePlaybackStoppedAfter(pb.failures)
+			pb.notice.Detail, pb.notice.N = notice.PlaybackStoppedAfter, pb.failures
 		}
-		pb.notice = failure(heading, detail)
 		pb.failures, p.Playing = 0, false
 		return
 	}
-	pb.notice = failure(heading, locales.NoticeSkipped())
+	pb.notice = failure(heading, notice.Skipped, title)
 	p.Next()
 }
 
-func failure(title, detail string) notice.Notice {
-	return notice.Notice{Kind: notice.Failure, Title: title, Detail: detail, Topic: notice.Playback}
+func failure(title, detail notice.Code, args ...string) notice.Notice {
+	return notice.Notice{Kind: notice.Failure, Title: title, Detail: detail, Args: args, Topic: notice.Playback}
 }
 
 // TakeNotice returns and clears the failure to tell, if any.
 func (pb *Playback) TakeNotice() (notice.Notice, bool) {
 	n := pb.notice
 	pb.notice = notice.Notice{}
-	return n, n.Title != ""
+	return n, n.Title != 0
 }
 
 // armPrefetch prefetches the next song now if pos (seconds) is near the

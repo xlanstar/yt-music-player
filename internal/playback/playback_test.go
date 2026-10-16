@@ -3,6 +3,7 @@ package playback
 import (
 	"context"
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -301,10 +302,13 @@ func TestFailuresSkipThenStop(t *testing.T) {
 	if n := len(res.Asked()); n != maxSkips {
 		t.Errorf("tried %d songs, want %d", n, maxSkips)
 	}
-	n, ok := x.pb.TakeNotice()
-	isStopNotice := ok && strings.Contains(n.Detail, "stopped") && n.Kind == notice.Failure && n.Topic == notice.Playback
-	if x.player.Playing || !isStopNotice {
-		t.Errorf("playing %v, notice %+v", x.player.Playing, n)
+	last, _ := x.cat.Song(x.player.Current())
+	want := notice.Notice{
+		Kind: notice.Failure, Title: notice.Unplayable, Detail: notice.PlaybackStoppedAfter,
+		Args: []string{last.Title}, N: maxSkips, Topic: notice.Playback,
+	}
+	if n, ok := x.pb.TakeNotice(); x.player.Playing || !ok || !reflect.DeepEqual(n, want) {
+		t.Errorf("playing %v, notice %+v, want %+v", x.player.Playing, n, want)
 	}
 	if _, ok := x.pb.TakeNotice(); ok {
 		t.Error("a notice told twice")
@@ -318,12 +322,15 @@ func TestFailuresSkipThenStop(t *testing.T) {
 	res.err = nil
 	x.startPlaying(t)
 	cur := x.player.Current()
+	song, _ := x.cat.Song(cur)
 	x.f.Fail(errors.New("decoder broke"))
 	x.run(t)
 	x.run(t)
 	x.f.Fail(errors.New("decoder broke"))
 	x.run(t)
-	if n, _ := x.pb.TakeNotice(); x.player.Current() == cur || !strings.HasPrefix(n.Title, "Couldn’t play") {
+	n, _ := x.pb.TakeNotice()
+	isSkipNotice := n.Title == notice.PlayFailed && n.Detail == notice.Skipped && slices.Equal(n.Args, []string{song.Title})
+	if x.player.Current() == cur || !isSkipNotice {
 		t.Errorf("a failed stream left %q, notice %+v", x.player.Current(), n)
 	}
 	x.run(t)
@@ -347,7 +354,7 @@ func TestFailuresStopWithinTheQueue(t *testing.T) {
 	if n := len(res.Asked()); n != len(ids) {
 		t.Errorf("tried %d songs, want %d", n, len(ids))
 	}
-	if n, _ := x.pb.TakeNotice(); x.player.Playing || !strings.Contains(n.Detail, "3 songs in a row") {
+	if n, _ := x.pb.TakeNotice(); x.player.Playing || n.Detail != notice.PlaybackStoppedAfter || n.N != 3 {
 		t.Errorf("playing %v, notice %+v", x.player.Playing, n)
 	}
 }
@@ -358,7 +365,7 @@ func TestEngineFails(t *testing.T) {
 	x.player.Playing = true
 	x.pb.Follow()
 	x.run(t)
-	if n, ok := x.pb.TakeNotice(); !ok || n.Title != "Can’t play audio" {
+	if n, ok := x.pb.TakeNotice(); !ok || n.Title != notice.NoAudio || !slices.Equal(n.Args, []string{errNoAudio.Error()}) {
 		t.Errorf("notice %+v", n)
 	}
 	// The player goes on as a mock.

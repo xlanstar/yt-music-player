@@ -2,6 +2,7 @@ package main
 
 import (
 	"yt-music-player/internal/notice"
+	"yt-music-player/internal/noticetext"
 	"yt-music-player/internal/session"
 	"yt-music-player/locales"
 
@@ -32,7 +33,8 @@ func (a *app) syncAccount(c *ui.Context) {
 // tell is the one path for every notice: a toast, or the sign-in
 // sheet's error.
 func (a *app) tell(c *ui.Context, n notice.Notice) {
-	t := ui.Toast{ID: n.Topic, Title: n.Title, Description: n.Detail}
+	title, detail := noticetext.Render(n)
+	t := ui.Toast{ID: n.Topic, Title: title, Description: detail}
 	switch n.Kind {
 	case notice.Failure:
 		t.Type = "error"
@@ -42,9 +44,9 @@ func (a *app) tell(c *ui.Context, n notice.Notice) {
 		}
 	case notice.SignedIn:
 		a.sheet.isOpen = false
-	case notice.SignInFailed:
-		a.sheet.failure = n.Detail
-		c.Announce(locales.Announcement(n.Title, n.Detail))
+	case notice.SignInError:
+		a.sheet.failure = detail
+		c.Announce(locales.Announcement(title, detail))
 		return
 	}
 	c.AddToast(t)

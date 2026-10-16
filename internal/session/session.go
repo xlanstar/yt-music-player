@@ -2,7 +2,7 @@
 // and signs in and out through catalog.Accounts. Any call answering
 // catalog.ErrSignedOut signs out everywhere. Every like goes through
 // SetLiked, which shows it at once and undoes it if the source refuses.
-// Results for the user come out as notices.
+// Results for the user come out as notices, coded rather than worded.
 //
 // A Session belongs to the UI thread. Its goroutines call only the Source;
 // results are kept on the UI thread through post, and dropped once the
@@ -21,7 +21,6 @@ import (
 	"yt-music-player/internal/job"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/notice"
-	"yt-music-player/locales"
 
 	"github.com/rs/zerolog/log"
 )
@@ -352,26 +351,31 @@ func (s *Session) finishLike(id string, liked bool, seq uint64, err error) {
 		return
 	}
 	s.applyLike(id, !liked)
-	s.notify(notice.Notice{Kind: notice.Failure, Title: s.likeFailedTitle(id, liked), Detail: err.Error()})
+	s.notify(s.likeFailed(id, liked, err))
 }
 
-func (s *Session) likeFailedTitle(id string, liked bool) string {
+func (s *Session) likeFailed(id string, liked bool, err error) notice.Notice {
 	song, ok := s.cat.Song(id)
 	switch {
 	case !ok && liked:
-		return locales.NoticeLikeFailedSong()
+		return failed(notice.Failure, notice.LikeFailedSong, err)
 	case !ok:
-		return locales.NoticeUnlikeFailedSong()
+		return failed(notice.Failure, notice.UnlikeFailedSong, err)
 	case liked:
-		return locales.NoticeLikeFailed(song.Title)
+		return failed(notice.Failure, notice.LikeFailed, err, song.Title)
 	}
-	return locales.NoticeUnlikeFailed(song.Title)
+	return failed(notice.Failure, notice.UnlikeFailed, err, song.Title)
+}
+
+// failed is a notice of title, given its args, whose detail is err's text.
+func failed(kind notice.Kind, title notice.Code, err error, args ...string) notice.Notice {
+	return notice.Notice{Kind: kind, Title: title, Detail: notice.Reason, Args: append(args, err.Error())}
 }
 
 func (s *Session) notify(n notice.Notice) { s.notices = append(s.notices, n) }
 
 func signInToLike() notice.Notice {
-	return notice.Notice{Kind: notice.NeedsAccount, Title: locales.NoticeSignInToLike(), Topic: notice.SignIn}
+	return notice.Notice{Kind: notice.NeedsAccount, Title: notice.SignInToLike, Topic: notice.SignIn}
 }
 
 // TakeNotices returns and clears the notices since the last call.
@@ -408,7 +412,7 @@ func (s *Session) CanSignIn() bool { return s.accounts != nil }
 
 // SignIn sends credentials, as pasted, off the UI thread, canceling a
 // sign-in in flight; the caller should forget them. The result comes as a
-// SignedIn or SignInFailed notice.
+// SignedIn or SignInError notice.
 func (s *Session) SignIn(credentials string) {
 	accounts := s.accounts
 	creds := CleanCredentials(credentials)
@@ -519,7 +523,7 @@ func (s *Session) finishSignIn(isCurrent bool, account catalog.Account, err erro
 		// Sources keep credentials out of their errors (see auth).
 		log.Debug().Bool("current", isCurrent).Err(err).Msg("sign-in failed")
 		if isCurrent {
-			s.notify(notice.Notice{Kind: notice.SignInFailed, Title: locales.NoticeSignInFailed(), Detail: err.Error()})
+			s.notify(failed(notice.SignInError, notice.SignInFailed, err))
 		}
 		return
 	}
@@ -529,7 +533,7 @@ func (s *Session) finishSignIn(isCurrent bool, account catalog.Account, err erro
 		s.fetch(res)
 	}
 	s.loader.Forget(loader.HomeFeed)
-	s.notify(notice.Notice{Kind: notice.SignedIn, Title: locales.SignedInAs(account.Name)})
+	s.notify(notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{account.Name}})
 }
 
 // IsSigningIn reports whether a sign-in is in flight.
@@ -559,12 +563,12 @@ func (s *Session) SignOut() {
 func (s *Session) finishSignOut(err error) {
 	if err != nil {
 		log.Debug().Err(err).Msg("sign-out failed")
-		s.notify(notice.Notice{Kind: notice.Failure, Title: locales.NoticeSignOutFailed(), Detail: err.Error()})
+		s.notify(failed(notice.Failure, notice.SignOutFailed, err))
 		return
 	}
 	s.CancelSignIn()
 	s.forget()
-	s.notify(notice.Notice{Kind: notice.Info, Title: locales.NoticeSignedOut()})
+	s.notify(notice.Notice{Kind: notice.Info, Title: notice.SignedOut})
 }
 
 // IsSigningOut reports whether a sign-out is in flight.

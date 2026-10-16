@@ -26,7 +26,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `catalog`: music types by stable string ID; `Source` (plus `Accounts`, for signing in), the UI-side `Catalog` cache (UI thread only, `Gen()`), the placeholder; `catalogtest`: a `Source` tests answer by hand.
 - `job`: one piece of off-thread work whose `done` runs on the UI thread, dropped when stale.
 - `fetchstate`: `Resource` and `Fetch` state; the `Registry` pages read (`a.fetches`).
-- `notice`: messages for the user, made by session and playback.
+- `notice`: messages for the user, made by session and playback, as codes and arguments; `noticetext`: their words, which `tell` shows (`Render`).
 - `loader`: page fetches (album, playlist, feeds, search) for the page shown.
 - `session`: account, library and likes (every like through `SetLiked`), sign-in/out.
 - `auth`: browser-cookie credentials and their store (Keychain on macOS).
