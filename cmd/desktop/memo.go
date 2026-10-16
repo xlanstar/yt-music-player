@@ -3,6 +3,7 @@ package main
 import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
+	"yt-music-player/internal/remote"
 	"yt-music-player/internal/settings"
 )
 
@@ -35,6 +36,7 @@ type viewMemo struct {
 	// current and upNext are the Mirror's, never copied per build.
 	current      kept[playingKey, catalog.Song]
 	upNext       kept[playingKey, []catalog.Song]
+	banner       kept[remote.Link, bannerText]
 	devtoolsStep string
 	rows         map[string]*rowText
 }

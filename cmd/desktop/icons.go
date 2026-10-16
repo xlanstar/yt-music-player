@@ -68,4 +68,7 @@ var (
 	icDisc         = mustIcon("disc")
 	icRadio        = mustIcon("radio")
 	icPalette      = mustIcon("palette")
+	icRefresh      = mustIcon("refresh-cw")
+	icAlert        = mustIcon("triangle-alert")
+	icUnplug       = mustIcon("unplug")
 )

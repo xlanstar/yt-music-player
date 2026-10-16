@@ -108,6 +108,7 @@ type pageState struct {
 type seenState struct {
 	loc, song, lang string
 	hasSong         bool
+	health          remote.Health
 }
 
 // newApp starts with an empty catalog; ytmd has the queue.
@@ -194,6 +195,7 @@ func (a *app) view(c *ui.Context) {
 		// area; a player bar on top drags the window itself.
 		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(layout.Gutter).DragWindow()
 	}
+	a.banner(c)
 	a.signInSheet(c)
 	a.appearanceSheet(c)
 }
@@ -207,6 +209,7 @@ func (a *app) reconcile(c *ui.Context) {
 	a.syncAccount(c)
 	a.syncLook(c)
 	a.syncDaemon(c)
+	a.announceLink(c)
 	a.syncPlayback(c)
 	a.announceSong(c)
 }

@@ -190,6 +190,15 @@
   "noticeSkipped": "已跳到下一首。",
   "noticeControlFailed": "無法變更播放",
 
+  "quitAndStop": "結束並停止播放",
+  "daemonReconnecting": "正在重新連線到背景播放器…",
+  "daemonUnresponsive": "背景播放器沒有回應。",
+  "daemonUnavailable": "無法連線到背景播放器，仍在重試…",
+  "daemonOutdated": "背景播放器（{daemon}）比這個 App（{app}）舊。請更新 YT Music Player。",
+  "frontendOutdated": "背景播放器（{daemon}）比這個 App（{app}）新。請更新 YT Music Player。",
+  "daemonRestart": "重新啟動",
+  "viewLog": "查看記錄檔",
+
   "cliFailed": "{what}：{why}",
   "cliNoPaths": "找不到 App 的資料夾",
   "cliUnknownCommand": "沒有「{name}」這個指令。執行「ytm help」查看所有指令。",

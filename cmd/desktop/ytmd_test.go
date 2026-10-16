@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 	ytmdsMu.Lock()
 	ytmds[a] = y
 	ytmdsMu.Unlock()
-	a.connect(ytmd{dialer: pipeDialer{svc}, spawn: errNoSpawn, version: version.Dev})
+	a.connect(ytmd{dialer: pipeDialer{svc}, spawn: errNoSpawn, version: version.Dev, log: testLog})
 	tb.Cleanup(y.close)
 	y.until(tb, "connected", func() bool {
 		return a.daemon.link.Health == remote.Connected && a.mirror.StateGen() > 0
@@ -117,6 +118,9 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 }
 
 func errNoSpawn() error { return errors.New("tests start no ytmd") }
+
+// testLog is the daemon's log as tests name it; nothing writes it.
+var testLog = filepath.FromSlash("/logs/ytmd.log")
 
 // close disconnects the app and stops its ytmd.
 func (y *testYtmd) close() {

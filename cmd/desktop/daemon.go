@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/job"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/remote"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/rs/zerolog/log"
 )
 
 // ytmd is how the app reaches the daemon, which plays and owns the
@@ -26,11 +29,15 @@ type ytmd struct {
 // daemonState is what the app knows of ytmd besides playback, which the
 // Mirror holds.
 type daemonState struct {
+	ytmd ytmd
 	link remote.Link
-	log  string
 	// notices are the daemon's and the failed controls', waiting for a
 	// build to tell them.
 	notices []notice.Notice
+	// stopping stops ytmd for Quit and Stop Playback; quit then quits,
+	// mygo.App.Quit but in tests.
+	stopping job.Job
+	quit     func()
 }
 
 // daemonHandler routes what the daemon reports: the account's events to
@@ -49,7 +56,7 @@ func (a *app) daemonHandler() remote.Handler {
 // connect has a Supervisor keep the client connected to d, starting ytmd
 // when none answers. Call it once.
 func (a *app) connect(d ytmd) {
-	a.daemon.log = d.log
+	a.daemon.ytmd = d
 	a.sup = remote.Supervise(a.client, remote.Options{
 		Role: api.RoleDesktop, Version: d.version, Dialer: d.dialer, Spawn: d.spawn,
 	})
@@ -87,4 +94,31 @@ func (a *app) disconnect() {
 	if a.sup != nil {
 		a.sup.Close()
 	}
+}
+
+// quitAndStop stops ytmd, and the music with it, then quits
+// (docs/plans/daemon.md §4.4). The Supervisor goes first, or it would
+// start ytmd again; a connection of its own then asks ytmd to stop, and
+// waits until it closed. A ytmd not running needs no stopping.
+func (a *app) quitAndStop() {
+	if a.daemon.stopping.IsRunning() {
+		return
+	}
+	a.disconnect()
+	d := a.daemon.ytmd
+	job.Run(&a.daemon.stopping, a.post, func(ctx context.Context) (struct{}, error) {
+		ctx, cancel := context.WithTimeout(ctx, remote.RestartGrace)
+		defer cancel()
+		c, _, err := remote.Connect(ctx, d.dialer, false, api.RoleDesktop, d.version)
+		if err != nil {
+			return struct{}{}, err
+		}
+		defer c.Close()
+		return struct{}{}, c.Shutdown(ctx)
+	}, func(_ struct{}, err error) {
+		if err != nil {
+			log.Debug().Err(err).Msg("stopping ytmd")
+		}
+		a.daemon.quit()
+	})
 }

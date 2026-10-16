@@ -1924,6 +1924,136 @@ func (msgs Messages) NoticeControlFailed() string {
 	return Catalog.Format(msgs.locale, "noticeControlFailed", nil)
 }
 
+// QuitAndStop says "Quit and Stop Playback"
+// in the language the app shows.
+//
+// An item of the app menu, after Quit: quits and stops the background
+// player too, so the music stops. Quit alone leaves it playing.
+func QuitAndStop() string { return In(i18n.Locale()).QuitAndStop() }
+
+// QuitAndStop says "Quit and Stop Playback"
+// in the language of msgs.
+//
+// An item of the app menu, after Quit: quits and stops the background
+// player too, so the music stops. Quit alone leaves it playing.
+func (msgs Messages) QuitAndStop() string {
+	return Catalog.Format(msgs.locale, "quitAndStop", nil)
+}
+
+// DaemonReconnecting says "Reconnecting to the background player…"
+// in the language the app shows.
+//
+// A banner at the top of the window: the background player, which plays the
+// music, went away, and the app starts it again.
+func DaemonReconnecting() string { return In(i18n.Locale()).DaemonReconnecting() }
+
+// DaemonReconnecting says "Reconnecting to the background player…"
+// in the language of msgs.
+//
+// A banner at the top of the window: the background player, which plays the
+// music, went away, and the app starts it again.
+func (msgs Messages) DaemonReconnecting() string {
+	return Catalog.Format(msgs.locale, "daemonReconnecting", nil)
+}
+
+// DaemonUnresponsive says "The background player isn’t responding."
+// in the language the app shows.
+//
+// A banner: the background player is running but did not answer in time.
+// Offers Restart.
+func DaemonUnresponsive() string { return In(i18n.Locale()).DaemonUnresponsive() }
+
+// DaemonUnresponsive says "The background player isn’t responding."
+// in the language of msgs.
+//
+// A banner: the background player is running but did not answer in time.
+// Offers Restart.
+func (msgs Messages) DaemonUnresponsive() string {
+	return Catalog.Format(msgs.locale, "daemonUnresponsive", nil)
+}
+
+// DaemonUnavailable says "Can’t reach the background player. Still trying…"
+// in the language the app shows.
+//
+// A banner: several attempts to start or reach the background player
+// failed; the app keeps trying, more and more slowly.
+func DaemonUnavailable() string { return In(i18n.Locale()).DaemonUnavailable() }
+
+// DaemonUnavailable says "Can’t reach the background player. Still trying…"
+// in the language of msgs.
+//
+// A banner: several attempts to start or reach the background player
+// failed; the app keeps trying, more and more slowly.
+func (msgs Messages) DaemonUnavailable() string {
+	return Catalog.Format(msgs.locale, "daemonUnavailable", nil)
+}
+
+// DaemonOutdated says "The background player ({daemon}) is older than this app ({app}). Update YT Music Player."
+// in the language the app shows.
+//
+// A banner: the background player found is an older version, even after the
+// app restarted it.
+func DaemonOutdated(daemon string, app string) string {
+	return In(i18n.Locale()).DaemonOutdated(daemon, app)
+}
+
+// DaemonOutdated says "The background player ({daemon}) is older than this app ({app}). Update YT Music Player."
+// in the language of msgs.
+//
+// A banner: the background player found is an older version, even after the
+// app restarted it.
+func (msgs Messages) DaemonOutdated(daemon string, app string) string {
+	return Catalog.Format(msgs.locale, "daemonOutdated", map[string]any{"daemon": daemon, "app": app})
+}
+
+// FrontendOutdated says "The background player ({daemon}) is newer than this app ({app}). Update YT Music Player."
+// in the language the app shows.
+//
+// A banner: the background player is a newer version that this app cannot
+// talk to.
+func FrontendOutdated(daemon string, app string) string {
+	return In(i18n.Locale()).FrontendOutdated(daemon, app)
+}
+
+// FrontendOutdated says "The background player ({daemon}) is newer than this app ({app}). Update YT Music Player."
+// in the language of msgs.
+//
+// A banner: the background player is a newer version that this app cannot
+// talk to.
+func (msgs Messages) FrontendOutdated(daemon string, app string) string {
+	return Catalog.Format(msgs.locale, "frontendOutdated", map[string]any{"daemon": daemon, "app": app})
+}
+
+// DaemonRestart says "Restart"
+// in the language the app shows.
+//
+// The banner's button that stops the background player, which isn't
+// responding, and starts it again.
+func DaemonRestart() string { return In(i18n.Locale()).DaemonRestart() }
+
+// DaemonRestart says "Restart"
+// in the language of msgs.
+//
+// The banner's button that stops the background player, which isn't
+// responding, and starts it again.
+func (msgs Messages) DaemonRestart() string {
+	return Catalog.Format(msgs.locale, "daemonRestart", nil)
+}
+
+// ViewLog says "View Log"
+// in the language the app shows.
+//
+// The banner's button that opens the background player's log file.
+func ViewLog() string { return In(i18n.Locale()).ViewLog() }
+
+// ViewLog says "View Log"
+// in the language of msgs.
+//
+// The banner's button that opens the background player's log file.
+func (msgs Messages) ViewLog() string {
+	return Catalog.Format(msgs.locale, "viewLog", nil)
+}
+
 // CliFailed says "{what}: {why}"
 // in the language the app shows.
 //

@@ -9,6 +9,7 @@ import (
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/theme"
 	"yt-music-player/internal/version"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/updater"
@@ -55,10 +56,11 @@ func main() {
 	// In the app's language. Builds that cannot update themselves (go run,
 	// the placeholder) never check; Check for Updates… says why.
 	mygo.Use(native.New(updater.Options{}))
-	mygo.App.SetMenu(appMenu())
+	a.daemon.quit = mygo.App.Quit
+	mygo.App.SetMenu(a.appMenu())
 	// Items labelled by their role follow the language themselves; Check
-	// for Updates… is labelled once.
-	mygo.App.OnLocaleChanged(func(string) { mygo.App.SetMenu(appMenu()) })
+	// for Updates… and Quit and Stop Playback are labelled once.
+	mygo.App.OnLocaleChanged(func(string) { mygo.App.SetMenu(a.appMenu()) })
 	mygo.App.WhenReady(a.openWindow)
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal().Err(err).Msg("run")
@@ -66,8 +68,9 @@ func main() {
 }
 
 // appMenu is MyGo's default menu bar with Check for Updates… after About,
-// where Mac apps have it.
-func appMenu() *mygo.Menu {
+// where Mac apps have it, and Quit and Stop Playback after Quit: Quit
+// leaves ytmd playing.
+func (a *app) appMenu() *mygo.Menu {
 	return mygo.NewMenu([]*mygo.MenuItem{
 		{Label: "YT Music Player", Submenu: []*mygo.MenuItem{
 			{Role: mygo.RoleAbout},
@@ -80,6 +83,7 @@ func appMenu() *mygo.Menu {
 			{Role: mygo.RoleUnhide},
 			mygo.Separator(),
 			{Role: mygo.RoleQuit},
+			{Label: locales.QuitAndStop(), Click: func(*mygo.MenuItem, *mygo.Window) { a.quitAndStop() }},
 		}},
 		{Role: mygo.RoleFileMenu},
 		{Role: mygo.RoleEditMenu},

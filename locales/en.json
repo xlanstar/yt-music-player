@@ -253,6 +253,29 @@
   "noticeControlFailed": "Couldn’t change playback",
   "@noticeControlFailed": { "description": "A play, pause, seek, volume or queue command the background player failed or did not answer." },
 
+  "quitAndStop": "Quit and Stop Playback",
+  "@quitAndStop": { "description": "An item of the app menu, after Quit: quits and stops the background player too, so the music stops. Quit alone leaves it playing." },
+  "daemonReconnecting": "Reconnecting to the background player…",
+  "@daemonReconnecting": { "description": "A banner at the top of the window: the background player, which plays the music, went away, and the app starts it again." },
+  "daemonUnresponsive": "The background player isn’t responding.",
+  "@daemonUnresponsive": { "description": "A banner: the background player is running but did not answer in time. Offers Restart." },
+  "daemonUnavailable": "Can’t reach the background player. Still trying…",
+  "@daemonUnavailable": { "description": "A banner: several attempts to start or reach the background player failed; the app keeps trying, more and more slowly." },
+  "daemonOutdated": "The background player ({daemon}) is older than this app ({app}). Update YT Music Player.",
+  "@daemonOutdated": {
+    "description": "A banner: the background player found is an older version, even after the app restarted it.",
+    "placeholders": { "daemon": { "type": "String", "example": "0.3.0" }, "app": { "type": "String", "example": "0.4.0" } }
+  },
+  "frontendOutdated": "The background player ({daemon}) is newer than this app ({app}). Update YT Music Player.",
+  "@frontendOutdated": {
+    "description": "A banner: the background player is a newer version that this app cannot talk to.",
+    "placeholders": { "daemon": { "type": "String", "example": "0.5.0" }, "app": { "type": "String", "example": "0.4.0" } }
+  },
+  "daemonRestart": "Restart",
+  "@daemonRestart": { "description": "The banner's button that stops the background player, which isn't responding, and starts it again." },
+  "viewLog": "View Log",
+  "@viewLog": { "description": "The banner's button that opens the background player's log file." },
+
   "cliFailed": "{what}: {why}",
   "@cliFailed": {
     "description": "A command of ytm, the terminal app, that failed, on one line: what failed, then why.",
