@@ -26,9 +26,12 @@ hooks = [
   # `-full` because the diff-only hook misses cross-file linters like `unused`;
   # it lints the whole module, so a new go.mod or config lints again too.
   { id = "golangci-lint-full", name = "Go lint", env = { GOTOOLCHAIN = "auto" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
-  # The memprof harness, the placeholder source and the avlive tests are
+  # The memprof harness, the placeholder source and the audiolive tests are
   # behind build tags, so the hook above never compiles them.
-  { id = "golangci-lint-full", name = "Go lint (memprof, placeholder, avlive build tags)", args = ["--build-tags", "memprof,placeholder,avlive"], env = { GOTOOLCHAIN = "auto" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
+  { id = "golangci-lint-full", name = "Go lint (memprof, placeholder, audiolive build tags)", args = ["--build-tags", "memprof,placeholder,audiolive"], env = { GOTOOLCHAIN = "auto" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
+  # CI runs on macOS: Linux's files (MPRIS) and Windows' compile only here.
+  { id = "golangci-lint-full", name = "Go lint (Linux)", env = { GOTOOLCHAIN = "auto", GOOS = "linux" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
+  { id = "golangci-lint-full", name = "Go lint (Windows)", env = { GOTOOLCHAIN = "auto", GOOS = "windows" }, types = ["file"], files = '(\.go|^go\.(mod|sum)|^\.golangci\.yml)$' },
 ]
 
 # The workflows release the app: a mistake there shows only on a tag.

@@ -210,11 +210,11 @@ type unplayable string
 func (e unplayable) Error() string { return "unplayable: " + string(e) }
 func (unplayable) Unwrap() error   { return ErrUnplayable }
 
-// errNoFormat is a playable song without a format AVPlayer can fetch: its
+// errNoFormat is a playable song without a format the engine can fetch: its
 // audio is only behind a signature or n challenge, or SABR.
-const errNoFormat = unplayable("no direct audio/mp4 format")
+const errNoFormat = unplayable("no direct Opus format")
 
-// stream picks the best audio/mp4 format of an OK response.
+// stream picks the best Opus format of an OK response.
 func (pr *playerResponse) stream(c Client, now time.Time) (Stream, error) {
 	f, ok := pickFormat(pr.StreamingData.AdaptiveFormats)
 	if !ok {
@@ -242,25 +242,22 @@ func (pr *playerResponse) stream(c Client, now time.Time) (Stream, error) {
 }
 
 // pickFormat prefers, in order: the default audio track (others are
-// dubs), no dynamic range compression, itag 140 (AAC 128k, what YouTube
-// Music plays), then the highest bitrate.
+// dubs), no dynamic range compression, then the highest bitrate: itag 251
+// (Opus about 130k), or 774 (256k) where YouTube Music gives it.
 func pickFormat(formats []format) (format, bool) {
 	var best format
-	var bestRank [4]int
+	var bestRank [3]int
 	found := false
 	for _, f := range formats {
 		if !usable(f) {
 			continue
 		}
-		rank := [4]int{0, 0, 0, max(f.AverageBitrate, f.Bitrate)}
+		rank := [3]int{0, 0, max(f.AverageBitrate, f.Bitrate)}
 		if f.AudioTrack == nil || f.AudioTrack.AudioIsDefault {
 			rank[0] = 1
 		}
 		if !f.IsDrc {
 			rank[1] = 1
-		}
-		if f.Itag == 140 {
-			rank[2] = 1
 		}
 		if !found || slices.Compare(rank[:], bestRank[:]) > 0 {
 			best, bestRank, found = f, rank, true
@@ -269,12 +266,12 @@ func pickFormat(formats []format) (format, bool) {
 	return best, found
 }
 
-// usable reports whether f is audio/mp4 that plays from its URL alone.
+// usable reports whether f is Opus in WebM that plays from its URL alone.
 func usable(f format) bool {
-	isDirectMP4 := f.URL != "" && strings.HasPrefix(f.MimeType, "audio/mp4")
+	isDirectOpus := f.URL != "" && strings.HasPrefix(f.MimeType, "audio/webm") && strings.Contains(f.MimeType, "opus")
 	isProtected := len(f.DrmFamilies) > 0
 	isSegmented := f.TargetDurationSec > 0 || f.Type == "FORMAT_STREAM_TYPE_OTF"
-	if !isDirectMP4 || isProtected || isSegmented {
+	if !isDirectOpus || isProtected || isSegmented {
 		return false
 	}
 	u, err := url.Parse(f.URL)

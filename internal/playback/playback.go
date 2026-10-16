@@ -6,9 +6,9 @@
 // returns when the shown position next moves, and failures become notices.
 //
 // A Playback belongs to the UI thread, which owns the player and the
-// engine (on macOS engine calls must come from the main thread). Resolves
-// run on goroutines that call only the Resolver; their results and engine
-// events are posted to the UI thread and dropped once the song changed.
+// engine. Resolves run on goroutines that call only the Resolver; their
+// results and engine events are posted to the UI thread and dropped once
+// the song changed.
 package playback
 
 import (

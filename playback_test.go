@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -83,7 +84,7 @@ func TestNoPlaybackWithoutResolver(t *testing.T) {
 	a := idleApp()
 	a.playback.NewEngine = func(func(audio.Event)) (audio.Engine, error) {
 		t.Error("made an engine with no resolver")
-		return nil, audio.ErrUnsupported
+		return nil, errNoAudio
 	}
 	a.player.Playing = true
 	tt := newTester(a)
@@ -149,3 +150,5 @@ func TestEqualizerRestsAwayFromFocus(t *testing.T) {
 		t.Error("the equalizer dances while paused")
 	}
 }
+
+var errNoAudio = errors.New("no audio here")

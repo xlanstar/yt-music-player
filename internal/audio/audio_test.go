@@ -29,17 +29,3 @@ func TestFakeNotesAndReports(t *testing.T) {
 		t.Error("news of the stream taken for commands")
 	}
 }
-
-func TestHalvedEnd(t *testing.T) {
-	for _, tc := range []struct{ duration, length, want float64 }{
-		{426.2, 213.1, 213.1}, // counted twice
-		{427, 213.1, 213.5},   // within the slack
-		{213.1, 213.1, 0},     // counted right
-		{426.2, 0, 0},         // the length unknown
-		{0, 213.1, 0},         // the duration not known yet
-	} {
-		if got := halvedEnd(tc.duration, tc.length); got != tc.want {
-			t.Errorf("halvedEnd(%v, %v) = %v, want %v", tc.duration, tc.length, got, tc.want)
-		}
-	}
-}

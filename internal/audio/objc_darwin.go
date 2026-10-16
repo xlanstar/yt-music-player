@@ -2,7 +2,6 @@ package audio
 
 import (
 	"errors"
-	"structs"
 	"sync"
 	"unsafe"
 
@@ -10,21 +9,17 @@ import (
 	"github.com/ebitengine/purego/objc"
 )
 
-// AVFoundation and MediaPlayer are driven through the Objective-C runtime
-// with purego, as MyGo drives AppKit: no cgo. All calls happen on the main
-// thread, which is MyGo's UI thread; system callbacks arrive on other
-// threads and hop there through the main dispatch queue.
+// MediaPlayer is driven through the Objective-C runtime with purego, as
+// MyGo drives AppKit: no cgo. All calls happen on the main thread, which is
+// MyGo's UI thread; the engine's goroutines and system callbacks hop there
+// through the main dispatch queue.
 
 var (
-	poolPush, poolPop, mainNP, dispatchAsyncF, dispatchSyncF, mainQueue, libAV uintptr
+	poolPush, poolPop, mainNP, dispatchAsyncF, dispatchSyncF, mainQueue uintptr
 
-	// Typed objc_msgSend for float and struct arguments and results,
-	// registered once: objc.Send registers on every call.
-	msgSetF32  func(obj objc.ID, sel objc.SEL, v float32)
+	// Typed objc_msgSend for float arguments and results, registered
+	// once: objc.Send registers on every call.
 	msgF64     func(obj objc.ID, sel objc.SEL) float64
-	msgTime    func(obj objc.ID, sel objc.SEL) cmTime
-	msgSetTime func(obj objc.ID, sel objc.SEL, t cmTime)
-	msgSeek    func(obj objc.ID, sel objc.SEL, t, before, after cmTime, done objc.Block)
 	msgNumber  func(cls objc.ID, sel objc.SEL, v float64) objc.ID
 	msgFromStr func(obj objc.ID, sel objc.SEL, b *byte, n uint, enc uint) objc.ID
 
@@ -36,38 +31,7 @@ var (
 	lastTaskID uintptr
 )
 
-// cmTime mirrors Core Media's CMTime.
-type cmTime struct {
-	_         structs.HostLayout
-	Value     int64
-	Timescale int32
-	Flags     uint32
-	Epoch     int64
-}
-
-const (
-	timeValid      = 1
-	timeNonNumeric = 4 | 8 | 16 // infinite or indefinite
-)
-
-func seconds(t cmTime) float64 {
-	if t.Flags&(timeValid|timeNonNumeric) != timeValid || t.Timescale <= 0 {
-		return 0
-	}
-	return float64(t.Value) / float64(t.Timescale)
-}
-
-// timeAt has millisecond precision.
-func timeAt(sec float64) cmTime {
-	return cmTime{Value: int64(max(sec, 0) * 1000), Timescale: 1000, Flags: timeValid}
-}
-
-var loadAV = sync.OnceValue(func() error {
-	const avFoundation = "/System/Library/Frameworks/AVFoundation.framework/AVFoundation"
-	var err error
-	if libAV, err = purego.Dlopen(avFoundation, purego.RTLD_LAZY|purego.RTLD_GLOBAL); err != nil {
-		return err
-	}
+var loadObjC = sync.OnceValue(func() error {
 	objcLib, err := purego.Dlopen("/usr/lib/libobjc.A.dylib", purego.RTLD_LAZY|purego.RTLD_GLOBAL)
 	if err != nil {
 		return err
@@ -87,7 +51,7 @@ var loadAV = sync.OnceValue(func() error {
 	if err != nil {
 		return err
 	}
-	for _, fn := range []any{&msgSetF32, &msgF64, &msgTime, &msgSetTime, &msgSeek, &msgNumber, &msgFromStr} {
+	for _, fn := range []any{&msgF64, &msgNumber, &msgFromStr} {
 		purego.RegisterFunc(fn, msgSend)
 	}
 	runTask = purego.NewCallback(func(ctx uintptr) {
@@ -99,9 +63,6 @@ var loadAV = sync.OnceValue(func() error {
 			withPool(fn)
 		}
 	})
-	if objc.GetClass("AVPlayer") == 0 {
-		return errors.New("audio: no AVPlayer")
-	}
 	return nil
 })
 
@@ -127,8 +88,8 @@ func onMain(fn func()) {
 	purego.SyscallN(dispatchSyncF, mainQueue, task(fn), runTask)
 }
 
-// later queues fn on the main thread, so system callbacks reach the app
-// outside the engine's methods.
+// later queues fn on the main thread: calls keep their order, and no
+// caller waits on the main thread, which may wait on the engine.
 func later(fn func()) { purego.SyscallN(dispatchAsyncF, mainQueue, task(fn), runTask) }
 
 // withPool drains what fn autoreleases. Only called on the main thread,
@@ -163,18 +124,6 @@ func nsString(s string) objc.ID {
 	return send(str, "autorelease")
 }
 
-func goString(str objc.ID) string {
-	if str == 0 {
-		return ""
-	}
-	utf8 := send(str, "UTF8String")
-	length := int(send(str, "lengthOfBytesUsingEncoding:", uint(4)))
-	if utf8 == 0 || length == 0 {
-		return ""
-	}
-	return string(unsafe.Slice(*(**byte)(unsafe.Pointer(&utf8)), length))
-}
-
 // constant returns the NSString a framework exports as name, or 0.
 func constant(lib uintptr, name string) objc.ID {
 	ptr, err := purego.Dlsym(lib, name)
@@ -185,10 +134,3 @@ func constant(lib uintptr, name string) objc.ID {
 }
 
 func nsNumber(v float64) objc.ID { return msgNumber(class("NSNumber"), sel("numberWithDouble:"), v) }
-
-func nsError(nsErr objc.ID) error {
-	if nsErr == 0 {
-		return errors.New("audio: playback failed")
-	}
-	return errors.New(goString(send(nsErr, "localizedDescription")))
-}

@@ -27,7 +27,7 @@ import (
 // drawn: idle, after one frame, after every page, and while a song plays
 // focused, unfocused, minimized and paused ("Memory on macOS" in
 // docs/performance.md). Songs play through a silent clock engine: frames
-// without sound, network or AVPlayer's own memory.
+// without sound, network or the engine's own memory.
 func footprintHarness(a *app, w *mygo.Window) {
 	if os.Getenv("MYGO_FRAME_STATS") != "all" {
 		fmt.Fprintln(os.Stderr, "footprint: MYGO_FRAME_STATS=all is needed to count frames")

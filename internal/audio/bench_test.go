@@ -1,6 +1,15 @@
 package audio
 
-import "testing"
+import (
+	"bytes"
+	"errors"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"testing"
+	"yt-music-player/internal/budget"
+)
 
 var (
 	sinkFloat float64
@@ -8,10 +17,10 @@ var (
 	sinkEvent Event
 )
 
-// AVPlayer is only measured live (live_darwin_test.go); here, the Fake
-// as the app drives it and the arithmetic around the system's player.
+// The Fake as the app drives it, and the engine's parts on the fixture:
+// the system's output is only measured live (live_test.go).
 
-var benchStream = Media{URL: "https://rr1---sn-a5mekn6s.googlevideo.com/videoplayback?itag=140", Seconds: 213.1}
+var benchStream = Media{URL: "https://rr1---sn-a5mekn6s.googlevideo.com/videoplayback?itag=251", Seconds: 213.1}
 
 type fakeCall struct {
 	name  string
@@ -53,16 +62,109 @@ func BenchmarkIsCommand(b *testing.B) {
 	}
 }
 
-func BenchmarkHalvedEnd(b *testing.B) {
-	for _, tc := range []struct {
-		name             string
-		duration, length float64
-	}{{"doubled", 426.2, 213.1}, {"right", 213.1, 213.1}, {"unknown", 426.2, 0}} {
+var (
+	sinkInt int
+	sinkErr error
+)
+
+// memTransport serves data to range requests from memory, as googlevideo
+// would: deterministic, unlike a socket.
+type memTransport struct{ data []byte }
+
+// RoundTrip answers "bytes=a-b" ranges, the source's only kind, with a
+// view of data, as a socket would hand its bytes over without copies.
+func (m memTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	from, to, _ := strings.Cut(strings.TrimPrefix(req.Header.Get("Range"), "bytes="), "-")
+	start, _ := strconv.Atoi(from)
+	end, _ := strconv.Atoi(to)
+	end = min(end+1, len(m.data))
+	return &http.Response{
+		StatusCode:    http.StatusPartialContent,
+		Header:        http.Header{"Content-Range": {"bytes " + from + "-" + strconv.Itoa(end-1) + "/" + strconv.Itoa(len(m.data))}},
+		Body:          io.NopCloser(bytes.NewReader(m.data[start:end])),
+		ContentLength: int64(end - start),
+		Request:       req,
+	}, nil
+}
+
+// sourceCases are a song's worth of bytes, and ten minutes' at 128 kbit/s:
+// the source keeps the first whole, the second up to keepBytes.
+var sourceCases = []struct {
+	name string
+	size int
+	// limit is TestBudgetSourceRead's.
+	limit budget.Cost
+}{
+	// 103 allocs today (requests, chunks), 4.27 MB: the file, and a
+	// request's buffer.
+	{"4MB", 4 << 20, budget.Cost{Allocs: 119, Bytes: 4.91e6}},
+	// 232-234 allocs today, 10.67 MB.
+	{"10min", 10 << 20, budget.Cost{Allocs: 270, Bytes: 12.3e6}},
+}
+
+// readSource reads all of data through an httpSource, in the demuxer's
+// reads of 16 KiB.
+func readSource(tb testing.TB, client *http.Client, buf []byte) {
+	src := newHTTPSource(client, "https://googlevideo.test/videoplayback", nil, nil)
+	defer func() { _ = src.Close() }()
+	for {
+		n, err := src.Read(buf)
+		sinkInt += n
+		if errors.Is(err, io.EOF) {
+			return
+		}
+		if err != nil {
+			tb.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkSourceRead(b *testing.B) {
+	for _, tc := range sourceCases {
 		b.Run(tc.name, func(b *testing.B) {
+			client := &http.Client{Transport: memTransport{testBytes(tc.size)}}
+			buf := make([]byte, 16<<10)
+			b.SetBytes(int64(tc.size))
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkFloat = halvedEnd(tc.duration, tc.length)
+				readSource(b, client, buf)
 			}
 		})
+	}
+}
+
+// decodeThrough decodes s from the start to its end.
+func decodeThrough(tb testing.TB, s *opusStream, buf []float32) {
+	if err := s.SetPosition(0); err != nil {
+		tb.Fatal(err)
+	}
+	for {
+		n, err := s.Read(buf)
+		sinkInt += n
+		if errors.Is(err, io.EOF) {
+			return
+		}
+		if err != nil {
+			tb.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkOpusRead(b *testing.B) {
+	s := openTone(b, toneFixtures[1])
+	buf := make([]float32, 2048*2)
+	b.ReportAllocs()
+	for b.Loop() {
+		decodeThrough(b, s, buf)
+	}
+	// Seconds of audio decoded per second.
+	b.ReportMetric(6*float64(b.N)/b.Elapsed().Seconds(), "x-realtime")
+}
+
+func BenchmarkOpusSetPosition(b *testing.B) {
+	s := openTone(b, toneFixtures[1])
+	b.ReportAllocs()
+	for b.Loop() {
+		sinkErr = s.SetPosition(3 * opusRate)
 	}
 }

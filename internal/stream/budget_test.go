@@ -39,8 +39,9 @@ func TestBudgetPlayerBody(t *testing.T) {
 
 func TestBudgetPickFormat(t *testing.T) {
 	formats := okPlayer(t).StreamingData.AdaptiveFormats
-	// 2 allocs today: url.Parse of the two audio/mp4 formats' URLs.
-	budget.Allocs(t, 2, 100, func() { sinkFormat, sinkBool = pickFormat(formats) })
+	// 3 allocs today: url.Parse of the three Opus formats' URLs (it was
+	// two, of the AAC ones, when it picked those).
+	budget.Allocs(t, 4, 100, func() { sinkFormat, sinkBool = pickFormat(formats) })
 }
 
 func TestBudgetExpiry(t *testing.T) {

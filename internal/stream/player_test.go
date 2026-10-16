@@ -10,6 +10,9 @@ import (
 
 func TestPickFormat(t *testing.T) {
 	const baseURL = "https://rr1---sn-fixture.googlevideo.com/videoplayback?expire=1&itag="
+	opus := func(itag, bitrate int) format {
+		return format{Itag: itag, URL: baseURL + "x", MimeType: `audio/webm; codecs="opus"`, Bitrate: bitrate}
+	}
 	mp4 := func(itag, bitrate int) format {
 		return format{Itag: itag, URL: baseURL + "x", MimeType: `audio/mp4; codecs="mp4a.40.2"`, Bitrate: bitrate}
 	}
@@ -24,26 +27,23 @@ func TestPickFormat(t *testing.T) {
 		wantItag int // 0: none
 		wantDrc  bool
 	}{
-		{"140 over higher bitrates", []format{mp4(141, 260000), mp4(140, 130000), mp4(139, 50000)}, 140, false},
-		{"then the best audio/mp4", []format{mp4(139, 50000), mp4(599, 30000)}, 139, false},
-		{"not webm", []format{
-			{Itag: 251, URL: baseURL + "251", MimeType: `audio/webm; codecs="opus"`, Bitrate: 160000},
-			mp4(139, 50000),
-		}, 139, false},
-		{"opus only", []format{{Itag: 251, URL: baseURL + "251", MimeType: `audio/webm; codecs="opus"`}}, 0, false},
-		{"not video", []format{{Itag: 135, URL: baseURL + "135", MimeType: `video/mp4; codecs="avc1.4D401E"`}}, 0, false},
-		{"no drc when plain is there", []format{with(mp4(140, 130000), drc), mp4(140, 130000)}, 140, false},
-		{"drc rather than nothing", []format{with(mp4(140, 130000), drc)}, 140, true},
+		{"the highest bitrate", []format{opus(250, 80000), opus(251, 150000), opus(249, 60000)}, 251, false},
+		{"256k where there is", []format{opus(251, 150000), opus(774, 260000)}, 774, false},
+		{"not AAC", []format{mp4(140, 130000), opus(249, 60000)}, 249, false},
+		{"AAC only", []format{mp4(140, 130000)}, 0, false},
+		{"not WebM video", []format{{Itag: 248, URL: baseURL + "248", MimeType: `video/webm; codecs="vp9"`}}, 0, false},
+		{"no drc when plain is there", []format{with(opus(251, 150000), drc), opus(251, 150000)}, 251, false},
+		{"drc rather than nothing", []format{with(opus(251, 150000), drc)}, 251, true},
 		{"default track over a dub", []format{
-			with(mp4(140, 130000), func(f *format) { f.AudioTrack = dub }),
-			mp4(139, 50000),
-		}, 139, false},
-		{"skips signatureCipher", []format{with(mp4(140, 0), func(f *format) { f.URL, f.SignatureCipher = "", "s=x&url=y" })}, 0, false},
-		{"skips an n challenge", []format{with(mp4(140, 0), func(f *format) { f.URL += "&n=abcdef" })}, 0, false},
-		{"skips plain http", []format{with(mp4(140, 0), func(f *format) { f.URL = "http://x/videoplayback" })}, 0, false},
-		{"skips DRM", []format{with(mp4(140, 0), func(f *format) { f.DrmFamilies = []any{"WIDEVINE"} })}, 0, false},
-		{"skips OTF", []format{with(mp4(140, 0), func(f *format) { f.Type = "FORMAT_STREAM_TYPE_OTF" })}, 0, false},
-		{"skips live", []format{with(mp4(140, 0), func(f *format) { f.TargetDurationSec = 5 })}, 0, false},
+			with(opus(251, 150000), func(f *format) { f.AudioTrack = dub }),
+			opus(249, 50000),
+		}, 249, false},
+		{"skips signatureCipher", []format{with(opus(251, 0), func(f *format) { f.URL, f.SignatureCipher = "", "s=x&url=y" })}, 0, false},
+		{"skips an n challenge", []format{with(opus(251, 0), func(f *format) { f.URL += "&n=abcdef" })}, 0, false},
+		{"skips plain http", []format{with(opus(251, 0), func(f *format) { f.URL = "http://x/videoplayback" })}, 0, false},
+		{"skips DRM", []format{with(opus(251, 0), func(f *format) { f.DrmFamilies = []any{"WIDEVINE"} })}, 0, false},
+		{"skips OTF", []format{with(opus(251, 0), func(f *format) { f.Type = "FORMAT_STREAM_TYPE_OTF" })}, 0, false},
+		{"skips live", []format{with(opus(251, 0), func(f *format) { f.TargetDurationSec = 5 })}, 0, false},
 		{"none", nil, 0, false},
 	}
 	for _, tt := range tests {

@@ -18,6 +18,9 @@ import (
 var live = flag.Bool("live", false,
 	"resolve real songs and download them: go test -run Live -live -v ./internal/stream/")
 
+// webmMagic starts an EBML file, as WebM is.
+const webmMagic = "\x1a\x45\xdf\xa3"
+
 var liveSongs = []struct {
 	name, id string
 	playable bool
@@ -30,7 +33,7 @@ var liveSongs = []struct {
 }
 
 // TestLive is the only test touching the network. Beyond resolving, it
-// proves each URL plays: the head is an MP4, the tail is served (a URL
+// proves each URL plays: the head is WebM, the tail is served (a URL
 // missing a PO token is cut off after a MiB), and the download is not
 // throttled (an unsolved n challenge caps it at tens of KB/s). Each client
 // is measured alone; only the default path must pass.
@@ -83,9 +86,9 @@ func TestLive(t *testing.T) {
 				r := measure(t.Context(), hc, s)
 				t.Logf("%s %s: resolve %v; %s %d kb/s %d B %.0fs, expires in %v; head %d %q, tail %d, %s",
 					p.name, song.id, took, s.MimeType, s.Bitrate/1000, s.Size, s.Seconds,
-					time.Until(s.Expires).Round(time.Minute), r.headStatus, r.ftyp, r.tailStatus, r.speed)
+					time.Until(s.Expires).Round(time.Minute), r.headStatus, r.magic, r.tailStatus, r.speed)
 				if p.must {
-					if r.headStatus != http.StatusPartialContent || r.ftyp != "ftyp" || r.tailStatus != http.StatusPartialContent {
+					if r.headStatus != http.StatusPartialContent || r.magic != webmMagic || r.tailStatus != http.StatusPartialContent {
 						t.Errorf("URL does not play: %+v", r)
 					}
 					if r.mbps < 1 {
@@ -120,7 +123,7 @@ func (c *countingTransport) RoundTrip(req *http.Request) (*http.Response, error)
 
 type liveResult struct {
 	headStatus, tailStatus int
-	ftyp                   string
+	magic                  string
 	mbps                   float64
 	speed                  string
 }
@@ -129,8 +132,8 @@ func measure(ctx context.Context, hc *http.Client, s Stream) liveResult {
 	var r liveResult
 	head, status, _ := rangeGet(ctx, hc, s, 0, 256<<10-1)
 	r.headStatus = status
-	if len(head) >= 8 {
-		r.ftyp = string(head[4:8])
+	if len(head) >= 4 {
+		r.magic = string(head[:4])
 	}
 	if s.Size > 0 {
 		_, r.tailStatus, _ = rangeGet(ctx, hc, s, max(s.Size-64<<10, 0), s.Size-1)

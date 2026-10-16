@@ -9,7 +9,7 @@ A lightweight YouTube Music desktop player. Written in Go with [MyGo](https://my
 
 Browse Home and Explore, search, open albums and playlists, play from your library and liked songs, and switch between themes or make your own ([docs/theme.md](docs/theme.md)).
 
-> Playback is macOS only for now (AVPlayer). Not affiliated with YouTube or Google.
+> Releases are for macOS. Built from source, it plays on Linux and Windows too: the audio engine is Go, with media keys through MPRIS on Linux (none yet on Windows). Not affiliated with YouTube or Google.
 
 ## Install
 

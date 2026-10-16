@@ -19,13 +19,13 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(s.URL, fixtureHost+"/videoplayback?") || !strings.Contains(s.URL, "itag=140&") {
-		t.Errorf("URL = %s, want itag 140", s.URL)
+	if !strings.HasPrefix(s.URL, fixtureHost+"/videoplayback?") || !strings.Contains(s.URL, "itag=251&") {
+		t.Errorf("URL = %s, want itag 251", s.URL)
 	}
-	if want := `audio/mp4; codecs="mp4a.40.2"`; s.MimeType != want {
+	if want := `audio/webm; codecs="opus"`; s.MimeType != want {
 		t.Errorf("MimeType = %s, want %s", s.MimeType, want)
 	}
-	if s.Bitrate != 129492 || s.Size != 5203271 || s.Seconds != 321.457 {
+	if s.Bitrate != 134835 || s.Size != 5417353 || s.Seconds != 321.421 {
 		t.Errorf("Bitrate, Size, Seconds = %d, %d, %v; want averageBitrate, contentLength, approxDurationMs",
 			s.Bitrate, s.Size, s.Seconds)
 	}
@@ -52,7 +52,7 @@ func TestResolve(t *testing.T) {
 		t.Errorf("body = %v, want content and racy checks passed", r.Body)
 	}
 	// The probe reads the end, past the MiB googlevideo always serves.
-	if got, want := f.probeRanges(), []string{"bytes=5202247-5203270"}; !slices.Equal(got, want) {
+	if got, want := f.probeRanges(), []string{"bytes=5416329-5417352"}; !slices.Equal(got, want) {
 		t.Errorf("probes = %q, want %q", got, want)
 	}
 }
@@ -112,7 +112,7 @@ func TestUnplayable(t *testing.T) {
 func TestCipherOnlySkipped(t *testing.T) {
 	f := newFake(t, fixed("player_cipher.json"))
 	_, err := f.resolver(Options{}).Resolve(t.Context(), okID)
-	if !errors.Is(err, ErrUnplayable) || !strings.Contains(err.Error(), "no direct audio/mp4") {
+	if !errors.Is(err, ErrUnplayable) || !strings.Contains(err.Error(), "no direct Opus") {
 		t.Fatalf("err = %v, want ErrUnplayable for no direct format", err)
 	}
 	if len(f.probeRanges()) != 0 {

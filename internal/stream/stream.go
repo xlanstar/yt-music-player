@@ -1,5 +1,5 @@
-// Package stream resolves a YouTube Music song to an audio URL an audio
-// backend can fetch, with the headers it needs.
+// Package stream resolves a YouTube Music song to the URL of its Opus
+// audio in WebM, with the headers fetching it needs.
 package stream
 
 import (
@@ -16,7 +16,7 @@ var ErrUnplayable = errors.New("stream: unplayable")
 // Stream is one audio format of a song.
 type Stream struct {
 	URL string
-	// MimeType is as YouTube gives it, e.g. `audio/mp4; codecs="mp4a.40.2"`.
+	// MimeType is as YouTube gives it, e.g. `audio/webm; codecs="opus"`.
 	MimeType string
 	Bitrate  int     // bits per second
 	Size     int64   // bytes, 0 when unknown

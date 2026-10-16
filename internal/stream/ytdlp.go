@@ -15,8 +15,8 @@ import (
 
 const (
 	defaultYTDLPTimeout = 30 * time.Second
-	// ytdlpFormat is itag 140, else any AAC; AVPlayer cannot play Opus.
-	ytdlpFormat = "140/bestaudio[ext=m4a]"
+	// ytdlpFormat is itag 251, else any Opus in WebM: what the engine plays.
+	ytdlpFormat = "251/bestaudio[ext=webm][acodec=opus]"
 )
 
 // LookYTDLP returns the path of yt-dlp on PATH, or "" when there is none,
@@ -83,12 +83,12 @@ func parseYTDLP(data []byte, now time.Time) (Stream, error) {
 	if info.URL == "" || (info.Protocol != "" && info.Protocol != "https") {
 		return Stream{}, fmt.Errorf("yt-dlp: no direct URL (protocol %q)", info.Protocol)
 	}
-	if info.Ext != "m4a" && info.Ext != "mp4" {
-		return Stream{}, fmt.Errorf("yt-dlp: picked %q, not audio/mp4", info.Ext)
+	if info.Ext != "webm" || info.ACodec != "opus" {
+		return Stream{}, fmt.Errorf("yt-dlp: picked %s %q, not Opus in WebM", info.Ext, info.ACodec)
 	}
 	s := Stream{
 		URL:      info.URL,
-		MimeType: "audio/mp4",
+		MimeType: "audio/webm",
 		Bitrate:  int(math.Round(max(info.ABR, info.TBR) * 1000)),
 		Size:     info.Filesize,
 		Seconds:  info.Duration,

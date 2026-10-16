@@ -354,7 +354,7 @@ func TestFailuresStopWithinTheQueue(t *testing.T) {
 
 func TestEngineFails(t *testing.T) {
 	x := newFixture(&instantResolver{})
-	x.pb.NewEngine = func(func(audio.Event)) (audio.Engine, error) { return nil, audio.ErrUnsupported }
+	x.pb.NewEngine = func(func(audio.Event)) (audio.Engine, error) { return nil, errNoAudio }
 	x.player.Playing = true
 	x.pb.Follow()
 	x.run(t)
@@ -548,7 +548,7 @@ func TestNoPlaybackWithoutResolver(t *testing.T) {
 	x := newFixture(nil)
 	x.pb.NewEngine = func(func(audio.Event)) (audio.Engine, error) {
 		t.Error("made an engine with no resolver")
-		return nil, audio.ErrUnsupported
+		return nil, errNoAudio
 	}
 	x.player.Playing = true
 	if d := x.pb.Follow(); d != 0 || len(x.q) != 0 || x.pb.state != unloaded {
@@ -671,3 +671,5 @@ func TestPrefetchesWhileAway(t *testing.T) {
 		t.Error("the prefetched stream was not kept")
 	}
 }
+
+var errNoAudio = errors.New("no audio here")

@@ -1,28 +1,26 @@
-// Package audio plays a song's stream through the system's media player and
-// tells the system what plays, so media keys and Now Playing control it.
+// Package audio plays a song's stream and tells the system what plays, so
+// media keys and Now Playing control it, the same on every system: the
+// stream, a WebM file of Opus, is fetched over HTTP (source.go), read
+// (internal/webm) and decoded in Go (opus.go), and MyGo's audio output
+// plays it (engine.go). The system's media controls are per system:
+// MediaPlayer on macOS, MPRIS on Linux, none on Windows yet.
 package audio
 
-import (
-	"errors"
-	"math"
-	"net/http"
-)
-
-// ErrUnsupported is returned by New where no engine plays audio yet.
-var ErrUnsupported = errors.New("audio: playback is not supported on this system")
+import "net/http"
 
 // Media is what an Engine plays; it keeps audio independent of any resolver.
 type Media struct {
 	URL string
-	// Seconds is the song's length, 0 when unknown; see halvedEnd.
+	// Seconds is the song's length, 0 when unknown, for a file that does
+	// not say.
 	Seconds float64
 	// Header is sent when fetching URL (e.g. User-Agent).
 	Header http.Header
 }
 
-// Engine plays one stream at a time. Call its methods from the UI thread
-// (the main thread on macOS). It reports through the events function
-// given to New, never from within one of its own methods.
+// Engine plays one stream at a time. Call its methods from the UI thread.
+// It reports through the events function given to New, never from within
+// one of its own methods.
 type Engine interface {
 	// Load replaces the stream, starting at seconds, paused until Play.
 	// Loads are numbered from 1; their events carry that number.
@@ -85,14 +83,3 @@ type Event struct {
 // IsCommand reports whether e is a system command rather than news of the
 // stream.
 func (e Event) IsCommand() bool { return e.Kind >= CommandPlay }
-
-// halvedEnd returns where the stream really ends, or 0 unless duration is
-// about twice the known length. AVFoundation counts YouTube's fragmented MP4
-// twice (movie header, then fragments), so it reports twice the length and
-// plays that much silence after the song.
-func halvedEnd(duration, length float64) float64 {
-	if length <= 0 || math.Abs(duration/2-length) > 2 {
-		return 0
-	}
-	return duration / 2
-}

@@ -20,6 +20,15 @@ Numbers from `scripts/footprint.sh` (`perf/footprint-baseline.txt`: M4 Max, 1280
 - Thumbnails cost about +14 MB idle footprint per page of real results, mostly decoded pixels in the Go heap. `internal/artwork` keeps a 32 MB memory LRU (images shown in the last two frames stay) and a 128 MB disk cache; MyGo keeps the pixels of about one page's images (~20) after the page is left, until it shows again.
 - The Go heap grows to twice what is live before a GC, and the scavenger returns free pages over minutes: `quiet.go` runs `debug.FreeOSMemory` (0.6–5 ms, off the UI thread) after 3 s without a build, if the heap allocated 1 MB since. With thumbnails: idle ~96 → 77 MB, after every page ~121 → 96 MB, playing minimized ~119 → 93 MB; frames unchanged.
 
+## Audio
+
+One engine on every system (`internal/audio`): YouTube's Opus in WebM, fetched in ranges, decoded in Go, played through MyGo's `audio` output. Numbers on an M4 Max.
+
+- Opus over AAC: Opus decoders in pure Go exist under MIT/BSD, AAC's only under the GPL or LGPL, and Opus is at 48 kHz, MyGo's output rate, so nothing resamples. `pion/opus` decodes about 830× faster than real time (`BenchmarkOpusRead`): about 0.1% of a core while a song plays, a 3:33 song in 0.5 s. It matches ffmpeg's sample count exactly and its samples to about 72 dB; a seek decodes the same samples as playing through. `tphakala/go-opus` was 13% faster but fixed point (69 dB, `int16`), `darui3018823/opus` 2.5× slower, allocating per packet.
+- Per packet nothing allocates: `webm` reuses one block buffer (about 8 GB/s, `BenchmarkReadFrame`), the decoder its output. A seek makes the decoder's SILK state anew (5 allocs).
+- The source asks for ranges of up to 2 MiB, the next once the reader used half: a few requests a song, and none while paused. It keeps 128 KiB chunks, up to 8 MiB: a song of up to about eight minutes stays whole, so seeking back costs no request. A 4 MB song allocates about 4.3 MB, once (`BenchmarkSourceRead`); the heap in use while playing is 3–4 MB (`TestLiveStream`).
+- No polling while a song plays: MyGo tells no one when a player ends or runs dry, so a timer fires at the computed end, and another, once the source has waited 200 ms for the network, when what was decoded ahead runs out (MyGo decodes about a second ahead). Only a stall is polled, every 100 ms, until half a second is decoded ahead: a seek's refill, or each piece of a slow response, would otherwise report a stall and its end.
+
 ## JSON
 
 - encoding/json/v2 everywhere, with its defaults. Options only where a format needs them: theme files reject unknown names; `theme.Encode` and recorded fixtures sort keys; files people read are indented; InnerTube responses skip a string or number of another type (`lenient`), as maps did.

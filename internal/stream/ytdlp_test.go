@@ -47,13 +47,13 @@ func TestYTDLPFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "-f\n140/bestaudio[ext=m4a]\n-j\n--no-playlist\n--no-warnings\n--\n" +
+	want := "-f\n251/bestaudio[ext=webm][acodec=opus]\n-j\n--no-playlist\n--no-warnings\n--\n" +
 		"https://www.youtube.com/watch?v=" + id + "\n"
 	if string(args) != want {
 		t.Errorf("args = %q, want %q", args, want)
 	}
-	if !strings.Contains(s.URL, "itag=140&") || s.MimeType != `audio/mp4; codecs="mp4a.40.2"` ||
-		s.Size != 4557665 || s.Seconds != 282 || s.Bitrate != 129495 {
+	if !strings.Contains(s.URL, "itag=251&") || s.MimeType != `audio/webm; codecs="opus"` ||
+		s.Size != 4734201 || s.Seconds != 282 || s.Bitrate != 135893 {
 		t.Errorf("stream = %+v", s)
 	}
 	if !s.Expires.Equal(time.Unix(1791988385, 0)) {
@@ -95,7 +95,7 @@ func TestYTDLPTimeout(t *testing.T) {
 func TestParseYTDLP(t *testing.T) {
 	for _, tt := range []struct{ name, json, want string }{
 		{"hls", `{"url":"https://x/y.m3u8","protocol":"m3u8_native","ext":"mp4"}`, "no direct URL"},
-		{"opus", `{"url":"https://x/y","protocol":"https","ext":"webm"}`, "not audio/mp4"},
+		{"aac", `{"url":"https://x/y","protocol":"https","ext":"m4a","acodec":"mp4a.40.2"}`, "not Opus in WebM"},
 		{"garbage", `ERROR`, "yt-dlp: jsontext: invalid character"},
 	} {
 		if _, err := parseYTDLP([]byte(tt.json), time.Now()); err == nil || !strings.Contains(err.Error(), tt.want) {

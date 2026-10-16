@@ -111,7 +111,7 @@ func (y *YouTube) fresh(s Stream) bool { return y.now().Before(s.Expires.Add(-re
 // videoIDPattern also keeps IDs from reaching yt-dlp's argv as options.
 var videoIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
 
-// Resolve returns the song's audio/mp4 stream. Errors wrap ErrUnplayable
+// Resolve returns the song's Opus stream. Errors wrap ErrUnplayable
 // (and a *PlayabilityError, when InnerTube said why) for songs it cannot
 // play; other errors, like being offline, may pass on retry.
 func (y *YouTube) Resolve(ctx context.Context, videoID string) (Stream, error) {
@@ -301,7 +301,7 @@ func (y *YouTube) setVisitorData(visitorData string, replace bool) {
 }
 
 // probe range-requests the end of the file: a URL can be issued and still
-// be refused, and AVPlayer would only find out a MiB into the song.
+// be refused, and the engine would only find out a MiB into the song.
 func (y *YouTube) probe(ctx context.Context, s Stream) error {
 	if y.opts.NoProbe {
 		return nil
