@@ -4,6 +4,13 @@
 // (internal/webm) and decoded in Go (opus.go), and MyGo's audio output
 // plays it (engine.go). The system's media controls are per system:
 // MediaPlayer on macOS, MPRIS on Linux, none on Windows yet.
+//
+// On macOS, New waits on the main dispatch queue, which only a main thread
+// running its run loop serves: MyGo's App, or ytmd's CFRunLoopRun
+// (daemon.RunMain). A process whose main thread is locked but runs no run
+// loop never gets New back; one that calls New on the main thread plays,
+// but never shows in Now Playing. So ytmd makes the engine on its loop,
+// only once the run loop runs.
 package audio
 
 import "net/http"
