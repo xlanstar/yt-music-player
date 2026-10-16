@@ -98,11 +98,13 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 	}
 	svc.Start()
 	y.svc = svc
-	// Large: the Client must never wait on its post.
-	y.q = posts{app: make(chan func(), 64), client: make(chan func(), 1024), ytmd: y}
-	a := newDemoApp(func(fn func()) { y.q.client <- fn })
+	// Large: the Client must never wait on its post. The app's funcs post
+	// to the channels, not through y, which outlives the app.
+	appPosts, clientPosts := make(chan func(), 64), make(chan func(), 1024)
+	y.q = posts{app: appPosts, client: clientPosts, ytmd: y}
+	a := newDemoApp(func(fn func()) { clientPosts <- fn })
 	if !opts.isDetached {
-		a.updates.attach(func(fn func()) { y.q.app <- fn })
+		a.updates.attach(func(fn func()) { appPosts <- fn })
 	}
 	y.a = a
 	ytmdsMu.Lock()
@@ -128,7 +130,8 @@ func (y *testYtmd) close() {
 	y.svc.Shutdown()
 }
 
-// disconnect disconnects the app, once, and forgets it.
+// disconnect disconnects the app, once, and forgets it and its posts:
+// one may still come, as a search's after its debounce.
 func (y *testYtmd) disconnect() {
 	if y.a == nil {
 		return
@@ -137,7 +140,7 @@ func (y *testYtmd) disconnect() {
 	delete(ytmds, y.a)
 	ytmdsMu.Unlock()
 	y.a.disconnect()
-	y.a = nil
+	y.a, y.q.app, y.q.client = nil, nil, nil
 }
 
 // pipeDialer connects to an in-process Service over net.Pipe.
