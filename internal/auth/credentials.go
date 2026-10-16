@@ -8,18 +8,27 @@ import (
 	"crypto/sha1" //nolint:gosec // SAPISIDHASH is SHA-1, see SAPISIDHash
 	"encoding/hex"
 	"encoding/json/v2"
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"yt-music-player/internal/catalog"
 )
 
 // defaultOrigin signs SAPISIDHASH for requests without an Origin header.
 const defaultOrigin = "https://music.youtube.com"
 
-// ErrInvalid is returned for input that holds no usable session cookie.
-var ErrInvalid = errors.New("auth: no SAPISID cookie; copy the Cookie header of a signed-in music.youtube.com request")
+// ErrInvalid is returned for input that holds no usable session cookie. It
+// wraps catalog.ErrInvalidCredentials, which processes without auth check.
+var ErrInvalid error = invalidError{}
+
+type invalidError struct{}
+
+func (invalidError) Error() string {
+	return "auth: no SAPISID cookie; copy the Cookie header of a signed-in music.youtube.com request"
+}
+
+func (invalidError) Unwrap() error { return catalog.ErrInvalidCredentials }
 
 // Credentials are a browser session's cookies. The zero value is none.
 type Credentials struct {

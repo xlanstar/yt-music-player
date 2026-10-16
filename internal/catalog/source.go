@@ -12,6 +12,11 @@ var ErrNotFound = errors.New("catalog: not found")
 // while none is signed in.
 var ErrSignedOut = errors.New("catalog: signed out")
 
+// ErrInvalidCredentials is wrapped by Accounts.SignIn's error for
+// credentials that hold no usable session, so a caller tells them from a
+// failure to check them without knowing the Source.
+var ErrInvalidCredentials = errors.New("catalog: invalid credentials")
+
 // LikedID is YouTube Music's playlist ID for the user's liked songs.
 const LikedID = "LM"
 

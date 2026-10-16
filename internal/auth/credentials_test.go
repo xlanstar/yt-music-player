@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"yt-music-player/internal/catalog"
 )
 
 // fakeCookie is shaped like a real session's, with made-up values.
@@ -77,6 +78,18 @@ func TestParseRejects(t *testing.T) {
 		if !errors.Is(err, ErrInvalid) {
 			t.Errorf("Parse(%q): err = %v, want ErrInvalid", in, err)
 		}
+	}
+}
+
+// Processes that may not link auth (the front-ends, through the daemon's
+// error codes) tell bad credentials by catalog's sentinel.
+func TestInvalidIsCatalogs(t *testing.T) {
+	_, err := Parse("hello")
+	if !errors.Is(err, catalog.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want it to wrap catalog.ErrInvalidCredentials", err)
+	}
+	if !strings.HasPrefix(ErrInvalid.Error(), "auth: no SAPISID cookie") {
+		t.Errorf("ErrInvalid = %q", ErrInvalid)
 	}
 }
 
