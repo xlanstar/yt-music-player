@@ -54,8 +54,9 @@ func TestBudgetExpiry(t *testing.T) {
 func TestBudgetStream(t *testing.T) {
 	pr := okPlayer(t)
 	now := okExpires.Add(-5 * time.Hour)
-	// 6 allocs today.
-	budget.Allocs(t, 7, 100, func() { sinkStream, sinkErr = pr.stream(VisionOS, now) })
+	// 7 allocs today, one more since pickFormat parses the three Opus
+	// formats' URLs, not the two AAC ones.
+	budget.Allocs(t, 9, 100, func() { sinkStream, sinkErr = pr.stream(VisionOS, now) })
 }
 
 func TestBudgetPlayability(t *testing.T) {
