@@ -7,8 +7,8 @@ MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `
 ## Commands
 
 - `prek`: the only check needed; it must pass.
-- `go run .`: YouTube Music (signed-in account from the Keychain); songs play through the Go engine (`internal/audio`) on every system.
-- `go run -tags placeholder .`: offline fake, always signed in, no audio; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in.
+- `go run ./cmd/desktop`: YouTube Music (signed-in account from the Keychain); songs play through the Go engine (`internal/audio`) on every system.
+- `go run -tags placeholder ./cmd/desktop`: offline fake, always signed in, no audio; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in.
 - `YT_LOG=debug|info|warn|error` (default `warn`): `debug` tells why fetches, likes, sign-ins and streams failed.
 - Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` (plays sound); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
 - `locales/`: the messages, `en.json` (the source, with descriptions) and `zh-Hant.json`, in ICU MessageFormat; `go tool mygo generate .` writes `locales/catalog_gen.go` (committed) from them, which `prek` checks.
@@ -38,14 +38,14 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `artwork`: thumbnail loader with memory and disk caches.
 - `budget`: allocation budgets for tests.
 
-Root (`package main`):
+`cmd/desktop` (`package main`, the MyGo app; `mygo.json`, `resources/` and `locales/` stay at the root, `mygo.json`'s `main` names this package):
 
 - `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `log.go`, `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online, what failed is fetched again).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
 - `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.
 - Pages: `home.go`, `explore.go`, `library.go`, `collection.go`, `search.go`. Chrome: `sidebar.go`, `topbar.go`, `playerbar.go`, `nowplaying.go`.
-- `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `resources/icons/` (Lucide SVGs), `phrase.go` (messages of string arguments in one allocation).
+- `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `icons/` (Lucide SVGs, embedded; `mygo.json` ships them too), `phrase.go` (messages of string arguments in one allocation).
 
 ## Rules
 

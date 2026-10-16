@@ -67,7 +67,7 @@ windowOf() {
 }
 
 if [ -z "$window" ]; then
-	go build -tags placeholder -o "$tmp/yt-music-player" .
+	go build -tags placeholder -o "$tmp/yt-music-player" ./cmd/desktop
 	# A home of its own: the user's theme, window size and caches stay out.
 	mkdir "$tmp/home"
 	HOME=$tmp/home "$tmp/yt-music-player" >/dev/null 2>&1 &

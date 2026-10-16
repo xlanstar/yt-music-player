@@ -65,7 +65,7 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 # app the user launches, and keeps it from one a shell starts.
 app=$tmp/YT\ Music\ Footprint.app
 mkdir -p "$app/Contents/MacOS"
-go build -tags "$tags" -o "$app/Contents/MacOS/yt-music-player" .
+go build -tags "$tags" -o "$app/Contents/MacOS/yt-music-player" ./cmd/desktop
 cat >"$app/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

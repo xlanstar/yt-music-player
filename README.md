@@ -37,17 +37,17 @@ If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is on your `PATH`, it's used for s
 Requires Go 1.27+.
 
 ```sh
-go run .                       # run the app
+go run ./cmd/desktop           # run the app
 go tool mygo build             # build for this system into build/
 ```
 
 ## Development
 
 ```sh
-go run -tags placeholder .     # offline fake catalog, no audio
-YT_SOURCE_DELAY=800ms go run -tags placeholder .   # with loading states
-YT_LOG=debug go run .          # why fetches, sign-ins or streams failed
-prek run --all-files           # every check; must pass
+go run -tags placeholder ./cmd/desktop   # offline fake catalog, no audio
+YT_SOURCE_DELAY=800ms go run -tags placeholder ./cmd/desktop   # with loading states
+YT_LOG=debug go run ./cmd/desktop        # why fetches, sign-ins or streams failed
+prek run --all-files                     # every check; must pass
 ```
 
 Tools are pinned in `.tool-versions`; `prek install` adds the checks as a pre-commit hook. Project rules and layout: [AGENTS.md](AGENTS.md). Releasing: [docs/release.md](docs/release.md). Performance: [docs/performance.md](docs/performance.md).

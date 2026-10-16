@@ -10,7 +10,7 @@ goos: darwin
 goarch: arm64
 cpu: Apple M4 Max
 
-pkg: yt-music-player
+pkg: yt-music-player/cmd/desktop
 BenchmarkPages/Home-16 ns/op 406195 401077 402458 402230 402330 384739
 BenchmarkPages/Home-16 builds/op 1.000
 BenchmarkPages/Home-16 live-KB 2649 2632 2632 2633 2632 2595

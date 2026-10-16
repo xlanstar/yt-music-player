@@ -1,6 +1,6 @@
 #!/bin/sh
-# Fetches Lucide icons (https://lucide.dev, ISC: resources/icons/LICENSE)
-# into resources/icons/<name>.svg, named as Lucide names them, then
+# Fetches Lucide icons (https://lucide.dev, ISC: cmd/desktop/icons/LICENSE)
+# into cmd/desktop/icons/<name>.svg, named as Lucide names them, then
 # compresses them with the svg-compress hook of prek.toml.
 #
 #   scripts/fetch-lucide-icons.sh               every icon already there, again
@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 # Pinned, so that fetching again changes nothing until the bump.
 version=1.57.0
-dir=resources/icons
+dir=cmd/desktop/icons
 
 if [ $# -eq 0 ]; then
 	for f in "$dir"/*.svg; do

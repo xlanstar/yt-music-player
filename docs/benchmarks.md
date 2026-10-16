@@ -13,7 +13,7 @@
 - Averages keep their fraction: a slice growing once in 100 calls is 0.01, and a 0 budget fails on it. Hot paths assert an interface once, not per call: the runtime builds its assertion cache now and then (1 call in 1024).
 - A ceiling is about 1.15× today's count, rounded up; 0–2 are held exactly; a comment gives today's (`// 27 allocs today.`, `// 2.17 MB today.`). One that varies between runs (a map's tables split as its random hash seed fills them) is 1.15× the most seen, its range in the comment. Lower one with an improvement; raising one needs its reason stated in the same change. No budgets on calls over a connection (loopback `httptest` included): a client over an in-memory `RoundTripper` is deterministic, a socket is not.
 - Where a benchmark has a case table, the limits live in it, and the budget ranges over the same cases: a case without its limit does not compile.
-- Screens (root `budget_test.go`), together about 7 s:
+- Screens (`cmd/desktop/budget_test.go`), together about 7 s:
   - `TestBudgetFrames`: every `BenchmarkPages` case to allocs and bytes per steady frame, 1 build a frame, and the heap the screen retains (`retainedKB`: with it, less once it is collected; the same alone or after other pages).
   - `TestBudgetInteractions`: every `BenchmarkInteractions` case to allocs, bytes and builds per op. The Tester's clock stands still between ops (MyGo 0.5.5), so a hover settles its 20 frames, each built, at the input's instant: the counts repeat on any machine; the hero's slow ones are held per build.
   - Both use the cases as data (`pageCases`, `interactionCases`, `newScreen`, `interacting`): a new case needs its budget.

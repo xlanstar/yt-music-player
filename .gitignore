@@ -6,6 +6,7 @@ tmp/
 *.local
 .env
 /yt-music-player
+/desktop
 *.test
 *.prof
 /perf/benchmarks-latest.txt

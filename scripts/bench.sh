@@ -142,12 +142,12 @@ passes() {
 		# shellcheck disable=SC2086 # The packages are words.
 		$1 "${filter:-.}" '' '' $pkgs
 	elif [ -n "$filter" ]; then
-		$1 "$filter" '' '' . ./internal/...
+		$1 "$filter" '' '' ./cmd/desktop ./internal/...
 	else
 		# The app's own are the screens' frames and interactions, and the
 		# memoized values remade (real work); its helpers take
 		# nanoseconds, which the budgets hold.
-		$1 '^Benchmark(Pages|Interactions|Memo)$' '' '' .
+		$1 '^Benchmark(Pages|Interactions|Memo)$' '' '' ./cmd/desktop
 		$1 . "$parallel" '' ./internal/...
 		$1 "$parallel" '' "$procs" ./internal/innertube/ ./internal/stream/
 	fi
