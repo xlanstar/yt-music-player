@@ -56,7 +56,8 @@ type Status struct {
 
 // Likes changes the liked songs. With Full, IDs are all of them, newest
 // first and maybe repeated, and Songs those Liked music described;
-// otherwise Added and Removed are likes that went through since.
+// otherwise Added and Removed are likes that went through since, and Songs
+// describe those of Added whose Like described them.
 type Likes struct {
 	Full           bool
 	IDs            []string
@@ -115,7 +116,8 @@ type Latest struct {
 	Status  *Status
 	Library *catalog.Library
 	// Likes are Full, the liked songs since the last fetch included; Songs
-	// describe those of the fetch.
+	// describe those of the fetch, and those liked since whose Like
+	// described them.
 	Likes *Likes
 	// Failed are the Parts whose last fetch failed.
 	Failed []Failure
@@ -195,8 +197,9 @@ func (a *Account) finishFetch(p Part, c Change, err error) {
 
 // Like likes or unlikes song id off the thread; done gets the Source's
 // answer. If it is the latest like sent for the song and went through,
-// Likes reports it after done.
-func (a *Account) Like(id string, liked bool, done func(error)) {
+// Likes reports it after done, with song when liked: what the caller knows
+// of it, or nil.
+func (a *Account) Like(id string, liked bool, song *catalog.Song, done func(error)) {
 	a.likeSeq++
 	seq := a.likeSeq
 	a.liking[id] = seq
@@ -206,11 +209,11 @@ func (a *Account) Like(id string, liked bool, done func(error)) {
 		if ctx.Err() != nil {
 			return
 		}
-		post(func() { a.finishLike(id, liked, seq, err, done) })
+		post(func() { a.finishLike(id, liked, song, seq, err, done) })
 	}()
 }
 
-func (a *Account) finishLike(id string, liked bool, seq uint64, err error, done func(error)) {
+func (a *Account) finishLike(id string, liked bool, song *catalog.Song, seq uint64, err error, done func(error)) {
 	isLatest := a.liking[id] == seq
 	if isLatest {
 		delete(a.liking, id)
@@ -226,6 +229,8 @@ func (a *Account) finishLike(id string, liked bool, seq uint64, err error, done 
 	switch {
 	case errors.Is(err, catalog.ErrSignedOut):
 		a.signedOut()
+	case err == nil && liked && song != nil:
+		a.tell(Change{Likes: &Likes{Added: []string{id}, Songs: []catalog.Song{*song}}})
 	case err == nil && liked:
 		a.tell(Change{Likes: &Likes{Added: []string{id}}})
 	case err == nil:
@@ -276,12 +281,28 @@ func (a *Account) keep(c Change) {
 		for _, id := range c.Likes.Removed {
 			a.likedIDs = slices.DeleteFunc(a.likedIDs, isID(id))
 		}
+		if len(c.Likes.Songs) > 0 {
+			a.likedSongs = described(c.Likes.Songs, a.likedSongs)
+		}
 	case c.Failed != nil:
 		a.failed[c.Failed.Part] = c.Failed
 	}
 }
 
 func isID(id string) func(string) bool { return func(s string) bool { return s == id } }
+
+// described returns songs, then those of old they do not describe anew, in
+// a new slice: Latest handed old out.
+func described(songs, old []catalog.Song) []catalog.Song {
+	out := make([]catalog.Song, 0, len(songs)+len(old))
+	out = append(out, songs...)
+	for _, song := range old {
+		if !slices.ContainsFunc(songs, func(s catalog.Song) bool { return s.ID == song.ID }) {
+			out = append(out, song)
+		}
+	}
+	return out
+}
 
 // Latest returns the latest reported of each Part.
 func (a *Account) Latest() Latest {

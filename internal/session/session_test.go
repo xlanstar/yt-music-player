@@ -21,6 +21,8 @@ type request struct {
 	what     string
 	done     func(error)
 	signedIn func(catalog.Account, error)
+	// song is what a like described.
+	song *catalog.Song
 }
 
 // fakeDaemon records the requests a Session makes.
@@ -38,12 +40,12 @@ func (d *fakeDaemon) Refresh(p api.Part, done func(error)) {
 	d.requests = append(d.requests, request{what: "refresh " + partNames[p], done: done})
 }
 
-func (d *fakeDaemon) Like(id string, liked bool, done func(error)) {
+func (d *fakeDaemon) Like(id string, liked bool, song *catalog.Song, done func(error)) {
 	sign := "-"
 	if liked {
 		sign = "+"
 	}
-	d.requests = append(d.requests, request{what: "like " + sign + id, done: done})
+	d.requests = append(d.requests, request{what: "like " + sign + id, done: done, song: song})
 }
 
 func (d *fakeDaemon) SignIn(credentials string, done func(catalog.Account, error)) {
@@ -335,6 +337,9 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 		t.Fatal("unliking waited for the daemon")
 	}
 	unlike := f.d.next(t, "like -far-2")
+	if unlike.song != nil {
+		t.Errorf("an unlike described %+v", unlike.song)
+	}
 	// Liking again what is liked asks nothing.
 	f.s.SetLiked("far-1", true)
 	f.d.take(t)
@@ -358,7 +363,11 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 	if f.s.LikedSongs()[0].ID == "unknown" || f.s.LikedCount() != 3 {
 		t.Error("a song the catalog lacks is listed")
 	}
-	f.d.next(t, "like +unknown").done(errors.New("no such song"))
+	like := f.d.next(t, "like +unknown")
+	if like.song != nil {
+		t.Errorf("a song the catalog lacks described as %+v", like.song)
+	}
+	like.done(errors.New("no such song"))
 	wantNotices(t, f, notice.Notice{
 		Kind: notice.Failure, Title: notice.LikeFailedSong, Detail: notice.Reason,
 		Args: []string{"no such song"},
@@ -371,6 +380,10 @@ func TestLaterLikeDecides(t *testing.T) {
 	first := f.d.next(t, "like -far-1")
 	f.s.SetLiked("far-1", true)
 	second := f.d.next(t, "like +far-1")
+	// A like describes its song, for the other front-ends.
+	if second.song == nil || *second.song != tracks[0] {
+		t.Errorf("like described %+v, want %+v", second.song, tracks[0])
+	}
 	first.done(errors.New("late"))
 	if !f.s.Liked("far-1") {
 		t.Error("an outdated like's failure reverted the later one")
@@ -405,6 +418,13 @@ func TestLikesReported(t *testing.T) {
 	unlike.done(nil)
 	if f.s.Liked("far-2") || len(f.s.TakeNotices()) != 0 {
 		t.Error("the unlike that went through was undone")
+	}
+
+	// Another front-end's like brings what it knew of the song.
+	far3 := catalog.Song{ID: "far-3", Title: "Signal Lost"}
+	f.s.ApplyLikes(api.Likes{Added: []string{"far-3"}, Songs: []catalog.Song{far3}})
+	if got := f.s.LikedSongs(); len(got) == 0 || got[0] != far3 {
+		t.Errorf("liked songs %+v, want %+v first", got, far3)
 	}
 }
 

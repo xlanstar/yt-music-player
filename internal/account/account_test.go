@@ -39,7 +39,7 @@ func newFixture() *fixture {
 }
 
 func (f *fixture) like(id string, isLiked bool) {
-	f.a.Like(id, isLiked, func(err error) { f.log = append(f.log, liked{err}) })
+	f.a.Like(id, isLiked, nil, func(err error) { f.log = append(f.log, liked{err}) })
 }
 
 func (f *fixture) signIn(credentials string) {
@@ -177,6 +177,13 @@ func TestLike(t *testing.T) {
 	f.src.Next(t, nil, "like", "-far-2").Reply <- catalogtest.Reply{}
 	f.run(t)
 	f.want(t, liked{}, Change{Likes: &Likes{Removed: []string{"far-2"}}})
+
+	// What the caller knows of a song liked goes with its change.
+	song := catalog.Song{ID: "far-3", Title: "Far 3"}
+	f.a.Like("far-3", true, &song, func(err error) { f.log = append(f.log, liked{err}) })
+	f.src.Next(t, nil, "like", "+far-3").Reply <- catalogtest.Reply{}
+	f.run(t)
+	f.want(t, liked{}, Change{Likes: &Likes{Added: []string{"far-3"}, Songs: []catalog.Song{song}}})
 
 	// Only a like that went through changes the likes.
 	quota := errors.New("quota exceeded")
@@ -417,13 +424,22 @@ func TestLatest(t *testing.T) {
 	f.like("far-2", false)
 	f.src.Next(t, nil, "like", "-far-2").Reply <- catalogtest.Reply{}
 	f.run(t)
-	f.like("new", true)
+	fetched := f.a.Latest().Likes.Songs
+	// Described, its song joins those of the fetch.
+	newSong := catalog.Song{ID: "new", Title: "New"}
+	f.a.Like("new", true, &newSong, func(error) {})
 	f.src.Next(t, nil, "like", "+new").Reply <- catalogtest.Reply{}
 	f.run(t)
 	f.log = nil
 	latest := f.a.Latest()
 	if ids := latest.Likes.IDs; !reflect.DeepEqual(ids, []string{"new", "far-1"}) {
 		t.Errorf("liked %q, want new and far-1", ids)
+	}
+	if songs := latest.Likes.Songs; !reflect.DeepEqual(songs, append([]catalog.Song{newSong}, tracks...)) {
+		t.Errorf("liked songs %+v", songs)
+	}
+	if !reflect.DeepEqual(fetched, tracks) {
+		t.Error("a like changed the songs Latest handed out")
 	}
 	// The IDs are a copy.
 	latest.Likes.IDs[0] = "changed"

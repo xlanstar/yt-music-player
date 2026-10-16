@@ -45,8 +45,8 @@ func (r *Remote) Refresh(part api.Part, done func(error)) {
 }
 
 // Like implements Daemon.
-func (r *Remote) Like(id string, liked bool, done func(error)) {
-	r.c.Go(context.Background(), api.Call{Method: api.MethodLike, Like: &api.LikeArgs{ID: id, Liked: liked}},
+func (r *Remote) Like(id string, liked bool, song *catalog.Song, done func(error)) {
+	r.c.Go(context.Background(), api.Call{Method: api.MethodLike, Like: &api.LikeArgs{ID: id, Liked: liked, Song: song}},
 		func(_ *api.Reply, err error) { done(err) })
 }
 

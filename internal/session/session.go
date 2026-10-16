@@ -55,8 +55,10 @@ type Daemon interface {
 	// gets why the request failed, or nil. It may never be called when
 	// the request went.
 	Refresh(part api.Part, done func(error))
-	// Like likes or unlikes song id; done gets the answer.
-	Like(id string, liked bool, done func(error))
+	// Like likes or unlikes song id; done gets the answer. song, when
+	// liked, is what the Session knows of it, or nil: the daemon tells the
+	// other front-ends, whose Liked music shows it.
+	Like(id string, liked bool, song *catalog.Song, done func(error))
 	// SignIn sends credentials as pasted, canceling a sign-in in flight;
 	// done gets the account signed in, or why not. A canceled sign-in's
 	// failure may never come.
@@ -213,8 +215,11 @@ func (s *Session) ApplyFailed(f api.FailedEvent) {
 }
 
 // ApplyLikes keeps the likes fetched, or those that went through
-// (remote.Handler.Likes).
+// (remote.Handler.Likes), adding the songs they describe to the catalog.
 func (s *Session) ApplyLikes(likes api.Likes) {
+	if len(likes.Songs) > 0 && !likes.Full {
+		s.cat.Add(likes.Songs, nil, nil)
+	}
 	if likes.Full {
 		s.cat.Add(likes.Songs, nil, nil)
 		s.seedLikes(loader.Unique(likes.IDs, func(id string) string { return id }))
@@ -363,7 +368,13 @@ func (s *Session) SetLiked(id string, liked bool) {
 	s.likeSeq++
 	seq := s.likeSeq
 	s.pending[id] = pendingLike{liked: liked, seq: seq}
-	s.daemon.Like(id, liked, func(err error) { s.finishLike(id, liked, seq, err) })
+	var song *catalog.Song
+	if liked {
+		if known, ok := s.cat.Song(id); ok {
+			song = &known
+		}
+	}
+	s.daemon.Like(id, liked, song, func(err error) { s.finishLike(id, liked, seq, err) })
 }
 
 func (s *Session) finishLike(id string, liked bool, seq uint64, err error) {

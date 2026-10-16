@@ -19,6 +19,7 @@ var (
 	errNoCookie    = fmt.Errorf("%w: nothing pasted", catalog.ErrInvalidCredentials)
 	errSuperseded  = errors.New("daemon: another sign-in followed")
 	errNoArguments = fmt.Errorf("%w: no arguments", api.ErrInvalid)
+	errLikeSong    = fmt.Errorf("%w: a like describing another song", api.ErrInvalid)
 )
 
 // dispatch answers a request, on the loop. A stopping Service answers
@@ -47,7 +48,12 @@ func (s *Service) dispatch(c *conn, id uint32, cl *api.Call) {
 		api.MethodExplore, api.MethodAccount, api.MethodLibrary:
 		s.fetch(c, id, cl)
 	case api.MethodLike:
-		s.acct.Like(cl.Like.ID, cl.Like.Liked, func(err error) { c.fail(id, err) })
+		like := cl.Like
+		if like.Song != nil && like.Song.ID != like.ID {
+			c.fail(id, errLikeSong)
+			return
+		}
+		s.acct.Like(like.ID, like.Liked, like.Song, func(err error) { c.fail(id, err) })
 	case api.MethodSignIn:
 		s.signInFor(c, id, cl.SignIn.Credentials)
 	case api.MethodSignOut:

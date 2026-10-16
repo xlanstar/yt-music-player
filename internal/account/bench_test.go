@@ -71,7 +71,7 @@ func BenchmarkFetch(b *testing.B) {
 
 // likeRoundTrip is a Like and its answer, which goes through.
 func likeRoundTrip(a *Account, q posts, id string, on bool) {
-	a.Like(id, on, func(error) {})
+	a.Like(id, on, nil, func(error) {})
 	(<-q)()
 }
 

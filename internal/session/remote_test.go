@@ -33,7 +33,13 @@ func (d pipeDialer) DialOrSpawn(ctx context.Context) (net.Conn, error) { return 
 // Service over catalogtest, which the test answers; the test's goroutine
 // is the UI thread.
 type remoteFixture struct {
-	src    catalogtest.Accounts
+	src catalogtest.Accounts
+	svc *daemon.Service
+	*frontEnd
+}
+
+// frontEnd is a Session over Remote, as a front-end has it.
+type frontEnd struct {
 	s      *Session
 	states fetchstate.Registry
 	cat    *catalog.Catalog
@@ -42,34 +48,42 @@ type remoteFixture struct {
 
 func newRemoteFixture(t *testing.T) *remoteFixture {
 	t.Helper()
-	f := &remoteFixture{src: catalogtest.Accounts{Source: catalogtest.New()}, cat: catalog.New(nil, nil, nil), q: make(chan func(), 64)}
+	f := &remoteFixture{src: catalogtest.Accounts{Source: catalogtest.New()}}
 	svc, err := daemon.New(daemon.Options{Source: f.src, Version: "1.2.3"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.svc = svc
 	svc.Start()
-	post := func(fn func()) { f.q <- fn }
-	c := remote.NewClient(post, remote.Handler{
-		Account: func(e api.AccountEvent) { f.s.ApplyAccount(e) },
-		Library: func(l catalog.Library) { f.s.ApplyLibrary(l) },
-		Likes:   func(l api.Likes) { f.s.ApplyLikes(l) },
-		Failed:  func(e api.FailedEvent) { f.s.ApplyFailed(e) },
-	})
-	load := loader.New(c, &f.states, f.cat, post)
-	f.s = New(NewRemote(c), &f.states, load, f.cat)
-	sup := remote.Supervise(c, remote.Options{
-		Role: api.RoleDesktop, Version: "1.2.3", Dialer: pipeDialer{svc},
-		Spawn: func() error { return errors.New("no ytmd to start") },
-	})
-	t.Cleanup(func() {
-		sup.Close()
-		svc.Shutdown()
-	})
+	t.Cleanup(svc.Shutdown)
+	f.frontEnd = f.connect(t)
 	return f
 }
 
+// connect connects another front-end to the Service.
+func (f *remoteFixture) connect(t *testing.T) *frontEnd {
+	t.Helper()
+	fe := &frontEnd{cat: catalog.New(nil, nil, nil), q: make(chan func(), 64)}
+	post := func(fn func()) { fe.q <- fn }
+	c := remote.NewClient(post, remote.Handler{
+		Account: func(e api.AccountEvent) { fe.s.ApplyAccount(e) },
+		Library: func(l catalog.Library) { fe.s.ApplyLibrary(l) },
+		Likes:   func(l api.Likes) { fe.s.ApplyLikes(l) },
+		Failed:  func(e api.FailedEvent) { fe.s.ApplyFailed(e) },
+	})
+	load := loader.New(c, &fe.states, fe.cat, post)
+	fe.s = New(NewRemote(c), &fe.states, load, fe.cat)
+	sup := remote.Supervise(c, remote.Options{
+		Role: api.RoleDesktop, Version: "1.2.3", Dialer: pipeDialer{f.svc},
+		Spawn: func() error { return errors.New("no ytmd to start") },
+	})
+	// Before the Service's Shutdown, registered earlier.
+	t.Cleanup(sup.Close)
+	return fe
+}
+
 // until runs what is posted until cond holds.
-func (f *remoteFixture) until(t *testing.T, what string, cond func() bool) {
+func (f *frontEnd) until(t *testing.T, what string, cond func() bool) {
 	t.Helper()
 	deadline := time.After(5 * time.Second)
 	for !cond() {
@@ -209,4 +223,28 @@ func TestRemoteSignIn(t *testing.T) {
 	if err := f.states.State(LibraryRes).Err; !errors.Is(err, api.ErrInternal) {
 		t.Errorf("library failed with %v", err)
 	}
+}
+
+// A song liked on one front-end shows in the others' Liked music, those
+// connected then and later, though their catalogs never had it.
+func TestRemoteLikeDescribed(t *testing.T) {
+	f := newRemoteFixture(t)
+	f.signedIn(t)
+	other := f.connect(t)
+	other.until(t, "got the likes", func() bool { return other.s.LikedCount() == len(adaLikes.IDs) })
+
+	song := catalog.Song{ID: "far-9", Title: "Night Shift", Artist: "Far"}
+	f.cat.Add([]catalog.Song{song}, nil, nil)
+	f.s.SetLiked(song.ID, true)
+	f.next(t, "like", "+far-9").Reply <- catalogtest.Reply{}
+	f.until(t, "liked", func() bool { return !f.s.IsBusy() })
+	shown := func(fe *frontEnd) func() bool {
+		return func() bool {
+			liked := fe.s.LikedSongs()
+			return len(liked) > 0 && liked[0] == song
+		}
+	}
+	other.until(t, "shown the song liked", shown(other))
+	late := f.connect(t)
+	late.until(t, "shown the song liked", shown(late))
 }

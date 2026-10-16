@@ -133,6 +133,10 @@ type RefArgs struct{ ID string }
 type LikeArgs struct {
 	ID    string
 	Liked bool
+	// Song describes the song liked when the caller knows it, so that the
+	// other front-ends' Liked music shows it (Likes.Songs); nil otherwise.
+	// Its ID is ID. An unlike needs none.
+	Song *catalog.Song
 }
 
 // SignInArgs carry credentials as pasted. Never log them: String hides
@@ -206,7 +210,8 @@ type Queue struct{ IDs []string }
 
 // Likes changes the liked songs (account.Likes). With Full, IDs are all of
 // them, newest first, and Songs describe them; otherwise Added and Removed
-// are the likes that went through since. Never coalesced.
+// are the likes that went through since, and Songs describe those of
+// Added whose Like described them (LikeArgs.Song). Never coalesced.
 type Likes struct {
 	Full           bool
 	IDs            []string

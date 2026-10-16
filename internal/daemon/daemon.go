@@ -23,7 +23,9 @@
 //
 // The daemon keeps no catalog but its queue's songs, which callers send
 // with the IDs they play or enqueue (api.IDsArgs.Songs) and daemon.json
-// keeps. A sign-in that switches accounts empties the queue: its songs
+// keeps, and the account's liked songs: those of Liked music fetched, and
+// those liked since whose Like described them (api.LikeArgs.Song), which
+// the Likes event of the like carries to the other front-ends. A sign-in that switches accounts empties the queue: its songs
 // were the previous account's. Play plays one song as Desktop's rows do
 // (resumes or pauses it when current, jumps to it when queued, else
 // queues it after the current song); PlayAll makes the IDs the queue,

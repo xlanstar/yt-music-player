@@ -124,7 +124,7 @@ func (d *fakeDaemon) Refresh(part api.Part, _ func(error)) {
 	d.calls = append(d.calls, "Refresh "+strconv.Itoa(int(part)))
 }
 
-func (d *fakeDaemon) Like(id string, liked bool, _ func(error)) {
+func (d *fakeDaemon) Like(id string, liked bool, _ *catalog.Song, _ func(error)) {
 	d.calls = append(d.calls, fmt.Sprintf("Like %s %t", id, liked))
 }
 

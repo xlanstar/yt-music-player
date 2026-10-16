@@ -26,9 +26,12 @@ const bigLikes = 2000
 // cost is measured.
 type instantDaemon struct{}
 
-func (instantDaemon) CanSignIn() bool                         { return true }
-func (instantDaemon) Refresh(_ api.Part, done func(error))    { done(nil) }
-func (instantDaemon) Like(_ string, _ bool, done func(error)) { done(nil) }
+func (instantDaemon) CanSignIn() bool                      { return true }
+func (instantDaemon) Refresh(_ api.Part, done func(error)) { done(nil) }
+func (instantDaemon) Like(_ string, _ bool, _ *catalog.Song, done func(error)) {
+	done(nil)
+}
+
 func (instantDaemon) SignIn(_ string, done func(catalog.Account, error)) {
 	done(catalog.Account{}, nil)
 }

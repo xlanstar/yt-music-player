@@ -87,7 +87,7 @@ func fullFrame() *Frame {
 			Volume: &VolumeArgs{Volume: 0.4},
 			Query:  &QueryArgs{Query: "lofi"},
 			Ref:    &RefArgs{ID: "MPREb_a"},
-			Like:   &LikeArgs{ID: "song1", Liked: true},
+			Like:   &LikeArgs{ID: "song1", Liked: true, Song: new(testSong(1))},
 			SignIn: &SignInArgs{Credentials: "SID=x"},
 			Part:   &PartArgs{Part: PartLiked},
 			Hand:   &HandoffArgs{Wait: 5 * time.Second},

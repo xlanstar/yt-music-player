@@ -422,15 +422,32 @@ func TestAccount(t *testing.T) {
 	if r := c.reply(id); r.Err != nil || len(c.events) > 0 {
 		t.Fatalf("like reply %+v after events %+v", r, c.events)
 	}
-	if l := c.event().Likes; l == nil || l.Full || !slices.Equal(l.Added, []string{"s9"}) {
+	if l := c.event().Likes; l == nil || l.Full || !slices.Equal(l.Added, []string{"s9"}) || l.Songs != nil {
 		t.Errorf("like event %+v", l)
+	}
+
+	// A like describing its song tells the others of it.
+	s8 := catalog.Song{ID: "s8", Title: "Song s8", Artist: "Artist", Seconds: 200}
+	id = c.send(api.Call{Method: api.MethodLike, Like: &api.LikeArgs{ID: "s8", Liked: true, Song: &s8}})
+	h.src.Next(t, nil, "like", "+s8").Reply <- catalogtest.Reply{}
+	if r := c.reply(id); r.Err != nil {
+		t.Fatalf("like reply %+v", r)
+	}
+	if l := c.event().Likes; l == nil || !slices.Equal(l.Added, []string{"s8"}) || !reflect.DeepEqual(l.Songs, []catalog.Song{s8}) {
+		t.Errorf("like event %+v", l)
+	}
+	other := s8
+	other.ID = "s7"
+	if r := c.reply(c.send(api.Call{Method: api.MethodLike, Like: &api.LikeArgs{ID: "s8", Liked: true, Song: &other}})); r.Err == nil {
+		t.Errorf("like describing another song: %+v", r)
 	}
 
 	// A new subscriber learns all of it.
 	late := h.connect(true)
 	snap := late.event()
 	if snap.Account == nil || snap.Account.Account != ada || snap.Library == nil || snap.Likes == nil ||
-		!snap.Likes.Full || !slices.Equal(snap.Likes.IDs, []string{"s9", "s0", "s1"}) {
+		!snap.Likes.Full || !slices.Equal(snap.Likes.IDs, []string{"s8", "s9", "s0", "s1"}) ||
+		!reflect.DeepEqual(snap.Likes.Songs, append([]catalog.Song{s8}, liked...)) {
 		t.Errorf("snapshot %+v", snap)
 	}
 	late.none(30 * time.Millisecond)

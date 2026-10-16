@@ -40,9 +40,11 @@ func TestBudgetSetLiked(t *testing.T) {
 	s := idleSession(t, bigLikes)
 	id := catalog.Placeholder().Songs[0].ID
 	on := !s.Liked(id)
-	// 1 alloc today: the answer's func. Down from 5 since the daemon, not
-	// package account in this process, sends the like.
-	budget.Allocs(t, 1, 100, func() {
+	// 1.5 allocs today: the answer's func, and for a like (every other
+	// call) a copy of the song it describes, which the daemon tells the
+	// other front-ends. Down from 5 since the daemon, not package account
+	// in this process, sends the like.
+	budget.Allocs(t, 1.5, 100, func() {
 		s.SetLiked(id, on)
 		on = !on
 	})
