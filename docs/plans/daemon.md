@@ -735,8 +735,8 @@ P0 的實驗在 macOS arm64（MyGo v0.5.5、Go 1.27.2）上做；Linux 部分在
 |---|---|---|
 | Desktop 移到 `cmd/desktop` | `i18n.dir` 不能指向專案外；改為 `mygo.json` 留在根目錄、`"main": "./cmd/desktop"`，已實作 | §2、§8 |
 | macOS 輔助程式簽章 | `Contents/Resources` 下的 `ytmd.app` 與 `ytm` 以 Developer ID 簽章、universal、公證都通過 | §9.1、§9.2 |
-| 不經 MyGo App 播放 | 可以：`internal/audio` 只用到 `mygo/audio`；macOS、Linux（ALSA、MPRIS）已測，Windows（WASAPI）依原始碼 | §2 |
-| macOS 媒體鍵 | 只需鎖定主執行緒加 `CFRunLoopRun`，不需 NSApplication；直接執行或 `open -g` 都能接到 Now Playing 的指令 | §3、§6.4 |
+| 不經 MyGo App 播放 | 可以：`internal/audio` 只用到 `mygo/audio`；macOS 已實際聽到聲音（直接執行，以及 bundle 加 run loop），Linux（ALSA、MPRIS）在容器內測過，Windows（WASAPI）依原始碼 | §2 |
+| macOS 媒體鍵 | 只需鎖定主執行緒加 `CFRunLoopRun`，不需 NSApplication；直接執行或 `open -g` 都能接到 Now Playing 的指令；已實際按鍵盤的媒體鍵確認 | §3、§6.4 |
 | Windows 的 AF_UNIX | 可用，不需 named pipe；連線失敗一律啟動 daemon，殘留的 socket 先刪除 | §4.1、§4.2、§5.1 |
 | Windows 更新 | `Install` 以改名替換檔案，執行中的 exe 不受影響；不需安裝前的交接 | §4.5 |
 | 安裝包自訂 | 三種都不能直接自訂；Linux 用 `linux.command` 轉接，Windows 由 Desktop 設定加入 PATH | §9.3 |
@@ -744,7 +744,7 @@ P0 的實驗在 macOS arm64（MyGo v0.5.5、Go 1.27.2）上做；Linux 部分在
 
 **尚未在實機上確認**（P8-3）：
 
-- 實際聽到聲音；按下實體媒體鍵、耳機與藍牙按鍵（`/tmp/p0-daemon/manual-check.sh` 的做法）。
+- 耳機與藍牙耳機的按鍵（鍵盤的媒體鍵已確認）。
 - Linux 在真正的 PulseAudio／PipeWire 上播放；Windows 整條路徑，包括 `-H=windowsgui` 和沒有視窗的 WASAPI。
 - Windows 10／11 上的 AF_UNIX，包括使用者名稱含中文的路徑。
 - Windows 在 `ytmd.exe` 播放中、`ytm.exe` 開著時更新，以及這時重跑 NSIS 安裝程式。
