@@ -125,7 +125,7 @@ func (a *app) openLook() {
 		func(context.Context) ([]settings.UserTheme, error) { return dir.Themes() },
 		func(users []settings.UserTheme, err error) {
 			if err != nil {
-				a.note("Couldn’t read your themes", err.Error())
+				a.note(locales.ThemesReadFailed(), err.Error())
 				return
 			}
 			a.useThemes(users)
