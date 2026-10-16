@@ -10,7 +10,8 @@ MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `
 - `go run ./cmd/desktop`: YouTube Music (signed-in account from the Keychain); songs play through the Go engine (`internal/audio`) on every system.
 - `go run -tags placeholder ./cmd/desktop`: offline fake, always signed in, no audio; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in.
 - `YT_LOG=debug|info|warn|error` (default `warn`): `debug` tells why fetches, likes, sign-ins and streams failed.
-- Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` (plays sound); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
+- `go run ./cmd/ytmd` (`-tags placeholder`: the fake, playing silently on a clock): the background player (`docs/plans/daemon.md`); dev builds use `-dev` files (socket, `daemon-dev.json`, `<cache>/logs/ytmd-dev.log`); Ctrl+C stops it. `scripts/dev.sh [-placeholder] [desktop|ytm]` builds it into `build/dev/` and runs a front-end with `YTMD_PATH` set.
+- Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` and `go test -tags audiolive -run LiveDaemon -v ./internal/daemon/` (play sound); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
 - `locales/`: the messages, `en.json` (the source, with descriptions) and `zh-Hant.json`, in ICU MessageFormat; `go tool mygo generate .` writes `locales/catalog_gen.go` (committed) from them, which `prek` checks.
 - `scripts/render-app-icon.sh`: renders the icon's one source, `assets/icon/icon.svg`, into `resources/icon.png` and `assets/icon/` (PNGs of every size, `.icns`, `.ico`); edit the SVG, never the renders.
 - `scripts/repo-images.sh [-readme]`: renders the social preview (uploaded in the repository's settings, not committed) and README's top image from `assets/repo-images/` and a capture of the placeholder build; `-readme` updates `docs/images/`. Run it with `-readme` when the window's look changes.
@@ -35,18 +36,21 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `ytmusic`: `catalog.Source` over InnerTube, after ytmusicapi. Song = videoId, Album = `MPREb_…`, Playlist = playlistId without `VL`. Responses decode into the structs of `response.go`. Tests are offline against `testdata/`.
 - `stream`: resolves a song's Opus stream; `audio`: the engine (fetches, decodes Opus in Go, plays through MyGo's `audio`; Now Playing on macOS, MPRIS on Linux) and `Fake`; `webm`: an audio track's frames out of WebM.
 - `player`: queue, shuffle, repeat, volume; `playback`: drives the engine from the player, reports when the next frame is due.
+- `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's `Service` (player, playback, account, engine and `daemon.json` on the loop; serves the protocol of `api` over `ipc`).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
 - `artwork`: thumbnail loader with memory and disk caches.
 - `budget`: allocation budgets for tests.
 
 `cmd/desktop` (`package main`, the MyGo app; `mygo.json`, `resources/` and `locales/` stay at the root, `mygo.json`'s `main` names this package):
 
-- `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `log.go`, `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online, what failed is fetched again).
+- `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online, what failed is fetched again).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
 - `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (account and session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.
 - Pages: `home.go`, `explore.go`, `library.go`, `collection.go`, `search.go`. Chrome: `sidebar.go`, `topbar.go`, `playerbar.go`, `nowplaying.go`.
 - `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `icons/` (Lucide SVGs, embedded; `mygo.json` ships them too), `phrase.go` (messages of string arguments in one allocation).
+
+`cmd/ytmd`: the daemon's `main` (lock, state, socket, run loop, signals); `source.go` / `source_placeholder.go` as Desktop's; `TestDeps` keeps the UI, `locales`, `session` and `loader` out of it.
 
 ## Rules
 
