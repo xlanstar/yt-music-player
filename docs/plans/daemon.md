@@ -1,6 +1,6 @@
 # ytmd / ytm：規格與實作計劃
 
-狀態：風險實驗（§12）和同一行程內的重構都已完成：notice 改為代碼（§5.6）、`session` 拆出 `account`（§6.1）、Desktop 移到 `cmd/desktop`（§2）。下一步是 P2（§11）。全部完成後，本文件濃縮成英文的 `docs/daemon.md`（協定與路徑），其餘刪除；`AGENTS.md` 的 Layout 與 Commands 同步更新。
+狀態：下一步是 P2（§11）；風險實驗的結論見 §12。全部完成後，本文件濃縮成英文的 `docs/daemon.md`（協定與路徑），其餘刪除；`AGENTS.md` 的 Layout 與 Commands 同步更新。
 
 ## 1. 目標與範圍
 
@@ -21,10 +21,9 @@
 
 ```
 yt-music-player/                      一個 module
-├── mygo.json                         留在根目錄，`"main": "./cmd/desktop"`（見下方）
 ├── resources/                        MyGo 打包的資源；輔助執行檔建置到 resources/<platform>/（§9.1）
 ├── cmd/
-│   ├── desktop/                      MyGo Desktop 的 Go 程式碼與 icons/（已搬入）
+│   ├── desktop/                      MyGo Desktop（現有）
 │   ├── ytmd/                         daemon
 │   └── ytm/                          TUI + CLI
 ├── locales/                          維持在根目錄，三個執行檔共用
@@ -32,23 +31,14 @@ yt-music-player/                      一個 module
     ├── api/        新增：協定型別（Frame、方法、事件、錯誤碼、Proto），只放型別與純函式
     ├── ipc/        新增：路徑、listen/dial、單一實例鎖、spawn、gob 連線、寫入佇列
     ├── daemon/     新增：Service（event loop 持有狀態）、請求分派、訂閱、持久化
-    ├── account/    已建立：從 session 拆出的 daemon 端：帳密、帳號、音樂庫、喜歡清單（§6.1）
     ├── remote/     新增：前端的 client，實作 catalog.Source、catalog.Accounts、Controller；Supervisor
     ├── loop/       新增：單一 goroutine 的執行佇列，給 daemon 的 post 用
-    ├── noticetext/ 已建立：notice 的代碼和參數 → locales 的文字，供前端的 tell 使用（§5.6）
     ├── version/    新增：Version（-ldflags -X 注入，預設 "dev"）
     ├── logfile/    新增：固定大小的輪替 log 寫入器
     ├── autostart/  新增：LaunchAgent、systemd user unit、HKCU Run；Windows 的 `Path` 開關（§9.3）
     ├── tui/        新增：Bubble Tea v2 的畫面
-    └── （現有套件）
+    └── （現有套件；`account` 歸 daemon，`session`、`noticetext` 歸前端，見 §6.1、§5.6）
 ```
-
-**為什麼 `mygo.json` 留在根目錄（已實作）：**
-
-- MyGo 拒絕 `i18n.dir` 指向專案之外（`../../locales`）；`resources/`、`out`、圖示和 release notes 用的 `CHANGELOG.md` 也都以 `mygo.json` 所在的目錄為準。
-- 所以 `mygo.json`、`resources/`、`locales/` 留在根目錄，以 `"main": "./cmd/desktop"` 指定 app 的套件；版本仍只寫在根目錄的 `mygo.json`（§8）。
-- `//go:embed` 只能讀套件目錄以下的檔案，所以 Lucide 圖示搬到 `cmd/desktop/icons/`，並以 `"resources": ["cmd/desktop/icons"]` 一起打包。
-- `go run ./cmd/desktop` 的執行檔名是 `desktop`，MyGo 會拿它當 app 名稱，所以不在 bundle 裡執行時，`main.go` 以 `mygo.App.SetName("yt-music-player")` 固定名稱，設定與單一實例鎖的位置照舊。
 
 ### 依賴規則
 
@@ -64,8 +54,8 @@ yt-music-player/                      一個 module
   - 可以連結：MyGo 全部、`remote`、`session`、`loader`、`fetchstate`、`noticetext`、`artwork`、`theme`、`settings`
   - 不可連結：`audio`、`auth`、`account`、`stream`、`innertube`、`ytmusic`
 
-- ytmd 不連結 MyGo App 也能播放並接收媒體鍵（§12），所以上面的規則不需放寬。
-- **暫時的例外：** 目前前端的 `session` 直接 import `account`（型別和 `*account.Account`），在同一行程內相接。P4 把它改成 `remote`/`api` 的型別之後，`TestDeps` 才能照上面的規則檢查 Desktop 和 ytm。
+- ytmd 不連結 MyGo App 也能播放並接收媒體鍵（§12）。
+- **暫時的例外：** 前端的 `session` 目前 import `account`，在同一行程內相接；P4 改成 `remote`/`api` 的型別之後，`TestDeps` 才照上面的規則檢查 Desktop 和 ytm。
 
 ## 3. 執行緒模型
 
@@ -333,16 +323,14 @@ type Event struct {
   - `Unwrap()` 回傳對應的錯誤，所以 `errors.Is` 照常成立；
   - `Error()` 是對應錯誤的訊息，加上 `Detail`。Desktop 的登入表單會顯示這段文字。
 
-錯誤碼：
-
-錯誤碼依拆分 session 之後的盤點（`rg "errors\.(Is|As)\(" --glob '!*_test.go'`）決定，只留前端真的會判斷的：
+錯誤碼只留前端真的會判斷的（`rg "errors\.(Is|As)\(" --glob '!*_test.go'`）：
 
 - **`NotFound`：** `catalog.ErrNotFound`（`internal/loader/loader.go` 依它顯示 `notFound`）
 - **`SignedOut`：** `catalog.ErrSignedOut`（`internal/session/session.go` 依 `Like` 的回覆顯示「登入才能按讚」）
 - **`InvalidCredentials`：** `auth.ErrInvalid`（`ytm login` 的結束碼；Desktop 只顯示 `Error()` 的文字）
 - **`Internal`：** `api.ErrInternal`，其他所有錯誤
 
-其他 `ErrSignedOut`、`ErrNotFound` 的判斷都在 `account`，也就是 daemon 端。`Canceled`、`Deadline` 沒有前端使用者：前端取消時 `remote` 在本地回傳 `ctx.Err()`，過時的結果則由 `job` 丟掉，不靠錯誤判斷；daemon 端的逾時算 `Internal`。
+沒有 `Canceled`、`Deadline`：前端取消時 `remote` 在本地回傳 `ctx.Err()`，過時的結果則由 `job` 丟掉，不靠錯誤判斷；daemon 端的逾時算 `Internal`。
 
 補充：
 
@@ -353,25 +341,9 @@ type Event struct {
 
 ### 5.6 通知碼
 
-已實作（`go doc ./internal/notice`、`go doc ./internal/noticetext`）；`playback` 和 `session` 都不再 import `locales`。
+通知已是純資料：`notice.Notice{Kind, Title, Detail Code, Args []string, N int, Topic}`（`go doc ./internal/notice`），由前端以 `noticetext.Render` 翻譯（`tell`），所以 daemon 的 `playback` 不連結 `locales`，線上可以直接傳 `Notice`。
 
-```go
-type Notice struct {
-	Kind          Kind
-	Title, Detail Code     // 0 表示沒有
-	Args          []string // 先是 Title 的字串參數，再來是 Detail 的
-	N             int      // 有數量的訊息用，例如 PlaybackStoppedAfter
-	Topic         string
-}
-```
-
-- **兩個代碼而不是一個：** playback 的通知是一個標題（`PlayFailed` 或 `Unplayable`）配上三種說明之一（`PlaybackStopped`、`PlaybackStoppedAfter`、`Skipped`），用單一代碼要六種組合。
-- **`Code`** 是從 1 開始的 `uint16` 列舉，0 表示沒有：`NoAudio`、`PlayFailed`、`Unplayable`、`PlaybackStopped`、`PlaybackStoppedAfter`、`Skipped`、`LikeFailed`、`UnlikeFailed`、`LikeFailedSong`、`UnlikeFailedSong`、`SignInToLike`、`SignInFailed`、`SignedInAs`、`SignOutFailed`、`SignedOut`、`Reason`；最後的 `NumCodes` 是表格長度。
-  - **錯誤的文字也是代碼：** `Reason` 是說明用的代碼，唯一的參數就是錯誤的文字，原樣顯示。
-  - **編號依宣告順序。** 上線後代碼會跨版本傳送，新代碼只能加在 `NumCodes` 之前的最後，不能重排或刪除。
-- `Kind` 的 `SignInFailed` 改名為 `SignInError`，讓訊息保留 `SignInFailed` 這個名字。
-- **`noticetext.Render(n) (title, detail string)`：** 以 `Code` 為索引的表格，記錄每個訊息的字串參數個數和對應的 `locales` 函式；先說 `Title`，從 `Args` 前面取它的參數，剩下的給 `Detail`。Desktop 的 `tell` 已經用它，TUI 也會用；daemon 不會連結到 `locales`。
-- **`TestNoticeCodes`：** 從 1 到 `NumCodes` 的每個代碼都要在表格中、英文不是空的、中文和英文不同（`Reason` 除外，以抓出漏翻而退回英文的訊息），而且每個參數在兩種語言都出現。表格只給訊息它宣告的參數個數，多讀就會在這個測試 panic。
+- **代碼跨版本傳送：** `Code` 依宣告順序編號，從 1 開始；新代碼只能加在最後（`NumCodes` 之前），不能重排或刪除。
 - daemon 的存活與版本狀態不是通知，見 §4.3 的 `Health`。
 
 ## 6. daemon 內部
@@ -380,29 +352,14 @@ type Notice struct {
 
 `ytmusic` Source、`auth.Store`、`account`、`player`、`playback`、`audio.Engine`、媒體鍵（`controls`）、持久化。
 
-**`session` 已拆成 `account` 和前端的 `session`**（`go doc ./internal/account`、`go doc ./internal/session`），目前在同一行程內相接：`cmd/desktop/account.go` 的 `connectAccount` 以 `account.New(src, a.post, func(c) { a.session.Apply(c) })` 接起兩者。
+帳號的工作已分成兩半（`go doc ./internal/account`、`go doc ./internal/session`）：`account` 不含 UI 狀態，搬進 daemon；前端的 `session` 留在 Desktop 和 ytm，把 `account` 回報的 `Change` 存成頁面要讀的狀態，並負責 `SetLiked` 的樂觀更新與還原。目前兩者在同一行程內以函式相接（`cmd/desktop/account.go`）。
 
-- **`account`（將來在 daemon）：** 不依賴 `fetchstate`、`loader`、`catalog.Catalog`、`locales` 或 MyGo。
-
-  ```go
-  New(src catalog.Source, post func(func()), report func(Change)) *Account
-  Fetch(p Part)                                  // Profile、Library、Liked
-  Like(id string, liked bool, done func(error))
-  SignIn(credentials string, done func(catalog.Account, error)); CancelSignIn(); IsSigningIn()
-  SignOut(done func(error)); IsSigningOut(); CanSignIn(); IsBusy(); Stop()
-
-  type Change struct { Status *Status; Library *catalog.Library; Likes *Likes; Failed *Failure } // 只設一個
-  ```
-
-  - `Change` 的四種對應 §5.4 的 `Account`、`Library`、`Likes`、`Failed` 事件；`Fetch` 對應 `Refresh`（§5.3）。`Part` 目前從 0 起算，上線時照 §5.1 從 1 起編。
-  - 任何呼叫回傳 `ErrSignedOut` 就登出：停止抓取、進行中的讚不再生效，並回報 `Status{}`。
-  - **最後一次按讚為準：** 每首歌記一個序號，過時的讚的回覆既不回報差異，也不會登出。多個前端時，最後送出的請求為準。
-  - `done` 一定在它引起的 `Change` 之前呼叫，就是 §5.4 的「回覆先於事件」。
-- **前端的 `session`：** `session.New(acct, states, loader, cat)` 不再呼叫 Source；`Apply(account.Change)` 設定 fetch 狀態、合併進 catalog（去除重複），`Switched` 時把所有頁面標成 Loading 並重抓 Home，登出時清掉資料。`SetLiked` 的樂觀更新、失敗還原和登入登出的通知都留在這裡。
+- **對應到協定：** `account.Change` 的 `Status`、`Library`、`Likes`、`Failed` 就是 §5.4 的 `Account`、`Library`、`Likes`、`Failed` 事件；`account.Fetch(part)` 就是 `Refresh`（§5.3）。`Part` 目前從 0 起算，上線時照 §5.1 從 1 起編。
+- **已有的行為，daemon 照舊保留：** 任何呼叫回傳 `ErrSignedOut` 就登出；每首歌以最後一次按讚為準（多個前端時，最後送出的請求為準）；`done` 先於它引起的 `Change`，即 §5.4 的「回覆先於事件」。
 - **P3、P4 還要處理的：**
   - `account` 目前不保存音樂庫和喜歡清單，因為同一行程內沒人讀；daemon 要送訂閱快照（§5.4），P3 要讓它保存一份。
-  - `CleanCredentials` 目前在 `account`，但 Desktop 用它決定「登入」按鈕能不能按；Desktop 不能連結 `account`（§2），P4 要把它移到共用的套件（例如 `api`，純函式）。
-  - `auth.Store` 仍由 `ytmusic.Client` 持有，`account` 只透過 `catalog.Accounts` 碰到帳密；daemon 的 Service 以 store 建立 `ytmusic`，因此 store 歸 Service 所有。
+  - `CleanCredentials` 在 `account`，但 Desktop 用它決定「登入」按鈕能不能按；Desktop 不能連結 `account`（§2），P4 要把它移到共用的套件（例如 `api`，純函式）。
+  - `auth.Store` 由 `ytmusic.Client` 持有，`account` 只透過 `catalog.Accounts` 碰到帳密；daemon 的 Service 以 store 建立 `ytmusic`，因此 store 歸 Service 所有。
 
 ### 6.2 快取
 
@@ -490,7 +447,7 @@ type Notice struct {
     3. `LANG`。
   - macOS 的終端機會依「地區」自動設定 `LANG`，不一定是使用者選的語言，所以排在系統偏好之後。
   - 讀到的值經 `i18n.Normalize` 後，以 `i18n.Match(preferred, i18n.Languages())` 選出語言；`Match` 回傳 `""` 時（例如 `zh_CN`、`ja`、`C`）用 `en`。
-  - 已驗證不經 `App` 可用。連結 `mygo`（App）的程式不能再呼叫 `SetLocaleFunc`，因為 `mygo` 在自己的 `init` 設好了；`ytm` 不連結 App，不受影響。
+  - 不經 `App` 可用（§12）。連結 `mygo`（App）的程式不能再呼叫 `SetLocaleFunc`，因為 `mygo` 在自己的 `init` 設好了；`ytm` 不連結 App，不受影響。
 - **不顯示圖片。**
 
 ### 7.4 CLI
@@ -551,7 +508,7 @@ type Notice struct {
 
 ## 8. 版本
 
-- **Desktop：** 版本仍只寫在根目錄的 `mygo.json`（§2），以 `App.Version()` 讀取；`mygo.IsDev()` 為真時（`go run`、`mygo dev`）視為 `dev`。
+- **Desktop：** 版本只寫在 `mygo.json`，以 `App.Version()` 讀取；`mygo.IsDev()` 為真時（`go run`、`mygo dev`）視為 `dev`。
 - **ytmd、ytm：** 編譯時注入：
 
   ```sh
@@ -560,7 +517,6 @@ type Notice struct {
 
   沒有注入時為 `dev`，`dev` 不參與版本比較，也不觸發交接，檔名加 `-dev` 後綴（§4.1）。
 - **macOS：** `ytmd.app` 的 `Info.plist` 中，`CFBundleShortVersionString` 和 `CFBundleVersion` 也由 `build-helpers.sh` 填入同一個版本。
-- `scripts/release.sh` 不必改，`mygo.json` 仍在根目錄。
 
 ## 9. 打包與發布
 
@@ -568,7 +524,7 @@ type Notice struct {
 
 新增 `scripts/build-helpers.sh <platform>…`，在 `mygo build` 之前把 ytmd 和 ytm 編譯到根目錄的 `resources/<platform>/`（§2），讓 `mygo build` 一起簽章，並為 universal 合併架構。
 
-- **已驗證（§12）：** MyGo 把它們放進 `Contents/Resources/`，由內而外以 Developer ID、hardened runtime 和時間戳記簽章（`cmd/mygo/resources.go` 的 `signNestedCode`），universal 建置時以 lipo 合併；公證通過，更新的 tarball 也包含它們。
+- MyGo 把它們放進 `Contents/Resources/`，由內而外簽章、為 universal 合併架構，公證和更新的 tarball 都包含它們（§12）。
 - universal 建置要求 `darwin-arm64` 和 `darwin-amd64` 的檔案一一對應，非執行檔必須完全相同，所以兩邊寫入同一份 `Info.plist`。
 - `.gitignore` 只忽略這些平台目錄，例如 `resources/darwin-*/`；`resources/` 底下其他已提交的檔案（`icon.png` 等）照舊。
 - **bundle 的資料夾名稱**就是 Control Center 顯示的名稱（§6.4），所以不叫 `ytmd.app`。建議和主程式同名 `YT Music Player.app`，附上同一個圖示：使用者在 Now Playing 看到的就是他認得的 app。要在 P8-3 確認 Spotlight 和 Launchpad 不會列出第二個同名的 app（daemon 是 `LSUIElement`，被點開也看不到任何東西）；會的話改用 `YT Music Player Helper.app`。§4.2 的路徑和 cask 跟著改；執行檔名稱仍是 `ytmd`。
@@ -636,7 +592,7 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
     - Shutdown。
   - benchmark：`BenchmarkDispatch`、`BenchmarkLikesDiff`
 - **`account`**
-  - 測試（已有）：`ErrSignedOut` 時登出並回報、`Like` 成功且是最後一次才回報差異、登入登出；P3 加上快照
+  - 測試：P3 加上音樂庫與喜歡清單的快照
 - **`remote`**
   - 測試：
     - `Supervisor` 的退避：EOF 後指數退避（用假時鐘）、上限 30 s、按「重試」或回到前景時重設；
@@ -668,7 +624,7 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
 
 ## 11. 實作階段
 
-每個階段由數個小 PR 組成，每個 PR 都要通過 `prek`。已完成的 P0（風險實驗，結果見 §12）和 P1（同一行程內的重構：notice 代碼 §5.6、拆分 session §6.1、Desktop 移到 `cmd/desktop` §2）已併入上面的規格。
+每個階段由數個小 PR 組成，每個 PR 都要通過 `prek`。
 
 ### P2 協定與傳輸
 
@@ -727,13 +683,12 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
 - P7 依賴 P3；它的 Desktop 設定頁依賴 P4。
 - P8 依賴 P4、P5、P6。
 
-## 12. 已驗證的前提
+## 12. 風險實驗的結論
 
-P0 的實驗在 macOS arm64（MyGo v0.5.5、Go 1.27.2）上做；Linux 部分在容器內，Windows 只讀原始碼並交叉編譯。結論已寫進上面各節，這裡只留結果與尚未確認的項目。
+實驗在 macOS arm64（MyGo v0.5.5、Go 1.27.2）上做；Linux 部分在容器內，Windows 只讀原始碼並交叉編譯。結論已寫進上面各節，這裡只留結果與尚未確認的項目。
 
 | 實驗 | 結果 | 寫進 |
 |---|---|---|
-| Desktop 移到 `cmd/desktop` | `i18n.dir` 不能指向專案外；改為 `mygo.json` 留在根目錄、`"main": "./cmd/desktop"`，已實作 | §2、§8 |
 | macOS 輔助程式簽章 | `Contents/Resources` 下的 `ytmd.app` 與 `ytm` 以 Developer ID 簽章、universal、公證都通過 | §9.1、§9.2 |
 | 不經 MyGo App 播放 | 可以：`internal/audio` 只用到 `mygo/audio`；macOS 已實際聽到聲音（直接執行，以及 bundle 加 run loop），Linux（ALSA、MPRIS）在容器內測過，Windows（WASAPI）依原始碼 | §2 |
 | macOS 媒體鍵 | 只需鎖定主執行緒加 `CFRunLoopRun`，不需 NSApplication；直接執行或 `open -g` 都能接到 Now Playing 的指令；已實際按鍵盤的媒體鍵確認 | §3、§6.4 |
