@@ -489,6 +489,92 @@ func TestSignInAndOut(t *testing.T) {
 	}
 }
 
+func signIn(credentials string) api.Call {
+	return api.Call{Method: api.MethodSignIn, SignIn: &api.SignInArgs{Credentials: credentials}}
+}
+
+func canceled(t *testing.T, call catalogtest.Call, what string) {
+	t.Helper()
+	select {
+	case <-call.Ctx.Done():
+	case <-time.After(wait):
+		t.Fatalf("%s left the sign-in running", what)
+	}
+}
+
+func TestCancelSignIn(t *testing.T) {
+	h := newHarness(t, Options{Seed: songs(2)})
+	c := h.connect(true)
+	c.event()
+
+	// Canceled, the sign-in stops and is never answered.
+	id := c.send(signIn("SID=1"))
+	first := h.src.Next(t, nil, "signin", "SID=1")
+	if err := c.c.Send(api.Frame{ID: id, Cancel: true}); err != nil {
+		t.Fatal(err)
+	}
+	canceled(t, first, "Cancel")
+	first.Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Bob"}, Err: first.Ctx.Err()}
+	c.ping()
+	c.none(30 * time.Millisecond)
+
+	// A Cancel of a sign-in replaced by another front-end's leaves that one.
+	other := h.connect(false)
+	id = c.send(signIn("SID=2"))
+	replaced := h.src.Next(t, nil, "signin", "SID=2")
+	later := other.send(signIn("SID=3"))
+	if r := c.reply(id); r.Err == nil {
+		t.Errorf("replaced sign-in: %+v", r)
+	}
+	current := h.src.Next(t, nil, "signin", "SID=3")
+	if err := c.c.Send(api.Frame{ID: id, Cancel: true}); err != nil {
+		t.Fatal(err)
+	}
+	c.ping()
+	if current.Ctx.Err() != nil {
+		t.Fatal("a Cancel of the sign-in replaced canceled the other's")
+	}
+	replaced.Reply <- catalogtest.Reply{Err: replaced.Ctx.Err()}
+	ada := catalog.Account{Name: "Ada"}
+	current.Reply <- catalogtest.Reply{Account: ada}
+	if r := other.reply(later); r.Account == nil || *r.Account != ada {
+		t.Errorf("sign-in reply %+v", r)
+	}
+	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; !a.Switched || a.Account != ada {
+		t.Errorf("account event %+v", a)
+	}
+	h.src.Take(t, nil, "account", "library", "playlist LM")
+
+	// Credentials stored anyway still sign in, as package account has it,
+	// which only the Account event tells.
+	id = c.send(signIn("SID=4"))
+	stored := h.src.Next(t, nil, "signin", "SID=4")
+	if err := c.c.Send(api.Frame{ID: id, Cancel: true}); err != nil {
+		t.Fatal(err)
+	}
+	canceled(t, stored, "Cancel")
+	grace := catalog.Account{Name: "Grace"}
+	stored.Reply <- catalogtest.Reply{Account: grace}
+	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; !a.Switched || a.Account != grace {
+		t.Errorf("account event %+v", a)
+	}
+	h.src.Take(t, nil, "account", "library", "playlist LM")
+	c.ping()
+
+	// The connection's end cancels its sign-in.
+	other.send(signIn("SID=5"))
+	gone := h.src.Next(t, nil, "signin", "SID=5")
+	_ = other.c.Close()
+	canceled(t, gone, "disconnecting")
+	gone.Reply <- catalogtest.Reply{Err: gone.Ctx.Err()}
+	c.ping()
+	for _, ev := range c.events {
+		if ev.Account != nil {
+			t.Errorf("account event %+v after a sign-in canceled", ev.Account)
+		}
+	}
+}
+
 func TestSignInWithoutAccounts(t *testing.T) {
 	svc, err := New(Options{Source: catalogtest.New()})
 	if err != nil {

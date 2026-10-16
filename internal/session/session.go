@@ -61,7 +61,9 @@ type Daemon interface {
 	// done gets the account signed in, or why not. A canceled sign-in's
 	// failure may never come.
 	SignIn(credentials string, done func(catalog.Account, error))
-	// CancelSignIn gives up the sign-in in flight.
+	// CancelSignIn gives up the sign-in in flight, which the daemon
+	// cancels; credentials it stored anyway still sign in, which only the
+	// Account event tells.
 	CancelSignIn()
 	// SignOut clears the stored credentials; done gets why it failed, or
 	// nil after the Account event that no one is signed in.

@@ -26,12 +26,13 @@ type conn struct {
 	compatible bool
 	// subscribed: it asked for events and got its snapshot.
 	subscribed bool
-	// calls are its catalog requests in flight, by ID.
+	// calls are its catalog requests and SignIn in flight, by ID, which a
+	// Cancel or the connection's end cancels.
 	calls map[uint32]call
 }
 
-// call is a catalog request in flight; ctx tells it from a later one of
-// the same ID.
+// call is a request in flight: a catalog request, which ctx tells from a
+// later one of the same ID, or a SignIn, without ctx.
 type call struct {
 	ctx    context.Context
 	cancel context.CancelFunc

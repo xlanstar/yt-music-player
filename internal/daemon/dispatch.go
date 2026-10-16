@@ -234,15 +234,31 @@ type pendingSignIn struct {
 	isAnswered bool
 }
 
+// settle marks p answered and drops it from its connection's calls; false
+// if it was already.
+func (p *pendingSignIn) settle() bool {
+	if p.isAnswered {
+		return false
+	}
+	p.isAnswered = true
+	delete(p.c.calls, p.id)
+	return true
+}
+
 func (p *pendingSignIn) fail(err error) {
-	if !p.isAnswered {
-		p.isAnswered = true
+	if p.settle() {
 		p.c.fail(p.id, err)
 	}
 }
 
 // signInFor signs in for c. A sign-in replaces the one in flight, whose
 // caller hears so now: the account never answers a sign-in canceled.
+//
+// A Cancel of the request, or the end of its connection, cancels the
+// account's sign-in, unless another SignIn replaced it since (maybe
+// another front-end's, which goes on). The canceled one gets no reply; as
+// the account has it, one whose credentials were stored anyway still
+// signs in, which the Account event tells.
 func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 	switch {
 	case !s.acct.CanSignIn():
@@ -255,8 +271,10 @@ func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 	if s.signIn != nil {
 		s.signIn.fail(errSuperseded)
 	}
+	s.cancelCall(c, id)
 	p := &pendingSignIn{pendingReply: pendingReply{c, id}}
 	s.signIn = p
+	c.calls[id] = call{cancel: func() { s.cancelSignIn(p) }}
 	s.acct.SignIn(credentials, func(user catalog.Account, err error) {
 		if s.signIn == p {
 			s.signIn = nil
@@ -265,11 +283,21 @@ func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 			p.fail(err)
 			return
 		}
-		if !p.isAnswered {
-			p.isAnswered = true
+		if p.settle() {
 			c.reply(id, &api.Reply{Account: &user})
 		}
 	})
+}
+
+// cancelSignIn drops p's reply and, if p is still the sign-in in flight,
+// cancels the account's.
+func (s *Service) cancelSignIn(p *pendingSignIn) {
+	p.isAnswered = true
+	if s.signIn != p {
+		return
+	}
+	s.signIn = nil
+	s.acct.CancelSignIn()
 }
 
 // signOutFor signs out for c; a SignOut in flight answers it too.

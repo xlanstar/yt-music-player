@@ -17,8 +17,9 @@
 //
 // Catalog requests run on goroutines of their own with a context that a
 // Cancel frame or the connection's end cancels; their replies come back
-// through the loop. The loop never waits on a socket: a peer that reads
-// too slowly loses its connection (ipc.Conn).
+// through the loop. A Cancel or the connection's end cancels a SignIn too,
+// unless another replaced it. The loop never waits on a socket: a peer
+// that reads too slowly loses its connection (ipc.Conn).
 //
 // The daemon keeps no catalog but its queue's songs, which callers send
 // with the IDs they play or enqueue (api.IDsArgs.Songs) and daemon.json

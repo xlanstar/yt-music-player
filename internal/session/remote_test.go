@@ -127,6 +127,51 @@ func TestRemoteLikeSignedOut(t *testing.T) {
 	}
 }
 
+// A sign-in canceled is canceled in the daemon too: the source's answer
+// after the cancel signs no one in, unless it stored the credentials
+// anyway, as package account promises.
+func TestRemoteCancelSignIn(t *testing.T) {
+	f := newRemoteFixture(t)
+	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
+	for _, call := range calls {
+		call.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	}
+	f.until(t, "signed out", func() bool { return f.states.State(AccountRes).State == fetchstate.SignedOut })
+	canceled := func(call catalogtest.Call) {
+		t.Helper()
+		select {
+		case <-call.Ctx.Done():
+		case <-time.After(5 * time.Second):
+			t.Fatal("the daemon left the sign-in canceled running")
+		}
+	}
+
+	f.s.SignIn("SID=late")
+	late := f.next(t, "signin", "SID=late")
+	f.s.CancelSignIn()
+	canceled(late)
+	late.Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Bob"}, Err: late.Ctx.Err()}
+
+	// Stored anyway: the Account event signs in, and nothing is told.
+	f.s.SignIn("SID=stored")
+	stored := f.next(t, "signin", "SID=stored")
+	f.s.CancelSignIn()
+	canceled(stored)
+	stored.Reply <- catalogtest.Reply{Account: ada}
+	var notices []notice.Notice
+	f.until(t, "signed in", func() bool {
+		notices = append(notices, f.s.TakeNotices()...)
+		return f.s.IsSignedIn()
+	})
+	if f.s.Account() != ada || f.s.IsSigningIn() || len(notices) > 0 {
+		t.Errorf("signed in as %+v (signing in %v), notices %+v", f.s.Account(), f.s.IsSigningIn(), notices)
+	}
+	f.signedIn(t)
+	if notices = f.s.TakeNotices(); f.s.Account() != ada || len(notices) > 0 {
+		t.Errorf("signed in as %+v, notices %+v", f.s.Account(), notices)
+	}
+}
+
 func TestRemoteSignIn(t *testing.T) {
 	f := newRemoteFixture(t)
 	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
