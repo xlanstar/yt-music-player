@@ -1,1124 +1,1264 @@
 # yt-music-player benchmarks, scripts/bench.sh -count 6 -benchtime 100ms
 # suite: full
-# date: 2026-10-16T18:36:39Z
+# date: 2026-10-16T23:04:41Z
 # go: go version go1.27.2 darwin/arm64
 # cpu: Apple M4 Max, 16 CPUs
-# git: 9f70c16, 0 files changed
-# load: 2.19 5.75 8.85
+# git: cbf81d4, 0 files changed
+# load: 9.03 6.98 7.66
 # format: per package, one line per benchmark and unit: name, unit, each run's value in run order, or one value when every run gave it
 goos: darwin
 goarch: arm64
 cpu: Apple M4 Max
 
 pkg: yt-music-player/cmd/desktop
-BenchmarkPages/Home-16 ns/op 349555 350562 351691 354011 358564 376818
+BenchmarkPages/Home-16 ns/op 501536 565126 555361 559839 591979 576475
 BenchmarkPages/Home-16 builds/op 1.000
-BenchmarkPages/Home-16 live-KB 2658 2641 2641 2641 2641 2588
+BenchmarkPages/Home-16 live-KB 2845 2841 2841 2841 2841 2841
 BenchmarkPages/Home-16 B/op 1008
 BenchmarkPages/Home-16 allocs/op 26
-BenchmarkPages/Explore-16 ns/op 353325 540153 862001 301880 292944 291248
+BenchmarkPages/Explore-16 ns/op 506223 444702 456876 491033 458659 498391
 BenchmarkPages/Explore-16 builds/op 1.000
-BenchmarkPages/Explore-16 live-KB 2263 2202 2201 2203 2203 2202
+BenchmarkPages/Explore-16 live-KB 2400 2407 2406 2407 2407 2406
 BenchmarkPages/Explore-16 B/op 464
 BenchmarkPages/Explore-16 allocs/op 9
-BenchmarkPages/Library/Playlists-16 ns/op 246184 247213 244138 245965 242905 249942
+BenchmarkPages/Library/Playlists-16 ns/op 466575 404761 379650 381806 358339 362000
 BenchmarkPages/Library/Playlists-16 builds/op 1.000
-BenchmarkPages/Library/Playlists-16 live-KB 1775 1774 1774 1774 1774 1774
+BenchmarkPages/Library/Playlists-16 live-KB 1853
 BenchmarkPages/Library/Playlists-16 B/op 1296
 BenchmarkPages/Library/Playlists-16 allocs/op 23
-BenchmarkPages/Library/Songs-16 ns/op 305670 311137 304733 304588 306520 310780
+BenchmarkPages/Library/Songs-16 ns/op 509533 481986 480181 476667 478884 478482
 BenchmarkPages/Library/Songs-16 builds/op 1.000
-BenchmarkPages/Library/Songs-16 live-KB 2281 2259 2259 2258 2259 2256
+BenchmarkPages/Library/Songs-16 live-KB 2371 2373 2373 2373 2373 2373
 BenchmarkPages/Library/Songs-16 B/op 1760
 BenchmarkPages/Library/Songs-16 allocs/op 28
-BenchmarkPages/Library/Albums-16 ns/op 260946 267831 256497 253716 257871 255422
+BenchmarkPages/Library/Albums-16 ns/op 394918 391622 377073 436810 407096 426088
 BenchmarkPages/Library/Albums-16 builds/op 1.000
-BenchmarkPages/Library/Albums-16 live-KB 1821 1818 1818 1818 1818 1818
+BenchmarkPages/Library/Albums-16 live-KB 1900
 BenchmarkPages/Library/Albums-16 B/op 1648
 BenchmarkPages/Library/Albums-16 allocs/op 25
-BenchmarkPages/Library/Artists-16 ns/op 249709 249675 256984 246687 250267 248262
+BenchmarkPages/Library/Artists-16 ns/op 406820 383654 417881 440027 434102 403597
 BenchmarkPages/Library/Artists-16 builds/op 1.000
-BenchmarkPages/Library/Artists-16 live-KB 1796 1794 1794 1794 1794 1794
+BenchmarkPages/Library/Artists-16 live-KB 1894 1891 1891 1891 1891 1891
 BenchmarkPages/Library/Artists-16 B/op 1632
 BenchmarkPages/Library/Artists-16 allocs/op 25
-BenchmarkPages/Album-16 ns/op 202256 201501 204076 200993 201865 201384
+BenchmarkPages/Album-16 ns/op 319521 316384 289902 275265 269145 270930
 BenchmarkPages/Album-16 builds/op 1.000
-BenchmarkPages/Album-16 live-KB 1508 1488 1488 1488 1487 1488
+BenchmarkPages/Album-16 live-KB 1644 1610 1610 1610 1610 1610
 BenchmarkPages/Album-16 B/op 992
 BenchmarkPages/Album-16 allocs/op 18
-BenchmarkPages/Playlist-16 ns/op 257253 257640 269802 262870 264522 264011
+BenchmarkPages/Playlist-16 ns/op 373493 367826 420354 1270670 627413 5107864
 BenchmarkPages/Playlist-16 builds/op 1.000
-BenchmarkPages/Playlist-16 live-KB 1874
+BenchmarkPages/Playlist-16 live-KB 1973 1973 1973 1973 1977 1973
 BenchmarkPages/Playlist-16 B/op 992
 BenchmarkPages/Playlist-16 allocs/op 18
-BenchmarkPages/LikedMusic-16 ns/op 237552 244488 237933 236556 236528 239507
+BenchmarkPages/LikedMusic-16 ns/op 1830876 468231 442809 769806 603532 704810
 BenchmarkPages/LikedMusic-16 builds/op 1.000
-BenchmarkPages/LikedMusic-16 live-KB 1852 1849 1849 1849 1849 1849
+BenchmarkPages/LikedMusic-16 live-KB 1872 1869 1869 1869 1869 1869
 BenchmarkPages/LikedMusic-16 B/op 928
 BenchmarkPages/LikedMusic-16 allocs/op 17
-BenchmarkPages/Search-16 ns/op 206398 205576 204666 204056 204148 208764
+BenchmarkPages/Search-16 ns/op 472235 271790 256344 263618 287301 268145
 BenchmarkPages/Search-16 builds/op 1.000
-BenchmarkPages/Search-16 live-KB 1503 1480 1480 1483 1483 1483
+BenchmarkPages/Search-16 live-KB 1734 1691 1694 1693 1693 1694
 BenchmarkPages/Search-16 B/op 1024
 BenchmarkPages/Search-16 allocs/op 13
-BenchmarkPages/Home/PanelHidden-16 ns/op 326806 354072 358725 376176 658506 470850
+BenchmarkPages/Home/PanelHidden-16 ns/op 492257 671114 574611 553611 581120 508421
 BenchmarkPages/Home/PanelHidden-16 builds/op 1.000
-BenchmarkPages/Home/PanelHidden-16 live-KB 2464 2483 2483 2484 2483 2462
+BenchmarkPages/Home/PanelHidden-16 live-KB 2631 2607 2606 2606 2606 2606
 BenchmarkPages/Home/PanelHidden-16 B/op 848
 BenchmarkPages/Home/PanelHidden-16 allocs/op 21
-BenchmarkPages/Home/Playing-16 ns/op 720352 517751 467394 373218 356694 354913
+BenchmarkPages/Home/Playing-16 ns/op 549031 544722 509092 502418 469490 443483
 BenchmarkPages/Home/Playing-16 builds/op 1.000
-BenchmarkPages/Home/Playing-16 live-KB 2593 2639 2585 2638 2641 2642
+BenchmarkPages/Home/Playing-16 live-KB 2837 2832 2839 2832 2832 2832
 BenchmarkPages/Home/Playing-16 B/op 1008
 BenchmarkPages/Home/Playing-16 allocs/op 26
-BenchmarkPages/Library/Songs/2000-16 ns/op 304274 302541 308233 300915 299190 318646
+BenchmarkPages/Library/Songs/2000-16 ns/op 379359 365337 376954 367328 359974 349187
 BenchmarkPages/Library/Songs/2000-16 builds/op 1.000
-BenchmarkPages/Library/Songs/2000-16 live-KB 3322 3302 3302 3302 3302 3302
+BenchmarkPages/Library/Songs/2000-16 live-KB 3456 3444 3444 3444 3444 3444
 BenchmarkPages/Library/Songs/2000-16 B/op 1760
 BenchmarkPages/Library/Songs/2000-16 allocs/op 28
-BenchmarkPages/Library/Albums/Thumbnails-16 ns/op 222912 223755 223891 223824 224363 223194
+BenchmarkPages/Library/Albums/Thumbnails-16 ns/op 263591 261606 262087 251133 250936 248870
 BenchmarkPages/Library/Albums/Thumbnails-16 builds/op 1.000
-BenchmarkPages/Library/Albums/Thumbnails-16 live-KB 7220 7210 7224 7222 7222 7210
+BenchmarkPages/Library/Albums/Thumbnails-16 live-KB 7269 7274 7274 7286 7274 7274
 BenchmarkPages/Library/Albums/Thumbnails-16 B/op 1648
 BenchmarkPages/Library/Albums/Thumbnails-16 allocs/op 25
-BenchmarkPages/Home/Feed-16 ns/op 564297 538250 548700 537270 532164 540956
+BenchmarkPages/Home/Feed-16 ns/op 621060 611678 639444 671803 719213 723588
 BenchmarkPages/Home/Feed-16 builds/op 1.000
-BenchmarkPages/Home/Feed-16 live-KB 45931 45988 45979 45988 45823 45981
+BenchmarkPages/Home/Feed-16 live-KB 46172 46171 46172 46154 46143 46011
 BenchmarkPages/Home/Feed-16 B/op 1008
 BenchmarkPages/Home/Feed-16 allocs/op 26
-BenchmarkPages/Playlist/2000-16 ns/op 261550 261138 262818 257518 261710 261377
+BenchmarkPages/Playlist/2000-16 ns/op 344157 346863 323690 327865 324571 312406
 BenchmarkPages/Playlist/2000-16 builds/op 1.000
-BenchmarkPages/Playlist/2000-16 live-KB 3525 3509 3507 3507 3511 3505
+BenchmarkPages/Playlist/2000-16 live-KB 3670 3652 3652 3652 3661 3652
 BenchmarkPages/Playlist/2000-16 B/op 992
 BenchmarkPages/Playlist/2000-16 allocs/op 18
-BenchmarkPages/Home/Appearance-16 ns/op 431925 426003 424074 430141 422447 427514
+BenchmarkPages/Home/Appearance-16 ns/op 524788 512091 510824 512134 495566 489592
 BenchmarkPages/Home/Appearance-16 builds/op 1.000
-BenchmarkPages/Home/Appearance-16 live-KB 3116 3096 3096 3096 3096 3096
-BenchmarkPages/Home/Appearance-16 B/op 1936
-BenchmarkPages/Home/Appearance-16 allocs/op 60
-BenchmarkPages/Home/SignIn-16 ns/op 433179 429814 432656 443232 446225 430972
+BenchmarkPages/Home/Appearance-16 live-KB 3280 3255 3255 3255 3255 3255
+BenchmarkPages/Home/Appearance-16 B/op 1952
+BenchmarkPages/Home/Appearance-16 allocs/op 61
+BenchmarkPages/Home/SignIn-16 ns/op 474193 471963 468518 468653 488134 473332
 BenchmarkPages/Home/SignIn-16 builds/op 1.000
-BenchmarkPages/Home/SignIn-16 live-KB 2974
+BenchmarkPages/Home/SignIn-16 live-KB 3094
 BenchmarkPages/Home/SignIn-16 B/op 1168
 BenchmarkPages/Home/SignIn-16 allocs/op 31
-BenchmarkPages/LikedMusic/2000-16 ns/op 265975 265011 265681 266999 265681 266670
+BenchmarkPages/LikedMusic/2000-16 ns/op 300428 306155 302236 304649 305127 304679
 BenchmarkPages/LikedMusic/2000-16 builds/op 1.000
-BenchmarkPages/LikedMusic/2000-16 live-KB 3810 3812 3817 3821 3817 3810
+BenchmarkPages/LikedMusic/2000-16 live-KB 3961 3959 3954 3957 3954 3963
 BenchmarkPages/LikedMusic/2000-16 B/op 928
 BenchmarkPages/LikedMusic/2000-16 allocs/op 17
-BenchmarkInteractions/HoverRows-16 ns/op 3763658 3620383 3652000 3653661 3595153 3633481
+BenchmarkInteractions/HoverRows-16 ns/op 4306910 4078671 4283717 4333697 4369428 4375389
 BenchmarkInteractions/HoverRows-16 builds/op 1.000
-BenchmarkInteractions/HoverRows-16 live-KB 3322 3302 3302 3302 3302 3302
-BenchmarkInteractions/HoverRows-16 B/op 5759 4799 4799 4800 4799 4799
-BenchmarkInteractions/HoverRows-16 allocs/op 32 29 29 29 29 29
-BenchmarkInteractions/HoverCards-16 ns/op 13330346 13632139 13563988 12962685 13413658 13065347
+BenchmarkInteractions/HoverRows-16 live-KB 3461 3447 3443 3443 3447 3447
+BenchmarkInteractions/HoverRows-16 B/op 5596 4833 4752 4752 4795 4794
+BenchmarkInteractions/HoverRows-16 allocs/op 31 29 29 29 29 29
+BenchmarkInteractions/HoverCards-16 ns/op 15258864 16224229 16458214 16767083 17419815 18162976
 BenchmarkInteractions/HoverCards-16 builds/op 20.00
-BenchmarkInteractions/HoverCards-16 live-KB 46751 46751 46752 46773 46766 46790
-BenchmarkInteractions/HoverCards-16 B/op 20185 20344 20185 20188 20185 20188
+BenchmarkInteractions/HoverCards-16 live-KB 46955 46936 46958 46940 46946 46914
+BenchmarkInteractions/HoverCards-16 B/op 20192 20192 20192 20192 20196 20196
 BenchmarkInteractions/HoverCards-16 allocs/op 520
-BenchmarkInteractions/HoverPlay-16 ns/op 7924864 7733483 7910247 7775483 7792056 7683370
+BenchmarkInteractions/HoverPlay-16 ns/op 10190861 10300340 9929413 9511157 9884635 9750272
 BenchmarkInteractions/HoverPlay-16 builds/op 20.00
-BenchmarkInteractions/HoverPlay-16 live-KB 2649 2642 2651 2642 2642 2650
-BenchmarkInteractions/HoverPlay-16 B/op 25504 24103 24377 24103 24103 24369
-BenchmarkInteractions/HoverPlay-16 allocs/op 531 524 524 524 524 524
-BenchmarkInteractions/HoverHero-16 ns/op 10726238 10651846 10782142 11581398 11207796 10766279
+BenchmarkInteractions/HoverPlay-16 live-KB 2865 2851 2851 2843 2851 2843
+BenchmarkInteractions/HoverPlay-16 B/op 26475 24420 24420 24092 24420 24092
+BenchmarkInteractions/HoverPlay-16 allocs/op 535 525 525 525 525 525
+BenchmarkInteractions/HoverHero-16 ns/op 13638875 13892510 15011690 15130667 14797030 14827232
 BenchmarkInteractions/HoverHero-16 builds/op 20.00
-BenchmarkInteractions/HoverHero-16 live-KB 45986 45985 45962 45985 45823 45976
-BenchmarkInteractions/HoverHero-16 B/op 20209 20209 20209 20215 20215 20209
+BenchmarkInteractions/HoverHero-16 live-KB 46012 46000 46168 46019 46190 46172
+BenchmarkInteractions/HoverHero-16 B/op 20222 20222 20230 20230 20230 20230
 BenchmarkInteractions/HoverHero-16 allocs/op 521
-BenchmarkInteractions/HoverHero/Painted-16 ns/op 7071333 7372086 7101803 7095317 7407542 7303286
+BenchmarkInteractions/HoverHero/Painted-16 ns/op 9412372 9170965 8543757 8747205 8426263 8252375
 BenchmarkInteractions/HoverHero/Painted-16 builds/op 20.00
-BenchmarkInteractions/HoverHero/Painted-16 live-KB 2641 2641 2641 2641 2641 2642
-BenchmarkInteractions/HoverHero/Painted-16 B/op 20193
+BenchmarkInteractions/HoverHero/Painted-16 live-KB 2844 2842 2842 2842 2842 2842
+BenchmarkInteractions/HoverHero/Painted-16 B/op 20201 20201 20201 20198 20198 20198
 BenchmarkInteractions/HoverHero/Painted-16 allocs/op 520
-BenchmarkInteractions/ScrollSongs-16 ns/op 8248182 8110679 8122801 8076360 8158610 8221396
+BenchmarkInteractions/ScrollSongs-16 ns/op 9308455 9009285 8904074 8967609 8950401 9116519
 BenchmarkInteractions/ScrollSongs-16 builds/op 1.000
-BenchmarkInteractions/ScrollSongs-16 live-KB 3679 3655 3655 3655 3655 3655
-BenchmarkInteractions/ScrollSongs-16 B/op 85522 73020 73020 73020 73020 73020
-BenchmarkInteractions/ScrollSongs-16 allocs/op 423 29 29 29 29 29
-BenchmarkInteractions/TypeSearch-16 ns/op 637181 601585 604295 610325 609717 606844
-BenchmarkInteractions/TypeSearch-16 builds/op 2.503 2.500 2.503 2.500 2.503 2.500
-BenchmarkInteractions/TypeSearch-16 live-KB 2678 2658 2672 2668 2669 2669
-BenchmarkInteractions/TypeSearch-16 B/op 7350 7232 7165 7189 7195 7222
-BenchmarkInteractions/TypeSearch-16 allocs/op 101 99 99 99 99 100
-BenchmarkInteractions/LibraryTabs-16 ns/op 8394664 8530897 8340272 8295408 8382781 8385617
+BenchmarkInteractions/ScrollSongs-16 live-KB 3827 3802 3799 3799 3799 3799
+BenchmarkInteractions/ScrollSongs-16 B/op 97288 78921 78172 78172 78172 78172
+BenchmarkInteractions/ScrollSongs-16 allocs/op 446 44 28 28 28 28
+BenchmarkInteractions/TypeSearch-16 ns/op 760699 726773 715789 701514 696296 660327
+BenchmarkInteractions/TypeSearch-16 builds/op 2.500 2.500 2.503 2.500 2.503 2.500
+BenchmarkInteractions/TypeSearch-16 live-KB 2877 2867 2868 2873 2872 2872
+BenchmarkInteractions/TypeSearch-16 B/op 7354 7137 7203 7178 7201 7185
+BenchmarkInteractions/TypeSearch-16 allocs/op 100 99 99 99 99 99
+BenchmarkInteractions/remote-event-16 ns/op 2089384 2053705 2031187 2045670 2076086 2072527
+BenchmarkInteractions/remote-event-16 builds/op 1.000
+BenchmarkInteractions/remote-event-16 live-KB 2950 2948 2947 2947 2947 2948
+BenchmarkInteractions/remote-event-16 B/op 12572 11315 11319 11315 11315 11665
+BenchmarkInteractions/remote-event-16 allocs/op 83 68 68 68 68 68
+BenchmarkInteractions/LibraryTabs-16 ns/op 9200899 9650714 10290042 10836843 11141521 11713408
 BenchmarkInteractions/LibraryTabs-16 builds/op 1.000
-BenchmarkInteractions/LibraryTabs-16 live-KB 8841 8821 8821 8833 8833 8820
-BenchmarkInteractions/LibraryTabs-16 B/op 100299
-BenchmarkInteractions/LibraryTabs-16 allocs/op 83
-BenchmarkMemo/LikedCount/hit-16 ns/op 1.850 1.823 1.910 1.841 1.829 1.845
+BenchmarkInteractions/LibraryTabs-16 live-KB 8869 8850 9013 9013 8789 8849
+BenchmarkInteractions/LibraryTabs-16 B/op 104244 104245 108796 108798 95346 105894
+BenchmarkInteractions/LibraryTabs-16 allocs/op 82 82 81 81 82 82
+BenchmarkMemo/LikedCount/hit-16 ns/op 2.570 2.476 2.408 2.291 2.263 2.170
 BenchmarkMemo/LikedCount/hit-16 B/op 0
 BenchmarkMemo/LikedCount/hit-16 allocs/op 0
-BenchmarkMemo/LikedCount/miss-16 ns/op 12572 12511 12534 12837 12498 12593
+BenchmarkMemo/LikedCount/miss-16 ns/op 15306 14611 14586 14791 14235 13848
 BenchmarkMemo/LikedCount/miss-16 B/op 0
 BenchmarkMemo/LikedCount/miss-16 allocs/op 0
-BenchmarkMemo/LikedCollection/hit-16 ns/op 10.65 10.69 10.69 10.59 10.63 10.75
+BenchmarkMemo/LikedCollection/hit-16 ns/op 11.33 11.36 11.23 11.22 11.32 11.35
 BenchmarkMemo/LikedCollection/hit-16 B/op 0
 BenchmarkMemo/LikedCollection/hit-16 allocs/op 0
-BenchmarkMemo/LikedCollection/miss-16 ns/op 64832 64607 65195 66086 65452 65460
+BenchmarkMemo/LikedCollection/miss-16 ns/op 69088 67764 71298 70121 71315 75850
 BenchmarkMemo/LikedCollection/miss-16 B/op 214216
 BenchmarkMemo/LikedCollection/miss-16 allocs/op 25
-BenchmarkMemo/SidebarItems/hit-16 ns/op 2.091 1.999 1.998 2.035 1.877 1.929
+BenchmarkMemo/SidebarItems/hit-16 ns/op 2.179 2.158 2.161 2.179 2.156 2.134
 BenchmarkMemo/SidebarItems/hit-16 B/op 0
 BenchmarkMemo/SidebarItems/hit-16 allocs/op 0
-BenchmarkMemo/SidebarItems/miss-16 ns/op 419.2 418.0 417.9 435.1 445.7 421.5
+BenchmarkMemo/SidebarItems/miss-16 ns/op 496.1 502.7 498.6 534.3 530.7 498.9
 BenchmarkMemo/SidebarItems/miss-16 B/op 992
 BenchmarkMemo/SidebarItems/miss-16 allocs/op 22
-BenchmarkMemo/HomeCards/hit-16 ns/op 3.161 3.309 3.131 3.123 2.899 3.112
+BenchmarkMemo/HomeCards/hit-16 ns/op 3.575 3.586 3.577 3.478 3.451 3.457
 BenchmarkMemo/HomeCards/hit-16 B/op 0
 BenchmarkMemo/HomeCards/hit-16 allocs/op 0
-BenchmarkMemo/HomeCards/miss-16 ns/op 4286 4186 4213 4484 4254 4269
+BenchmarkMemo/HomeCards/miss-16 ns/op 4640 4592 4539 4838 4636 4603
 BenchmarkMemo/HomeCards/miss-16 B/op 5480
 BenchmarkMemo/HomeCards/miss-16 allocs/op 134
-BenchmarkMemo/ReleaseCards/hit-16 ns/op 2.840 2.751 2.857 2.820 2.945 2.842
+BenchmarkMemo/ReleaseCards/hit-16 ns/op 3.043 3.006 3.021 3.115 3.177 3.120
 BenchmarkMemo/ReleaseCards/hit-16 B/op 0
 BenchmarkMemo/ReleaseCards/hit-16 allocs/op 0
-BenchmarkMemo/ReleaseCards/miss-16 ns/op 666.0 656.7 691.0 657.2 666.8 654.8
+BenchmarkMemo/ReleaseCards/miss-16 ns/op 714.5 699.7 749.9 700.1 707.7 732.0
 BenchmarkMemo/ReleaseCards/miss-16 B/op 704
 BenchmarkMemo/ReleaseCards/miss-16 allocs/op 21
-BenchmarkMemo/MoodKeys/hit-16 ns/op 3.319 3.321 3.324 3.335 3.356 3.329
+BenchmarkMemo/MoodKeys/hit-16 ns/op 3.723 3.673 3.708 3.727 3.731 3.634
 BenchmarkMemo/MoodKeys/hit-16 B/op 0
 BenchmarkMemo/MoodKeys/hit-16 allocs/op 0
-BenchmarkMemo/MoodKeys/miss-16 ns/op 182.3 167.1 164.5 166.6 165.1 164.0
+BenchmarkMemo/MoodKeys/miss-16 ns/op 195.8 182.5 185.2 187.3 182.2 182.1
 BenchmarkMemo/MoodKeys/miss-16 B/op 384
 BenchmarkMemo/MoodKeys/miss-16 allocs/op 13
-BenchmarkMemo/LikedLine/hit-16 ns/op 1.931 2.030 2.001 1.933 1.980 1.994
+BenchmarkMemo/LikedLine/hit-16 ns/op 3.138 2.634 2.734 2.644 2.397 2.579
 BenchmarkMemo/LikedLine/hit-16 B/op 0
 BenchmarkMemo/LikedLine/hit-16 allocs/op 0
-BenchmarkMemo/LikedLine/miss-16 ns/op 14041 13955 13898 13726 13634 13829
+BenchmarkMemo/LikedLine/miss-16 ns/op 14309 14886 15212 15188 15351 15852
 BenchmarkMemo/LikedLine/miss-16 B/op 960
 BenchmarkMemo/LikedLine/miss-16 allocs/op 16
-BenchmarkMemo/PlaylistCards/hit-16 ns/op 1.967 1.970 1.944 1.941 1.873 1.983
+BenchmarkMemo/PlaylistCards/hit-16 ns/op 2.181 2.244 2.350 2.835 2.773 2.885
 BenchmarkMemo/PlaylistCards/hit-16 B/op 0
 BenchmarkMemo/PlaylistCards/hit-16 allocs/op 0
-BenchmarkMemo/PlaylistCards/miss-16 ns/op 4650 4797 4704 4639 4659 4688
+BenchmarkMemo/PlaylistCards/miss-16 ns/op 7354 7218 7865 8484 8411 7987
 BenchmarkMemo/PlaylistCards/miss-16 B/op 6776
 BenchmarkMemo/PlaylistCards/miss-16 allocs/op 106
-BenchmarkMemo/AlbumCards/hit-16 ns/op 3.620 4.101 3.570 3.697 3.486 3.429
+BenchmarkMemo/AlbumCards/hit-16 ns/op 6.098 5.858 5.970 5.704 5.980 5.829
 BenchmarkMemo/AlbumCards/hit-16 B/op 0
 BenchmarkMemo/AlbumCards/hit-16 allocs/op 0
-BenchmarkMemo/AlbumCards/miss-16 ns/op 422.0 430.6 432.4 435.2 430.2 452.4
+BenchmarkMemo/AlbumCards/miss-16 ns/op 725.4 763.9 681.2 647.0 622.4 621.3
 BenchmarkMemo/AlbumCards/miss-16 B/op 736
 BenchmarkMemo/AlbumCards/miss-16 allocs/op 31
-BenchmarkMemo/ArtistCards/hit-16 ns/op 3.635 3.468 3.398 3.512 3.412 3.466
+BenchmarkMemo/ArtistCards/hit-16 ns/op 4.724 4.466 4.421 4.305 4.116 3.993
 BenchmarkMemo/ArtistCards/hit-16 B/op 0
 BenchmarkMemo/ArtistCards/hit-16 allocs/op 0
-BenchmarkMemo/ArtistCards/miss-16 ns/op 358.1 359.4 355.1 358.3 363.0 380.8
+BenchmarkMemo/ArtistCards/miss-16 ns/op 418.0 407.3 403.3 416.6 417.7 389.3
 BenchmarkMemo/ArtistCards/miss-16 B/op 480
 BenchmarkMemo/ArtistCards/miss-16 allocs/op 11
-BenchmarkMemo/TypedText/hit-16 ns/op 2.787 2.747 2.734 2.786 2.787 2.623
+BenchmarkMemo/TypedText/hit-16 ns/op 2.950 2.829 2.741 2.861 2.799 2.863
 BenchmarkMemo/TypedText/hit-16 B/op 0
 BenchmarkMemo/TypedText/hit-16 allocs/op 0
-BenchmarkMemo/TypedText/miss-16 ns/op 62.81 63.07 62.08 64.67 62.88 63.79
+BenchmarkMemo/TypedText/miss-16 ns/op 65.70 65.54 69.32 66.42 65.42 65.81
 BenchmarkMemo/TypedText/miss-16 B/op 64
 BenchmarkMemo/TypedText/miss-16 allocs/op 2
-BenchmarkMemo/FoundText/hit-16 ns/op 4.264 4.289 4.341 4.351 4.315 4.281
+BenchmarkMemo/FoundText/hit-16 ns/op 4.454 4.539 4.401 4.443 4.436 4.331
 BenchmarkMemo/FoundText/hit-16 B/op 0
 BenchmarkMemo/FoundText/hit-16 allocs/op 0
-BenchmarkMemo/FoundText/miss-16 ns/op 446.4 443.9 477.1 447.8 443.1 441.9
+BenchmarkMemo/FoundText/miss-16 ns/op 479.6 503.1 486.3 488.2 501.1 506.7
 BenchmarkMemo/FoundText/miss-16 B/op 752
 BenchmarkMemo/FoundText/miss-16 allocs/op 32
-BenchmarkMemo/HoldsCurrent/hit-16 ns/op 3.126 3.053 3.221 3.210 3.316 3.301
+BenchmarkMemo/HoldsCurrent/hit-16 ns/op 6.821 6.680 6.671 6.748 6.947 6.848
 BenchmarkMemo/HoldsCurrent/hit-16 B/op 0
 BenchmarkMemo/HoldsCurrent/hit-16 allocs/op 0
-BenchmarkMemo/HoldsCurrent/miss-16 ns/op 14.95 15.27 15.18 14.95 15.05 14.96
+BenchmarkMemo/HoldsCurrent/miss-16 ns/op 48.54 48.75 47.34 47.02 46.75 47.22
 BenchmarkMemo/HoldsCurrent/miss-16 B/op 0
 BenchmarkMemo/HoldsCurrent/miss-16 allocs/op 0
-BenchmarkMemo/RowText/hit-16 ns/op 9.712 9.350 9.438 9.628 9.649 9.653
+BenchmarkMemo/RowText/hit-16 ns/op 10.26 10.15 10.30 9.884 10.11 9.997
 BenchmarkMemo/RowText/hit-16 B/op 0
 BenchmarkMemo/RowText/hit-16 allocs/op 0
-BenchmarkMemo/RowText/miss-16 ns/op 149.6 149.3 161.4 151.9 150.4 148.9
+BenchmarkMemo/RowText/miss-16 ns/op 173.0 177.5 180.6 179.1 191.8 197.3
 BenchmarkMemo/RowText/miss-16 B/op 424
 BenchmarkMemo/RowText/miss-16 allocs/op 6
-BenchmarkMemo/CachedCollection/album/hit-16 ns/op 10.52 10.53 10.49 10.67 11.20 10.55
+BenchmarkMemo/CachedCollection/album/hit-16 ns/op 13.12 13.75 13.96 14.01 14.05 13.49
 BenchmarkMemo/CachedCollection/album/hit-16 B/op 0
 BenchmarkMemo/CachedCollection/album/hit-16 allocs/op 0
-BenchmarkMemo/CachedCollection/album/miss-16 ns/op 13068 13273 13094 13019 13078 12962
-BenchmarkMemo/CachedCollection/album/miss-16 B/op 66182 66182 66182 66182 66181 66181
+BenchmarkMemo/CachedCollection/album/miss-16 ns/op 17976 16828 16840 17053 18095 17791
+BenchmarkMemo/CachedCollection/album/miss-16 B/op 66177
 BenchmarkMemo/CachedCollection/album/miss-16 allocs/op 35
-BenchmarkMemo/CachedCollection/playlist/hit-16 ns/op 10.60 10.49 10.60 10.61 10.52 10.58
+BenchmarkMemo/CachedCollection/playlist/hit-16 ns/op 14.14 14.14 14.06 13.44 13.20 12.86
 BenchmarkMemo/CachedCollection/playlist/hit-16 B/op 0
 BenchmarkMemo/CachedCollection/playlist/hit-16 allocs/op 0
-BenchmarkMemo/CachedCollection/playlist/miss-16 ns/op 1263 1288 1289 1319 1303 1327
+BenchmarkMemo/CachedCollection/playlist/miss-16 ns/op 1519 1533 1481 1469 1507 1577
 BenchmarkMemo/CachedCollection/playlist/miss-16 B/op 1968
 BenchmarkMemo/CachedCollection/playlist/miss-16 allocs/op 21
 
 pkg: yt-music-player/internal/account
-BenchmarkFetch/profile-16 ns/op 378.1 373.5 382.2 367.6 392.5 368.8
+BenchmarkFetch/profile-16 ns/op 499.9 500.7 463.1 478.2 460.6 450.0
 BenchmarkFetch/profile-16 B/op 376
 BenchmarkFetch/profile-16 allocs/op 7
-BenchmarkFetch/library-16 ns/op 1737 1678 1653 1705 1663 1667
+BenchmarkFetch/library-16 ns/op 1919 1901 2007 1860 1835 1858
 BenchmarkFetch/library-16 B/op 5096
 BenchmarkFetch/library-16 allocs/op 18
-BenchmarkFetch/liked-16 ns/op 942.8 941.0 958.7 1006 951.6 958.1
-BenchmarkFetch/liked-16 B/op 904
-BenchmarkFetch/liked-16 allocs/op 9
-BenchmarkFetch/liked/2000-16 ns/op 5563 5524 5450 5629 5667 5933
-BenchmarkFetch/liked/2000-16 B/op 33192
-BenchmarkFetch/liked/2000-16 allocs/op 8
-BenchmarkLike-16 ns/op 352.4 353.1 382.0 359.9 359.7 360.9
+BenchmarkFetch/liked-16 ns/op 1042 1039 1019 1020 1016 1022
+BenchmarkFetch/liked-16 B/op 968
+BenchmarkFetch/liked-16 allocs/op 10
+BenchmarkFetch/liked/2000-16 ns/op 8858 10537 9234 9167 9193 9363
+BenchmarkFetch/liked/2000-16 B/op 65960
+BenchmarkFetch/liked/2000-16 allocs/op 9
+BenchmarkLike-16 ns/op 383.1 380.7 383.2 393.5 384.9 382.0
 BenchmarkLike-16 B/op 304
 BenchmarkLike-16 allocs/op 4
-BenchmarkCleanCredentials-16 ns/op 2357 2379 2326 2360 2362 2346
-BenchmarkCleanCredentials-16 MB/s 832.67 825.00 844.05 831.74 830.94 836.83
+BenchmarkLatest-16 ns/op 3226 3083 3164 3050 3143 3084
+BenchmarkLatest-16 B/op 32880
+BenchmarkLatest-16 allocs/op 2
+BenchmarkKeepLike-16 ns/op 9030 9110 9007 9131 9140 9048
+BenchmarkKeepLike-16 B/op 0
+BenchmarkKeepLike-16 allocs/op 0
+
+pkg: yt-music-player/internal/api
+BenchmarkEncode/state-16 ns/op 283.7 275.0 280.5 281.5 278.4 276.8
+BenchmarkEncode/state-16 MB/s 165.70 170.90 167.57 166.95 168.81 169.81
+BenchmarkEncode/state-16 B/op 0
+BenchmarkEncode/state-16 allocs/op 0
+BenchmarkEncode/queue-5000-16 ns/op 436430 450850 431999 441091 438468 449834
+BenchmarkEncode/queue-5000-16 MB/s 921.68 892.20 931.13 911.94 917.40 894.22
+BenchmarkEncode/queue-5000-16 B/op 0
+BenchmarkEncode/queue-5000-16 allocs/op 0
+BenchmarkEncode/playlist-5000-16 ns/op 447860 454893 456301 458034 453511 436267
+BenchmarkEncode/playlist-5000-16 MB/s 898.22 884.33 881.60 878.27 887.03 922.09
+BenchmarkEncode/playlist-5000-16 B/op 0
+BenchmarkEncode/playlist-5000-16 allocs/op 0
+BenchmarkValidate-16 ns/op 6.656 6.563 6.683 6.713 6.723 6.702
+BenchmarkValidate-16 B/op 0
+BenchmarkValidate-16 allocs/op 0
+BenchmarkCleanCredentials-16 ns/op 2495 2540 2472 2455 2584 2476
+BenchmarkCleanCredentials-16 MB/s 786.69 772.75 794.17 799.58 759.80 792.72
 BenchmarkCleanCredentials-16 B/op 2048
 BenchmarkCleanCredentials-16 allocs/op 1
 
 pkg: yt-music-player/internal/artwork
-BenchmarkBucket/96-16 ns/op 2.749 2.738 2.753 2.732 2.741 2.751
+BenchmarkBucket/96-16 ns/op 2.877 2.833 2.854 2.829 2.882 2.873
 BenchmarkBucket/96-16 B/op 0
 BenchmarkBucket/96-16 allocs/op 0
-BenchmarkBucket/336-16 ns/op 4.001 3.569 3.755 3.855 3.877 3.917
+BenchmarkBucket/336-16 ns/op 3.977 3.993 3.925 4.105 4.024 4.147
 BenchmarkBucket/336-16 B/op 0
 BenchmarkBucket/336-16 allocs/op 0
-BenchmarkBucket/2000-16 ns/op 7.254 7.379 7.056 6.954 6.942 7.292
+BenchmarkBucket/2000-16 ns/op 7.369 7.651 7.510 7.578 7.531 7.194
 BenchmarkBucket/2000-16 B/op 0
 BenchmarkBucket/2000-16 allocs/op 0
-BenchmarkSizedURL/google-16 ns/op 284.5 282.8 282.5 279.9 280.8 287.2
+BenchmarkSizedURL/google-16 ns/op 322.5 295.9 303.8 306.4 306.2 302.2
 BenchmarkSizedURL/google-16 B/op 224
 BenchmarkSizedURL/google-16 allocs/op 2
-BenchmarkSizedURL/ytimg-16 ns/op 192.9 195.4 193.4 202.5 192.1 196.0
+BenchmarkSizedURL/ytimg-16 ns/op 206.9 208.9 213.4 211.8 210.7 215.4
 BenchmarkSizedURL/ytimg-16 B/op 192
 BenchmarkSizedURL/ytimg-16 allocs/op 2
-BenchmarkSizedURL/ytimg_signed-16 ns/op 145.8 152.8 146.6 145.7 145.4 147.5
+BenchmarkSizedURL/ytimg_signed-16 ns/op 158.3 157.3 158.0 157.9 162.2 156.7
 BenchmarkSizedURL/ytimg_signed-16 B/op 144
 BenchmarkSizedURL/ytimg_signed-16 allocs/op 1
-BenchmarkSizedURL/other-16 ns/op 109.8 116.6 110.7 113.7 109.2 109.6
+BenchmarkSizedURL/other-16 ns/op 117.9 117.2 117.6 117.5 123.6 118.4
 BenchmarkSizedURL/other-16 B/op 144
 BenchmarkSizedURL/other-16 allocs/op 1
-BenchmarkDecode/jpeg/544-16 ns/op 4329083 4255885 4256557 4268305 4268744 4282357
-BenchmarkDecode/jpeg/544-16 MB/s 20.08 20.43 20.43 20.37 20.37 20.30
-BenchmarkDecode/jpeg/544-16 B/op 2174160 2174164 2174168 2174160 2174164 2174172
+BenchmarkDecode/jpeg/544-16 ns/op 4502046 4516685 4457474 4459523 4436099 4405998
+BenchmarkDecode/jpeg/544-16 MB/s 19.31 19.25 19.51 19.50 19.60 19.73
+BenchmarkDecode/jpeg/544-16 B/op 2174160 2174164 2174168 2174164 2174160 2174160
 BenchmarkDecode/jpeg/544-16 allocs/op 17
-BenchmarkDecode/jpeg/1200-16 ns/op 18800333 18014535 17883076 18023715 17952396 18171465
-BenchmarkDecode/jpeg/1200-16 MB/s 21.66 22.61 22.77 22.60 22.69 22.41
-BenchmarkDecode/jpeg/1200-16 B/op 9907525 9907488 9907525 9907506 9907488 9907506
+BenchmarkDecode/jpeg/1200-16 ns/op 19130688 18946729 19790896 19609875 19413924 20305983
+BenchmarkDecode/jpeg/1200-16 MB/s 21.29 21.50 20.58 20.77 20.98 20.06
+BenchmarkDecode/jpeg/1200-16 B/op 9907488
 BenchmarkDecode/jpeg/1200-16 allocs/op 20
-BenchmarkDecode/png/544-16 ns/op 6531893 6554951 6545289 6469157 6536280 6954907
-BenchmarkDecode/png/544-16 MB/s 60.89 60.67 60.76 61.48 60.85 57.19
-BenchmarkDecode/png/544-16 B/op 2959654 2959653 2959647 2959653 2959653 2959672
+BenchmarkDecode/png/544-16 ns/op 7452887 7359586 7329885 7282239 7079341 7248567
+BenchmarkDecode/png/544-16 MB/s 53.36 54.04 54.26 54.62 56.18 54.87
+BenchmarkDecode/png/544-16 B/op 2959656 2959654 2959661 2959654 2959650 2959677
 BenchmarkDecode/png/544-16 allocs/op 192
-BenchmarkDecode/png/1200-16 ns/op 28327958 27975802 27669364 27759812 28420719 28616396
-BenchmarkDecode/png/1200-16 MB/s 63.33 64.12 64.83 64.62 63.12 62.69
-BenchmarkDecode/png/1200-16 B/op 13615696 13615724 13615696 13615696 13615724 13615696
-BenchmarkDecode/png/1200-16 allocs/op 586
-BenchmarkDecode/webp/544-16 ns/op 7634786 7711098 7675683 7607077 7624438 7676467
-BenchmarkDecode/webp/544-16 MB/s 5.96 5.90 5.93 5.98 5.97 5.93
-BenchmarkDecode/webp/544-16 B/op 2211792 2211792 2211792 2211792 2211792 2211800
+BenchmarkDecode/png/1200-16 ns/op 31028198 31926167 31194479 30346073 30977125 30421344
+BenchmarkDecode/png/1200-16 MB/s 57.82 56.19 57.51 59.12 57.91 58.97
+BenchmarkDecode/png/1200-16 B/op 13615696 13615808 13615696 13615696 13615724 13615724
+BenchmarkDecode/png/1200-16 allocs/op 586 587 586 586 586 586
+BenchmarkDecode/webp/544-16 ns/op 8466894 8217429 8423039 8560462 8408766 8435607
+BenchmarkDecode/webp/544-16 MB/s 5.38 5.54 5.40 5.32 5.41 5.40
+BenchmarkDecode/webp/544-16 B/op 2211792
 BenchmarkDecode/webp/544-16 allocs/op 28
-BenchmarkDecode/webp/1200-16 ns/op 33174688 33268552 33237344 34015972 33848597 32778562
-BenchmarkDecode/webp/1200-16 MB/s 6.25 6.23 6.23 6.09 6.12 6.32
-BenchmarkDecode/webp/1200-16 B/op 10123436 10123424 10123424 10123461 10123498 10123452
+BenchmarkDecode/webp/1200-16 ns/op 37353611 36336403 36790153 36174125 35109389 35810139
+BenchmarkDecode/webp/1200-16 MB/s 5.55 5.70 5.63 5.73 5.90 5.79
+BenchmarkDecode/webp/1200-16 B/op 10123424 10123461 10123424 10123461 10123424 10123424
 BenchmarkDecode/webp/1200-16 allocs/op 30
-BenchmarkShrink/544-16 ns/op 892624 886106 887287 911809 891690 885331
-BenchmarkShrink/544-16 B/op 499776
+BenchmarkShrink/544-16 ns/op 969185 996219 1002170 1012716 1008862 970246
+BenchmarkShrink/544-16 B/op 499776 499777 499776 499776 499776 499777
 BenchmarkShrink/544-16 allocs/op 2
-BenchmarkShrink/1200-16 ns/op 2064766 1974156 2028292 2019477 1970944 2017893
-BenchmarkShrink/1200-16 B/op 1941632 1941632 1941634 1941632 1941632 1941633
+BenchmarkShrink/1200-16 ns/op 2195342 2299096 2261064 2225100 2255199 2342944
+BenchmarkShrink/1200-16 B/op 1941632 1941634 1941632 1941632 1941632 1941632
 BenchmarkShrink/1200-16 allocs/op 4
-BenchmarkAverage-16 ns/op 66230 65230 69600 65420 66058 65969
-BenchmarkAverage-16 MB/s 7483.28 7597.92 7120.96 7575.86 7502.78 7512.83
+BenchmarkAverage-16 ns/op 77200 77413 80084 80068 81010 81007
+BenchmarkAverage-16 MB/s 6419.87 6402.26 6188.71 6189.94 6117.97 6118.17
 BenchmarkAverage-16 B/op 0
 BenchmarkAverage-16 allocs/op 0
-BenchmarkTrimBars/letterbox-16 ns/op 406.3 406.9 406.1 404.8 406.8 405.0
+BenchmarkTrimBars/letterbox-16 ns/op 504.7 507.3 569.8 542.4 536.6 567.6
 BenchmarkTrimBars/letterbox-16 B/op 0
 BenchmarkTrimBars/letterbox-16 allocs/op 0
-BenchmarkTrimBars/square-16 ns/op 1.834 1.854 1.808 1.817 1.846 1.809
+BenchmarkTrimBars/square-16 ns/op 2.617 2.437 2.401 2.480 2.289 2.214
 BenchmarkTrimBars/square-16 B/op 0
 BenchmarkTrimBars/square-16 allocs/op 0
-BenchmarkGet/hit-16 ns/op 20.74 20.59 20.57 20.54 20.61 20.95
+BenchmarkGet/hit-16 ns/op 25.39 24.24 23.41 23.48 23.56 23.69
 BenchmarkGet/hit-16 B/op 0
 BenchmarkGet/hit-16 allocs/op 0
-BenchmarkGet/loading-16 ns/op 30.24 30.04 30.90 30.44 28.72 29.86
+BenchmarkGet/loading-16 ns/op 33.38 33.63 34.56 35.07 34.08 34.99
 BenchmarkGet/loading-16 B/op 0
 BenchmarkGet/loading-16 allocs/op 0
-BenchmarkGet/other_size-16 ns/op 44.49 44.87 48.00 45.43 43.71 44.18
+BenchmarkGet/other_size-16 ns/op 49.94 48.95 48.61 47.21 47.08 46.81
 BenchmarkGet/other_size-16 B/op 0
 BenchmarkGet/other_size-16 allocs/op 0
-BenchmarkNextFrame/24-16 ns/op 490.2 492.8 509.1 492.1 485.7 532.8
+BenchmarkNextFrame/24-16 ns/op 548.1 529.7 496.4 534.8 532.6 561.1
 BenchmarkNextFrame/24-16 B/op 0
 BenchmarkNextFrame/24-16 allocs/op 0
-BenchmarkNextFrame/200_over_budget-16 ns/op 4384 4335 4718 5172 9129 9756
+BenchmarkNextFrame/200_over_budget-16 ns/op 4764 4971 4714 4606 4546 4596
 BenchmarkNextFrame/200_over_budget-16 B/op 0
 BenchmarkNextFrame/200_over_budget-16 allocs/op 0
-BenchmarkFinish-16 ns/op 415.2 395.3 527.8 367.5 190.6 156.3
+BenchmarkFinish-16 ns/op 145.7 148.8 150.4 148.3 147.6 150.6
 BenchmarkFinish-16 B/op 136
 BenchmarkFinish-16 allocs/op 3
-BenchmarkFetch/disk-16 ns/op 32205 28533 26192 30526 26405 25574
+BenchmarkFetch/disk-16 ns/op 26168 27274 26587 27511 29170 27085
 BenchmarkFetch/disk-16 B/op 90904
 BenchmarkFetch/disk-16 allocs/op 9
-BenchmarkFetch/shared_download-16 ns/op 36.20 38.61 36.74 40.95 35.52 35.84
+BenchmarkFetch/shared_download-16 ns/op 37.08 37.36 36.65 36.68 36.97 36.89
 BenchmarkFetch/shared_download-16 B/op 0
 BenchmarkFetch/shared_download-16 allocs/op 0
-BenchmarkLoad-16 ns/op 4542293 4329549 4343343 4396210 4375252 4357372
-BenchmarkLoad-16 MB/s 19.14 20.08 20.02 19.78 19.87 19.95
-BenchmarkLoad-16 B/op 2266041 2266031 2266037 2266031 2266032 2266035
+BenchmarkLoad-16 ns/op 4492290 4486825 4550627 4421888 4493612 4450082
+BenchmarkLoad-16 MB/s 19.35 19.38 19.11 19.66 19.35 19.54
+BenchmarkLoad-16 B/op 2266032 2266036 2266044 2266038 2266038 2266037
 BenchmarkLoad-16 allocs/op 35
 
 pkg: yt-music-player/internal/audio
-BenchmarkFake/Load-16 ns/op 49.94 49.50 49.51 48.72 51.79 48.67
+BenchmarkFake/Load-16 ns/op 51.83 50.98 51.14 50.49 53.85 54.65
 BenchmarkFake/Load-16 B/op 82
 BenchmarkFake/Load-16 allocs/op 2
-BenchmarkFake/PlayPause-16 ns/op 7.313 7.484 7.843 7.363 7.276 8.194
+BenchmarkFake/PlayPause-16 ns/op 7.868 6.705 7.367 7.960 7.300 7.160
 BenchmarkFake/PlayPause-16 B/op 0
 BenchmarkFake/PlayPause-16 allocs/op 0
-BenchmarkFake/Position-16 ns/op 1.844 1.845 1.838 1.829 1.832 1.835
+BenchmarkFake/Position-16 ns/op 1.897 1.885 1.886 1.930 1.929 1.904
 BenchmarkFake/Position-16 B/op 0
 BenchmarkFake/Position-16 allocs/op 0
-BenchmarkFake/SetInfo-16 ns/op 3.553 3.535 3.544 3.532 3.540 3.539
+BenchmarkFake/SetInfo-16 ns/op 3.665 3.701 3.742 3.640 3.621 3.602
 BenchmarkFake/SetInfo-16 B/op 0
 BenchmarkFake/SetInfo-16 allocs/op 0
-BenchmarkFake/Emit-16 ns/op 3.421 3.457 3.463 3.461 3.446 3.440
+BenchmarkFake/Emit-16 ns/op 3.469 3.497 3.630 3.537 3.512 3.558
 BenchmarkFake/Emit-16 B/op 0
 BenchmarkFake/Emit-16 allocs/op 0
-BenchmarkIsCommand-16 ns/op 1.784 1.787 1.780 1.829 1.845 1.828
+BenchmarkIsCommand-16 ns/op 1.866 1.853 1.856 1.843 1.796 1.846
 BenchmarkIsCommand-16 B/op 0
 BenchmarkIsCommand-16 allocs/op 0
-BenchmarkSourceRead/4MB-16 ns/op 386446 394319 397267 390393 381070 396912
-BenchmarkSourceRead/4MB-16 MB/s 10853.54 10636.83 10557.89 10743.81 11006.65 10567.33
-BenchmarkSourceRead/4MB-16 B/op 4270586 4270701 4270657 4270180 4270062 4270378
-BenchmarkSourceRead/4MB-16 allocs/op 102 102 101 101 101 101
-BenchmarkSourceRead/10min-16 ns/op 887013 884300 867882 884903 860844 907028
-BenchmarkSourceRead/10min-16 MB/s 11821.43 11857.70 12082.01 11849.61 12180.80 11560.57
-BenchmarkSourceRead/10min-16 B/op 10673256 10674278 10673205 10672186 10672923 10672966
-BenchmarkSourceRead/10min-16 allocs/op 233 234 233 232 233 233
-BenchmarkOpusRead-16 ns/op 6272447 6236842 6298970 6112522 6304542 6177349
-BenchmarkOpusRead-16 x-realtime 956.6 962.0 952.5 981.6 951.7 971.3
-BenchmarkOpusRead-16 B/op 11746 11322 11746 11322 11746 11322
-BenchmarkOpusRead-16 allocs/op 9 8 9 8 9 8
-BenchmarkOpusSetPosition-16 ns/op 546.2 560.8 654.7 608.7 651.2 567.9
+BenchmarkSourceRead/4MB-16 ns/op 419277 482835 411584 411907 408571 397168
+BenchmarkSourceRead/4MB-16 MB/s 10003.66 8686.82 10190.63 10182.64 10265.78 10560.54
+BenchmarkSourceRead/4MB-16 B/op 4270019 4271169 4270092 4270828 4270433 4269807
+BenchmarkSourceRead/4MB-16 allocs/op 101 102 101 102 101 101
+BenchmarkSourceRead/10min-16 ns/op 937949 922684 1002944 945973 968909 943851
+BenchmarkSourceRead/10min-16 MB/s 11179.45 11364.41 10454.98 11084.63 10822.23 11109.55
+BenchmarkSourceRead/10min-16 B/op 10672770 10673020 10673770 10673360 10673979 10672501
+BenchmarkSourceRead/10min-16 allocs/op 233 233 233 233 234 232
+BenchmarkOpusRead-16 ns/op 6542995 6456579 6457544 6461306 6473701 6398659
+BenchmarkOpusRead-16 x-realtime 917.0 929.3 929.1 928.6 926.8 937.7
+BenchmarkOpusRead-16 B/op 12755 11746 11746 11746 11746 12755
+BenchmarkOpusRead-16 allocs/op 9
+BenchmarkOpusSetPosition-16 ns/op 612.5 605.9 613.1 682.7 615.4 633.0
 BenchmarkOpusSetPosition-16 B/op 3680
 BenchmarkOpusSetPosition-16 allocs/op 5
 
 pkg: yt-music-player/internal/auth
-BenchmarkParse/value-16 ns/op 3002 2941 3052 3015 3211 2986
-BenchmarkParse/value-16 MB/s 566.88 578.72 557.58 564.56 530.02 570.05
+BenchmarkParse/value-16 ns/op 3157 3135 3146 3111 3197 3309
+BenchmarkParse/value-16 MB/s 539.08 542.95 540.95 547.14 532.40 514.38
 BenchmarkParse/value-16 B/op 3640
 BenchmarkParse/value-16 allocs/op 7
-BenchmarkParse/cookie_line-16 ns/op 2967 2938 2919 2899 2935 2881
-BenchmarkParse/cookie_line-16 MB/s 576.37 582.12 585.88 589.95 582.69 593.49
+BenchmarkParse/cookie_line-16 ns/op 3128 3054 3082 3060 3078 3045
+BenchmarkParse/cookie_line-16 MB/s 546.70 560.00 554.81 558.77 555.63 561.65
 BenchmarkParse/cookie_line-16 B/op 3640
 BenchmarkParse/cookie_line-16 allocs/op 7
-BenchmarkParse/chrome-16 ns/op 3443 3435 3458 3765 3465 3427
-BenchmarkParse/chrome-16 MB/s 724.86 726.68 721.89 662.91 720.42 728.33
+BenchmarkParse/chrome-16 ns/op 3559 3807 3848 3671 3796 3629
+BenchmarkParse/chrome-16 MB/s 701.34 655.60 648.73 679.90 657.59 687.73
 BenchmarkParse/chrome-16 B/op 3592
 BenchmarkParse/chrome-16 allocs/op 6
-BenchmarkParse/chrome_lines-16 ns/op 3558 3551 3577 3556 3507 3524
-BenchmarkParse/chrome_lines-16 MB/s 534.88 535.92 532.06 535.18 542.59 540.05
+BenchmarkParse/chrome_lines-16 ns/op 3716 3729 3710 3721 3780 3816
+BenchmarkParse/chrome_lines-16 MB/s 512.09 510.28 512.96 511.47 503.46 498.75
 BenchmarkParse/chrome_lines-16 B/op 3592
 BenchmarkParse/chrome_lines-16 allocs/op 6
-BenchmarkParse/firefox-16 ns/op 3425 3463 3612 3444 3413 3446
-BenchmarkParse/firefox-16 MB/s 707.17 699.43 670.47 703.17 709.62 702.81
+BenchmarkParse/firefox-16 ns/op 3573 3636 3710 3844 3657 3649
+BenchmarkParse/firefox-16 MB/s 677.83 666.10 652.82 630.03 662.26 663.70
 BenchmarkParse/firefox-16 B/op 3592
 BenchmarkParse/firefox-16 allocs/op 6
-BenchmarkParse/safari-16 ns/op 3188 3220 3241 3204 3193 3285
-BenchmarkParse/safari-16 MB/s 676.58 669.93 665.60 673.32 675.50 656.64
+BenchmarkParse/safari-16 ns/op 3337 3477 3332 3301 3375 3398
+BenchmarkParse/safari-16 MB/s 646.43 620.31 647.30 653.46 639.14 634.70
 BenchmarkParse/safari-16 B/op 3592
 BenchmarkParse/safari-16 allocs/op 6
-BenchmarkParse/curl-16 ns/op 3534 3295 3216 3294 3221 3253
-BenchmarkParse/curl-16 MB/s 626.81 672.25 688.81 672.40 687.72 680.94
+BenchmarkParse/curl-16 ns/op 3474 3696 3424 3500 3546 3501
+BenchmarkParse/curl-16 MB/s 637.56 599.28 646.83 632.88 624.57 632.68
 BenchmarkParse/curl-16 B/op 5384
 BenchmarkParse/curl-16 allocs/op 7
-BenchmarkParse/browser_json-16 ns/op 4791 5025 4803 4865 4870 5129
-BenchmarkParse/browser_json-16 MB/s 412.26 393.03 411.23 405.98 405.54 385.09
-BenchmarkParse/browser_json-16 B/op 7950 7950 7952 7950 7950 7949
+BenchmarkParse/browser_json-16 ns/op 5111 5135 5120 5038 5040 5392
+BenchmarkParse/browser_json-16 MB/s 386.43 384.61 385.75 392.02 391.84 366.28
+BenchmarkParse/browser_json-16 B/op 7949 7947 7949 7950 7947 7950
 BenchmarkParse/browser_json-16 allocs/op 21
-BenchmarkDecorator-16 ns/op 274.5 273.9 273.0 270.7 274.2 274.8
+BenchmarkDecorator-16 ns/op 291.3 286.5 287.3 290.5 289.0 292.0
 BenchmarkDecorator-16 B/op 144
 BenchmarkDecorator-16 allocs/op 6
-BenchmarkSAPISIDHash-16 ns/op 78.36 78.66 78.58 78.13 81.30 78.73
+BenchmarkSAPISIDHash-16 ns/op 81.71 83.75 83.88 80.99 85.91 80.79
 BenchmarkSAPISIDHash-16 B/op 64
 BenchmarkSAPISIDHash-16 allocs/op 1
-BenchmarkMergeCookies-16 ns/op 31.10 31.23 31.05 33.01 31.25 30.97
+BenchmarkMergeCookies-16 ns/op 30.85 31.80 31.81 30.86 32.70 32.49
 BenchmarkMergeCookies-16 B/op 0
 BenchmarkMergeCookies-16 allocs/op 0
-BenchmarkCookieNames-16 ns/op 876.2 867.0 884.5 906.0 858.7 864.2
+BenchmarkCookieNames-16 ns/op 917.5 910.1 917.8 959.8 916.2 906.1
 BenchmarkCookieNames-16 B/op 1640
 BenchmarkCookieNames-16 allocs/op 7
-BenchmarkSecret-16 ns/op 141.8 143.9 140.8 145.0 148.6 142.0
+BenchmarkSecret-16 ns/op 164.8 157.1 159.8 157.8 157.8 156.2
 BenchmarkSecret-16 B/op 1792
 BenchmarkSecret-16 allocs/op 1
-BenchmarkMemoryStore/load-16 ns/op 6.036 6.319 6.053 6.017 6.074 6.010
+BenchmarkMemoryStore/load-16 ns/op 6.192 6.190 6.185 6.220 6.280 6.385
 BenchmarkMemoryStore/load-16 B/op 0
 BenchmarkMemoryStore/load-16 allocs/op 0
-BenchmarkMemoryStore/save-16 ns/op 5.507 5.466 5.515 5.496 5.472 5.603
+BenchmarkMemoryStore/save-16 ns/op 5.757 5.802 5.740 5.789 5.629 5.663
 BenchmarkMemoryStore/save-16 B/op 0
 BenchmarkMemoryStore/save-16 allocs/op 0
 
+pkg: yt-music-player/internal/autostart
+BenchmarkRender/plist-16 ns/op 242.7 245.0 246.0 244.0 243.4 260.6
+BenchmarkRender/plist-16 B/op 736
+BenchmarkRender/plist-16 allocs/op 3
+BenchmarkRender/plist-escaped-16 ns/op 132.0 134.4 130.2 141.1 132.3 133.8
+BenchmarkRender/plist-escaped-16 B/op 584
+BenchmarkRender/plist-escaped-16 allocs/op 3
+BenchmarkRender/unit-16 ns/op 123.9 121.4 122.7 122.1 120.5 120.5
+BenchmarkRender/unit-16 B/op 160
+BenchmarkRender/unit-16 allocs/op 1
+BenchmarkRender/unit-quoted-16 ns/op 159.4 162.8 160.9 163.1 163.6 159.2
+BenchmarkRender/unit-quoted-16 B/op 176
+BenchmarkRender/unit-quoted-16 allocs/op 1
+BenchmarkEditPath/add/short-16 ns/op 50.71 51.05 51.58 51.68 50.76 53.78
+BenchmarkEditPath/add/short-16 B/op 112
+BenchmarkEditPath/add/short-16 allocs/op 1
+BenchmarkEditPath/remove/short-16 ns/op 153.3 158.4 153.5 156.1 156.9 158.8
+BenchmarkEditPath/remove/short-16 B/op 16
+BenchmarkEditPath/remove/short-16 allocs/op 1
+BenchmarkEditPath/add/long-60-16 ns/op 2508 2580 2521 2564 2591 2529
+BenchmarkEditPath/add/long-60-16 B/op 3072
+BenchmarkEditPath/add/long-60-16 allocs/op 1
+BenchmarkEditPath/remove/long-60-16 ns/op 5988 6019 5899 6054 5828 5883
+BenchmarkEditPath/remove/long-60-16 B/op 5232
+BenchmarkEditPath/remove/long-60-16 allocs/op 8
+
 pkg: yt-music-player/internal/catalog
-BenchmarkNew/18-16 ns/op 516.2 508.0 505.3 504.3 512.0 538.6
+BenchmarkNew/18-16 ns/op 549.9 574.8 549.9 549.1 549.7 542.9
 BenchmarkNew/18-16 B/op 1920
 BenchmarkNew/18-16 allocs/op 11
-BenchmarkNew/5000-16 ns/op 69875 69491 69723 68115 68620 67855
-BenchmarkNew/5000-16 B/op 219417 219420 219416 219417 219417 219418
+BenchmarkNew/5000-16 ns/op 72420 73516 73419 81935 74641 74813
+BenchmarkNew/5000-16 B/op 219417 219417 219416 219416 219417 219417
 BenchmarkNew/5000-16 allocs/op 25
-BenchmarkPlaceholder-16 ns/op 1615 1565 1631 1699 1605 1627
+BenchmarkPlaceholder-16 ns/op 1732 1700 1692 1702 1723 1835
 BenchmarkPlaceholder-16 B/op 9448
 BenchmarkPlaceholder-16 allocs/op 34
-BenchmarkAdd/fresh-16 ns/op 2141 2131 2315 2181 2519 2254
-BenchmarkAdd/fresh-16 B/op 12464 12471 12469 12467 12469 12473
+BenchmarkAdd/fresh-16 ns/op 2292 2249 2360 3209 3331 3545
+BenchmarkAdd/fresh-16 B/op 12470 12472 12472 12479 12472 12476
 BenchmarkAdd/fresh-16 allocs/op 0
-BenchmarkAdd/known-16 ns/op 219.4 220.5 221.6 218.9 219.4 220.7
+BenchmarkAdd/known-16 ns/op 255.5 254.8 248.3 250.0 246.7 244.6
 BenchmarkAdd/known-16 B/op 0
 BenchmarkAdd/known-16 allocs/op 0
-BenchmarkAdd/feed_playlists-16 ns/op 222.4 223.9 224.5 237.9 226.5 225.7
+BenchmarkAdd/feed_playlists-16 ns/op 250.7 277.3 255.0 260.2 251.5 249.9
 BenchmarkAdd/feed_playlists-16 B/op 640
 BenchmarkAdd/feed_playlists-16 allocs/op 1
-BenchmarkAddAlbum-16 ns/op 194.4 195.4 199.5 197.2 193.5 192.0
+BenchmarkAddAlbum-16 ns/op 220.1 233.4 220.5 234.4 215.6 211.5
 BenchmarkAddAlbum-16 B/op 192
 BenchmarkAddAlbum-16 allocs/op 1
-BenchmarkSearch/18/hit-16 ns/op 502.5 510.4 527.3 517.0 504.3 504.2
+BenchmarkSearch/18/hit-16 ns/op 563.9 557.1 555.9 557.9 561.2 571.7
 BenchmarkSearch/18/hit-16 B/op 416
 BenchmarkSearch/18/hit-16 allocs/op 3
-BenchmarkSearch/18/miss-16 ns/op 478.0 486.7 474.2 464.8 473.5 464.8
+BenchmarkSearch/18/miss-16 ns/op 492.0 496.6 492.9 495.3 497.7 495.4
 BenchmarkSearch/18/miss-16 B/op 0
 BenchmarkSearch/18/miss-16 allocs/op 0
-BenchmarkSearch/18/blank-16 ns/op 4.972 5.027 5.007 4.957 4.965 4.976
+BenchmarkSearch/18/blank-16 ns/op 5.105 5.159 5.216 5.076 5.084 5.127
 BenchmarkSearch/18/blank-16 B/op 0
 BenchmarkSearch/18/blank-16 allocs/op 0
-BenchmarkSearch/5000/hit-16 ns/op 100217 99217 97877 97633 97946 104015
-BenchmarkSearch/5000/hit-16 B/op 130496 130496 130496 130496 130496 130497
+BenchmarkSearch/5000/hit-16 ns/op 106428 105840 106378 106494 112998 108120
+BenchmarkSearch/5000/hit-16 B/op 130496
 BenchmarkSearch/5000/hit-16 allocs/op 11
-BenchmarkSearch/5000/miss-16 ns/op 94592 95902 94320 94455 96312 96014
+BenchmarkSearch/5000/miss-16 ns/op 102058 102325 101653 101034 99860 101095
 BenchmarkSearch/5000/miss-16 B/op 0
 BenchmarkSearch/5000/miss-16 allocs/op 0
-BenchmarkSearch/5000/blank-16 ns/op 4.899 4.890 4.903 4.918 5.024 4.961
+BenchmarkSearch/5000/blank-16 ns/op 5.087 5.091 5.107 5.124 5.097 5.065
 BenchmarkSearch/5000/blank-16 B/op 0
 BenchmarkSearch/5000/blank-16 allocs/op 0
-BenchmarkSong/hit-16 ns/op 7.261 7.291 7.287 7.145 7.211 7.205
+BenchmarkSong/hit-16 ns/op 7.733 7.656 7.447 7.349 7.437 7.444
 BenchmarkSong/hit-16 B/op 0
 BenchmarkSong/hit-16 allocs/op 0
-BenchmarkSong/miss-16 ns/op 7.784 7.780 7.765 8.314 7.838 7.802
+BenchmarkSong/miss-16 ns/op 7.640 7.574 7.676 7.496 7.444 7.422
 BenchmarkSong/miss-16 B/op 0
 BenchmarkSong/miss-16 allocs/op 0
-BenchmarkSongsByID/10-16 ns/op 285.3 283.0 284.2 296.0 285.5 290.9
+BenchmarkSongsByID/10-16 ns/op 319.6 338.3 315.6 305.1 311.4 319.2
 BenchmarkSongsByID/10-16 B/op 1152
 BenchmarkSongsByID/10-16 allocs/op 1
-BenchmarkSongsByID/2000-16 ns/op 58495 62852 58391 58284 59416 58826
+BenchmarkSongsByID/2000-16 ns/op 62683 67809 63113 63019 62972 67151
 BenchmarkSongsByID/2000-16 B/op 212992
 BenchmarkSongsByID/2000-16 allocs/op 1
-BenchmarkSongIDs-16 ns/op 15743 15540 15706 15204 15695 16594
+BenchmarkSongIDs-16 ns/op 16191 16661 17210 16329 16593 16496
 BenchmarkSongIDs-16 B/op 81920
 BenchmarkSongIDs-16 allocs/op 1
-BenchmarkAlbumTracks/track_order-16 ns/op 373.0 349.4 354.4 350.1 351.9 348.3
+BenchmarkAlbumTracks/track_order-16 ns/op 380.4 393.1 391.7 427.9 410.7 392.7
 BenchmarkAlbumTracks/track_order-16 B/op 1280
 BenchmarkAlbumTracks/track_order-16 allocs/op 1
-BenchmarkAlbumTracks/catalog_order-16 ns/op 6753 6738 6803 6855 6792 6706
+BenchmarkAlbumTracks/catalog_order-16 ns/op 8100 8001 7896 7632 7601 7556
 BenchmarkAlbumTracks/catalog_order-16 B/op 320
 BenchmarkAlbumTracks/catalog_order-16 allocs/op 2
-BenchmarkAlbum-16 ns/op 7.078 7.084 7.344 7.025 7.149 7.054
+BenchmarkAlbum-16 ns/op 7.554 7.847 7.826 7.757 7.667 7.529
 BenchmarkAlbum-16 B/op 0
 BenchmarkAlbum-16 allocs/op 0
-BenchmarkPlaylist-16 ns/op 7.067 7.092 7.371 7.030 7.072 7.075
+BenchmarkPlaylist-16 ns/op 7.503 7.521 7.681 7.522 7.469 7.556
 BenchmarkPlaylist-16 B/op 0
 BenchmarkPlaylist-16 allocs/op 0
-BenchmarkLibraryPlaylists-16 ns/op 1.789 1.815 1.813 1.805 1.792 1.784
+BenchmarkLibraryPlaylists-16 ns/op 1.871 1.892 1.867 1.852 1.828 1.865
 BenchmarkLibraryPlaylists-16 B/op 0
 BenchmarkLibraryPlaylists-16 allocs/op 0
-BenchmarkAlbumArtists-16 ns/op 538.3 582.3 541.6 553.6 535.3 540.7
+BenchmarkAlbumArtists-16 ns/op 579.9 574.1 577.7 582.2 593.0 612.5
 BenchmarkAlbumArtists-16 B/op 2072
 BenchmarkAlbumArtists-16 allocs/op 8
-BenchmarkSetLibrary-16 ns/op 212.8 212.5 211.1 210.8 213.3 239.7
+BenchmarkSetLibrary-16 ns/op 227.2 240.1 235.3 240.2 232.3 231.1
 BenchmarkSetLibrary-16 B/op 752
 BenchmarkSetLibrary-16 allocs/op 2
-BenchmarkTotalSeconds/18-16 ns/op 5.637 5.889 5.820 5.963 5.813 5.932
+BenchmarkTotalSeconds/18-16 ns/op 6.368 6.377 6.047 6.052 6.151 6.010
 BenchmarkTotalSeconds/18-16 B/op 0
 BenchmarkTotalSeconds/18-16 allocs/op 0
-BenchmarkTotalSeconds/2000-16 ns/op 897.3 906.3 905.7 893.7 929.4 898.3
+BenchmarkTotalSeconds/2000-16 ns/op 909.6 905.1 908.4 909.3 921.6 924.5
 BenchmarkTotalSeconds/2000-16 B/op 0
 BenchmarkTotalSeconds/2000-16 allocs/op 0
-BenchmarkPlaceholderSource/Search-16 ns/op 517.2 525.4 534.3 527.9 504.6 503.0
+BenchmarkPlaceholderSource/Search-16 ns/op 530.6 529.5 565.4 533.1 528.2 536.1
 BenchmarkPlaceholderSource/Search-16 B/op 416
 BenchmarkPlaceholderSource/Search-16 allocs/op 3
-BenchmarkPlaceholderSource/Album-16 ns/op 116.5 113.1 126.6 115.3 114.5 115.4
+BenchmarkPlaceholderSource/Album-16 ns/op 118.2 121.1 119.8 123.4 121.3 123.4
 BenchmarkPlaceholderSource/Album-16 B/op 320
 BenchmarkPlaceholderSource/Album-16 allocs/op 2
-BenchmarkPlaceholderSource/Playlist-16 ns/op 204.8 199.5 199.5 200.8 199.2 197.5
+BenchmarkPlaceholderSource/Playlist-16 ns/op 213.4 231.1 215.3 218.2 231.4 218.1
 BenchmarkPlaceholderSource/Playlist-16 B/op 880
 BenchmarkPlaceholderSource/Playlist-16 allocs/op 2
-BenchmarkPlaceholderSource/Playlist/liked-16 ns/op 122.3 130.9 126.3 120.9 122.8 121.6
+BenchmarkPlaceholderSource/Playlist/liked-16 ns/op 129.9 131.4 129.8 131.0 130.2 137.5
 BenchmarkPlaceholderSource/Playlist/liked-16 B/op 480
 BenchmarkPlaceholderSource/Playlist/liked-16 allocs/op 2
-BenchmarkPlaceholderSource/Home-16 ns/op 3932 3850 3967 4020 4266 4644
+BenchmarkPlaceholderSource/Home-16 ns/op 4383 4357 4430 4494 4312 4413
 BenchmarkPlaceholderSource/Home-16 B/op 38096
 BenchmarkPlaceholderSource/Home-16 allocs/op 23
-BenchmarkPlaceholderSource/Explore-16 ns/op 398.5 401.5 381.9 364.4 364.5 365.9
+BenchmarkPlaceholderSource/Explore-16 ns/op 410.4 406.3 436.5 419.8 457.7 430.4
 BenchmarkPlaceholderSource/Explore-16 B/op 2432
 BenchmarkPlaceholderSource/Explore-16 allocs/op 3
-BenchmarkPlaceholderSource/Account-16 ns/op 5.290 5.218 5.221 5.242 5.453 5.244
+BenchmarkPlaceholderSource/Account-16 ns/op 5.383 5.323 5.454 5.530 5.500 5.461
 BenchmarkPlaceholderSource/Account-16 B/op 0
 BenchmarkPlaceholderSource/Account-16 allocs/op 0
-BenchmarkPlaceholderSource/Library-16 ns/op 662.0 678.4 783.2 696.6 672.7 690.7
+BenchmarkPlaceholderSource/Library-16 ns/op 764.9 779.4 885.3 816.9 794.4 787.3
 BenchmarkPlaceholderSource/Library-16 B/op 4688
 BenchmarkPlaceholderSource/Library-16 allocs/op 11
-BenchmarkPlaceholderSource/Like-16 ns/op 30.69 30.70 30.69 30.54 30.34 30.39
+BenchmarkPlaceholderSource/Like-16 ns/op 34.86 34.03 33.80 33.85 33.45 33.51
 BenchmarkPlaceholderSource/Like-16 B/op 0
 BenchmarkPlaceholderSource/Like-16 allocs/op 0
+BenchmarkKeepSongs-16 ns/op 232790 228976 227272 232791 240337 234373
+BenchmarkKeepSongs-16 B/op 524292 524293 524290 524292 524292 524290
+BenchmarkKeepSongs-16 allocs/op 1
+
+pkg: yt-music-player/internal/daemon
+BenchmarkDispatch/ping-16 ns/op 109.6 110.8 108.6 107.0 107.7 105.7
+BenchmarkDispatch/ping-16 B/op 80
+BenchmarkDispatch/ping-16 allocs/op 1
+BenchmarkDispatch/toggle-16 ns/op 194.7 201.2 199.1 204.1 215.4 206.8
+BenchmarkDispatch/toggle-16 B/op 240
+BenchmarkDispatch/toggle-16 allocs/op 3
+BenchmarkDispatch/seek-16 ns/op 203.1 199.5 199.3 200.2 199.1 195.2
+BenchmarkDispatch/seek-16 B/op 240
+BenchmarkDispatch/seek-16 allocs/op 3
+BenchmarkDispatch/enqueue-remove/2000-16 ns/op 198307 210329 224126 207477 205142 215468
+BenchmarkDispatch/enqueue-remove/2000-16 B/op 493032 493109 493093 493082 493060 493074
+BenchmarkDispatch/enqueue-remove/2000-16 allocs/op 13
+BenchmarkLikesDiff/added-16 ns/op 75.15 74.22 71.79 74.73 76.37 75.95
+BenchmarkLikesDiff/added-16 B/op 208
+BenchmarkLikesDiff/added-16 allocs/op 2
+BenchmarkLikesDiff/removed-16 ns/op 75.74 85.37 76.71 76.90 76.69 76.09
+BenchmarkLikesDiff/removed-16 B/op 208
+BenchmarkLikesDiff/removed-16 allocs/op 2
+BenchmarkSnapshot-16 ns/op 28253 35274 34308 36742 35144 38846
+BenchmarkSnapshot-16 B/op 245992 245995 245992 245992 245992 245992
+BenchmarkSnapshot-16 allocs/op 6
 
 pkg: yt-music-player/internal/fetchstate
-BenchmarkState/loaded/20-16 ns/op 11.42 11.34 11.19 11.26 10.87 10.99
+BenchmarkState/loaded/20-16 ns/op 12.72 12.55 12.56 12.28 12.31 12.54
 BenchmarkState/loaded/20-16 B/op 0
 BenchmarkState/loaded/20-16 allocs/op 0
-BenchmarkState/idle/20-16 ns/op 9.304 8.970 9.044 9.112 9.501 9.037
+BenchmarkState/idle/20-16 ns/op 10.71 10.48 10.72 10.60 10.58 10.29
 BenchmarkState/idle/20-16 B/op 0
 BenchmarkState/idle/20-16 allocs/op 0
-BenchmarkState/loaded/2000-16 ns/op 11.51 11.42 11.77 11.40 12.48 11.69
+BenchmarkState/loaded/2000-16 ns/op 11.92 12.44 12.71 12.41 12.62 12.40
 BenchmarkState/loaded/2000-16 B/op 0
 BenchmarkState/loaded/2000-16 allocs/op 0
-BenchmarkState/idle/2000-16 ns/op 9.396 9.250 9.114 9.250 9.273 9.159
+BenchmarkState/idle/2000-16 ns/op 11.80 11.37 11.64 11.82 12.09 12.61
 BenchmarkState/idle/2000-16 B/op 0
 BenchmarkState/idle/2000-16 allocs/op 0
-BenchmarkSet-16 ns/op 26.49 26.30 26.51 27.77 26.56 25.65
+BenchmarkSet-16 ns/op 28.45 28.89 28.16 26.45 27.06 27.64
 BenchmarkSet-16 B/op 0
 BenchmarkSet-16 allocs/op 0
 
 pkg: yt-music-player/internal/innertube
-BenchmarkPayload/browse-16 ns/op 677.7 682.4 733.0 690.4 677.1 676.4
-BenchmarkPayload/browse-16 MB/s 213.94 212.48 197.83 210.02 214.15 214.38
+BenchmarkPayload/browse-16 ns/op 727.2 728.6 737.4 751.8 771.6 748.3
+BenchmarkPayload/browse-16 MB/s 199.40 199.02 196.63 192.87 187.91 193.78
 BenchmarkPayload/browse-16 B/op 792
 BenchmarkPayload/browse-16 allocs/op 10
-BenchmarkPayload/continuation-16 ns/op 831.8 843.6 825.8 828.8 831.1 839.6
-BenchmarkPayload/continuation-16 MB/s 562.62 554.76 566.71 564.64 563.09 557.41
-BenchmarkPayload/continuation-16 B/op 1112
+BenchmarkPayload/continuation-16 ns/op 932.1 979.7 953.6 959.2 970.6 994.8
+BenchmarkPayload/continuation-16 MB/s 502.08 477.69 490.76 487.93 482.17 470.43
+BenchmarkPayload/continuation-16 B/op 1112 1112 1112 1113 1112 1112
 BenchmarkPayload/continuation-16 allocs/op 10
-BenchmarkPayload/like-16 ns/op 732.4 790.7 744.1 736.6 730.5 731.4
-BenchmarkPayload/like-16 MB/s 203.45 188.43 200.23 202.29 203.97 203.71
+BenchmarkPayload/like-16 ns/op 936.7 919.7 946.6 945.3 947.1 951.6
+BenchmarkPayload/like-16 MB/s 159.06 162.00 157.41 157.62 157.31 156.58
 BenchmarkPayload/like-16 B/op 784
 BenchmarkPayload/like-16 allocs/op 10
-BenchmarkContext/pinned-16 ns/op 7.099 7.131 7.116 7.083 7.127 7.157
+BenchmarkContext/pinned-16 ns/op 9.032 9.106 9.158 9.179 9.427 9.573
 BenchmarkContext/pinned-16 B/op 0
 BenchmarkContext/pinned-16 allocs/op 0
-BenchmarkContext/dated-16 ns/op 84.09 83.88 83.12 82.76 82.45 81.84
+BenchmarkContext/dated-16 ns/op 106.6 106.8 106.7 101.0 100.2 104.3
 BenchmarkContext/dated-16 B/op 24
 BenchmarkContext/dated-16 allocs/op 2
-BenchmarkNewRequest/anonymous-16 ns/op 367.8 371.5 369.2 365.0 394.8 373.7
+BenchmarkNewRequest/anonymous-16 ns/op 468.1 444.0 441.0 443.3 449.8 438.3
 BenchmarkNewRequest/anonymous-16 B/op 1072
 BenchmarkNewRequest/anonymous-16 allocs/op 13
-BenchmarkNewRequest/visitor-16 ns/op 406.5 405.2 397.8 395.9 397.1 389.7
+BenchmarkNewRequest/visitor-16 ns/op 477.4 460.0 475.7 490.8 460.3 478.5
 BenchmarkNewRequest/visitor-16 B/op 1088
 BenchmarkNewRequest/visitor-16 allocs/op 14
-BenchmarkNewRequest/signed-16 ns/op 832.7 827.2 846.7 901.8 837.4 835.8
+BenchmarkNewRequest/signed-16 ns/op 990.4 990.1 990.9 977.1 1025 988.0
 BenchmarkNewRequest/signed-16 B/op 1960
 BenchmarkNewRequest/signed-16 allocs/op 22
-BenchmarkCall/transport-16 ns/op 10460 10342 10199 10087 10522 11424
-BenchmarkCall/transport-16 MB/s 3449.03 3488.61 3537.42 3576.60 3428.80 3158.20
-BenchmarkCall/transport-16 B/op 92347 92346 92345 92346 92344 92341
+BenchmarkCall/transport-16 ns/op 12059 13607 12722 12950 13359 13208
+BenchmarkCall/transport-16 MB/s 2991.87 2651.36 2835.86 2785.85 2700.74 2731.51
+BenchmarkCall/transport-16 B/op 92340 92340 92343 92341 92343 92345
 BenchmarkCall/transport-16 allocs/op 52
-BenchmarkCall/httptest-16 ns/op 78171 67516 73046 62424 64248 65736
-BenchmarkCall/httptest-16 MB/s 461.52 534.36 493.91 577.95 561.54 548.83
-BenchmarkCall/httptest-16 B/op 106368 106406 106945 106667 107291 106585
-BenchmarkCall/httptest-16 allocs/op 132 132 133 133 133 133
-BenchmarkCall/signed-16 ns/op 65329 67873 71282 69564 68682 69470
-BenchmarkCall/signed-16 MB/s 552.25 531.55 506.13 518.63 525.29 519.34
-BenchmarkCall/signed-16 B/op 108707 108236 108533 108217 108906 108989
-BenchmarkCall/signed-16 allocs/op 149 148 149 149 149 149
-BenchmarkCall/retry-16 ns/op 100229 121713 105170 109122 104830 109953
-BenchmarkCall/retry-16 MB/s 359.95 296.42 343.05 330.62 344.16 328.12
-BenchmarkCall/retry-16 B/op 114965 115234 116297 115837 115854 116103
-BenchmarkCall/retry-16 allocs/op 226 226 226 226 227 226
-BenchmarkAuthSet-16 ns/op 5.925 5.901 5.978 5.903 5.882 5.940
+BenchmarkCall/httptest-16 ns/op 98210 85353 97994 81442 82528 91214
+BenchmarkCall/httptest-16 MB/s 367.36 422.69 368.17 442.99 437.16 395.53
+BenchmarkCall/httptest-16 B/op 106962 106871 105822 106719 106921 106189
+BenchmarkCall/httptest-16 allocs/op 133 133 132 132 133 132
+BenchmarkCall/signed-16 ns/op 97790 87251 101703 86842 95434 86300
+BenchmarkCall/signed-16 MB/s 368.93 413.50 354.74 415.45 378.04 418.05
+BenchmarkCall/signed-16 B/op 107718 109122 108176 108587 108841 108858
+BenchmarkCall/signed-16 allocs/op 148 149 148 149 149 149
+BenchmarkCall/retry-16 ns/op 132767 129365 119222 128661 152557 134367
+BenchmarkCall/retry-16 MB/s 271.74 278.88 302.61 280.41 236.49 268.50
+BenchmarkCall/retry-16 B/op 116052 116281 115160 116968 115641 117317
+BenchmarkCall/retry-16 allocs/op 226 227 226 227 226 227
+BenchmarkAuthSet-16 ns/op 7.169 6.947 7.067 7.018 6.812 6.654
 BenchmarkAuthSet-16 B/op 8
 BenchmarkAuthSet-16 allocs/op 1
-BenchmarkErrorMessage-16 ns/op 430.7 419.7 413.9 415.9 419.8 420.7
-BenchmarkErrorMessage-16 MB/s 471.31 483.71 490.50 488.06 483.55 482.54
+BenchmarkErrorMessage-16 ns/op 456.2 441.5 429.9 438.4 437.4 440.5
+BenchmarkErrorMessage-16 MB/s 444.97 459.83 472.19 463.03 464.14 460.79
 BenchmarkErrorMessage-16 B/op 16
 BenchmarkErrorMessage-16 allocs/op 1
-BenchmarkRetryAfter-16 ns/op 5.233 5.150 5.149 5.112 5.440 5.587
+BenchmarkRetryAfter-16 ns/op 5.343 5.389 5.365 5.299 5.270 5.289
 BenchmarkRetryAfter-16 B/op 0
 BenchmarkRetryAfter-16 allocs/op 0
-BenchmarkAuthSignedIn ns/op 0.5174 0.5185 0.5168 0.5292 0.5163 0.5169
+BenchmarkAuthSignedIn ns/op 0.5833 0.5630 0.5493 0.5674 0.5791 0.5845
 BenchmarkAuthSignedIn B/op 0
 BenchmarkAuthSignedIn allocs/op 0
-BenchmarkAuthSignedIn-4 ns/op 0.1324 0.1335 0.1324 0.1326 0.1315 0.1324
+BenchmarkAuthSignedIn-4 ns/op 0.1504 0.1568 0.1568 0.1644 0.1669 0.1775
 BenchmarkAuthSignedIn-4 B/op 0
 BenchmarkAuthSignedIn-4 allocs/op 0
-BenchmarkAuthSignedIn-16 ns/op 0.04370 0.04591 0.04803 0.05231 0.04831 0.04737
+BenchmarkAuthSignedIn-16 ns/op 0.07338 0.08299 0.1218 0.1068 0.1119 0.1079
 BenchmarkAuthSignedIn-16 B/op 0
 BenchmarkAuthSignedIn-16 allocs/op 0
 
+pkg: yt-music-player/internal/ipc
+BenchmarkRoundTrip/pipe-16 ns/op 2981 3102 3124 3203 3135 3162
+BenchmarkRoundTrip/pipe-16 B/op 280 276 276 276 276 276
+BenchmarkRoundTrip/pipe-16 allocs/op 5
+BenchmarkRoundTrip/unix-16 ns/op 8497 8836 8667 9036 8585 8703
+BenchmarkRoundTrip/unix-16 B/op 283 283 284 284 283 283
+BenchmarkRoundTrip/unix-16 allocs/op 5
+BenchmarkFanout/2-16 ns/op 3438 3519 3536 3366 3549 3681
+BenchmarkFanout/2-16 B/op 396 396 397 396 397 397
+BenchmarkFanout/2-16 allocs/op 8
+
 pkg: yt-music-player/internal/job
-BenchmarkRun-16 ns/op 874.0 464.7 372.1 298.2 307.1 301.5
+BenchmarkRun-16 ns/op 352.5 354.4 375.3 451.7 531.8 530.2
 BenchmarkRun-16 B/op 256
 BenchmarkRun-16 allocs/op 5
-BenchmarkRunning-16 ns/op 1.799 1.789 1.786 1.815 1.814 1.784
+BenchmarkRunning-16 ns/op 3.385 3.012 3.025 3.023 2.917 2.705
 BenchmarkRunning-16 B/op 0
 BenchmarkRunning-16 allocs/op 0
-BenchmarkStop-16 ns/op 1.776 1.788 1.780 1.781 1.814 1.802
+BenchmarkStop-16 ns/op 2.710 2.709 2.710 2.505 2.475 2.466
 BenchmarkStop-16 B/op 0
 BenchmarkStop-16 allocs/op 0
 
 pkg: yt-music-player/internal/loader
-BenchmarkShow/unchanged-16 ns/op 12.16 12.27 12.18 12.05 12.15 12.09
+BenchmarkShow/unchanged-16 ns/op 18.11 19.84 19.87 19.81 20.53 19.75
 BenchmarkShow/unchanged-16 B/op 0
 BenchmarkShow/unchanged-16 allocs/op 0
-BenchmarkShow/fetch-16 ns/op 1023 1067 996.6 1023 1004 990.4
+BenchmarkShow/fetch-16 ns/op 1794 1717 1701 1703 1608 1489
 BenchmarkShow/fetch-16 B/op 816
 BenchmarkShow/fetch-16 allocs/op 10
-BenchmarkFound-16 ns/op 3.504 3.520 3.528 3.529 3.538 3.517
+BenchmarkFound-16 ns/op 5.269 4.880 4.596 4.358 4.311 4.068
 BenchmarkFound-16 B/op 0
 BenchmarkFound-16 allocs/op 0
-BenchmarkSearch/unchanged-16 ns/op 2.102 2.122 2.072 2.058 2.103 2.102
+BenchmarkSearch/unchanged-16 ns/op 2.357 2.283 2.251 2.188 2.137 2.109
 BenchmarkSearch/unchanged-16 B/op 0
 BenchmarkSearch/unchanged-16 allocs/op 0
-BenchmarkSearch/new-16 ns/op 1482 1482 1489 1494 1578 1476
+BenchmarkSearch/new-16 ns/op 1535 1531 1558 1502 1487 1537
 BenchmarkSearch/new-16 B/op 768
 BenchmarkSearch/new-16 allocs/op 9
-BenchmarkKeepHome/feed-16 ns/op 7007 6908 6792 6728 6907 6893
-BenchmarkKeepHome/feed-16 B/op 15089
+BenchmarkKeepHome/feed-16 ns/op 7003 7120 7186 7057 7131 7127
+BenchmarkKeepHome/feed-16 B/op 15089 15090 15089 15089 15089 15089
 BenchmarkKeepHome/feed-16 allocs/op 21
-BenchmarkKeepHome/2000-16 ns/op 112374 111665 111609 112428 113496 112357
-BenchmarkKeepHome/2000-16 B/op 271219 271219 271219 271228 271198 271224
+BenchmarkKeepHome/2000-16 ns/op 117705 119852 124028 118131 118209 117478
+BenchmarkKeepHome/2000-16 B/op 271294 271289 271238 271250 271250 271246
 BenchmarkKeepHome/2000-16 allocs/op 33
-BenchmarkUnique-16 ns/op 86307 78402 80415 79120 79580 80639
+BenchmarkUnique-16 ns/op 84005 83802 84667 84113 87715 85383
 BenchmarkUnique-16 B/op 109216
 BenchmarkUnique-16 allocs/op 9
 
+pkg: yt-music-player/internal/logfile
+BenchmarkWrite/append-16 ns/op 1689 1646 1721 1704 1591 1589
+BenchmarkWrite/append-16 MB/s 75.21 77.13 73.81 74.52 79.82 79.91
+BenchmarkWrite/append-16 B/op 0
+BenchmarkWrite/append-16 allocs/op 0
+BenchmarkWrite/rotate-every-64-16 ns/op 3996 4184 4116 4807 4280 4883
+BenchmarkWrite/rotate-every-64-16 MB/s 31.78 30.35 30.85 26.42 29.67 26.01
+BenchmarkWrite/rotate-every-64-16 B/op 19
+BenchmarkWrite/rotate-every-64-16 allocs/op 0
+BenchmarkLevel-16 ns/op 19.17 19.14 19.05 19.20 19.24 19.38
+BenchmarkLevel-16 B/op 8
+BenchmarkLevel-16 allocs/op 1
+
+pkg: yt-music-player/internal/loop
+BenchmarkPost/queued-16 ns/op 4.591 4.619 4.644 4.546 4.852 4.755
+BenchmarkPost/queued-16 B/op 0
+BenchmarkPost/queued-16 allocs/op 0
+BenchmarkPost/round-trip-16 ns/op 189.5 190.8 185.7 191.6 199.4 191.6
+BenchmarkPost/round-trip-16 B/op 0
+BenchmarkPost/round-trip-16 allocs/op 0
+
 pkg: yt-music-player/internal/noticetext
-BenchmarkRender/plain-16 ns/op 22.24 22.03 21.93 22.81 21.92 22.09
+BenchmarkRender/plain-16 ns/op 23.66 23.42 22.92 23.36 23.18 22.98
 BenchmarkRender/plain-16 B/op 0
 BenchmarkRender/plain-16 allocs/op 0
-BenchmarkRender/counted-16 ns/op 1001 1022 970.5 1001 996.3 984.7
+BenchmarkRender/counted-16 ns/op 1145 1084 1067 1122 1054 1045
 BenchmarkRender/counted-16 B/op 1720
 BenchmarkRender/counted-16 allocs/op 26
-BenchmarkRender/reason-16 ns/op 319.2 321.3 343.7 331.3 320.5 323.1
+BenchmarkRender/reason-16 ns/op 368.3 344.7 345.0 344.4 345.1 368.8
 BenchmarkRender/reason-16 B/op 692
 BenchmarkRender/reason-16 allocs/op 10
 
 pkg: yt-music-player/internal/playback
-BenchmarkFollow/playing-16 ns/op 66.10 64.25 64.39 65.11 66.07 65.42
+BenchmarkFollow/playing-16 ns/op 23.53 23.89 23.51 23.83 23.04 23.34
 BenchmarkFollow/playing-16 B/op 0
 BenchmarkFollow/playing-16 allocs/op 0
-BenchmarkFollow/step-16 ns/op 55.37 55.83 55.10 55.79 54.72 55.21
-BenchmarkFollow/step-16 B/op 0
-BenchmarkFollow/step-16 allocs/op 0
-BenchmarkFollow/paused-16 ns/op 4.814 4.701 4.807 4.831 4.855 4.785
+BenchmarkFollow/paused-16 ns/op 4.360 4.583 4.509 4.532 4.480 4.505
 BenchmarkFollow/paused-16 B/op 0
 BenchmarkFollow/paused-16 allocs/op 0
-BenchmarkIdle/SongLength-16 ns/op 2.043 2.038 2.039 2.024 2.038 2.035
+BenchmarkIdle/SongLength-16 ns/op 2.106 2.103 2.102 2.075 2.082 2.058
 BenchmarkIdle/SongLength-16 B/op 0
 BenchmarkIdle/SongLength-16 allocs/op 0
-BenchmarkIdle/Watched-16 ns/op 1.837 1.795 1.858 1.811 1.817 1.805
-BenchmarkIdle/Watched-16 B/op 0
-BenchmarkIdle/Watched-16 allocs/op 0
-BenchmarkIdle/TakeNotice-16 ns/op 4.770 4.749 4.798 4.731 4.814 4.808
+BenchmarkIdle/Waiting-16 ns/op 1.895 1.906 1.900 1.876 1.891 1.890
+BenchmarkIdle/Waiting-16 B/op 0
+BenchmarkIdle/Waiting-16 allocs/op 0
+BenchmarkIdle/TakeNotice-16 ns/op 5.031 4.935 4.867 5.002 5.038 4.995
 BenchmarkIdle/TakeNotice-16 B/op 0
 BenchmarkIdle/TakeNotice-16 allocs/op 0
-BenchmarkNext/resolved-16 ns/op 612.7 573.6 565.4 574.1 570.3 581.7
-BenchmarkNext/resolved-16 B/op 531 536 524 538 540 541
+BenchmarkNext/resolved-16 ns/op 591.5 586.5 597.2 607.1 582.8 590.8
+BenchmarkNext/resolved-16 B/op 532 525 541 525 524 523
 BenchmarkNext/resolved-16 allocs/op 7
-BenchmarkNext/prefetched-16 ns/op 78.40 79.46 80.06 78.08 83.31 78.98
+BenchmarkNext/prefetched-16 ns/op 80.94 80.83 81.07 85.14 81.60 84.87
 BenchmarkNext/prefetched-16 B/op 48
 BenchmarkNext/prefetched-16 allocs/op 1
 
 pkg: yt-music-player/internal/player
-BenchmarkNew-16 ns/op 3730 3690 3836 3640 3823 3623
-BenchmarkNew-16 B/op 49248
+BenchmarkNew-16 ns/op 4211 4190 4177 4057 3890 4293
+BenchmarkNew-16 B/op 49264
 BenchmarkNew-16 allocs/op 3
-BenchmarkCurrent-16 ns/op 1.791 1.821 1.821 1.789 1.800 1.781
+BenchmarkCurrent-16 ns/op 1.863 1.868 1.871 1.897 1.883 1.869
 BenchmarkCurrent-16 B/op 0
 BenchmarkCurrent-16 allocs/op 0
-BenchmarkNext/off-16 ns/op 1.798 1.793 1.798 1.799 1.796 1.828
+BenchmarkNext/off-16 ns/op 1.876 1.834 1.869 1.894 1.840 1.824
 BenchmarkNext/off-16 B/op 0
 BenchmarkNext/off-16 allocs/op 0
-BenchmarkNext/all-16 ns/op 1.791 1.770 1.771 1.777 1.782 1.788
+BenchmarkNext/all-16 ns/op 1.889 1.861 1.888 1.859 1.845 1.848
 BenchmarkNext/all-16 B/op 0
 BenchmarkNext/all-16 allocs/op 0
-BenchmarkNext/one-16 ns/op 1.785 1.789 1.788 1.783 1.820 1.793
+BenchmarkNext/one-16 ns/op 1.840 1.851 1.865 1.820 1.883 1.868
 BenchmarkNext/one-16 B/op 0
 BenchmarkNext/one-16 allocs/op 0
-BenchmarkPrev/off-16 ns/op 1.783 1.797 1.791 1.805 1.806 1.808
+BenchmarkPrev/off-16 ns/op 1.961 1.844 1.829 1.853 1.871 1.884
 BenchmarkPrev/off-16 B/op 0
 BenchmarkPrev/off-16 allocs/op 0
-BenchmarkPrev/all-16 ns/op 1.861 2.150 1.912 2.075 1.897 1.998
+BenchmarkPrev/all-16 ns/op 1.971 1.936 1.974 2.027 2.187 2.033
 BenchmarkPrev/all-16 B/op 0
 BenchmarkPrev/all-16 allocs/op 0
-BenchmarkFinished/off-16 ns/op 1.809 1.855 1.824 1.848 1.799 1.805
+BenchmarkFinished/off-16 ns/op 1.897 1.904 1.877 1.941 1.923 1.906
 BenchmarkFinished/off-16 B/op 0
 BenchmarkFinished/off-16 allocs/op 0
-BenchmarkFinished/all-16 ns/op 1.785 1.808 1.793 1.803 1.793 1.803
+BenchmarkFinished/all-16 ns/op 1.902 1.877 1.860 1.848 1.847 1.849
 BenchmarkFinished/all-16 B/op 0
 BenchmarkFinished/all-16 allocs/op 0
-BenchmarkFinished/one-16 ns/op 1.794 1.807 1.808 1.797 1.800 1.801
+BenchmarkFinished/one-16 ns/op 1.884 1.816 1.909 1.890 1.883 1.882
 BenchmarkFinished/one-16 B/op 0
 BenchmarkFinished/one-16 allocs/op 0
-BenchmarkToggleShuffle/on-16 ns/op 13632 12399 12453 12462 12347 12398
+BenchmarkToggleShuffle/on-16 ns/op 13466 13334 13196 13590 13267 13394
 BenchmarkToggleShuffle/on-16 B/op 16384
 BenchmarkToggleShuffle/on-16 allocs/op 1
-BenchmarkToggleShuffle/off-16 ns/op 1847 1956 1861 1927 2161 1927
+BenchmarkToggleShuffle/off-16 ns/op 1650 1662 1698 1649 1791 1774
 BenchmarkToggleShuffle/off-16 B/op 16384
 BenchmarkToggleShuffle/off-16 allocs/op 1
-BenchmarkPlay/in_queue-16 ns/op 1063 1064 1057 1055 1065 1055
+BenchmarkPlay/in_queue-16 ns/op 1111 1089 1101 1104 1111 1109
 BenchmarkPlay/in_queue-16 B/op 0
 BenchmarkPlay/in_queue-16 allocs/op 0
-BenchmarkPlay/not_in_queue-16 ns/op 1985 1946 1941 1938 1977 1956
+BenchmarkPlay/not_in_queue-16 ns/op 2471 2510 2448 2467 2449 2454
 BenchmarkPlay/not_in_queue-16 B/op 709
 BenchmarkPlay/not_in_queue-16 allocs/op 0
-BenchmarkPlayAll/in_order-16 ns/op 3882 3846 3806 3859 3769 4587
+BenchmarkPlayAll/in_order-16 ns/op 4164 4149 4413 4169 4145 4628
 BenchmarkPlayAll/in_order-16 B/op 49152
 BenchmarkPlayAll/in_order-16 allocs/op 2
-BenchmarkPlayAll/shuffled-16 ns/op 15805 15975 16334 16104 16295 16304
+BenchmarkPlayAll/shuffled-16 ns/op 17334 17355 17240 17321 17838 17085
 BenchmarkPlayAll/shuffled-16 B/op 65536
 BenchmarkPlayAll/shuffled-16 allocs/op 3
-BenchmarkAppendUpNext-16 ns/op 17.21 17.77 16.73 16.94 17.40 16.94
+BenchmarkAppendUpNext-16 ns/op 18.75 19.11 17.82 17.87 19.10 18.73
 BenchmarkAppendUpNext-16 B/op 0
 BenchmarkAppendUpNext-16 allocs/op 0
+BenchmarkAppendPlayOrder-16 ns/op 1126 1103 1183 1110 1096 1093
+BenchmarkAppendPlayOrder-16 B/op 0
+BenchmarkAppendPlayOrder-16 allocs/op 0
+BenchmarkMove/in_order-16 ns/op 528.7 543.9 540.6 544.0 589.7 572.3
+BenchmarkMove/in_order-16 B/op 0
+BenchmarkMove/in_order-16 allocs/op 0
+BenchmarkMove/shuffled-16 ns/op 334.5 309.4 338.9 331.8 323.3 323.1
+BenchmarkMove/shuffled-16 B/op 0
+BenchmarkMove/shuffled-16 allocs/op 0
+BenchmarkEnqueueRemove-16 ns/op 1800 1789 1750 1757 1752 1743
+BenchmarkEnqueueRemove-16 B/op 0
+BenchmarkEnqueueRemove-16 allocs/op 0
+
+pkg: yt-music-player/internal/remote
+BenchmarkApplyEvents/state-16 ns/op 43.53 42.60 43.39 42.88 43.49 42.71
+BenchmarkApplyEvents/state-16 B/op 0
+BenchmarkApplyEvents/state-16 allocs/op 0
+BenchmarkApplyEvents/queue-5000-16 ns/op 70753 71153 72118 72042 70469 69805
+BenchmarkApplyEvents/queue-5000-16 B/op 606 622 641 681 625 642
+BenchmarkApplyEvents/queue-5000-16 allocs/op 0
+BenchmarkCall/ping-16 ns/op 3876 3756 3907 3894 3857 3929
+BenchmarkCall/ping-16 B/op 789 875 892 795 853 920
+BenchmarkCall/ping-16 allocs/op 9
 
 pkg: yt-music-player/internal/session
-BenchmarkIdle/Start-16 ns/op 33.66 33.11 34.59 34.31 33.13 35.24
+BenchmarkIdle/Start-16 ns/op 33.95 33.57 34.67 33.58 33.68 34.75
 BenchmarkIdle/Start-16 B/op 0
 BenchmarkIdle/Start-16 allocs/op 0
-BenchmarkIdle/TakeNotices-16 ns/op 1.910 1.920 1.924 1.926 1.912 1.918
+BenchmarkIdle/TakeNotices-16 ns/op 2.011 1.997 2.004 1.991 2.007 2.005
 BenchmarkIdle/TakeNotices-16 B/op 0
 BenchmarkIdle/TakeNotices-16 allocs/op 0
-BenchmarkIdle/CancelSignIn-16 ns/op 1.820 1.833 1.812 1.841 1.830 1.827
+BenchmarkIdle/CancelSignIn-16 ns/op 1.901 1.920 1.911 1.938 1.959 1.910
 BenchmarkIdle/CancelSignIn-16 B/op 0
 BenchmarkIdle/CancelSignIn-16 allocs/op 0
-BenchmarkIdle/SignedIn-16 ns/op 1.803 1.811 1.792 1.787 1.804 1.817
+BenchmarkIdle/SignedIn-16 ns/op 1.872 1.842 1.885 1.828 1.843 1.845
 BenchmarkIdle/SignedIn-16 B/op 0
 BenchmarkIdle/SignedIn-16 allocs/op 0
-BenchmarkIdle/DisplayName-16 ns/op 1.831 1.817 1.811 1.881 1.826 1.819
+BenchmarkIdle/DisplayName-16 ns/op 1.916 1.884 1.920 1.856 1.871 1.835
 BenchmarkIdle/DisplayName-16 B/op 0
 BenchmarkIdle/DisplayName-16 allocs/op 0
-BenchmarkIdle/CanSignIn-16 ns/op 1.804 1.813 1.801 1.800 1.802 1.789
+BenchmarkIdle/CanSignIn-16 ns/op 1.950 1.954 1.977 2.004 1.996 1.995
 BenchmarkIdle/CanSignIn-16 B/op 0
 BenchmarkIdle/CanSignIn-16 allocs/op 0
-BenchmarkIdle/Busy-16 ns/op 2.585 2.656 2.619 2.586 2.551 2.625
+BenchmarkIdle/Busy-16 ns/op 34.02 33.37 33.66 32.62 32.09 34.05
 BenchmarkIdle/Busy-16 B/op 0
 BenchmarkIdle/Busy-16 allocs/op 0
-BenchmarkIdle/LikesGen-16 ns/op 1.810 1.795 1.795 1.805 1.782 1.841
+BenchmarkIdle/LikesGen-16 ns/op 1.880 1.876 1.915 1.883 1.876 1.876
 BenchmarkIdle/LikesGen-16 B/op 0
 BenchmarkIdle/LikesGen-16 allocs/op 0
-BenchmarkIdle/Liked-16 ns/op 5.881 5.815 5.772 5.823 5.919 5.767
+BenchmarkIdle/Liked-16 ns/op 6.059 6.024 5.812 5.815 5.885 5.835
 BenchmarkIdle/Liked-16 B/op 0
 BenchmarkIdle/Liked-16 allocs/op 0
-BenchmarkIdle/NotLiked-16 ns/op 4.993 5.128 5.155 5.227 5.061 5.228
+BenchmarkIdle/NotLiked-16 ns/op 5.197 5.290 5.249 5.303 5.240 5.092
 BenchmarkIdle/NotLiked-16 B/op 0
 BenchmarkIdle/NotLiked-16 allocs/op 0
-BenchmarkLikedCount-16 ns/op 12652 13079 13143 12865 12782 12891
+BenchmarkLikedCount-16 ns/op 12967 13062 13287 13182 13240 13585
 BenchmarkLikedCount-16 B/op 0
 BenchmarkLikedCount-16 allocs/op 0
-BenchmarkLikedSongs-16 ns/op 57416 59462 56675 58249 57958 58220
-BenchmarkLikedSongs-16 B/op 212993 212993 212993 212993 212996 212993
+BenchmarkLikedSongs-16 ns/op 61832 61847 62518 61225 70157 61828
+BenchmarkLikedSongs-16 B/op 212992
 BenchmarkLikedSongs-16 allocs/op 1
-BenchmarkApplyLike-16 ns/op 323.8 318.6 323.2 319.6 325.3 321.3
+BenchmarkApplyLike-16 ns/op 328.6 334.8 330.3 328.1 326.4 328.5
 BenchmarkApplyLike-16 B/op 0
 BenchmarkApplyLike-16 allocs/op 0
-BenchmarkSeedLikes-16 ns/op 23555 23410 25456 24123 23723 23694
+BenchmarkSeedLikes-16 ns/op 28264 26536 28705 26677 26788 26948
 BenchmarkSeedLikes-16 B/op 109264
 BenchmarkSeedLikes-16 allocs/op 10
-BenchmarkSetLiked-16 ns/op 500.2 492.9 494.9 494.7 493.1 488.4
-BenchmarkSetLiked-16 B/op 352
-BenchmarkSetLiked-16 allocs/op 5
-BenchmarkRetry-16 ns/op 1306 1342 1316 1279 1307 1297
-BenchmarkRetry-16 B/op 1160
-BenchmarkRetry-16 allocs/op 11
+BenchmarkSetLiked-16 ns/op 74.13 72.51 71.55 70.31 69.12 69.62
+BenchmarkSetLiked-16 B/op 48
+BenchmarkSetLiked-16 allocs/op 1
+BenchmarkRetry-16 ns/op 259.8 271.7 261.5 257.3 264.6 258.4
+BenchmarkRetry-16 B/op 280
+BenchmarkRetry-16 allocs/op 3
 
 pkg: yt-music-player/internal/settings
-BenchmarkLoad-16 ns/op 12734 12037 12407 13595 12166 12446
-BenchmarkLoad-16 B/op 1131 1128 1132 1133 1132 1131
+BenchmarkLoad-16 ns/op 13156 12975 13061 14555 12945 12754
+BenchmarkLoad-16 B/op 1146 1148 1147 1146 1149 1147
 BenchmarkLoad-16 allocs/op 7
-BenchmarkSave-16 ns/op 5004760 4905758 5011454 4908455 4894701 5047381
-BenchmarkSave-16 B/op 1720 1748 1720 1720 1720 1720
+BenchmarkSave-16 ns/op 4868845 4708063 4825087 4683077 5122762 4616256
+BenchmarkSave-16 B/op 1780 1752 1752 1752 1752 1751
 BenchmarkSave-16 allocs/op 17
-BenchmarkThemes/5-16 ns/op 211067 221923 205522 208214 202063 209103
-BenchmarkThemes/5-16 B/op 36991 37005 37000 36984 37002 36984
+BenchmarkThemes/5-16 ns/op 220936 235504 217545 215631 215208 218759
+BenchmarkThemes/5-16 B/op 36968 36987 37014 36987 36988 36974
 BenchmarkThemes/5-16 allocs/op 303
-BenchmarkThemes/100-16 ns/op 3352001 3285197 3278924 3278979 3313305 3481662
-BenchmarkThemes/100-16 B/op 319694 319962 319833 320274 319833 319832
-BenchmarkThemes/100-16 allocs/op 3066 3069 3068 3072 3068 3068
-BenchmarkResolve-16 ns/op 86.57 86.90 87.54 86.65 86.60 88.87
+BenchmarkThemes/100-16 ns/op 3607078 3616056 3657298 3574992 3597040 3854115
+BenchmarkThemes/100-16 B/op 320111 319833 320056 320044 319862 320560
+BenchmarkThemes/100-16 allocs/op 3070 3068 3070 3070 3066 3075
+BenchmarkResolve-16 ns/op 89.56 89.83 92.10 90.51 90.90 89.35
 BenchmarkResolve-16 B/op 0
 BenchmarkResolve-16 allocs/op 0
 
 pkg: yt-music-player/internal/stream
-BenchmarkParsePlayer/ok-16 ns/op 9860 9901 10448 9798 9847 9813
-BenchmarkParsePlayer/ok-16 MB/s 537.42 535.21 507.19 540.81 538.13 540.01
-BenchmarkParsePlayer/ok-16 B/op 4151 4148 4149 4147 4149 4147
+BenchmarkParsePlayer/ok-16 ns/op 10362 10927 10231 10317 10050 10233
+BenchmarkParsePlayer/ok-16 MB/s 511.37 484.96 517.95 513.63 527.26 517.81
+BenchmarkParsePlayer/ok-16 B/op 4154 4148 4147 4148 4149 4149
 BenchmarkParsePlayer/ok-16 allocs/op 19
-BenchmarkParsePlayer/cipher-16 ns/op 9971 10039 9957 9925 10144 9944
-BenchmarkParsePlayer/cipher-16 MB/s 580.56 576.67 581.38 583.29 570.68 582.15
-BenchmarkParsePlayer/cipher-16 B/op 4581 4582 4579 4580 4581 4580
+BenchmarkParsePlayer/cipher-16 ns/op 10225 10129 10085 10058 10174 10201
+BenchmarkParsePlayer/cipher-16 MB/s 566.19 571.52 574.01 575.57 569.01 567.47
+BenchmarkParsePlayer/cipher-16 B/op 4579 4580 4580 4580 4579 4580
 BenchmarkParsePlayer/cipher-16 allocs/op 17
-BenchmarkParsePlayer/login-16 ns/op 703.3 722.2 711.4 697.2 697.9 712.4
-BenchmarkParsePlayer/login-16 MB/s 555.92 541.43 549.64 560.84 560.22 548.83
+BenchmarkParsePlayer/login-16 ns/op 738.5 774.9 730.9 736.3 721.0 724.0
+BenchmarkParsePlayer/login-16 MB/s 529.46 504.55 534.94 531.05 542.31 540.03
 BenchmarkParsePlayer/login-16 B/op 160
 BenchmarkParsePlayer/login-16 allocs/op 1
-BenchmarkParsePlayer/full-16 ns/op 33351 33050 32590 32510 32757 32719
-BenchmarkParsePlayer/full-16 MB/s 452.64 456.76 463.20 464.35 460.85 461.39
-BenchmarkParsePlayer/full-16 B/op 14236 14233 14235 14235 14235 14237
+BenchmarkParsePlayer/full-16 ns/op 33306 33441 33487 34031 33891 33889
+BenchmarkParsePlayer/full-16 MB/s 453.26 451.42 450.80 443.59 445.42 445.46
+BenchmarkParsePlayer/full-16 B/op 14238 14236 14235 14240 14235 14236
 BenchmarkParsePlayer/full-16 allocs/op 39
-BenchmarkPlayerBody/VISIONOS-16 ns/op 771.8 713.8 715.2 721.6 712.5 719.9
-BenchmarkPlayerBody/VISIONOS-16 MB/s 651.71 704.72 703.34 697.05 705.92 698.73
+BenchmarkPlayerBody/VISIONOS-16 ns/op 766.9 737.6 739.0 740.6 734.7 727.5
+BenchmarkPlayerBody/VISIONOS-16 MB/s 655.89 681.91 680.62 679.15 684.59 691.45
 BenchmarkPlayerBody/VISIONOS-16 B/op 704
 BenchmarkPlayerBody/VISIONOS-16 allocs/op 2
-BenchmarkPlayerBody/ANDROID_VR-16 ns/op 746.2 746.0 735.3 733.9 760.9 752.0
-BenchmarkPlayerBody/ANDROID_VR-16 MB/s 687.45 687.65 697.64 699.02 674.17 682.19
+BenchmarkPlayerBody/ANDROID_VR-16 ns/op 770.6 765.2 755.3 761.3 748.9 798.6
+BenchmarkPlayerBody/ANDROID_VR-16 MB/s 665.67 670.41 679.22 673.88 685.03 642.36
 BenchmarkPlayerBody/ANDROID_VR-16 B/op 768
 BenchmarkPlayerBody/ANDROID_VR-16 allocs/op 2
-BenchmarkPickFormat/ok-16 ns/op 1427 1418 1422 1430 1430 1417
+BenchmarkPickFormat/ok-16 ns/op 1486 1468 1451 1482 1449 1451
 BenchmarkPickFormat/ok-16 B/op 432
 BenchmarkPickFormat/ok-16 allocs/op 3
-BenchmarkPickFormat/cipher-16 ns/op 54.82 55.49 55.10 57.56 55.17 55.05
+BenchmarkPickFormat/cipher-16 ns/op 57.27 57.61 57.98 58.22 56.64 55.85
 BenchmarkPickFormat/cipher-16 B/op 0
 BenchmarkPickFormat/cipher-16 allocs/op 0
-BenchmarkPickFormat/full-16 ns/op 1542 1525 1535 1549 1552 1537
+BenchmarkPickFormat/full-16 ns/op 1617 1581 1594 1621 1609 1625
 BenchmarkPickFormat/full-16 B/op 432
 BenchmarkPickFormat/full-16 allocs/op 3
-BenchmarkExpiry/expire-16 ns/op 256.7 258.2 268.9 255.5 253.1 261.9
+BenchmarkExpiry/expire-16 ns/op 260.8 263.8 273.2 264.0 265.8 265.5
 BenchmarkExpiry/expire-16 B/op 144
 BenchmarkExpiry/expire-16 allocs/op 1
-BenchmarkExpiry/expires_in-16 ns/op 267.1 260.0 264.9 271.1 265.1 267.0
+BenchmarkExpiry/expires_in-16 ns/op 277.0 277.6 274.7 276.4 272.9 277.2
 BenchmarkExpiry/expires_in-16 B/op 192
 BenchmarkExpiry/expires_in-16 allocs/op 2
-BenchmarkStream/ok-16 ns/op 1860 1839 1821 1769 1785 1795
+BenchmarkStream/ok-16 ns/op 1880 1894 1831 1914 1913 1839
 BenchmarkStream/ok-16 B/op 992
 BenchmarkStream/ok-16 allocs/op 7
-BenchmarkStream/full-16 ns/op 1947 1925 1930 1909 1976 2036
+BenchmarkStream/full-16 ns/op 2038 2027 2038 2051 1997 2059
 BenchmarkStream/full-16 B/op 992
 BenchmarkStream/full-16 allocs/op 7
-BenchmarkPlayability/ok-16 ns/op 1.929 1.987 1.920 1.921 1.994 1.920
+BenchmarkPlayability/ok-16 ns/op 2.040 2.040 2.081 2.015 2.039 2.086
 BenchmarkPlayability/ok-16 B/op 0
 BenchmarkPlayability/ok-16 allocs/op 0
-BenchmarkPlayability/login-16 ns/op 12.18 12.58 12.08 12.45 13.50 12.65
+BenchmarkPlayability/login-16 ns/op 12.81 13.08 12.90 13.77 14.09 12.80
 BenchmarkPlayability/login-16 B/op 48
 BenchmarkPlayability/login-16 allocs/op 1
-BenchmarkPlayability/unplayable-16 ns/op 29.43 28.22 30.30 31.80 30.83 29.24
+BenchmarkPlayability/unplayable-16 ns/op 29.86 29.54 29.89 29.67 29.45 30.11
 BenchmarkPlayability/unplayable-16 B/op 112
 BenchmarkPlayability/unplayable-16 allocs/op 2
-BenchmarkParseYTDLP-16 ns/op 1876 1873 1954 1927 1896 1922
-BenchmarkParseYTDLP-16 MB/s 394.03 394.64 378.24 383.46 389.75 384.50
-BenchmarkParseYTDLP-16 B/op 1122 1121 1121 1121 1122 1121
+BenchmarkParseYTDLP-16 ns/op 2032 1985 1960 2017 1971 1971
+BenchmarkParseYTDLP-16 MB/s 363.60 372.22 376.97 366.38 374.89 375.03
+BenchmarkParseYTDLP-16 B/op 1121 1122 1121 1122 1121 1122
 BenchmarkParseYTDLP-16 allocs/op 13
-BenchmarkResolve/miss-16 ns/op 132461 126029 142939 107922 105477 113685
-BenchmarkResolve/miss-16 B/op 35638 36496 36188 36350 35840 36463
-BenchmarkResolve/miss-16 allocs/op 228 229 228 228 227 228
-BenchmarkResolve/cached-16 ns/op 252.9 277.3 257.1 251.8 252.3 255.6
+BenchmarkResolve/miss-16 ns/op 140906 125186 130291 130870 128542 125959
+BenchmarkResolve/miss-16 B/op 36204 36774 36036 36133 35986 36469
+BenchmarkResolve/miss-16 allocs/op 229 229 228 228 228 228
+BenchmarkResolve/cached-16 ns/op 280.9 281.7 289.9 288.6 285.4 283.6
 BenchmarkResolve/cached-16 B/op 416
 BenchmarkResolve/cached-16 allocs/op 3
-BenchmarkResolve/cached_parallel ns/op 315.4 320.1 325.0 311.5 310.4 314.2
-BenchmarkResolve/cached_parallel B/op 416
+BenchmarkResolve/cached_parallel ns/op 632.6 517.1 462.8 391.9 363.4 356.1
+BenchmarkResolve/cached_parallel B/op 417 417 417 417 416 416
 BenchmarkResolve/cached_parallel allocs/op 3
-BenchmarkResolve/cached_parallel-4 ns/op 144.4 139.3 156.0 133.2 133.4 129.2
+BenchmarkResolve/cached_parallel-4 ns/op 140.6 157.6 165.5 157.7 169.5 159.9
 BenchmarkResolve/cached_parallel-4 B/op 416
 BenchmarkResolve/cached_parallel-4 allocs/op 3
-BenchmarkResolve/cached_parallel-16 ns/op 246.9 243.8 257.8 247.1 273.9 244.0
+BenchmarkResolve/cached_parallel-16 ns/op 284.6 276.9 329.2 289.0 350.6 336.2
 BenchmarkResolve/cached_parallel-16 B/op 417
 BenchmarkResolve/cached_parallel-16 allocs/op 3
 
 pkg: yt-music-player/internal/theme
-BenchmarkDefault-16 ns/op 1874 1841 1830 1821 1869 1821
+BenchmarkDefault-16 ns/op 1934 1930 1920 1928 1918 1883
 BenchmarkDefault-16 B/op 0
 BenchmarkDefault-16 allocs/op 0
-BenchmarkHighContrast-16 ns/op 17.50 17.63 17.58 17.55 17.53 17.41
+BenchmarkHighContrast-16 ns/op 18.35 17.84 18.23 18.60 18.00 17.94
 BenchmarkHighContrast-16 B/op 0
 BenchmarkHighContrast-16 allocs/op 0
-BenchmarkSRGB-16 ns/op 77.52 78.52 79.18 79.53 78.94 78.17
+BenchmarkSRGB-16 ns/op 83.85 83.58 83.34 84.04 85.58 84.06
 BenchmarkSRGB-16 B/op 0
 BenchmarkSRGB-16 allocs/op 0
-BenchmarkNormalized/Normal-16 ns/op 2.601 2.591 2.596 2.591 2.581 2.604
+BenchmarkNormalized/Normal-16 ns/op 2.697 2.718 2.724 2.669 2.654 2.635
 BenchmarkNormalized/Normal-16 B/op 0
 BenchmarkNormalized/Normal-16 allocs/op 0
-BenchmarkNormalized/SameSide-16 ns/op 2.780 2.901 2.771 2.799 2.752 2.801
+BenchmarkNormalized/SameSide-16 ns/op 2.839 2.878 2.953 2.841 2.890 2.892
 BenchmarkNormalized/SameSide-16 B/op 0
 BenchmarkNormalized/SameSide-16 allocs/op 0
-BenchmarkSized/Comfortable-16 ns/op 1.940 1.964 1.907 1.903 1.930 1.936
+BenchmarkSized/Comfortable-16 ns/op 2.048 1.978 1.964 1.938 2.027 2.024
 BenchmarkSized/Comfortable-16 B/op 0
 BenchmarkSized/Comfortable-16 allocs/op 0
-BenchmarkSized/Compact-16 ns/op 9.688 9.952 9.869 9.503 9.659 9.600
+BenchmarkSized/Compact-16 ns/op 10.23 9.775 10.10 9.934 9.808 9.578
 BenchmarkSized/Compact-16 B/op 0
 BenchmarkSized/Compact-16 allocs/op 0
-BenchmarkDerive-16 ns/op 11697 12264 11849 12082 11684 11708
+BenchmarkDerive-16 ns/op 12014 12221 12345 12348 12272 12637
 BenchmarkDerive-16 B/op 0
 BenchmarkDerive-16 allocs/op 0
-BenchmarkParse/Example-16 ns/op 21479 21085 21118 21237 21007 21274
-BenchmarkParse/Example-16 MB/s 16.67 16.98 16.95 16.86 17.04 16.83
-BenchmarkParse/Example-16 B/op 2757 2757 2756 2758 2757 2758
+BenchmarkParse/Example-16 ns/op 23268 21998 22038 21757 21854 21723
+BenchmarkParse/Example-16 MB/s 15.39 16.27 16.24 16.45 16.38 16.48
+BenchmarkParse/Example-16 B/op 2758 2757 2758 2759 2757 2761
 BenchmarkParse/Example-16 allocs/op 43
-BenchmarkParse/Full-16 ns/op 41585 41092 43875 41574 41472 41829
-BenchmarkParse/Full-16 MB/s 55.55 56.21 52.65 55.56 55.70 55.22
-BenchmarkParse/Full-16 B/op 14073 14084 14074 14090 14093 14090
+BenchmarkParse/Full-16 ns/op 42560 42611 43847 44213 42876 44087
+BenchmarkParse/Full-16 MB/s 54.28 54.21 52.68 52.25 53.88 52.40
+BenchmarkParse/Full-16 B/op 14079 14075 14086 14083 14095 14083
 BenchmarkParse/Full-16 allocs/op 162
-BenchmarkEncode-16 ns/op 24846 25014 24612 24669 24832 25081
-BenchmarkEncode-16 B/op 14552 14552 14537 14535 14545 14544
+BenchmarkEncode-16 ns/op 25545 25544 25829 25865 26345 25844
+BenchmarkEncode-16 B/op 14545 14540 14548 14541 14539 14533
 BenchmarkEncode-16 allocs/op 363
-BenchmarkParseColor/Oklch-16 ns/op 215.2 214.3 213.4 213.9 215.2 214.3
-BenchmarkParseColor/Oklch-16 B/op 48
-BenchmarkParseColor/Oklch-16 allocs/op 1
-BenchmarkParseColor/Hex-16 ns/op 18.41 19.60 18.65 18.61 18.72 19.20
+BenchmarkParseColor/Hex-16 ns/op 19.14 18.89 19.05 19.23 18.08 18.39
 BenchmarkParseColor/Hex-16 B/op 0
 BenchmarkParseColor/Hex-16 allocs/op 0
+BenchmarkParseColor/Oklch-16 ns/op 218.4 220.7 219.8 220.2 222.5 219.8
+BenchmarkParseColor/Oklch-16 B/op 48
+BenchmarkParseColor/Oklch-16 allocs/op 1
+
+pkg: yt-music-player/internal/version
+BenchmarkOlder/release-16 ns/op 155.7 144.4 143.5 144.2 146.5 145.3
+BenchmarkOlder/release-16 B/op 96
+BenchmarkOlder/release-16 allocs/op 2
+BenchmarkOlder/pre-release-16 ns/op 223.4 224.4 228.4 225.1 226.8 236.8
+BenchmarkOlder/pre-release-16 B/op 160
+BenchmarkOlder/pre-release-16 allocs/op 4
 
 pkg: yt-music-player/internal/webm
-BenchmarkOpen/tone-16 ns/op 1857 1892 1866 1909 1886 1876
+BenchmarkOpen/tone-16 ns/op 1804 1871 1807 1737 1830 1833
 BenchmarkOpen/tone-16 B/op 19776
 BenchmarkOpen/tone-16 allocs/op 12
-BenchmarkOpen/10min-16 ns/op 9945 10065 10608 9944 9813 9897
+BenchmarkOpen/10min-16 ns/op 10169 10766 10291 10168 10322 10251
 BenchmarkOpen/10min-16 B/op 33000
 BenchmarkOpen/10min-16 allocs/op 17
-BenchmarkReadFrame/tone-16 ns/op 8034 8064 8053 8060 8025 8021
-BenchmarkReadFrame/tone-16 MB/s 6867.14 6841.29 6850.83 6844.89 6874.60 6878.35
+BenchmarkReadFrame/tone-16 ns/op 8314 8206 8313 8439 8071 8093
+BenchmarkReadFrame/tone-16 MB/s 6635.93 6722.78 6636.52 6537.38 6835.60 6816.59
 BenchmarkReadFrame/tone-16 B/op 0
 BenchmarkReadFrame/tone-16 allocs/op 0
-BenchmarkReadFrame/10min-16 ns/op 1281521 1261454 1267785 1259608 1257306 1249506
-BenchmarkReadFrame/10min-16 MB/s 7804.81 7928.96 7889.37 7940.58 7955.12 8004.78
+BenchmarkReadFrame/10min-16 ns/op 1273468 1252862 1292957 1293379 1293023 1330817
+BenchmarkReadFrame/10min-16 MB/s 7854.16 7983.34 7735.77 7733.25 7735.38 7515.70
 BenchmarkReadFrame/10min-16 B/op 0
 BenchmarkReadFrame/10min-16 allocs/op 0
-BenchmarkSeek/tone-16 ns/op 7.818 7.930 7.840 7.754 7.791 8.098
+BenchmarkSeek/tone-16 ns/op 8.358 8.240 8.257 8.241 8.208 8.440
 BenchmarkSeek/tone-16 B/op 0
 BenchmarkSeek/tone-16 allocs/op 0
-BenchmarkSeek/10min-16 ns/op 7.446 7.473 7.453 7.561 7.529 7.569
+BenchmarkSeek/10min-16 ns/op 7.672 7.806 7.809 7.759 7.894 7.823
 BenchmarkSeek/10min-16 B/op 0
 BenchmarkSeek/10min-16 allocs/op 0
 
 pkg: yt-music-player/internal/ytmusic
-BenchmarkDecode/search_songs-16 ns/op 110214 113495 111250 111486 112583 111914
-BenchmarkDecode/search_songs-16 MB/s 337.80 328.03 334.65 333.94 330.69 332.67
-BenchmarkDecode/search_songs-16 B/op 41477 41354 41354 41367 41356 41366
+BenchmarkDecode/search_songs-16 ns/op 113540 114877 122325 116264 117717 115171
+BenchmarkDecode/search_songs-16 MB/s 327.90 324.08 304.35 320.22 316.27 323.26
+BenchmarkDecode/search_songs-16 B/op 41488 41356 41357 41356 41356 41368
 BenchmarkDecode/search_songs-16 allocs/op 538 537 537 537 537 537
-BenchmarkDecode/album-16 ns/op 107489 104246 104931 105723 99323 99456
-BenchmarkDecode/album-16 MB/s 314.38 324.16 322.04 319.63 340.22 339.77
-BenchmarkDecode/album-16 B/op 28321 28309 28310 28309 28318 28316
+BenchmarkDecode/album-16 ns/op 96177 95009 96155 95982 97452 96441
+BenchmarkDecode/album-16 MB/s 351.35 355.67 351.43 352.07 346.75 350.39
+BenchmarkDecode/album-16 B/op 28321 28310 28319 28302 28310 28310
 BenchmarkDecode/album-16 allocs/op 372
-BenchmarkDecode/playlist-16 ns/op 520343 497549 495989 488367 501630 492759
-BenchmarkDecode/playlist-16 MB/s 343.37 359.10 360.23 365.85 356.18 362.59
-BenchmarkDecode/playlist-16 B/op 155285 155280 155234 155229 155233 155278
-BenchmarkDecode/playlist-16 allocs/op 2112 2112 2111 2111 2111 2112
-BenchmarkDecode/home-16 ns/op 72611 73494 73407 73706 77266 74875
-BenchmarkDecode/home-16 MB/s 451.98 446.55 447.08 445.27 424.75 438.32
-BenchmarkDecode/home-16 B/op 19152 19151 19151 19151 19152 19153
+BenchmarkDecode/playlist-16 ns/op 540458 519264 525591 517368 515711 520136
+BenchmarkDecode/playlist-16 MB/s 330.59 344.08 339.94 345.34 346.45 343.51
+BenchmarkDecode/playlist-16 B/op 155274 155239 155233 155230 155280 155253
+BenchmarkDecode/playlist-16 allocs/op 2112 2111 2111 2111 2112 2111
+BenchmarkDecode/home-16 ns/op 80148 77199 77654 77943 78478 81836
+BenchmarkDecode/home-16 MB/s 409.48 425.12 422.63 421.06 418.19 401.04
+BenchmarkDecode/home-16 B/op 19154 19152 19151 19142 19143 19156
 BenchmarkDecode/home-16 allocs/op 261
-BenchmarkDecode/explore-16 ns/op 317938 314980 311291 311717 320700 313826
-BenchmarkDecode/explore-16 MB/s 341.85 345.06 349.15 348.67 338.91 346.33
-BenchmarkDecode/explore-16 B/op 107207 107225 107186 107187 107188 107187
+BenchmarkDecode/explore-16 ns/op 329697 332932 337814 320170 324777 328973
+BenchmarkDecode/explore-16 MB/s 329.66 326.45 321.74 339.47 334.65 330.38
+BenchmarkDecode/explore-16 B/op 107207 107224 107231 107222 107222 107228
 BenchmarkDecode/explore-16 allocs/op 1553
-BenchmarkSearchSongs-16 ns/op 2446 2373 2507 2352 2347 2372
+BenchmarkSearchSongs-16 ns/op 2453 2567 2482 2471 2643 2474
 BenchmarkSearchSongs-16 B/op 3120
 BenchmarkSearchSongs-16 allocs/op 5
-BenchmarkSearchAlbums-16 ns/op 1740 1938 1768 1684 1708 1695
+BenchmarkSearchAlbums-16 ns/op 1847 1873 1857 1889 1868 1881
 BenchmarkSearchAlbums-16 B/op 2496
 BenchmarkSearchAlbums-16 allocs/op 2
-BenchmarkAlbumPage-16 ns/op 1151 1221 1167 1154 1194 1151
+BenchmarkAlbumPage-16 ns/op 1269 1273 1358 1276 1238 1289
 BenchmarkAlbumPage-16 B/op 3424
 BenchmarkAlbumPage-16 allocs/op 5
-BenchmarkPlaylistPage-16 ns/op 11.61 11.59 11.76 11.71 11.75 11.69
+BenchmarkPlaylistPage-16 ns/op 12.16 11.93 12.24 12.48 12.40 12.25
 BenchmarkPlaylistPage-16 B/op 0
 BenchmarkPlaylistPage-16 allocs/op 0
-BenchmarkPlaylistSongs/first_page-16 ns/op 5609 5058 5045 5085 5101 5181
+BenchmarkPlaylistSongs/first_page-16 ns/op 5495 5781 5717 5466 5468 5421
 BenchmarkPlaylistSongs/first_page-16 B/op 10880
 BenchmarkPlaylistSongs/first_page-16 allocs/op 1
-BenchmarkPlaylistSongs/continuation-16 ns/op 2503 2512 2542 2579 2639 2504
+BenchmarkPlaylistSongs/continuation-16 ns/op 2652 2638 2658 2683 2793 2670
 BenchmarkPlaylistSongs/continuation-16 B/op 5376
 BenchmarkPlaylistSongs/continuation-16 allocs/op 1
-BenchmarkPlaylistSongs/chart-16 ns/op 1179 1178 1172 1170 1173 1215
+BenchmarkPlaylistSongs/chart-16 ns/op 1343 1269 1276 1273 1259 1297
 BenchmarkPlaylistSongs/chart-16 B/op 2328
 BenchmarkPlaylistSongs/chart-16 allocs/op 2
-BenchmarkPlaylistSongs/2000_songs-16 ns/op 104247 102785 101894 220499 119140 103894
-BenchmarkPlaylistSongs/2000_songs-16 B/op 212993 212993 212993 212996 212993 212993
+BenchmarkPlaylistSongs/2000_songs-16 ns/op 118108 110584 109869 111001 119737 110136
+BenchmarkPlaylistSongs/2000_songs-16 B/op 212993 212993 212992 212992 212993 212993
 BenchmarkPlaylistSongs/2000_songs-16 allocs/op 1
-BenchmarkContinuation-16 ns/op 1.987 1.810 1.803 1.831 1.847 1.792
+BenchmarkContinuation-16 ns/op 1.857 1.864 1.859 1.879 1.860 1.846
 BenchmarkContinuation-16 B/op 0
 BenchmarkContinuation-16 allocs/op 0
-BenchmarkParseSong/search-16 ns/op 104.5 100.1 100.1 101.7 100.5 100.4
+BenchmarkParseSong/search-16 ns/op 102.4 101.9 100.4 106.8 104.4 104.7
 BenchmarkParseSong/search-16 B/op 5
 BenchmarkParseSong/search-16 allocs/op 0
-BenchmarkParseSong/playlist-16 ns/op 40.03 40.01 40.11 40.04 39.28 39.61
+BenchmarkParseSong/playlist-16 ns/op 43.39 41.44 41.84 41.02 41.44 40.58
 BenchmarkParseSong/playlist-16 B/op 0
 BenchmarkParseSong/playlist-16 allocs/op 0
-BenchmarkParseSong/library-16 ns/op 29.06 31.09 28.45 27.15 29.61 30.02
+BenchmarkParseSong/library-16 ns/op 29.13 28.97 29.93 29.98 30.07 29.26
 BenchmarkParseSong/library-16 B/op 0
 BenchmarkParseSong/library-16 allocs/op 0
-BenchmarkParseAlbumRow-16 ns/op 75.86 74.59 73.10 73.42 74.23 74.66
+BenchmarkParseAlbumRow-16 ns/op 78.76 78.46 77.26 76.94 78.10 76.18
 BenchmarkParseAlbumRow-16 B/op 0
 BenchmarkParseAlbumRow-16 allocs/op 0
-BenchmarkParseShelves/home-16 ns/op 3839 3800 3723 3729 3903 3708
+BenchmarkParseShelves/home-16 ns/op 3972 4402 3958 4012 4011 4055
 BenchmarkParseShelves/home-16 B/op 17416
 BenchmarkParseShelves/home-16 allocs/op 12
-BenchmarkParseShelves/continuation_1-16 ns/op 12048 12419 12473 13168 12218 12101
+BenchmarkParseShelves/continuation_1-16 ns/op 13759 13159 12848 12960 12855 13728
 BenchmarkParseShelves/continuation_1-16 B/op 44392
 BenchmarkParseShelves/continuation_1-16 allocs/op 84
-BenchmarkParseShelves/continuation_2-16 ns/op 1685 1616 1629 1613 1624 1597
+BenchmarkParseShelves/continuation_2-16 ns/op 1738 1733 1786 1737 1770 1745
 BenchmarkParseShelves/continuation_2-16 B/op 5640
 BenchmarkParseShelves/continuation_2-16 allocs/op 7
-BenchmarkParseItem/liked_playlists-16 ns/op 71.35 71.69 72.84 78.89 75.39 72.62
+BenchmarkParseItem/liked_playlists-16 ns/op 72.41 72.30 72.74 74.92 75.14 73.87
 BenchmarkParseItem/liked_playlists-16 B/op 0
 BenchmarkParseItem/liked_playlists-16 allocs/op 0
-BenchmarkParseItem/liked_albums-16 ns/op 110.0 109.0 111.3 126.6 117.9 110.6
+BenchmarkParseItem/liked_albums-16 ns/op 112.7 112.9 112.8 110.9 110.5 111.5
 BenchmarkParseItem/liked_albums-16 B/op 0
 BenchmarkParseItem/liked_albums-16 allocs/op 0
-BenchmarkParseItem/library_artists-16 ns/op 39.49 39.71 39.79 39.93 39.91 39.81
+BenchmarkParseItem/library_artists-16 ns/op 39.64 39.72 39.91 40.91 39.69 40.25
 BenchmarkParseItem/library_artists-16 B/op 0
 BenchmarkParseItem/library_artists-16 allocs/op 0
-BenchmarkLibraryContents-16 ns/op 4.115 4.150 4.296 4.050 4.032 4.070
+BenchmarkLibraryContents-16 ns/op 4.168 4.169 4.163 4.220 4.086 4.295
 BenchmarkLibraryContents-16 B/op 0
 BenchmarkLibraryContents-16 allocs/op 0
-BenchmarkExplorePage-16 ns/op 6431 6496 6249 6527 6268 6271
+BenchmarkExplorePage-16 ns/op 6778 7141 6730 6731 6684 7130
 BenchmarkExplorePage-16 B/op 16344
 BenchmarkExplorePage-16 allocs/op 17
-BenchmarkMoodsPage-16 ns/op 4558 4860 4565 4676 4602 4614
+BenchmarkMoodsPage-16 ns/op 4773 4754 4901 4887 4844 4900
 BenchmarkMoodsPage-16 B/op 4792
 BenchmarkMoodsPage-16 allocs/op 11
-BenchmarkChartPage-16 ns/op 987.6 1021 1014 1020 989.8 1016
+BenchmarkChartPage-16 ns/op 1165 1164 1061 1081 1094 1092
 BenchmarkChartPage-16 B/op 4416
 BenchmarkChartPage-16 allocs/op 6
-BenchmarkAccountMenu-16 ns/op 6.154 6.005 6.005 6.010 6.029 6.010
+BenchmarkAccountMenu-16 ns/op 6.177 6.218 6.175 6.397 6.325 6.033
 BenchmarkAccountMenu-16 B/op 0
 BenchmarkAccountMenu-16 allocs/op 0
-BenchmarkSignedOut/tracked-16 ns/op 1.807 1.805 1.823 1.806 1.893 1.805
+BenchmarkSignedOut/tracked-16 ns/op 1.898 1.842 1.841 1.850 1.849 1.921
 BenchmarkSignedOut/tracked-16 B/op 0
 BenchmarkSignedOut/tracked-16 allocs/op 0
-BenchmarkSignedOut/sign_in_page-16 ns/op 1.834 1.828 1.824 1.844 1.832 1.825
+BenchmarkSignedOut/sign_in_page-16 ns/op 1.933 1.883 1.903 1.920 1.854 1.827
 BenchmarkSignedOut/sign_in_page-16 B/op 0
 BenchmarkSignedOut/sign_in_page-16 allocs/op 0
-BenchmarkArt/row-16 ns/op 2.504 2.487 2.368 2.508 2.508 2.424
+BenchmarkArt/row-16 ns/op 1.885 1.835 1.900 1.842 1.853 1.837
 BenchmarkArt/row-16 B/op 0
 BenchmarkArt/row-16 allocs/op 0
-BenchmarkArt/album_header-16 ns/op 2.718 2.709 2.850 2.735 2.742 2.741
+BenchmarkArt/album_header-16 ns/op 2.888 2.878 2.928 2.808 2.771 2.737
 BenchmarkArt/album_header-16 B/op 0
 BenchmarkArt/album_header-16 allocs/op 0
-BenchmarkSeconds/m:ss-16 ns/op 17.08 16.61 16.33 16.47 16.21 16.50
+BenchmarkSeconds/m:ss-16 ns/op 17.35 16.70 17.02 16.95 17.17 17.18
 BenchmarkSeconds/m:ss-16 B/op 0
 BenchmarkSeconds/m:ss-16 allocs/op 0
-BenchmarkSeconds/h:mm:ss-16 ns/op 24.73 24.94 25.20 24.80 24.97 24.28
+BenchmarkSeconds/h:mm:ss-16 ns/op 24.60 24.63 24.29 24.61 24.40 25.08
 BenchmarkSeconds/h:mm:ss-16 B/op 0
 BenchmarkSeconds/h:mm:ss-16 allocs/op 0
-BenchmarkSeconds/not_a_duration-16 ns/op 6.047 6.031 5.884 6.009 5.667 6.123
+BenchmarkSeconds/not_a_duration-16 ns/op 5.900 5.962 6.072 6.380 6.386 6.188
 BenchmarkSeconds/not_a_duration-16 B/op 0
 BenchmarkSeconds/not_a_duration-16 allocs/op 0
-BenchmarkRunsText/one-16 ns/op 1.796 1.804 1.797 1.800 1.840 1.807
+BenchmarkRunsText/one-16 ns/op 1.820 1.804 1.852 1.863 1.857 1.868
 BenchmarkRunsText/one-16 B/op 0
 BenchmarkRunsText/one-16 allocs/op 0
-BenchmarkRunsText/several-16 ns/op 29.02 28.87 29.75 28.86 28.98 28.76
+BenchmarkRunsText/several-16 ns/op 30.77 29.43 30.32 31.62 29.78 29.49
 BenchmarkRunsText/several-16 B/op 48
 BenchmarkRunsText/several-16 allocs/op 2
-BenchmarkMetaRead-16 ns/op 71.00 70.92 73.01 70.73 72.49 71.28
+BenchmarkMetaRead-16 ns/op 73.03 75.12 73.72 73.27 74.25 71.85
 BenchmarkMetaRead-16 B/op 0
 BenchmarkMetaRead-16 allocs/op 0
-BenchmarkSubtitle-16 ns/op 62.43 59.42 62.60 60.09 61.74 61.22
+BenchmarkSubtitle-16 ns/op 61.83 62.39 61.65 62.18 64.59 63.43
 BenchmarkSubtitle-16 B/op 0
 BenchmarkSubtitle-16 allocs/op 0
-BenchmarkTint-16 ns/op 117.7 120.5 118.6 117.3 117.6 118.5
+BenchmarkTint-16 ns/op 120.9 120.8 120.2 120.3 118.7 119.7
 BenchmarkTint-16 B/op 0
 BenchmarkTint-16 allocs/op 0
-BenchmarkOklch-16 ns/op 122.0 117.2 114.6 115.0 115.5 122.3
+BenchmarkOklch-16 ns/op 115.1 117.6 117.1 117.1 116.4 115.9
 BenchmarkOklch-16 B/op 0
 BenchmarkOklch-16 allocs/op 0
-BenchmarkSearch-16 ns/op 377930 333281 341035 326725 335845 335192
-BenchmarkSearch-16 MB/s 193.26 219.15 214.16 223.54 217.47 217.90
-BenchmarkSearch-16 B/op 359705 337573 342367 334352 338450 334085
-BenchmarkSearch-16 allocs/op 1517 1464 1475 1457 1461 1450
-BenchmarkAlbum-16 ns/op 238710 210494 192157 190131 205355 191788
-BenchmarkAlbum-16 MB/s 141.56 160.54 175.86 177.73 164.55 176.19
-BenchmarkAlbum-16 B/op 148636 146111 147901 147178 145354 147892
-BenchmarkAlbum-16 allocs/op 579 574 580 575 572 578
-BenchmarkPlaylist-16 ns/op 1191610 1222308 1245283 1196098 1187635 1198263
-BenchmarkPlaylist-16 MB/s 229.96 224.18 220.05 229.10 230.73 228.68
-BenchmarkPlaylist-16 B/op 1016320 1001413 1002791 1004758 1000962 999475
-BenchmarkPlaylist-16 allocs/op 3832 3785 3786 3792 3794 3796
-BenchmarkHome-16 ns/op 794485 753066 732337 805384 772049 731474
-BenchmarkHome-16 MB/s 144.44 152.39 156.70 142.49 148.64 156.89
-BenchmarkHome-16 B/op 538504 523147 519060 520183 516742 521614
-BenchmarkHome-16 allocs/op 2199 2155 2139 2149 2144 2149
-BenchmarkExplore-16 ns/op 611096 573840 569539 564764 558926 569908
-BenchmarkExplore-16 MB/s 189.80 202.13 203.65 205.37 207.52 203.52
-BenchmarkExplore-16 B/op 476031 458195 458125 459636 457617 457111
-BenchmarkExplore-16 allocs/op 2219 2178 2169 2177 2168 2166
+BenchmarkSearch-16 ns/op 391719 341247 333828 343993 342926 336152
+BenchmarkSearch-16 MB/s 186.45 214.03 218.79 212.32 212.98 217.27
+BenchmarkSearch-16 B/op 364619 339269 335544 338338 342373 338878
+BenchmarkSearch-16 allocs/op 1523 1464 1458 1463 1478 1468
+BenchmarkAlbum-16 ns/op 264256 231915 217542 202179 198111 201323
+BenchmarkAlbum-16 MB/s 127.88 145.71 155.34 167.14 170.57 167.85
+BenchmarkAlbum-16 B/op 147768 143746 145259 148928 147000 147507
+BenchmarkAlbum-16 allocs/op 576 568 572 583 578 578
+BenchmarkPlaylist-16 ns/op 1301551 1213578 1150083 1227089 1270579 1336733
+BenchmarkPlaylist-16 MB/s 210.53 225.80 238.26 223.31 215.67 204.99
+BenchmarkPlaylist-16 B/op 1008041 1000488 1001067 997146 991127 1001326
+BenchmarkPlaylist-16 allocs/op 3813 3797 3794 3785 3771 3784
+BenchmarkHome-16 ns/op 823781 759219 759827 803061 764088 784576
+BenchmarkHome-16 MB/s 139.31 151.15 151.03 142.90 150.19 146.27
+BenchmarkHome-16 B/op 535299 516885 518645 513650 516300 516077
+BenchmarkHome-16 allocs/op 2193 2144 2143 2135 2143 2151
+BenchmarkExplore-16 ns/op 624813 579133 570449 587785 619070 601709
+BenchmarkExplore-16 MB/s 185.64 200.28 203.33 197.33 187.36 192.76
+BenchmarkExplore-16 B/op 473893 458391 456821 453978 454930 455141
+BenchmarkExplore-16 allocs/op 2211 2172 2171 2173 2167 2170
