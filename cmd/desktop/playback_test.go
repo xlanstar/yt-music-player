@@ -176,3 +176,36 @@ func TestProgressSteps(t *testing.T) {
 		})
 	}
 }
+
+// A State that comes while the seek bar is dragged leaves it under the
+// pointer; let go, it shows the daemon's position again.
+func TestDraggedSliderHolds(t *testing.T) {
+	a := idleApp(t)
+	q := ytmdOf(a).q
+	tt := newTester(a)
+	r := find(t, tt, "Seek")
+	y := r.Y + r.H/2
+	tt.Press(r.X+r.W*0.25, y)
+	tt.Move(r.X+r.W*0.5, y)
+	tt.Frame()
+	dragged := a.bar.pos.v
+	if st := state(t, a); dragged <= 0 || st.Position != dragged {
+		t.Fatalf("dragged to %v, the daemon at %v", dragged, st.Position)
+	}
+	// Another front-end seeks.
+	call(t, peer(t, q), api.Call{Method: api.MethodSeek, Seek: &api.SeekArgs{Seconds: 10}})
+	if st := state(t, a); st.Position != 10 {
+		t.Fatalf("the daemon at %v, want 10", st.Position)
+	}
+	frames(tt, 2)
+	// Pulled back, the bar would jump under the pointer, which would seek
+	// again.
+	if st := state(t, a); a.bar.pos.v != dragged || st.Position != 10 {
+		t.Fatalf("a State moved the dragged bar from %v to %v, the daemon to %v", dragged, a.bar.pos.v, st.Position)
+	}
+	tt.Release(r.X+r.W*0.5, y)
+	frames(tt, 2)
+	if st := state(t, a); a.bar.pos.v != st.Position {
+		t.Errorf("let go, the bar at %v, the daemon at %v", a.bar.pos.v, st.Position)
+	}
+}

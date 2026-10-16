@@ -405,3 +405,23 @@ func eventually(t testing.TB, tt *ui.Tester, q posts, what string, cond func() b
 		tt.Frame()
 	}
 }
+
+// peer connects another front-end to q's ytmd, as `ytm` would: it greets
+// without subscribing, and calls what it likes.
+func peer(tb testing.TB, q posts) *remote.Client {
+	tb.Helper()
+	c, _, err := remote.Connect(tb.Context(), pipeDialer{q.ytmd.svc}, false, api.RoleCLI, version.Dev)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	tb.Cleanup(c.Close)
+	return c
+}
+
+// call has c's daemon answer cl, failing tb otherwise.
+func call(tb testing.TB, c *remote.Client, cl api.Call) {
+	tb.Helper()
+	if _, err := c.Call(context.Background(), cl); err != nil {
+		tb.Fatalf("%s: %v", cl.Method, err)
+	}
+}

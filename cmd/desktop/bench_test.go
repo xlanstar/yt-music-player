@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 	"weak"
+	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
@@ -370,6 +371,24 @@ var interactionCases = []struct {
 			} else {
 				s.tt.Type("n")
 			}
+		}
+	}},
+	// Another front-end moves the current song in the queue: ytmd sends a
+	// State and the queue in one event, the Client applies it to the
+	// Mirror, and the player bar and the queue panel build anew. The op
+	// counts the other front-end's request and ytmd's work too, all in
+	// this process.
+	{"remote-event", func(*app) {}, func(tb testing.TB, s *screen) func(int) {
+		other := peer(tb, s.q)
+		return func(i int) {
+			from, to := 0, 1
+			if i%2 == 1 {
+				from, to = 1, 0
+			}
+			call(tb, other, api.Call{Method: api.MethodMove, Move: &api.MoveArgs{From: from, To: to}})
+			// The event's batch, in one post.
+			(<-s.q.client)()
+			s.tt.Frame()
 		}
 	}},
 	{"LibraryTabs", func(a *app) {

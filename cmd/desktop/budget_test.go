@@ -108,6 +108,8 @@ var interactionBudgets = map[string]interactionBudget{
 	// 3 builds deleting a letter, 2 typing one: 53 over 21 ops.
 	"TypeSearch":  {114, 8130, 2.53, 20, false}, // 99 allocs, 7065 B today.
 	"LibraryTabs": {96, 115150, 1, 8, false},    // 83 allocs, 100124 B today.
+	// With the other front-end's request and ytmd's work, in this process.
+	"remote-event": {79, 6040, 1, 20, false}, // 68 allocs, 5248 B today.
 }
 
 func TestBudgetInteractions(t *testing.T) {
