@@ -412,3 +412,93 @@ func FuzzCollapseSpace(f *testing.F) {
 		}
 	})
 }
+
+func TestLatest(t *testing.T) {
+	f := newFixture()
+	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{}) {
+		t.Fatalf("latest before any fetch %+v", got)
+	}
+	f.a.Fetch(Profile)
+	f.a.Fetch(Library)
+	f.a.Fetch(Liked)
+	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
+	lib := catalog.Library{Songs: tracks}
+	calls["account"].Reply <- catalogtest.Reply{Account: ada}
+	calls["library"].Reply <- catalogtest.Reply{Library: lib}
+	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: adaLikes, Songs: tracks}
+	f.run(t)
+	f.run(t)
+	f.run(t)
+	f.log = nil
+	want := Latest{
+		Status:  &Status{Account: ada, SignedIn: true},
+		Library: &lib,
+		Likes:   &Likes{Full: true, IDs: []string{"far-2", "far-1"}, Songs: tracks},
+	}
+	if got := f.a.Latest(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("latest %+v, want %+v", got, want)
+	}
+
+	// Likes that went through join the latest, newest first.
+	f.like("far-1", true)
+	f.src.Next(t, nil, "like", "+far-1").Reply <- catalogtest.Reply{}
+	f.run(t)
+	f.like("far-2", false)
+	f.src.Next(t, nil, "like", "-far-2").Reply <- catalogtest.Reply{}
+	f.run(t)
+	f.like("new", true)
+	f.src.Next(t, nil, "like", "+new").Reply <- catalogtest.Reply{}
+	f.run(t)
+	f.log = nil
+	latest := f.a.Latest()
+	if ids := latest.Likes.IDs; !reflect.DeepEqual(ids, []string{"new", "far-1"}) {
+		t.Errorf("liked %q, want new and far-1", ids)
+	}
+	// The IDs are a copy.
+	latest.Likes.IDs[0] = "changed"
+	if f.a.Latest().Likes.IDs[0] != "new" {
+		t.Error("Latest's IDs are the account's own")
+	}
+
+	// A failure stays until the Part fetches again.
+	boom := errors.New("offline")
+	f.a.Fetch(Library)
+	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Err: boom}
+	f.run(t)
+	if got := f.a.Latest().Failed; !reflect.DeepEqual(got, []Failure{{Part: Library, Err: boom}}) {
+		t.Errorf("failed %+v", got)
+	}
+	if f.a.Latest().Library == nil {
+		t.Error("a failed fetch dropped the library fetched before")
+	}
+	f.a.Fetch(Library)
+	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: lib}
+	f.run(t)
+	if got := f.a.Latest().Failed; got != nil {
+		t.Errorf("failed %+v after fetching again", got)
+	}
+
+	// Signed out, nothing is left but the status.
+	f.a.Fetch(Profile)
+	f.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	f.run(t)
+	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{Status: &Status{}}) {
+		t.Errorf("signed out, latest %+v", got)
+	}
+}
+
+func TestLatestAfterSignIn(t *testing.T) {
+	f := newFixture()
+	f.a.Fetch(Library)
+	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: catalog.Library{Songs: tracks}}
+	f.run(t)
+	f.signIn("SID=good")
+	f.src.Next(t, nil, "signin", "SID=good").Reply <- catalogtest.Reply{Account: ada}
+	f.run(t)
+	// The library was the previous credentials'; the switch is no news to
+	// those who connect later.
+	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{Status: &Status{Account: ada, SignedIn: true}}) {
+		t.Errorf("signed in, latest %+v", got)
+	}
+	f.a.Stop()
+}

@@ -8,12 +8,14 @@
 //
 // An Account belongs to the thread post runs funcs on. Its goroutines call
 // only the Source; results come back through post, and what changed is
-// reported on that thread as a Change.
+// reported on that thread as a Change. It keeps the latest of each, for a
+// daemon to tell the front-ends that connect later (Latest).
 package account
 
 import (
 	"context"
 	"errors"
+	"slices"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/job"
 
@@ -91,6 +93,31 @@ type Account struct {
 	signInCtx  context.Context
 	stopSignIn context.CancelFunc
 	signOutJob job.Job
+
+	// The latest reported: status once hasStatus, library once fetched,
+	// likes once hasLikes (likedSongs replaced whole, never edited), and
+	// the failure of each Part whose last fetch failed.
+	status     Status
+	hasStatus  bool
+	library    *catalog.Library
+	likedIDs   []string
+	likedSongs []catalog.Song
+	hasLikes   bool
+	failed     [Liked + 1]*Failure
+}
+
+// Latest is the latest an Account reported of each Part, as a full
+// Change would carry it; nil while not known. Library and Likes.Songs are
+// the Account's: read them, never modify them.
+type Latest struct {
+	// Status never has Switched.
+	Status  *Status
+	Library *catalog.Library
+	// Likes are Full, the liked songs since the last fetch included; Songs
+	// describe those of the fetch.
+	Likes *Likes
+	// Failed are the Parts whose last fetch failed.
+	Failed []Failure
 }
 
 // New returns an Account over src. post runs a func on the Account's
@@ -159,9 +186,9 @@ func (a *Account) finishFetch(p Part, c Change, err error) {
 		a.signedOut()
 	case err != nil:
 		log.Debug().Stringer("part", p).Err(err).Msg("fetch failed")
-		a.report(Change{Failed: &Failure{Part: p, Err: err}})
+		a.tell(Change{Failed: &Failure{Part: p, Err: err}})
 	default:
-		a.report(c)
+		a.tell(c)
 	}
 }
 
@@ -199,9 +226,9 @@ func (a *Account) finishLike(id string, liked bool, seq uint64, err error, done 
 	case errors.Is(err, catalog.ErrSignedOut):
 		a.signedOut()
 	case err == nil && liked:
-		a.report(Change{Likes: &Likes{Added: []string{id}}})
+		a.tell(Change{Likes: &Likes{Added: []string{id}}})
 	case err == nil:
-		a.report(Change{Likes: &Likes{Removed: []string{id}}})
+		a.tell(Change{Likes: &Likes{Removed: []string{id}}})
 	}
 }
 
@@ -215,7 +242,63 @@ func (a *Account) switchCredentials() {
 
 func (a *Account) signedOut() {
 	a.switchCredentials()
-	a.report(Change{Status: &Status{}})
+	a.tell(Change{Status: &Status{}})
+}
+
+// tell keeps c as the latest, then reports it.
+func (a *Account) tell(c Change) {
+	a.keep(c)
+	a.report(c)
+}
+
+func (a *Account) keep(c Change) {
+	switch {
+	case c.Status != nil:
+		a.status, a.hasStatus = *c.Status, true
+		a.status.Switched = false
+		if !c.Status.SignedIn || c.Status.Switched {
+			// Another account's, or no one's: what it had is gone.
+			a.library, a.likedIDs, a.likedSongs, a.hasLikes = nil, nil, nil, false
+			a.failed = [len(a.failed)]*Failure{}
+		}
+		a.failed[Profile] = nil
+	case c.Library != nil:
+		a.library, a.failed[Library] = c.Library, nil
+	case c.Likes != nil && c.Likes.Full:
+		// The Change's IDs go on to others; the Account edits its own.
+		a.likedIDs, a.likedSongs, a.hasLikes = slices.Clone(c.Likes.IDs), c.Likes.Songs, true
+		a.failed[Liked] = nil
+	case c.Likes != nil && a.hasLikes:
+		for _, id := range c.Likes.Added {
+			a.likedIDs = slices.Insert(slices.DeleteFunc(a.likedIDs, isID(id)), 0, id)
+		}
+		for _, id := range c.Likes.Removed {
+			a.likedIDs = slices.DeleteFunc(a.likedIDs, isID(id))
+		}
+	case c.Failed != nil:
+		a.failed[c.Failed.Part] = c.Failed
+	}
+}
+
+func isID(id string) func(string) bool { return func(s string) bool { return s == id } }
+
+// Latest returns the latest reported of each Part.
+func (a *Account) Latest() Latest {
+	var l Latest
+	if a.hasStatus {
+		status := a.status
+		l.Status = &status
+	}
+	l.Library = a.library
+	if a.hasLikes {
+		l.Likes = &Likes{Full: true, IDs: slices.Clone(a.likedIDs), Songs: a.likedSongs}
+	}
+	for _, f := range a.failed {
+		if f != nil {
+			l.Failed = append(l.Failed, *f)
+		}
+	}
+	return l
 }
 
 // CanSignIn reports whether the source signs in and out at all.
@@ -258,7 +341,7 @@ func (a *Account) finishSignIn(isCurrent bool, account catalog.Account, err erro
 		return
 	}
 	a.switchCredentials()
-	a.report(Change{Status: &Status{Account: account, SignedIn: true, Switched: true}})
+	a.tell(Change{Status: &Status{Account: account, SignedIn: true, Switched: true}})
 	for p := range a.fetches {
 		a.Fetch(Part(p))
 	}

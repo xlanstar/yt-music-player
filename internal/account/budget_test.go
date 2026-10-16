@@ -35,3 +35,20 @@ func TestBudgetCleanCredentials(t *testing.T) {
 	oneLine := strings.Join(strings.Fields(cookieHeader), " ")
 	budget.Allocs(t, 0, 100, func() { sinkString = CleanCredentials(oneLine) })
 }
+
+func TestBudgetLatest(t *testing.T) {
+	a := bigLatest(t)
+	// 2 allocs today: the Likes and a copy of their IDs.
+	budget.Allocs(t, 2, 100, func() { sinkLatest = a.Latest() })
+}
+
+func TestBudgetKeepLike(t *testing.T) {
+	a := bigLatest(t)
+	added := Change{Likes: &Likes{Added: []string{"liked-1000"}}}
+	removed := Change{Likes: &Likes{Removed: []string{"liked-1000"}}}
+	// 0 allocs today: the IDs keep their room.
+	budget.Allocs(t, 0, 100, func() {
+		a.keep(added)
+		a.keep(removed)
+	})
+}

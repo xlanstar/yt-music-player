@@ -47,8 +47,10 @@ var fetchCases = []struct {
 }{
 	{"profile", placeholder, Profile, 9},  // 7 allocs today.
 	{"library", placeholder, Library, 21}, // 18 allocs today.
-	{"liked", placeholder, Liked, 11},     // 9 allocs today.
-	{"liked/2000", bigLikes, Liked, 10},   // 8 allocs today.
+	// Liked: 10 and 9 allocs today, one the copy of the IDs the account
+	// keeps (Latest).
+	{"liked", placeholder, Liked, 11},
+	{"liked/2000", bigLikes, Liked, 10},
 }
 
 func placeholder() catalog.Source { return catalog.NewPlaceholderSource(0) }
@@ -109,5 +111,40 @@ func BenchmarkCleanCredentials(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		sinkString = CleanCredentials(cookieHeader)
+	}
+}
+
+// sinkLatest keeps the compiler from optimizing measured calls away.
+var sinkLatest Latest
+
+// bigLatest is an Account that fetched 2000 liked songs.
+func bigLatest(tb testing.TB) *Account {
+	tb.Helper()
+	a, q := placeholderAccount(bigLikes())
+	fetchRoundTrip(a, q, Liked)
+	if !a.hasLikes {
+		tb.Fatal("no likes")
+	}
+	return a
+}
+
+// BenchmarkLatest is what a front-end connecting to the daemon costs it.
+func BenchmarkLatest(b *testing.B) {
+	a := bigLatest(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		sinkLatest = a.Latest()
+	}
+}
+
+// BenchmarkKeepLike is a like that went through, kept among 2000 likes.
+func BenchmarkKeepLike(b *testing.B) {
+	a := bigLatest(b)
+	added := Change{Likes: &Likes{Added: []string{"liked-1000"}}}
+	removed := Change{Likes: &Likes{Removed: []string{"liked-1000"}}}
+	b.ReportAllocs()
+	for b.Loop() {
+		a.keep(added)
+		a.keep(removed)
 	}
 }
