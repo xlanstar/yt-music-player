@@ -101,6 +101,10 @@ type cue struct {
 // Reader reads one audio track's frames. It is not safe for concurrent use.
 type Reader struct {
 	src io.ReadSeeker
+	// rd is src as br reads it, converted once: converting at each seek
+	// goes through the runtime's type-assertion cache, which allocates on
+	// 1 call in 1024 until it is built.
+	rd  io.Reader
 	br  *bufio.Reader
 	off int64 // of the next byte br gives
 
@@ -142,7 +146,8 @@ func Open(r io.ReadSeeker) (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := &Reader{src: r, br: bufio.NewReaderSize(r, 16<<10), off: start, scale: time.Millisecond, cuesAt: -1}
+	var rd io.Reader = r
+	w := &Reader{src: r, rd: rd, br: bufio.NewReaderSize(rd, 16<<10), off: start, scale: time.Millisecond, cuesAt: -1}
 	if err := w.readHeader(); err != nil {
 		return nil, err
 	}
@@ -611,7 +616,7 @@ func (w *Reader) seekTo(off int64) error {
 	if _, err := w.src.Seek(off, io.SeekStart); err != nil {
 		return err
 	}
-	w.br.Reset(w.src)
+	w.br.Reset(w.rd)
 	w.off = off
 	return nil
 }
