@@ -12,50 +12,162 @@
 #   scripts/footprint.sh           the placeholder catalog, offline, silent
 #   scripts/footprint.sh -live     the signed-in account, as thumbnails cost;
 #                                  its songs play aloud
-#   scripts/footprint.sh -update   make perf/footprint-latest.txt the baseline,
-#                                  after a placeholder run of a deliberate change
+#   scripts/footprint.sh -daemon   ytmd alone instead, a placeholder one in a
+#                                  home of its own: its memory and wake-ups
+#                                  paused, playing, and after a Desktop toured
+#                                  every page through it (skipped without a
+#                                  window server, or with -headless); about
+#                                  90 seconds, into perf/footprint-daemon-latest.txt
+#   scripts/footprint.sh [-daemon] -update
+#                                  make the latest run the baseline's (window
+#                                  or daemon) section, after a placeholder run
+#                                  of a deliberate change
 set -eu
 
 cd "$(dirname "$0")/.."
 
-latest=perf/footprint-latest.txt
 baseline=perf/footprint-baseline.txt
+# The baseline holds the window's run, then the daemon's from this line on.
+daemon_section='^# ytmd footprint'
 
 usage() {
-	sed -n '2,17s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,24s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
 live=
 update=
+daemon=
+headless=
 while [ $# -gt 0 ]; do
 	case $1 in
 	-live) live=1 ;;
 	-update) update=1 ;;
+	-daemon) daemon=1 ;;
+	-headless) headless=1 ;;
 	*) usage ;;
 	esac
 	shift
 done
+# ytmd is measured on the placeholder alone: its fake engine plays with
+# no account, and a real one would sign in from the Keychain, which a home
+# of its own has not.
+[ -z "$daemon" ] || [ -z "$live" ] || usage
+[ -n "$daemon" ] || [ -z "$headless" ] || usage
+
+latest=perf/footprint-latest.txt
+[ -z "$daemon" ] || latest=perf/footprint-daemon-latest.txt
+
+# window_part and daemon_part print the baseline's two sections.
+window_part() { [ ! -f "$baseline" ] || sed "/$daemon_section/,\$d" "$baseline"; }
+daemon_part() { [ ! -f "$baseline" ] || sed -n "/$daemon_section/,\$p" "$baseline"; }
 
 if [ -n "$update" ]; then
 	# The account's catalog changes with the account: only the
 	# placeholder's numbers compare from one machine and day to another.
 	grep -q '^# source: placeholder$' "$latest" 2>/dev/null || {
-		echo "footprint.sh: $latest is no placeholder run: run scripts/footprint.sh first" >&2
+		echo "footprint.sh: $latest is no placeholder run: run scripts/footprint.sh${daemon:+ -daemon} first" >&2
 		exit 1
 	}
-	! grep -q '^# invalid:' "$latest" || {
-		echo "footprint.sh: $latest has invalid phases: run it again" >&2
+	! grep -q '^# \(invalid\|failed\):' "$latest" || {
+		echo "footprint.sh: $latest has invalid or failed phases: run it again" >&2
 		exit 1
 	}
-	cp "$latest" "$baseline"
-	echo "footprint.sh: $latest is the baseline now; commit it with the change it measures" >&2
+	next=$(mktemp)
+	if [ -n "$daemon" ]; then
+		{
+			window_part
+			cat "$latest"
+		} >"$next"
+	else
+		{
+			cat "$latest"
+			daemon_part
+		} >"$next"
+	fi
+	mv "$next" "$baseline"
+	echo "footprint.sh: $latest is the baseline's now; commit it with the change it measures" >&2
 	exit 0
 fi
 
 [ "$(uname -s)" = Darwin ] || {
-	echo "footprint.sh: footprint(1) and the harness are macOS only" >&2
+	echo "footprint.sh: footprint(1), top's wake-ups and the harness are macOS only" >&2
 	exit 1
+}
+
+header() {
+	echo "# source: $source"
+	echo "# date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+	echo "# go: $(go version)"
+	echo "# cpu: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || uname -m), macOS $(sw_vers -productVersion)"
+	echo "# git: $(git rev-parse --short HEAD 2>/dev/null || echo "no commit"), $(git status --porcelain 2>/dev/null | wc -l | tr -d ' ') files changed"
+}
+
+# An app bundle at $1, opened as the Finder would: macOS gives the focus
+# to an app the user launches, and keeps it from one a shell starts.
+build_app() {
+	mkdir -p "$1/Contents/MacOS"
+	go build -tags "memprof,$tags" -o "$1/Contents/MacOS/yt-music-player" ./cmd/desktop
+	cat >"$1/Contents/Info.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key><string>yt-music-player</string>
+	<key>CFBundleIdentifier</key><string>dev.yt-music-player.footprint</string>
+	<key>CFBundleName</key><string>YT Music Footprint</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>NSHighResolutionCapable</key><true/>
+</dict>
+</plist>
+EOF
+}
+
+# compare <baseline section> <latest> <keys…>: each phase's keys,
+# baseline then latest.
+compare() {
+	base=$1
+	shift
+	echo
+	awk -v keys="$*" '
+		BEGIN { n = split(keys, key, " ") }
+		$1 !~ /^phase=/ { next }
+		{
+			delete f
+			for (i = 1; i <= NF; i++) {
+				k = substr($i, 1, index($i, "=") - 1)
+				f[k] = substr($i, index($i, "=") + 1)
+			}
+			line = ""
+			for (i = 1; i <= n; i++) line = line (i > 1 ? SUBSEP : "") f[key[i]]
+		}
+		FNR == NR { base[f["phase"]] = line; next }
+		f["phase"] in base {
+			split(base[f["phase"]], b, SUBSEP)
+			split(line, l, SUBSEP)
+			if (!header++) {
+				printf "%-20s", "phase"
+				for (i = 1; i <= n; i++) printf " %17s", key[i]
+				printf "\n"
+			}
+			printf "%-20s", f["phase"]
+			for (i = 1; i <= n; i++) printf " %7s → %7s", b[i], l[i]
+			printf "\n"
+		}
+	' "$base" "$latest"
+}
+
+# A placeholder run compares with the baseline's section of the same
+# source; it returns 1 when there is none.
+check_baseline() {
+	if [ ! -s "$1" ]; then
+		echo "footprint.sh: no section in $baseline to compare with: scripts/footprint.sh${daemon:+ -daemon} -update makes one" >&2
+		return 1
+	fi
+	if ! grep -q "^# source: $source\$" "$1"; then
+		echo "footprint.sh: $baseline measured another source; not compared" >&2
+		return 1
+	fi
 }
 
 source=placeholder
@@ -63,6 +175,148 @@ source=placeholder
 # the app and in ytmd, which plays it silently on a clock.
 tags=placeholder
 [ -z "$live" ] || { source=live; tags=; }
+
+if [ -n "$daemon" ]; then
+	# In /tmp, short: the socket's path, under the home below, must fit
+	# in 103 bytes.
+	tmp=$(mktemp -d /tmp/ytmd-footprint.XXXXXX)
+	ytm=$tmp/ytm
+	app=$tmp/YT\ Music\ Footprint.app
+	cleanup() {
+		pkill -f "$app/Contents/MacOS/" 2>/dev/null || :
+		[ ! -d "$tmp/home" ] || HOME=$tmp/home TMPDIR=$tmp "$ytm" daemon stop >/dev/null 2>&1 || :
+		rm -rf "$tmp"
+	}
+	trap cleanup EXIT
+	trap 'exit 1' INT TERM
+
+	# A window server: a GUI login's (Aqua), not an ssh one's.
+	desktop=
+	if [ -z "$headless" ] && [ "$(launchctl managername 2>/dev/null)" = Aqua ]; then
+		desktop=1
+	fi
+	go build -tags "$tags" -o "$tmp/ytmd" ./cmd/ytmd
+	go build -tags "$tags" -o "$ytm" ./cmd/ytm
+	[ -z "$desktop" ] || build_app "$app"
+	{
+		echo "# ytmd footprint, scripts/footprint.sh -daemon"
+		header
+		echo "# phases: one line each, key=value; MB: footprint(1)'s, RSS-MB: ps's, sampled twice a second; idle-wakeups and csw (context switches): top's, over the phase"
+	} >"$tmp/out.txt"
+
+	# A home of its own: a fresh state (the placeholder's queue, paused),
+	# and no other development ytmd's socket, lock or log.
+	mkdir "$tmp/home"
+	HOME=$tmp/home TMPDIR=$tmp YTMD_PATH=$tmp/ytmd
+	export HOME TMPDIR YTMD_PATH
+	"$ytm" daemon start >/dev/null
+	pid=$(pgrep -f "^$tmp/ytmd\$")
+	secs=10
+
+	# measure <phase> <playing: yes or no> samples ytmd's footprint and
+	# RSS twice a second for $secs seconds while top counts its wake-ups.
+	# A phase whose ytmd did not play as it should is invalid; a paused
+	# one that woke the CPU from idle fails.
+	measure() {
+		was=$("$ytm" status --json | sed -n 's/.*"state":"\([a-z]*\)".*/\1/p')
+		# Waits out ytmd's 2 s save, and its free of the heap 3 s after
+		# the last request (internal/daemon), this status's too.
+		sleep 5
+		top -l 2 -s "$secs" -pid "$pid" -stats pid,idlew,csw >"$tmp/top.txt" 2>&1 &
+		top=$!
+		: >"$tmp/mb.txt"
+		i=0
+		while [ "$i" -lt $((secs * 2)) ]; do
+			fp=$(footprint -f bytes -p "$pid" | sed -n 's/.*Footprint: \([0-9]*\) B.*/\1/p')
+			echo "$fp $(ps -o rss= -p "$pid")" >>"$tmp/mb.txt"
+			sleep 0.5
+			i=$((i + 1))
+		done
+		wait "$top"
+		now=$("$ytm" status --json | sed -n 's/.*"state":"\([a-z]*\)".*/\1/p')
+		# top's counts are since the process started, "+" marking a rise.
+		wakes=$(awk -v pid="$pid" '
+			function num(s) {
+				sub(/[+-]$/, "", s)
+				if (s ~ /K$/) return s * 1000
+				if (s ~ /M$/) return s * 1000000
+				return s + 0
+			}
+			$1 == pid { if (!seen++) { i0 = num($2); c0 = num($3) } i1 = num($2); c1 = num($3) }
+			END { if (seen < 2) print "? ?"; else print i1 - i0, c1 - c0 }
+		' "$tmp/top.txt")
+		awk -v phase="$1" -v want="$2" -v was="$was" -v now="$now" -v secs="$secs" -v wakes="$wakes" '
+			{
+				mb = $1 / 1048576; rss = $2 / 1024
+				if (!n || mb < lo) lo = mb
+				if (!n || mb > hi) hi = mb
+				sum += mb; rsum += rss; n++
+			}
+			END {
+				split(wakes, w, " ")
+				playing = was == "playing" && now == "playing" ? "yes" : was != "playing" && now != "playing" ? "no" : "part"
+				printf "phase=%s playing=%s secs=%d MB-min=%.1f MB-mean=%.1f MB-max=%.1f RSS-MB-mean=%.1f idle-wakeups=%s csw=%s\n",
+					phase, playing, secs, lo, sum / n, hi, rsum / n, w[1], w[2]
+				if (playing != want) printf "# invalid: %s: playing=%s, want %s\n", phase, playing, want
+				if (want == "no" && w[1] != "0") printf "# failed: %s: %s idle wake-ups while paused, want 0\n", phase, w[1]
+			}
+		' "$tmp/mb.txt" >>"$tmp/out.txt"
+	}
+
+	echo "footprint.sh: measuring ytmd (placeholder), about $([ -n "$desktop" ] && echo 90 || echo 50) seconds" >&2
+	measure ytmd-idle no
+	"$ytm" play >/dev/null
+	measure ytmd-playing yes
+	"$ytm" pause >/dev/null
+	measure ytmd-paused no
+
+	if [ -n "$desktop" ]; then
+		# The memprof harness tours every page three times, playing as it
+		# goes, then pauses: ytmd serves each page's fetch. In the
+		# background (-g), so no focus is taken; port 0: no clash with
+		# another memprof build's pprof (docs/performance.md).
+		open -n -g -F --env YT_HARNESS=1 --env YT_PPROF_ADDR=127.0.0.1:0 \
+			--env HOME="$HOME" --env TMPDIR="$TMPDIR" --env YTMD_PATH="$YTMD_PATH" \
+			--stdout /dev/null --stderr "$tmp/log.txt" "$app"
+		started=$(date +%s)
+		until grep -q '^HARNESS DONE' "$tmp/log.txt" 2>/dev/null; do
+			if [ $(($(date +%s) - started)) -gt 180 ]; then
+				echo "footprint.sh: the Desktop's tour did not finish; its log ends:" >&2
+				tail -n 20 "$tmp/log.txt" >&2 2>/dev/null || :
+				exit 1
+			fi
+			sleep 1
+		done
+		toured=$(($(date +%s) - started))
+		# SIGTERM, not an Apple Event, which would ask for the right to
+		# control the app: ytmd sees the connection end either way.
+		pkill -f "$app/Contents/MacOS/" || :
+		while pgrep -f "$app/Contents/MacOS/" >/dev/null; do sleep 0.2; done
+		measure ytmd-after-desktop no
+		echo "# desktop: toured every page three times in ${toured} s, then quit" >>"$tmp/out.txt"
+	else
+		echo "# desktop: skipped (no window server, or -headless)" >>"$tmp/out.txt"
+	fi
+	echo "# end" >>"$tmp/out.txt"
+
+	mkdir -p perf
+	mv "$tmp/out.txt" "$latest"
+	cat "$latest"
+	status=0
+	if grep -q '^# invalid:' "$latest"; then
+		status=1
+		echo "footprint.sh: invalid phases (see '# invalid'): run again" >&2
+	fi
+	if grep -q '^# failed:' "$latest"; then
+		status=1
+		echo "footprint.sh: ytmd woke while paused (see '# failed'): idle must wake nothing" >&2
+	fi
+	daemon_part >"$tmp/base.txt"
+	check_baseline "$tmp/base.txt" || exit "$status"
+	compare "$tmp/base.txt" MB-mean RSS-MB-mean idle-wakeups
+	exit "$status"
+fi
+
 tmp=$(mktemp -d)
 ytm=$tmp/ytm
 started=
@@ -80,32 +334,12 @@ export YTMD_PATH
 # Exit code 3: none running, so the app starts this one.
 "$ytm" daemon status >/dev/null 2>&1 || [ $? != 3 ] || started=1
 
-# An app bundle, opened as the Finder would: macOS gives the focus to an
-# app the user launches, and keeps it from one a shell starts.
 app=$tmp/YT\ Music\ Footprint.app
-mkdir -p "$app/Contents/MacOS"
-go build -tags "memprof,$tags" -o "$app/Contents/MacOS/yt-music-player" ./cmd/desktop
-cat >"$app/Contents/Info.plist" <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>CFBundleExecutable</key><string>yt-music-player</string>
-	<key>CFBundleIdentifier</key><string>dev.yt-music-player.footprint</string>
-	<key>CFBundleName</key><string>YT Music Footprint</string>
-	<key>CFBundlePackageType</key><string>APPL</string>
-	<key>NSHighResolutionCapable</key><true/>
-</dict>
-</plist>
-EOF
+build_app "$app"
 echo "footprint.sh: measuring ($source), about 70 seconds: click the window if it stays behind, then hands off" >&2
 {
 	echo "# yt-music-player footprint, scripts/footprint.sh"
-	echo "# source: $source"
-	echo "# date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-	echo "# go: $(go version)"
-	echo "# cpu: $(sysctl -n machdep.cpu.brand_string 2>/dev/null || uname -m), macOS $(sw_vers -productVersion)"
-	echo "# git: $(git rev-parse --short HEAD 2>/dev/null || echo "no commit"), $(git status --porcelain 2>/dev/null | wc -l | tr -d ' ') files changed"
+	header
 } >"$tmp/out.txt"
 
 # Port 0: no clash with another memprof build's pprof (docs/performance.md).
@@ -143,32 +377,7 @@ if grep -q '^# invalid:' "$latest"; then
 	echo "footprint.sh: invalid phases (see '# invalid'): run again, hands off" >&2
 fi
 
-if [ ! -f "$baseline" ]; then
-	echo "footprint.sh: no $baseline to compare with: scripts/footprint.sh -update makes one" >&2
-	exit "${invalid:-0}"
-fi
-if ! grep -q "^# source: $source\$" "$baseline"; then
-	echo "footprint.sh: $baseline measured another source; not compared" >&2
-	exit "${invalid:-0}"
-fi
-
-# Each phase's frames a minute and footprint, baseline then latest.
-echo
-awk '
-	$1 !~ /^phase=/ { next }
-	{
-		for (i = 1; i <= NF; i++) {
-			k = substr($i, 1, index($i, "=") - 1)
-			f[k] = substr($i, index($i, "=") + 1)
-		}
-		line = f["frames/min"] SUBSEP f["MB-mean"] SUBSEP f["gfx-MB-mean"]
-	}
-	FNR == NR { base[f["phase"]] = line; next }
-	f["phase"] in base {
-		split(base[f["phase"]], b, SUBSEP)
-		split(line, l, SUBSEP)
-		if (!header++) printf "%-18s %15s %15s %15s\n", "phase", "frames/min", "MB-mean", "gfx-MB-mean"
-		printf "%-18s %6.1f → %6.1f %6.0f → %6.0f %6.0f → %6.0f\n", f["phase"], b[1], l[1], b[2], l[2], b[3], l[3]
-	}
-' "$baseline" "$latest"
+window_part >"$tmp/base.txt"
+check_baseline "$tmp/base.txt" || exit "${invalid:-0}"
+compare "$tmp/base.txt" frames/min MB-mean gfx-MB-mean
 exit "${invalid:-0}"
