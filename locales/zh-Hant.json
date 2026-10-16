@@ -208,7 +208,7 @@
   "cliHelpLogs": "顯示 log 檔的位置",
   "cliHelpVersion": "顯示 ytm 與背景播放器的版本",
   "cliHelpHelp": "顯示這份清單",
-  "cliTuiUnavailable": "終端機播放器尚未推出。執行「ytm help」查看所有指令。",
+  "cliTuiFailed": "終端機播放器已停止",
   "cliDaemonOlder": "背景播放器（{daemon}）比 ytm（{ours}）舊。執行「ytm daemon restart」來更新它。",
   "cliDaemonIncompatible": "背景播放器（{daemon}）無法理解這個 ytm（{ours}）。執行「ytm daemon restart」來更新它。",
   "cliDaemonNewerIncompatible": "背景播放器（{daemon}）比這個 ytm（{ours}）新，已無法理解它。請更新 YT Music Player。",
@@ -241,5 +241,16 @@
   "cliLoginInvalid": "YouTube Music 不接受這個 Cookie 標頭。請從已登入的分頁重新複製，再執行「ytm login」。",
   "cliAutostartFailed": "無法變更登入時啟動的設定",
   "cliAutostartOn": "登入時會啟動背景播放器。",
-  "cliAutostartOff": "登入時不會啟動背景播放器。"
+  "cliAutostartOff": "登入時不會啟動背景播放器。",
+  "tuiNothingPlaying": "目前沒有播放",
+  "tuiQueueEmpty": "待播清單是空的",
+  "tuiQueueEmptyHint": "在「搜尋」或「媒體庫」找到歌曲後，按 enter 播放，或按 a 加入待播清單。",
+  "tuiRestart": "重新啟動",
+  "tuiConnecting": "正在連線到背景播放器…",
+  "tuiReconnecting": "背景播放器已停止，正在重新啟動…",
+  "tuiUnresponsive": "背景播放器沒有回應。",
+  "tuiUnavailable": "無法連線到背景播放器。",
+  "tuiLog": "Log：{path}",
+  "tuiDaemonOutdated": "背景播放器（{daemon}）比 ytm（{ours}）舊。請更新 YT Music Player。",
+  "tuiFrontendOutdated": "背景播放器（{daemon}）比 ytm（{ours}）新，無法與它溝通。請更新 YT Music Player。"
 }

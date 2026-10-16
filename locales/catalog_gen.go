@@ -2128,18 +2128,18 @@ func (msgs Messages) CliHelpHelp() string {
 	return Catalog.Format(msgs.locale, "cliHelpHelp", nil)
 }
 
-// CliTuiUnavailable says "The player in the terminal isn’t available yet. Run “ytm help” for the commands."
+// CliTuiFailed says "The player in the terminal stopped"
 // in the language the app shows.
 //
-// `ytm` without a command, before the terminal player ships.
-func CliTuiUnavailable() string { return In(i18n.Locale()).CliTuiUnavailable() }
+// `ytm` without a command ended on an error, given after a colon.
+func CliTuiFailed() string { return In(i18n.Locale()).CliTuiFailed() }
 
-// CliTuiUnavailable says "The player in the terminal isn’t available yet. Run “ytm help” for the commands."
+// CliTuiFailed says "The player in the terminal stopped"
 // in the language of msgs.
 //
-// `ytm` without a command, before the terminal player ships.
-func (msgs Messages) CliTuiUnavailable() string {
-	return Catalog.Format(msgs.locale, "cliTuiUnavailable", nil)
+// `ytm` without a command ended on an error, given after a colon.
+func (msgs Messages) CliTuiFailed() string {
+	return Catalog.Format(msgs.locale, "cliTuiFailed", nil)
 }
 
 // CliDaemonOlder says "The background player ({daemon}) is older than ytm ({ours}). Run “ytm daemon restart” to update it."
@@ -2508,4 +2508,138 @@ func CliAutostartOff() string { return In(i18n.Locale()).CliAutostartOff() }
 // in the language of msgs.
 func (msgs Messages) CliAutostartOff() string {
 	return Catalog.Format(msgs.locale, "cliAutostartOff", nil)
+}
+
+// TuiNothingPlaying says "Nothing playing"
+// in the language the app shows.
+//
+// The terminal player's player bar while the queue is empty.
+func TuiNothingPlaying() string { return In(i18n.Locale()).TuiNothingPlaying() }
+
+// TuiNothingPlaying says "Nothing playing"
+// in the language of msgs.
+//
+// The terminal player's player bar while the queue is empty.
+func (msgs Messages) TuiNothingPlaying() string {
+	return Catalog.Format(msgs.locale, "tuiNothingPlaying", nil)
+}
+
+// TuiQueueEmpty says "The queue is empty"
+// in the language the app shows.
+func TuiQueueEmpty() string { return In(i18n.Locale()).TuiQueueEmpty() }
+
+// TuiQueueEmpty says "The queue is empty"
+// in the language of msgs.
+func (msgs Messages) TuiQueueEmpty() string {
+	return Catalog.Format(msgs.locale, "tuiQueueEmpty", nil)
+}
+
+// TuiQueueEmptyHint says "Find songs in Search or Library, then press enter to play them or a to add them."
+// in the language the app shows.
+//
+// The terminal player's empty queue. enter and a are keys, untranslated.
+func TuiQueueEmptyHint() string { return In(i18n.Locale()).TuiQueueEmptyHint() }
+
+// TuiQueueEmptyHint says "Find songs in Search or Library, then press enter to play them or a to add them."
+// in the language of msgs.
+//
+// The terminal player's empty queue. enter and a are keys, untranslated.
+func (msgs Messages) TuiQueueEmptyHint() string {
+	return Catalog.Format(msgs.locale, "tuiQueueEmptyHint", nil)
+}
+
+// TuiRestart says "Restart"
+// in the language the app shows.
+//
+// After a key: restarts the background player, which isn't responding.
+func TuiRestart() string { return In(i18n.Locale()).TuiRestart() }
+
+// TuiRestart says "Restart"
+// in the language of msgs.
+//
+// After a key: restarts the background player, which isn't responding.
+func (msgs Messages) TuiRestart() string {
+	return Catalog.Format(msgs.locale, "tuiRestart", nil)
+}
+
+// TuiConnecting says "Connecting to the background player…"
+// in the language the app shows.
+func TuiConnecting() string { return In(i18n.Locale()).TuiConnecting() }
+
+// TuiConnecting says "Connecting to the background player…"
+// in the language of msgs.
+func (msgs Messages) TuiConnecting() string {
+	return Catalog.Format(msgs.locale, "tuiConnecting", nil)
+}
+
+// TuiReconnecting says "The background player stopped. Starting it again…"
+// in the language the app shows.
+func TuiReconnecting() string { return In(i18n.Locale()).TuiReconnecting() }
+
+// TuiReconnecting says "The background player stopped. Starting it again…"
+// in the language of msgs.
+func (msgs Messages) TuiReconnecting() string {
+	return Catalog.Format(msgs.locale, "tuiReconnecting", nil)
+}
+
+// TuiUnresponsive says "The background player isn’t responding."
+// in the language the app shows.
+func TuiUnresponsive() string { return In(i18n.Locale()).TuiUnresponsive() }
+
+// TuiUnresponsive says "The background player isn’t responding."
+// in the language of msgs.
+func (msgs Messages) TuiUnresponsive() string {
+	return Catalog.Format(msgs.locale, "tuiUnresponsive", nil)
+}
+
+// TuiUnavailable says "Can’t reach the background player."
+// in the language the app shows.
+func TuiUnavailable() string { return In(i18n.Locale()).TuiUnavailable() }
+
+// TuiUnavailable says "Can’t reach the background player."
+// in the language of msgs.
+func (msgs Messages) TuiUnavailable() string {
+	return Catalog.Format(msgs.locale, "tuiUnavailable", nil)
+}
+
+// TuiLog says "Log: {path}"
+// in the language the app shows.
+//
+// Where the background player's log file is.
+func TuiLog(path string) string { return In(i18n.Locale()).TuiLog(path) }
+
+// TuiLog says "Log: {path}"
+// in the language of msgs.
+//
+// Where the background player's log file is.
+func (msgs Messages) TuiLog(path string) string {
+	return Catalog.Format(msgs.locale, "tuiLog", map[string]any{"path": path})
+}
+
+// TuiDaemonOutdated says "The background player ({daemon}) is older than ytm ({ours}). Update YT Music Player."
+// in the language the app shows.
+//
+// The terminal player's status line. Versions are numbers like 0.3.0.
+func TuiDaemonOutdated(daemon string, ours string) string {
+	return In(i18n.Locale()).TuiDaemonOutdated(daemon, ours)
+}
+
+// TuiDaemonOutdated says "The background player ({daemon}) is older than ytm ({ours}). Update YT Music Player."
+// in the language of msgs.
+//
+// The terminal player's status line. Versions are numbers like 0.3.0.
+func (msgs Messages) TuiDaemonOutdated(daemon string, ours string) string {
+	return Catalog.Format(msgs.locale, "tuiDaemonOutdated", map[string]any{"daemon": daemon, "ours": ours})
+}
+
+// TuiFrontendOutdated says "The background player ({daemon}) is newer than ytm ({ours}) and doesn’t understand it. Update YT Music Player."
+// in the language the app shows.
+func TuiFrontendOutdated(daemon string, ours string) string {
+	return In(i18n.Locale()).TuiFrontendOutdated(daemon, ours)
+}
+
+// TuiFrontendOutdated says "The background player ({daemon}) is newer than ytm ({ours}) and doesn’t understand it. Update YT Music Player."
+// in the language of msgs.
+func (msgs Messages) TuiFrontendOutdated(daemon string, ours string) string {
+	return Catalog.Format(msgs.locale, "tuiFrontendOutdated", map[string]any{"daemon": daemon, "ours": ours})
 }

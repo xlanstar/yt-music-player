@@ -1,0 +1,268 @@
+package tui
+
+import (
+	"reflect"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+	"yt-music-player/internal/api"
+	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/notice"
+	"yt-music-player/internal/remote"
+
+	tea "charm.land/bubbletea/v2"
+)
+
+func TestQueue(t *testing.T) {
+	h := placeholderHarness(t)
+	h.golden("queue")
+
+	h.mirror.state.Playing, h.mirror.state.Shuffled, h.mirror.state.Repeat = true, true, api.RepeatAll
+	h.send(postedMsg{})
+	h.golden("queue-playing")
+
+	h.resize(44, 14)
+	h.golden("queue-narrow")
+}
+
+func TestQueueScrolls(t *testing.T) {
+	h := placeholderHarness(t)
+	songs := longQueue(300)
+	h.mirror.setQueue(songs)
+	h.mirror.state.Index, h.mirror.state.Current = 150, songs[150].ID
+	h.send(postedMsg{})
+	// The cursor follows the current song until moved.
+	h.golden("queue-follows")
+	h.press("end")
+	h.golden("queue-end")
+	h.press("home", "down", "down")
+	h.press("enter")
+	if got := h.ctl.take(); !reflect.DeepEqual(got, []string{"Play song2 0"}) {
+		t.Errorf("enter sent %q", got)
+	}
+}
+
+func TestEmptyQueue(t *testing.T) {
+	h := newHarness(t, catalog.NewPlaceholderSource(0))
+	h.mirror.setQueue(nil)
+	h.send(postedMsg{})
+	h.golden("queue-empty")
+	if cmd := h.press("left"); cmd != nil || len(h.ctl.calls) > 0 {
+		t.Errorf("seeking nothing sent %q", h.ctl.calls)
+	}
+}
+
+func TestPlaybackKeys(t *testing.T) {
+	cases := []struct {
+		key  string
+		want string
+	}{
+		{"space", "Toggle"},
+		{"n", "Next"},
+		{"p", "Prev"},
+		{"left", "Seek 36"},
+		{"right", "Seek 46"},
+		{"+", "SetVolume 0.45"},
+		{"-", "SetVolume 0.35"},
+		{"s", "ToggleShuffle"},
+		{"r", "CycleRepeat"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.key, func(t *testing.T) {
+			h := placeholderHarness(t)
+			h.press(tc.key)
+			if got := h.ctl.take(); !reflect.DeepEqual(got, []string{tc.want}) {
+				t.Errorf("%s sent %q, want %q", tc.key, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVolumeStops(t *testing.T) {
+	h := placeholderHarness(t)
+	h.mirror.state.Volume = 0.98
+	h.press("+")
+	h.mirror.state.Volume = 0.02
+	h.press("-")
+	if got, want := h.ctl.take(), []string{"SetVolume 1.00", "SetVolume 0.00"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("sent %q, want %q", got, want)
+	}
+}
+
+func TestQuit(t *testing.T) {
+	for _, key := range []string{"q", "ctrl+c"} {
+		h := placeholderHarness(t)
+		cmd := h.press(key)
+		if !isQuit(cmd) {
+			t.Errorf("%s did not quit", key)
+		}
+		if len(h.ctl.calls) > 0 || len(h.sup.calls) > 0 {
+			t.Errorf("%s also sent %q %q: quitting must leave the daemon playing", key, h.ctl.calls, h.sup.calls)
+		}
+	}
+}
+
+// isQuit reports whether cmd, maybe in a batch, quits.
+func isQuit(cmd tea.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch msg := cmd().(type) {
+	case tea.QuitMsg:
+		return true
+	case tea.BatchMsg:
+		return slices.ContainsFunc(msg, isQuit)
+	}
+	return false
+}
+
+// Windows sends a lone Ctrl as an empty key, which must change nothing.
+func TestEmptyKey(t *testing.T) {
+	h := placeholderHarness(t)
+	before := h.m.content
+	h.m.content = ""
+	if cmd := h.send(tea.KeyPressMsg{}); cmd != nil {
+		t.Error("an empty key gave a command")
+	}
+	if h.m.content != "" {
+		t.Error("an empty key rendered the screen")
+	}
+	h.m.content = before
+}
+
+func TestHealth(t *testing.T) {
+	older := remote.Peer{Hello: api.Hello{Version: "0.3.0"}, Version: "0.4.0", IsCompatible: true}
+	cases := []struct {
+		name string
+		link remote.Link
+		text string
+		r    string // what R asks of the Supervisor
+	}{
+		{"connecting", remote.Link{Health: remote.Connecting}, "Connecting to the background player…", "Retry"},
+		{"reconnecting", remote.Link{Health: remote.Reconnecting, Connection: 1}, "The background player stopped.", "Retry"},
+		{"unresponsive", remote.Link{Health: remote.Unresponsive, Connection: 1}, "isn’t responding.  R Restart", "Restart"},
+		{"unavailable", remote.Link{Health: remote.Unavailable, Connection: 1}, "reach the background player.  R Retry  Log: /logs/ytmd.log", "Retry"},
+		{"daemon-outdated", remote.Link{Health: remote.DaemonOutdated, Daemon: older, Connection: 1}, "(0.3.0) is older than ytm (0.4.0)", "Retry"},
+		{"frontend-outdated", remote.Link{Health: remote.FrontendOutdated, Daemon: older}, "is newer than ytm", "Retry"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := placeholderHarness(t)
+			h.m.setLink(tc.link)
+			h.send(postedMsg{})
+			h.screenHas(tc.text)
+			if tc.name == "unavailable" {
+				h.golden("unavailable")
+			}
+			h.press("R")
+			if !reflect.DeepEqual(h.sup.calls, []string{tc.r}) {
+				t.Errorf("R asked %q, want %s", h.sup.calls, tc.r)
+			}
+		})
+	}
+	h := placeholderHarness(t)
+	if h.press("R") != nil || len(h.sup.calls) > 0 {
+		t.Error("R did something while connected")
+	}
+}
+
+// A new connection fetches again what failed meanwhile.
+func TestReconnectRetries(t *testing.T) {
+	h := newHarness(t, catalog.NewPlaceholderSource(0))
+	h.m.session.ApplyFailed(api.FailedEvent{Part: api.PartLiked, Err: &api.Error{Code: api.CodeInternal}})
+	h.m.setLink(remote.Link{Health: remote.Connected, Connection: 2})
+	if !slices.Contains(h.daemon.calls, "Refresh 3") {
+		t.Errorf("asked %q, not to refresh the likes", h.daemon.calls)
+	}
+}
+
+func TestNotices(t *testing.T) {
+	h := placeholderHarness(t)
+	h.m.tell(notice.Notice{Kind: notice.Failure, Title: notice.ControlFailed, Detail: notice.Reason, Args: []string{"no song"}})
+	cmd := h.send(postedMsg{})
+	h.screenHas("Couldn’t change playback: no song")
+	seq := h.m.noticeSeq
+	if cmd == nil {
+		t.Fatal("no timer ends the notice")
+	}
+	h.send(clearNoticeMsg{seq: seq - 1})
+	h.screenHas("Couldn’t change playback")
+	h.send(clearNoticeMsg{seq: seq})
+	if strings.Contains(h.screen(), "Couldn’t change playback") {
+		t.Error("the notice outlived its time")
+	}
+}
+
+func TestTicks(t *testing.T) {
+	h := placeholderHarness(t)
+	if h.m.isTicking {
+		t.Fatal("paused, yet ticking")
+	}
+	h.mirror.state.Playing = true
+	h.mirror.state.Position = 41.25
+	if cmd := h.send(postedMsg{}); cmd == nil || !h.m.isTicking {
+		t.Fatal("playing, yet not ticking")
+	}
+	if d := h.m.untilNextSecond(); d < 750_000_000 || d > 800_000_000 {
+		t.Errorf("the next tick in %v, want at the next second", d)
+	}
+	h.send(tea.BlurMsg{})
+	h.send(tickMsg{})
+	if h.m.isTicking {
+		t.Error("blurred, yet ticking")
+	}
+	h.send(tea.FocusMsg{})
+	if !h.m.isTicking {
+		t.Error("focused again, yet not ticking")
+	}
+	if !reflect.DeepEqual(h.sup.calls, []string{"Foreground"}) {
+		t.Errorf("focus asked %q of the Supervisor", h.sup.calls)
+	}
+	h.mirror.state.Playing = false
+	h.send(tickMsg{})
+	if h.m.isTicking {
+		t.Error("paused, yet ticking")
+	}
+}
+
+// Titles are cut by their width on screen: wide characters take two
+// cells.
+func TestWideTitles(t *testing.T) {
+	h := placeholderHarness(t)
+	songs := []catalog.Song{
+		{ID: "wide", Title: "夜に駆ける夜に駆ける夜に駆ける夜に駆ける", Artist: "YOASOBI", Album: "THE BOOK", Seconds: 261},
+		{ID: "emoji", Title: "🎧🎧🎧 Headphones on, the very long title of a song", Artist: "Someone", Seconds: 200},
+	}
+	h.mirror.setQueue(songs)
+	h.send(postedMsg{})
+	h.resize(60, 12)
+	h.golden("queue-wide-titles")
+	for line := range strings.Lines(h.screen()) {
+		if w := width(strings.TrimRight(line, "\n")); w > 60 {
+			t.Errorf("a line %d cells wide: %q", w, line)
+		}
+	}
+}
+
+func TestTinyTerminal(t *testing.T) {
+	h := placeholderHarness(t)
+	for _, size := range [][2]int{{80, 6}, {80, 3}, {10, 24}, {1, 1}} {
+		h.resize(size[0], size[1])
+		lines := strings.Count(h.m.content, "\n") + 1
+		if lines > size[1] {
+			t.Errorf("%v: %d lines", size, lines)
+		}
+	}
+	h.resize(80, 6)
+	h.golden("tiny")
+}
+
+func longQueue(n int) []catalog.Song {
+	songs := make([]catalog.Song, n)
+	for i := range songs {
+		id := "song" + strconv.Itoa(i)
+		songs[i] = catalog.Song{ID: id, Title: "Song " + strconv.Itoa(i), Artist: "Artist " + strconv.Itoa(i%7), Album: "Album " + strconv.Itoa(i%13), Seconds: 120 + i%180}
+	}
+	return songs
+}

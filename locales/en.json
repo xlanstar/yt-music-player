@@ -283,8 +283,8 @@
   "cliHelpLogs": "Show where the log files are",
   "cliHelpVersion": "Show the versions of ytm and the background player",
   "cliHelpHelp": "Show this list",
-  "cliTuiUnavailable": "The player in the terminal isn’t available yet. Run “ytm help” for the commands.",
-  "@cliTuiUnavailable": { "description": "`ytm` without a command, before the terminal player ships." },
+  "cliTuiFailed": "The player in the terminal stopped",
+  "@cliTuiFailed": { "description": "`ytm` without a command ended on an error, given after a colon." },
   "cliDaemonOlder": "The background player ({daemon}) is older than ytm ({ours}). Run “ytm daemon restart” to update it.",
   "@cliDaemonOlder": {
     "description": "A warning: the background player is an older version than the ytm command. Versions are numbers like 0.3.0.",
@@ -337,5 +337,25 @@
   "cliLoginInvalid": "YouTube Music didn’t take that Cookie header. Copy it again from a signed-in tab, then run “ytm login”.",
   "cliAutostartFailed": "Couldn’t change starting at login",
   "cliAutostartOn": "The background player starts when you log in.",
-  "cliAutostartOff": "The background player doesn’t start when you log in."
+  "cliAutostartOff": "The background player doesn’t start when you log in.",
+  "tuiNothingPlaying": "Nothing playing",
+  "@tuiNothingPlaying": { "description": "The terminal player's player bar while the queue is empty." },
+  "tuiQueueEmpty": "The queue is empty",
+  "tuiQueueEmptyHint": "Find songs in Search or Library, then press enter to play them or a to add them.",
+  "@tuiQueueEmptyHint": { "description": "The terminal player's empty queue. enter and a are keys, untranslated." },
+  "tuiRestart": "Restart",
+  "@tuiRestart": { "description": "After a key: restarts the background player, which isn't responding." },
+  "tuiConnecting": "Connecting to the background player…",
+  "tuiReconnecting": "The background player stopped. Starting it again…",
+  "tuiUnresponsive": "The background player isn’t responding.",
+  "tuiUnavailable": "Can’t reach the background player.",
+  "tuiLog": "Log: {path}",
+  "@tuiLog": { "description": "Where the background player's log file is.", "placeholders": { "path": { "type": "String" } } },
+  "tuiDaemonOutdated": "The background player ({daemon}) is older than ytm ({ours}). Update YT Music Player.",
+  "@tuiDaemonOutdated": {
+    "description": "The terminal player's status line. Versions are numbers like 0.3.0.",
+    "placeholders": { "daemon": { "type": "String", "example": "0.3.0" }, "ours": { "type": "String", "example": "0.4.0" } }
+  },
+  "tuiFrontendOutdated": "The background player ({daemon}) is newer than ytm ({ours}) and doesn’t understand it. Update YT Music Player.",
+  "@tuiFrontendOutdated": { "placeholders": { "daemon": { "type": "String", "example": "1.0.0" }, "ours": { "type": "String", "example": "0.3.0" } } }
 }

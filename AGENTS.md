@@ -37,6 +37,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `stream`: resolves a song's Opus stream; `audio`: the engine (fetches, decodes Opus in Go, plays through MyGo's `audio`; Now Playing on macOS, MPRIS on Linux) and `Fake`; `webm`: an audio track's frames out of WebM.
 - `player`: queue, shuffle, repeat, volume; `playback`: drives the engine from the player, reports when the next frame is due.
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's `Service` (player, playback, account, engine and `daemon.json` on the loop; serves the protocol of `api` over `ipc`).
+- `tui`: `ytm`'s player in the terminal (Bubble Tea, Lip Gloss): its tabs over the player bar and the daemon's health; `Update` is the UI thread, where posted funcs run as one message; screens are golden files in `testdata/` (`-update` rewrites them).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
 - `artwork`: thumbnail loader with memory and disk caches.
 - `budget`: allocation budgets for tests.
