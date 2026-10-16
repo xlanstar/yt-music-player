@@ -99,6 +99,13 @@ func TestOverDaemon(t *testing.T) {
 	if m.isTicking {
 		t.Error("ticking while the song loads")
 	}
+
+	d.send(keyMsg("tab"))
+	d.send(keyMsg("/"))
+	for _, r := range "moon" {
+		d.send(keyMsg(string(r)))
+	}
+	d.until("found", func() bool { return d.shows("Slow Burn Summer") })
 }
 
 // post never blocks, from any goroutine, and one message runs all the

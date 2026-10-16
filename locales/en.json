@@ -343,6 +343,8 @@
   "tuiQueueEmpty": "The queue is empty",
   "tuiQueueEmptyHint": "Find songs in Search or Library, then press enter to play them or a to add them.",
   "@tuiQueueEmptyHint": { "description": "The terminal player's empty queue. enter and a are keys, untranslated." },
+  "tuiSearchHint": "Press / and type a song, album or artist.",
+  "@tuiSearchHint": { "description": "The terminal player's search page before anything is typed. / is a key, untranslated." },
   "tuiRestart": "Restart",
   "@tuiRestart": { "description": "After a key: restarts the background player, which isn't responding." },
   "tuiConnecting": "Connecting to the background player…",

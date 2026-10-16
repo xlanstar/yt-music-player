@@ -2548,6 +2548,22 @@ func (msgs Messages) TuiQueueEmptyHint() string {
 	return Catalog.Format(msgs.locale, "tuiQueueEmptyHint", nil)
 }
 
+// TuiSearchHint says "Press / and type a song, album or artist."
+// in the language the app shows.
+//
+// The terminal player's search page before anything is typed. / is a key,
+// untranslated.
+func TuiSearchHint() string { return In(i18n.Locale()).TuiSearchHint() }
+
+// TuiSearchHint says "Press / and type a song, album or artist."
+// in the language of msgs.
+//
+// The terminal player's search page before anything is typed. / is a key,
+// untranslated.
+func (msgs Messages) TuiSearchHint() string {
+	return Catalog.Format(msgs.locale, "tuiSearchHint", nil)
+}
+
 // TuiRestart says "Restart"
 // in the language the app shows.
 //

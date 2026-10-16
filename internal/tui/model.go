@@ -2,6 +2,7 @@ package tui
 
 import (
 	"math"
+	"strings"
 	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
@@ -31,6 +32,7 @@ type tab uint8
 
 const (
 	tabQueue tab = iota
+	tabSearch
 	numTabs
 )
 
@@ -85,10 +87,16 @@ type model struct {
 	isBlurred bool
 	link      remote.Link
 
-	queue listState
+	queue, search listState
 	// queueFollows keeps the queue's cursor on the current song until
 	// the user moves it.
 	queueFollows bool
+
+	query    string
+	isTyping bool
+
+	// searched is what the loader was last told to search.
+	searched string
 
 	// notice is the status line's message, until a clearNoticeMsg of
 	// noticeSeq; isNoticeNew asks settle to schedule that.
@@ -142,6 +150,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.notice = ""
+	case tea.PasteMsg:
+		if !m.isTyping {
+			return m, nil
+		}
+		m.typeText(msg.Content)
 	case tea.KeyPressMsg:
 		var ok bool
 		if ok, cmd = m.key(msg); !ok {
@@ -160,6 +173,7 @@ func (m *model) settle(cmd tea.Cmd) tea.Cmd {
 	for _, n := range m.session.TakeNotices() {
 		m.tell(n)
 	}
+	m.syncLoad()
 	m.render()
 	cmds := []tea.Cmd{cmd}
 	if m.isNoticeNew {
@@ -186,6 +200,18 @@ func (m *model) untilNextSecond() time.Duration {
 	_, frac := math.Modf(pos)
 	// A little past it, so the second has turned when the tick comes.
 	return time.Duration((1-frac)*float64(time.Second)) + 10*time.Millisecond
+}
+
+// syncLoad tells the loader the search page's query.
+func (m *model) syncLoad() {
+	query := ""
+	if m.tab == tabSearch {
+		query = strings.TrimSpace(m.query)
+	}
+	if query != m.searched {
+		m.searched = query
+		m.loader.Search(query)
+	}
 }
 
 // tell shows n in the status line: every notice, the session's and
@@ -226,6 +252,9 @@ func (m *model) key(k tea.KeyPressMsg) (ok bool, cmd tea.Cmd) {
 	s := k.String()
 	if s == "ctrl+c" {
 		return true, tea.Quit
+	}
+	if m.isTyping {
+		return m.typeKey(k, s), nil
 	}
 	if ok, cmd := m.playbackKey(s); ok {
 		return true, cmd
@@ -271,6 +300,9 @@ func (m *model) browseKey(s string) (ok bool, cmd tea.Cmd) {
 		m.tab = (m.tab + 1) % numTabs
 	case "shift+tab":
 		m.tab = (m.tab + numTabs - 1) % numTabs
+	case "/":
+		m.tab = tabSearch
+		m.isTyping = true
 	case "up":
 		m.moveBy(-1)
 	case "down":
@@ -289,6 +321,42 @@ func (m *model) browseKey(s string) (ok bool, cmd tea.Cmd) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// typeKey edits the search query, which takes every key while typing.
+func (m *model) typeKey(k tea.KeyPressMsg, s string) bool {
+	switch s {
+	case "esc", "enter":
+		m.isTyping = false
+	case "backspace":
+		if m.query == "" {
+			return false
+		}
+		r := []rune(m.query)
+		m.query = string(r[:len(r)-1])
+	case "ctrl+u":
+		m.query = ""
+	default:
+		if k.Text == "" {
+			return false
+		}
+		m.typeText(k.Text)
+		return true
+	}
+	m.search = listState{}
+	return true
+}
+
+// typeText adds text, typed or pasted, to the query, on one line.
+func (m *model) typeText(text string) {
+	text = strings.Map(func(r rune) rune {
+		if r < ' ' || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, text)
+	m.query += text
+	m.search = listState{}
 }
 
 func (m *model) seekBy(seconds float64) {

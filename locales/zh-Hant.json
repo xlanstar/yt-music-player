@@ -245,6 +245,7 @@
   "tuiNothingPlaying": "目前沒有播放",
   "tuiQueueEmpty": "待播清單是空的",
   "tuiQueueEmptyHint": "在「搜尋」或「媒體庫」找到歌曲後，按 enter 播放，或按 a 加入待播清單。",
+  "tuiSearchHint": "按 / 後輸入歌曲、專輯或藝人。",
   "tuiRestart": "重新啟動",
   "tuiConnecting": "正在連線到背景播放器…",
   "tuiReconnecting": "背景播放器已停止，正在重新啟動…",

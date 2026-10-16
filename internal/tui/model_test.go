@@ -1,10 +1,13 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
@@ -131,6 +134,68 @@ func TestEmptyKey(t *testing.T) {
 	h.m.content = before
 }
 
+func TestSearch(t *testing.T) {
+	h := placeholderHarness(t)
+	h.press("tab")
+	h.golden("search-idle")
+	h.press("/")
+	// Keys go to the input while it has focus: q types, not quits.
+	h.typeText("moq")
+	h.press("backspace")
+	h.typeText("on")
+	if h.m.query != "moon" || len(h.ctl.calls) > 0 {
+		t.Fatalf("typed %q, sent %q", h.m.query, h.ctl.calls)
+	}
+	h.loaded()
+	h.golden("search")
+	h.press("esc", "down", "enter")
+	if got := h.ctl.take(); !reflect.DeepEqual(got, []string{"Play slow-burn-summer 0"}) {
+		t.Errorf("enter sent %q", got)
+	}
+	if isQuit(h.press("q")) == false {
+		t.Error("q did not quit once the input lost focus")
+	}
+}
+
+func TestSearchNone(t *testing.T) {
+	h := placeholderHarness(t)
+	h.press("/")
+	h.typeText("zzz")
+	h.loaded()
+	h.screenHas(`No results for “zzz”`)
+	h.press("ctrl+u")
+	h.screenHas("Press / and type")
+}
+
+// failing is the placeholder's source, failing what tests ask it to.
+type failing struct {
+	*catalog.PlaceholderSource
+	err error
+	// calls counts the requests, made on the loader's goroutines.
+	calls atomic.Int32
+}
+
+func (f *failing) Search(context.Context, string) (catalog.Results, error) {
+	f.calls.Add(1)
+	return catalog.Results{}, f.err
+}
+
+func TestSearchFailed(t *testing.T) {
+	src := &failing{PlaceholderSource: catalog.NewPlaceholderSource(0), err: errors.New("the network is down")}
+	h := newHarness(t, src)
+	h.press("/")
+	h.typeText("moon")
+	h.loaded()
+	h.press("enter")
+	h.golden("search-failed")
+	calls := src.calls.Load()
+	h.press("enter")
+	h.loaded()
+	if got := src.calls.Load(); got != calls+1 {
+		t.Errorf("enter did not retry: %d searches, want %d", got, calls+1)
+	}
+}
+
 func TestHealth(t *testing.T) {
 	older := remote.Peer{Hello: api.Hello{Version: "0.3.0"}, Version: "0.4.0", IsCompatible: true}
 	cases := []struct {
@@ -223,6 +288,19 @@ func TestTicks(t *testing.T) {
 	h.send(tickMsg{})
 	if h.m.isTicking {
 		t.Error("paused, yet ticking")
+	}
+}
+
+func TestPaste(t *testing.T) {
+	h := placeholderHarness(t)
+	h.send(tea.PasteMsg{Content: "paper\nmoons"})
+	if h.m.query != "" {
+		t.Error("a paste outside the input typed")
+	}
+	h.press("/")
+	h.send(tea.PasteMsg{Content: "paper\nmoons"})
+	if h.m.query != "paper moons" {
+		t.Errorf("pasted %q", h.m.query)
 	}
 }
 

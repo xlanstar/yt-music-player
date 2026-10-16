@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -66,7 +67,17 @@ func (m *model) row(it item, w int, isSelected bool) string {
 	// " ▸ " before, a space after.
 	inner := max(w-4, 0)
 	var segs [8]segment
-	parts := m.songSegments(segs[:0], &it, inner)
+	var parts []segment
+	switch it.kind {
+	case itemSong:
+		parts = m.songSegments(segs[:0], &it, inner)
+	case itemAlbum:
+		detail := it.album.Artist
+		if it.album.Year > 0 {
+			detail += " · " + strconv.Itoa(it.album.Year)
+		}
+		parts = columns(append(segs[:0], segment{text: "  "}), it.album.Title, detail, inner-markWidth)
+	}
 	var b strings.Builder
 	b.Grow(4 * w)
 	if !isSelected {
@@ -130,4 +141,17 @@ func (m *model) songSegments(segs []segment, it *item, w int) []segment {
 	return append(segs,
 		segment{text: dur, width: durWidth, isRight: true, style: styleMuted},
 		segment{text: heart, style: styleAccent})
+}
+
+// columns lays out a label and its detail in w cells, as a song's title
+// and artist.
+func columns(segs []segment, label, detail string, w int) []segment {
+	w = max(w, 1)
+	if w < artistFrom || detail == "" {
+		return append(segs, segment{text: label, width: w})
+	}
+	lw := (w - len(gap)) * 55 / 100
+	return append(segs,
+		segment{text: label, width: lw}, segment{text: gap},
+		segment{text: detail, width: w - lw - len(gap), style: styleMuted})
 }

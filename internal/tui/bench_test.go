@@ -6,7 +6,7 @@ import (
 )
 
 // viewCases are screens as Update renders them: a long queue playing
-// (which draws only the rows that show). allocs is each one's budget (TestBudgetView).
+// (which draws only the rows that show) and search results. allocs is each one's budget (TestBudgetView).
 var viewCases = []struct {
 	name    string
 	prepare func(h *harness)
@@ -19,6 +19,13 @@ var viewCases = []struct {
 		h.mirror.state.Playing, h.mirror.state.Index, h.mirror.state.Current = true, 2500, songs[2500].ID
 		h.mirror.state.Shuffled, h.mirror.state.Repeat = true, api.RepeatAll
 	}, 110},
+	// 88 allocs today.
+	{"search", func(h *harness) {
+		h.press("/")
+		h.typeText("o")
+		h.loaded()
+		h.press("esc")
+	}, 102},
 }
 
 // viewing is a screen of tc, rendered once.

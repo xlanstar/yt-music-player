@@ -212,6 +212,14 @@ func (h *harness) press(keys ...string) tea.Cmd {
 	return cmd
 }
 
+// typeText types s, a key per rune.
+func (h *harness) typeText(s string) {
+	h.t.Helper()
+	for _, r := range s {
+		h.send(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+}
+
 var namedKeys = map[string]tea.Key{
 	"enter":     {Code: tea.KeyEnter},
 	"tab":       {Code: tea.KeyTab},
@@ -239,6 +247,26 @@ func keyMsg(k string) tea.KeyPressMsg {
 		panic("no key " + k)
 	}
 	return tea.KeyPressMsg{Code: r[0], Text: k}
+}
+
+// settle runs what the loader and the session post until done holds.
+func (h *harness) settle(what string, done func() bool) {
+	h.t.Helper()
+	deadline := time.After(5 * time.Second)
+	for !done() {
+		select {
+		case <-h.m.posts.wake:
+			h.send(postedMsg{})
+		case <-deadline:
+			h.t.Fatalf("never %s:\n%s", what, h.screen())
+		}
+	}
+}
+
+// loaded settles until the loader is idle.
+func (h *harness) loaded() {
+	h.t.Helper()
+	h.settle("loaded", func() bool { return !h.m.loader.IsBusy() })
 }
 
 // resize shows the screen on a terminal of w×ht cells.
