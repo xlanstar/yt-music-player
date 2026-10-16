@@ -6,5 +6,16 @@
   "updates": {
     "publicKey": "wRLqR/n4BxqZcAEGgSrKhCyHHOSvzaDB4y5I8yGQ0tw=",
     "github": "xlanstar/yt-music-player"
+  },
+  "linux": {
+    "comment": "A lightweight YouTube Music player",
+    "categories": [
+      "AudioVideo",
+      "Audio",
+      "Player"
+    ],
+    "depends": [
+      "libpulse0 | libasound2t64 | libasound2"
+    ]
   }
 }

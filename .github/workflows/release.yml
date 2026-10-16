@@ -1,8 +1,8 @@
 # Builds a vX.Y.Z tag, which scripts/release.sh pushes, into a draft GitHub
 # release (docs/release.md). Each job has only the permissions it needs:
-# only publish, which builds and tests nothing, can write, and only build,
-# in the release environment that v* tags alone may use, has the signing
-# secrets.
+# only publish, which builds and tests nothing, can write, and only the
+# build jobs, in the release environment that v* tags alone may use, have
+# the signing secrets.
 name: Release
 
 on:
@@ -34,7 +34,7 @@ jobs:
       contents: read
     uses: ./.github/workflows/ci.yml
 
-  build:
+  macos:
     needs: checks
     runs-on: macos-latest
     timeout-minutes: 45 # notarization: usually minutes, sometimes far longer
@@ -116,17 +116,95 @@ jobs:
           for delta in "$out"/*.delta; do
             [ ! -e "$delta" ] || cp "$delta" dist/
           done
-          cd dist && shasum -a 256 -- * > SHA256SUMS
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: release
+          name: release-macos
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  # MyGo needs no cgo, so Ubuntu cross-compiles Linux and Windows, a job
+  # for each system and both its architectures; Ubuntu's NSIS makes the
+  # Windows installers. No certificate signs them: SmartScreen warns.
+  linux-windows:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false # so that a rerun builds only the failed system
+      matrix:
+        os: [linux, windows]
+    env:
+      TARGET_OS: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+
+      - name: Install NSIS
+        if: matrix.os == 'windows'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
+
+      - name: Build and sign the updates
+        env:
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+        run: go tool mygo build -platform "$TARGET_OS/amd64,$TARGET_OS/arm64"
+
+      # The update files keep their names: the manifests link to them.
+      # Linux's archive is also what install.sh installs.
+      - name: Check and package
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir dist
+          for arch in amd64 arm64; do
+            target="$TARGET_OS-$arch"
+            out="build/$target"
+            archive="$out/yt-music-player-$version-$target.tar.gz"
+            manifest="$out/update-$target.json"
+            if [ ! -f "$archive" ] || [ ! -f "$manifest" ]; then
+              echo "::error::no signed update for $target: is MYGO_UPDATER_PRIVATE_KEY in the release environment?"
+              exit 1
+            fi
+            if [ "$TARGET_OS" = linux ]; then
+              exe="$out/yt-music-player"
+              cp "$out/yt-music-player_${version}_$arch.deb" "dist/YT-Music-Player-$version-$target.deb"
+            else
+              exe="$out/YT Music Player.exe"
+              cp "$out/YT Music Player Setup $version $arch.exe" "dist/YT-Music-Player-$version-$target-setup.exe"
+            fi
+            case $arch:$(file -b "$exe") in
+            amd64:*x86-64* | arm64:*[Aa]arch64*) ;;
+            *)
+              echo "::error::$exe is not built for $arch"
+              exit 1
+              ;;
+            esac
+            cp "$archive" "$manifest" dist/
+            for delta in "$out"/*.delta; do
+              [ ! -e "$delta" ] || cp "$delta" dist/
+            done
+          done
+          # One script for every architecture: it reads the machine's manifest.
+          if [ "$TARGET_OS" = linux ]; then
+            cmp build/linux-amd64/install.sh build/linux-arm64/install.sh
+            cp build/linux-amd64/install.sh dist/
+          fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.os }}
           path: dist/
           if-no-files-found: error
           retention-days: 7
 
   publish:
-    needs: build
+    needs: [macos, linux-windows]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -139,10 +217,27 @@ jobs:
         with:
           persist-credentials: false
 
+      # A directory for each build job's files, rather than a merge, in
+      # which a name two jobs made would silently keep one.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release
-          path: dist
+          pattern: release-*
+          path: artifacts
+
+      - name: Gather the files and their SHA256SUMS
+        run: |
+          mkdir dist
+          for job in macos linux windows; do
+            [ -d "artifacts/release-$job" ] || { echo "::error::no files from $job"; exit 1; }
+          done
+          for f in artifacts/*/*; do
+            if [ -e "dist/${f##*/}" ]; then
+              echo "::error::two build jobs made ${f##*/}"
+              exit 1
+            fi
+            mv "$f" dist/
+          done
+          cd dist && shasum -a 256 -- * > SHA256SUMS
 
       # Free plans attest public repositories only.
       - if: github.event.repository.visibility == 'public'

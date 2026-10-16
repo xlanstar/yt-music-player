@@ -13,9 +13,10 @@
 #   scripts/release.sh notes X.Y.Z|Unreleased
 #       A section of CHANGELOG.md, the release's notes.
 #   scripts/release.sh publish X.Y.Z
-#       Checks the draft's files against its SHA256SUMS and its update
-#       manifest against the version, publishes the release, which installed
-#       apps then update to, then runs tap.
+#       Checks that the draft has every platform's downloads and update
+#       manifest, its files against its SHA256SUMS and the manifests
+#       against the version, publishes the release, which installed apps
+#       then update to, then runs tap.
 #   scripts/release.sh tap X.Y.Z
 #       Fills packaging/homebrew/yt-music-player.rb with the published disk
 #       image's SHA-256 and pushes it to the Homebrew tap: never an older
@@ -44,6 +45,9 @@ need() {
 repo=xlanstar/yt-music-player
 tap_repo=xlanstar/homebrew-tap
 cask=yt-music-player
+
+# The update targets of every release, each with its manifest.
+platforms='darwin-universal linux-amd64 linux-arm64 windows-amd64 windows-arm64'
 
 semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
 
@@ -76,20 +80,32 @@ fetch() {
 	sha=$(shasum -a 256 "$2/$dmg" | cut -d ' ' -f 1)
 }
 
-# feed X.Y.Z DIR checks the update manifest among the release's files in DIR,
-# which installed apps read once the release is the latest: it names X.Y.Z,
-# and the archive and deltas it links to are files of this release.
+# downloads X.Y.Z prints the files people install from, one a line.
+downloads() {
+	echo "YT-Music-Player-$1-macos-universal.dmg"
+	for arch in amd64 arm64; do
+		echo "YT-Music-Player-$1-linux-$arch.deb"
+		echo "YT-Music-Player-$1-windows-$arch-setup.exe"
+	done
+	echo install.sh
+}
+
+# feed X.Y.Z DIR PLATFORM checks the platform's update manifest among the
+# release's files in DIR, which installed apps read once the release is the
+# latest: it names X.Y.Z, and the archive and deltas it links to are files
+# of this release.
 feed() {
-	manifest=$2/update-darwin-universal.json
-	[ -f "$manifest" ] || die "v$1 has no update-darwin-universal.json"
+	name=update-$3.json
+	manifest=$2/$name
+	[ -f "$manifest" ] || die "v$1 has no $name"
 	v=$(jq -r .version "$manifest")
-	[ "$v" = "$1" ] || die "update-darwin-universal.json names $v, not $1"
+	[ "$v" = "$1" ] || die "$name names $v, not $1"
 	base=https://github.com/$repo/releases/download/v$1/
 	# Path-escaped URLs: no spaces to split.
 	for url in $(jq -r '.url, (.deltas // [])[].url' "$manifest"); do
 		case $url in
-		"$base"*) [ -f "$2/${url#"$base"}" ] || die "v$1 lacks ${url#"$base"}, which its manifest links to" ;;
-		*) die "update-darwin-universal.json links outside v$1: $url" ;;
+		"$base"*) [ -f "$2/${url#"$base"}" ] || die "v$1 lacks ${url#"$base"}, which $name links to" ;;
+		*) die "$name links outside v$1: $url" ;;
 		esac
 	done
 }
@@ -187,7 +203,18 @@ publish() {
 	mkdir "$tmp/draft"
 	gh release download "v$1" --repo "$repo" --dir "$tmp/draft"
 	(cd "$tmp/draft" && shasum -a 256 -c SHA256SUMS >/dev/null) || die "v$1's files do not match SHA256SUMS"
-	feed "$1" "$tmp/draft"
+	# shasum checks only the files listed: a file left out goes unchecked.
+	for f in "$tmp/draft"/*; do
+		f=${f##*/}
+		[ "$f" = SHA256SUMS ] || awk -v f="$f" '$2 == f { found = 1 } END { exit !found }' "$tmp/draft/SHA256SUMS" ||
+			die "SHA256SUMS does not list $f"
+	done
+	for f in $(downloads "$1"); do
+		[ -f "$tmp/draft/$f" ] || die "v$1 has no $f"
+	done
+	for platform in $platforms; do
+		feed "$1" "$tmp/draft" "$platform"
+	done
 	gh release edit "v$1" --repo "$repo" --draft=false --latest >/dev/null
 	echo "Published v$1. Should the tap fail now: scripts/release.sh tap $1"
 	tap "$1"
