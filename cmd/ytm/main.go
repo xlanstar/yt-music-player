@@ -127,7 +127,7 @@ func processEnv(paths ipc.Paths) *env {
 // startLog sends zerolog to ytm's log file at YT_LOG's level, and returns
 // what closes the file.
 func startLog(paths ipc.Paths) func() {
-	level, levelErr := logLevel(os.Getenv("YT_LOG"))
+	level, levelErr := logfile.Level(os.Getenv("YT_LOG"))
 	zerolog.SetGlobalLevel(level)
 	path := paths.Log("ytm")
 	w := logfile.New(filepath.Dir(path), strings.TrimSuffix(filepath.Base(path), ".log"))
