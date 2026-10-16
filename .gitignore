@@ -7,6 +7,7 @@ tmp/
 .env
 /yt-music-player
 /desktop
+/ytmd
 *.test
 *.prof
 /perf/benchmarks-latest.txt
