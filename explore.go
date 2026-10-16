@@ -4,6 +4,7 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -11,7 +12,7 @@ import (
 func (a *app) explorePage(c *ui.Context, w float32) {
 	ui.Column(c).Padding(th.Space(1), th.Layout.Page, th.Space(12)).Gap(th.Space(10)).Children(func() {
 		ui.Column(c).Gap(th.Space(4.5)).Children(func() {
-			heading(c, "Explore", th.Type.Page, 1)
+			heading(c, locales.NavExplore(), th.Type.Page, 1)
 			ui.Row(c).Gap(th.Space(3.5)).FocusGroup(ui.Horizontal).Children(func() {
 				col := &th.Color
 				tints := [len(exploreTiles)]ui.Color{col.Releases, col.Charts, col.Moods}
@@ -24,12 +25,11 @@ func (a *app) explorePage(c *ui.Context, w float32) {
 		isEmpty := len(e.Moods) == 0 && len(e.NewReleases) == 0 && len(e.Trending) == 0
 		switch f := a.feedState(loader.ExploreFeed); {
 		case f.State == fetchstate.Failed:
-			loadFailed(c, "Couldn’t load Explore", f.Err, func() { a.loader.Retry(loader.ExploreFeed) })
+			loadFailed(c, locales.ExploreFailed(), f.Err, func() { a.loader.Retry(loader.ExploreFeed) })
 		case f.State == fetchstate.Loading:
 			exploreSkeleton(c, w)
 		case isEmpty:
-			message(c, icCompass, "Nothing to explore right now",
-				"New releases, moods and charts will show up here.", 2, nil)
+			message(c, icCompass, locales.ExploreEmptyTitle(), locales.ExploreEmptyDetail(), 2, nil)
 		default:
 			a.exploreSections(c, w, e)
 		}
@@ -40,7 +40,7 @@ func (a *app) exploreSections(c *ui.Context, w float32, e *catalog.Explore) {
 	size := th.Layout.Sized()
 	if len(e.Moods) > 0 {
 		ui.Column(c).Children(func() {
-			sectionHeader(c, nil, "", "Moods & genres", "")
+			sectionHeader(c, nil, "", locales.MoodsAndGenres(), "")
 			keys := a.moodKeys()
 			grid := ui.Grid(c).Columns(moodColumns(w)).Gap(th.Space(3)).FocusGroup(ui.Horizontal | ui.Vertical)
 			grid.Children(func() {
@@ -52,7 +52,7 @@ func (a *app) exploreSections(c *ui.Context, w float32, e *catalog.Explore) {
 	}
 	if len(e.NewReleases) > 0 {
 		ui.Column(c).Children(func() {
-			sectionHeader(c, nil, "", "New albums & singles", "")
+			sectionHeader(c, nil, "", locales.NewAlbumsAndSingles(), "")
 			cards := a.releaseCards()
 			shelf(c, "new", func() {
 				for i, al := range e.NewReleases {
@@ -63,7 +63,7 @@ func (a *app) exploreSections(c *ui.Context, w float32, e *catalog.Explore) {
 	}
 	if len(e.Trending) > 0 {
 		ui.Column(c).Children(func() {
-			sectionHeader(c, nil, "This week", "Trending", "")
+			sectionHeader(c, nil, locales.ThisWeek(), locales.Trending(), "")
 			grid := ui.Grid(c).Columns(trendingColumns(w)).GapX(th.Space(6)).GapY(th.Space(0.5)).
 				Margin(0, -th.Space(2)).FocusGroup(ui.Horizontal | ui.Vertical)
 			grid.Children(func() {
@@ -134,13 +134,13 @@ func exploreSkeleton(c *ui.Context, w float32) {
 
 // exploreTiles head Explore; they open nothing until their pages exist.
 var exploreTiles = [...]navTarget{
-	{key: "New releases", label: "New releases", icon: icDisc},
-	{key: "Charts", label: "Charts", icon: icTrending},
-	{key: "Moods & genres", label: "Moods & genres", icon: icGrid},
+	{key: "New releases", label: locales.NewReleases, icon: icDisc},
+	{key: "Charts", label: locales.Charts, icon: icTrending},
+	{key: "Moods & genres", label: locales.MoodsAndGenres, icon: icGrid},
 }
 
 func exploreTile(c *ui.Context, t *navTarget, tint ui.Color) {
-	icon, label := t.icon, t.label
+	icon, label := t.icon, t.label()
 	tile := ui.ButtonBase(c.Key(t.key)).Grow(1).Basis(0).Height(76).Padding(0, th.Space(4.5)).Gap(th.Space(3.5)).
 		Radius(th.Radius.Large).AlignItems(ui.Center).Justify(ui.Start).Cursor(ui.CursorPointer).KeepFocus()
 	raise(tile)

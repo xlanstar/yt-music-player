@@ -11,6 +11,7 @@ MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `
 - `go run -tags placeholder .`: offline fake, always signed in, no audio; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in.
 - `YT_LOG=debug|info|warn|error` (default `warn`): `debug` tells why fetches, likes, sign-ins and streams failed.
 - Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` (plays sound); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
+- `locales/`: the messages, `en.json` (the source, with descriptions) and `zh-Hant.json`, in ICU MessageFormat; `go tool mygo generate .` writes `locales/catalog_gen.go` (committed) from them, which `prek` checks.
 - `scripts/render-app-icon.sh`: renders the icon's one source, `assets/icon/icon.svg`, into `resources/icon.png` and `assets/icon/` (PNGs of every size, `.icns`, `.ico`); edit the SVG, never the renders.
 - `scripts/repo-images.sh [-readme]`: renders the social preview (uploaded in the repository's settings, not committed) and README's top image from `assets/repo-images/` and a capture of the placeholder build; `-readme` updates `docs/images/`. Run it with `-readme` when the window's look changes.
 - Release: `scripts/release.sh patch|minor|major`, then `publish X.Y.Z` after checking the draft, which also updates the Homebrew tap (`docs/release.md`); the version lives only in `mygo.json`, user-visible changes go under `## [Unreleased]` in `CHANGELOG.md` in the same change. The cask is `packaging/homebrew/yt-music-player.rb`; never edit it in the tap.
@@ -44,7 +45,7 @@ Root (`package main`):
 - `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.
 - Pages: `home.go`, `explore.go`, `library.go`, `collection.go`, `search.go`. Chrome: `sidebar.go`, `topbar.go`, `playerbar.go`, `nowplaying.go`.
-- `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `resources/icons/` (Lucide SVGs).
+- `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `resources/icons/` (Lucide SVGs), `phrase.go` (messages of string arguments in one allocation).
 
 ## Rules
 
@@ -64,6 +65,7 @@ Root (`package main`):
 - Read every color, font size, spacing and radius from `th`, never literals (circles' and skeletons' geometry aside).
 - Pages read `a.fetches.State`; failures show Retry, `Missing` shows `notFound`. Loading states are static (no shimmer).
 - Every `notice.Notice` goes through `tell`.
+- Every word the user reads comes from `locales` (`locales.Play()`), in both catalogs; names from YouTube and keys stay as they are. Text kept between builds is dropped when the language changes (`syncLanguage`); a message of string arguments said often is a `phrase`.
 - Icons only from Lucide, under Lucide's names: `scripts/fetch-lucide-icons.sh <name>…` fetches and compresses them; a filled one is `mustFilledIcon`, never drawn by hand.
 - Long lists are one `ui.List` with the header as row 0.
 
@@ -88,7 +90,7 @@ Reasons and measurements: `docs/performance.md`.
 ### Tests
 
 - No window, no network, no disk cache, no config dir.
-- Apps: `testApp()`/`sourceApp(src)`, `idleApp()` (feeds preloaded), `scriptedApp()` (only opened pages ask), `anonApp()`, `accountApp()` (over `catalogtest.Accounts`), `playbackApp(res)` (on `audio.Fake`), `lookApp(t, prepare)` (settings in a `TempDir`).
+- Apps: `testApp()`/`sourceApp(src)`, `idleApp()` (feeds preloaded), `scriptedApp()` (only opened pages ask), `anonApp()`, `accountApp()` (over `catalogtest.Accounts`), `playbackApp(res)` (on `audio.Fake`), `lookApp(t, prepare)` (settings in a `TempDir`). Tests show English; `inLanguage(t, "zh-Hant")` switches.
 - `newScreen`/`showApp` show one on a Tester that counts builds; `settleLoads`/`busy` wait for fetches, thumbnails and the session; scripted sources wait drawing frames: `src.Next(t, tt.Frame, …)`, `Take`, `None`.
 - Loader, session, playback, job and settings logic is tested in their packages.
 

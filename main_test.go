@@ -602,3 +602,13 @@ func TestAnnouncesSongChanges(t *testing.T) {
 	click(t, tt, "Midnight Arcade by Lumen Drive")
 	want("a row", "Now playing: Midnight Arcade by Lumen Drive")
 }
+
+// testLocale is the language tests show; see TestMain.
+var testLocale = "en"
+
+// inLanguage shows lang until the test ends.
+func inLanguage(t *testing.T, lang string) {
+	t.Helper()
+	testLocale = lang
+	t.Cleanup(func() { testLocale = "en" })
+}

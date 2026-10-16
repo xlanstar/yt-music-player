@@ -6,6 +6,7 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/player"
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -52,7 +53,7 @@ func (a *app) songZone(c *ui.Context, song catalog.Song, onTop bool) {
 			// No panel to show the queue in.
 			barArt(c, song.Art)
 		} else {
-			art := ui.ButtonBase(c.Key("np-art")).Radius(th.Radius.Small).Label("Now playing").Tooltip("Show queue").
+			art := ui.ButtonBase(c.Key("np-art")).Radius(th.Radius.Small).Label(locales.NowPlaying()).Tooltip(locales.ShowQueue()).
 				Cursor(ui.CursorPointer).KeepFocus()
 			art.Children(func() { barArt(c, song.Art) })
 			if art.Clicked() {
@@ -74,7 +75,7 @@ func (a *app) seekRow(c *ui.Context, song catalog.Song) {
 			Width(40).TextAlign(ui.End)
 		spoken := a.bar.seekValue(int(a.player.Position), int(length))
 		// At least a second, so the bar never divides by zero.
-		seekBar(c, &a.bar.seekPaint, "seek", &a.player.Position, max(length, 1), "Seek", spoken, seekStep).Grow(1)
+		seekBar(c, &a.bar.seekPaint, "seek", &a.player.Position, max(length, 1), locales.Seek(), spoken, seekStep).Grow(1)
 		ui.Text(c, clock(int(length))).FontSize(th.Type.Time).TextColor(th.Color.Muted).FontFeatures("tnum").Width(40)
 	})
 }
@@ -89,21 +90,21 @@ func (a *app) volumeZone(c *ui.Context, onTop bool) {
 		// its arrow keys.
 		ui.Row(c).Gap(th.Space(1)).AlignItems(ui.Center).FocusGroup(ui.Horizontal).Children(func() {
 			if th.Layout.PanelSide != theme.Hidden {
-				a.panelButton(c, "lyrics", icLyrics, "Lyrics", tabLyrics)
-				a.panelButton(c, "queue", icQueue, "Queue", tabQueue)
+				a.panelButton(c, "lyrics", icLyrics, locales.Lyrics(), tabLyrics)
+				a.panelButton(c, "queue", icQueue, locales.Queue(), tabQueue)
 			}
 			silent := a.player.IsSilent()
 			mute := iconOpts{isToggle: true, isChecked: silent}
 			muteIcon := icVolume
 			if silent {
-				muteIcon, mute.tip = icVolumeMuted, "Unmute"
+				muteIcon, mute.tip = icVolumeMuted, locales.Unmute()
 			}
-			if iconButton(c, "mute", muteIcon, "Mute", 36, 18, mute).Clicked() {
+			if iconButton(c, "mute", muteIcon, locales.Mute(), 36, 18, mute).Clicked() {
 				a.player.ToggleMute()
 			}
 		})
 		spoken := percent(int(a.player.Volume*100 + 0.5))
-		volume := seekBar(c, &a.bar.volumePaint, "volume", &a.player.Volume, 1, "Volume", spoken, volumeStep).Width(112)
+		volume := seekBar(c, &a.bar.volumePaint, "volume", &a.player.Volume, 1, locales.Volume(), spoken, volumeStep).Width(112)
 		if a.player.Muted {
 			volume.Opacity(0.4)
 		}
@@ -141,7 +142,7 @@ type barText struct {
 // seekValue is the seek bar's value as screen readers say it.
 func (b *barText) seekValue(pos, length int) string {
 	if b.seek.stale([2]int{pos, length}) {
-		b.seek.v = clock(pos) + " of " + clock(length)
+		b.seek.v = seekValue.say2(clock(pos), clock(length))
 	}
 	return b.seek.v
 }
@@ -163,12 +164,12 @@ func (a *app) transport(c *ui.Context) {
 	ui.Row(c).Gap(th.Space(3.5)).AlignItems(ui.Center).FocusGroup(ui.Horizontal).Children(func() {
 		a.shuffleButton(c, 34, 17)
 		prev := iconOpts{fg: th.Color.Text, keys: hints.prev}
-		if iconButton(c, "prev", icSkipBack, "Previous", 38, 20, prev).Clicked() {
+		if iconButton(c, "prev", icSkipBack, locales.Previous(), 38, 20, prev).Clicked() {
 			a.player.Prev()
 		}
 		a.playButton(c)
 		next := iconOpts{fg: th.Color.Text, keys: hints.next}
-		if iconButton(c, "next", icSkipForward, "Next", 38, 20, next).Clicked() {
+		if iconButton(c, "next", icSkipForward, locales.Next(), 38, 20, next).Clicked() {
 			a.player.Next()
 		}
 		a.repeatButton(c)
@@ -176,13 +177,13 @@ func (a *app) transport(c *ui.Context) {
 }
 
 func (a *app) playButton(c *ui.Context) {
-	icon, label := icPlay, "Play"
+	icon, label := icPlay, locales.Play()
 	if a.player.Playing {
-		icon, label = icPause, "Pause"
+		icon, label = icPause, locales.Pause()
 	}
 	play := ui.ButtonBase(c.Key("play")).Size(44, 44).Radius(22).Center().Background(th.Color.Text).
 		Label(label).Cursor(ui.CursorPointer).KeepFocus()
-	tip(c, play, label, hints.play)
+	tip(c, play, label, locales.KeySpace())
 	// A pose, as liftMotion explains.
 	grow := boolToFloat(play.Hovered())
 	if play.Pressed() {
@@ -195,18 +196,18 @@ func (a *app) playButton(c *ui.Context) {
 	}
 }
 
-// repeatButton's label stays "Repeat"; screen readers read the mode as its
+// repeatButton's label stays Repeat; screen readers read the mode as its
 // value.
 func (a *app) repeatButton(c *ui.Context) {
-	icon, mode, opts := icRepeat, "Off", iconOpts{tip: "Repeat off"}
+	icon, mode, opts := icRepeat, locales.RepeatModeOff(), iconOpts{tip: locales.RepeatOff()}
 	switch a.player.Repeat {
 	case player.RepeatAll:
-		mode, opts.tip = "All", "Repeat all"
+		mode, opts.tip = locales.RepeatModeAll(), locales.RepeatAll()
 	case player.RepeatOne:
-		icon, mode, opts.tip = icRepeatOne, "One", "Repeat one"
+		icon, mode, opts.tip = icRepeatOne, locales.RepeatModeOne(), locales.RepeatOne()
 	}
 	opts.isOn = a.player.Repeat != player.RepeatOff
-	if iconButton(c, "repeat", icon, "Repeat", 34, 17, opts).Value(mode).Clicked() {
+	if iconButton(c, "repeat", icon, locales.Repeat(), 34, 17, opts).Value(mode).Clicked() {
 		a.player.CycleRepeat()
 	}
 }

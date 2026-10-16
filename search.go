@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -11,12 +12,12 @@ import (
 func (a *app) searchPage(c *ui.Context, w float32, query string) {
 	query = strings.TrimSpace(query)
 	last := a.loader.Found()
-	shownQuery, found, title := query, last.Results, "Search results"
+	shownQuery, found, title := query, last.Results, locales.SearchResults()
 	switch {
 	case query == "":
 		found = catalog.Results{}
 	case query == last.FailedQuery:
-		loadFailed(c, "Couldn’t search for “"+query+"”", last.Err, func() { a.loader.RetrySearch(query) })
+		loadFailed(c, locales.SearchFailed(query), last.Err, func() { a.loader.RetrySearch(query) })
 		return
 	case query != last.Query:
 		// Keep the last results while new ones load, so the page doesn't
@@ -25,11 +26,11 @@ func (a *app) searchPage(c *ui.Context, w float32, query string) {
 			message(c, icSearch, a.typedText(query).searching, "", 1, nil)
 			return
 		}
-		shownQuery, title = last.Query, "Searching…"
+		shownQuery, title = last.Query, locales.Searching()
 	}
 	if found.IsEmpty() {
 		message(c, icSearch, a.typedText(query).none,
-			"Check the spelling, or try an artist, album or song name.", 1, nil)
+			locales.SearchNoneHint(), 1, nil)
 		return
 	}
 
@@ -48,7 +49,7 @@ func (a *app) searchPage(c *ui.Context, w float32, query string) {
 func (a *app) typedText(query string) *typedText {
 	m := &a.memo.typed
 	if m.stale(query) {
-		m.v = typedText{searching: "Searching for “" + query + "”…", none: "No results for “" + query + "”"}
+		m.v = typedText{searching: searchingFor.say1(query), none: searchNone.say1(query)}
 	}
 	return &m.v
 }
@@ -60,7 +61,7 @@ func (a *app) foundText(query string, albums []catalog.Album) *foundText {
 		for i, al := range albums {
 			cards[i] = cardText{key: al.ID, sub: al.Artist + " · " + strconv.Itoa(al.Year)}
 		}
-		m.v = foundText{quoted: "“" + query + "”", albums: cards}
+		m.v = foundText{quoted: quoted.say1(query), albums: cards}
 	}
 	return &m.v
 }
@@ -72,11 +73,11 @@ func (a *app) foundSongs(c *ui.Context, w float32, songs []catalog.Song) {
 	}
 	layout.Children(func() {
 		ui.Column(c).Gap(th.Space(3.5)).Width(340).Shrink(0).Children(func() {
-			heading(c, "Top result", th.Type.Minor, 2)
+			heading(c, locales.TopResult(), th.Type.Minor, 2)
 			a.topResult(c, songs[0])
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(th.Space(1.5)).Children(func() {
-			heading(c, "Songs", th.Type.Minor, 2).Margin(0, 0, th.Space(2), 0)
+			heading(c, locales.Songs(), th.Type.Minor, 2).Margin(0, 0, th.Space(2), 0)
 			ui.Column(c).Margin(0, -th.Space(2)).FocusGroup(ui.Vertical).Children(func() {
 				for _, s := range songs[:min(4, len(songs))] {
 					a.songRow(c, s, songRowOpts{art: th.Layout.Sized().RowArt, showsAlbum: true, hasActions: true})
@@ -88,7 +89,7 @@ func (a *app) foundSongs(c *ui.Context, w float32, songs []catalog.Song) {
 
 func (a *app) foundAlbums(c *ui.Context, albums []catalog.Album, cards []cardText) {
 	ui.Column(c).Children(func() {
-		sectionHeader(c, nil, "", "Albums", "")
+		sectionHeader(c, nil, "", locales.Albums(), "")
 		shelf(c, "found-albums", func() {
 			size := th.Layout.Sized().SmallCard
 			for i := range albums {
@@ -111,7 +112,7 @@ func (a *app) topResult(c *ui.Context, s catalog.Song) {
 		ui.Column(c).Gap(th.Space(2)).Children(func() {
 			heading(c, s.Title, ty.Feature, 0).SingleLine()
 			ui.Row(c).Gap(th.Space(2)).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "SONG").FontSize(ty.Badge).FontWeight(700).LetterSpacing(1).
+				ui.Text(c, locales.SongBadge()).FontSize(ty.Badge).FontWeight(700).LetterSpacing(1).
 					Padding(th.Space(0.75), th.Space(2)).Radius(th.Radius.Pill).Background(th.Color.Badge)
 				ui.Text(c, s.Artist).FontSize(ty.Label).TextColor(th.Color.Muted).SingleLine()
 			})

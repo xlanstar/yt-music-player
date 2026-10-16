@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -113,16 +114,16 @@ func tip(c *ui.Context, e ui.Element, text, keys string) {
 			AttachTo(e, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, t.Space(1.5), 0)
 		bubble.Children(func() {
 			if keys != "" {
-				text += " (" + keys + ")"
+				text = locales.ShortcutHint(text, keys)
 			}
 			ui.Text(c, text)
 		})
 	})
 }
 
-// hints names the shortcuts as the platform's menus write them.
-var hints = func() (h struct{ play, next, prev, search, back, forward, appearance string }) {
-	h.play = "Space"
+// hints names the shortcuts as the platform's menus write them; Play's,
+// the space bar, is a word: locales.KeySpace.
+var hints = func() (h struct{ next, prev, search, back, forward, appearance string }) {
 	if runtime.GOOS == "darwin" {
 		h.next, h.prev, h.search = "⌘→", "⌘←", "⌘K"
 		h.back, h.forward, h.appearance = "⌘[", "⌘]", "⌘,"

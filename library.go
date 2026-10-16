@@ -5,6 +5,7 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -18,11 +19,14 @@ const (
 	tabArtists
 )
 
-var libraryTabs = [...]struct{ name, slug string }{
-	tabPlaylists: {"Playlists", ""},
-	tabSongs:     {"Songs", "songs"},
-	tabAlbums:    {"Albums", "albums"},
-	tabArtists:   {"Artists", "artists"},
+var libraryTabs = [...]struct {
+	name func() string
+	slug string
+}{
+	tabPlaylists: {locales.SidebarPlaylists, ""},
+	tabSongs:     {locales.Songs, "songs"},
+	tabAlbums:    {locales.Albums, "albums"},
+	tabArtists:   {locales.Artists, "artists"},
 }
 
 func libraryTabOf(slug string) libraryTab {
@@ -46,18 +50,18 @@ func libraryPath(tab libraryTab) string {
 func (a *app) libraryHeader(c *ui.Context, tab libraryTab) {
 	ui.Column(c).Padding(0, rowBleed).Gap(th.Space(6)).Margin(0, 0, th.Space(6), 0).Children(func() {
 		ui.Row(c).Gap(th.Space(4)).AlignItems(ui.Center).Children(func() {
-			heading(c, "Library", th.Type.Page, 1).Grow(1)
-			pill(c, "sort", nil, "Recently added", pillGhost).Height(34).Padding(0, th.Space(3.5))
+			heading(c, locales.NavLibrary(), th.Type.Page, 1).Grow(1)
+			pill(c, "sort", nil, locales.RecentlyAdded(), pillGhost).Height(34).Padding(0, th.Space(3.5))
 		})
 		// The route owns the tab, so choosing one navigates.
 		chosen := int(tab)
 		tabs := ui.TabsBase(c.Key("tabs"), &chosen, len(libraryTabs))
-		tabs.List.Gap(th.Space(2)).Label("Library").OnChange(func() {
+		tabs.List.Gap(th.Space(2)).Label(locales.NavLibrary()).OnChange(func() {
 			a.router.Push(libraryPath(libraryTab(chosen))) //nolint:gosec // an index into libraryTabs
 		})
 		tabs.List.Children(func() {
 			for i, t := range libraryTabs {
-				chip(c, tabs.Tab(i), t.name, libraryTab(i) == tab)
+				chip(c, tabs.Tab(i), t.name(), libraryTab(i) == tab)
 			}
 		})
 	})
@@ -106,11 +110,11 @@ func (a *app) libraryPage(c *ui.Context, w float32, tab libraryTab) {
 }
 
 func (a *app) likedCard(c *ui.Context) {
-	sub := "Auto playlist"
+	sub := locales.AutoPlaylist()
 	if a.feedState(session.LikedRes).State == fetchstate.Loaded {
 		sub = a.likedLine()
 	}
-	if mediaCard(c, "liked", artLiked, "Liked music", sub, 0, false).Clicked() {
+	if mediaCard(c, "liked", artLiked, locales.LikedMusic(), sub, 0, false).Clicked() {
 		a.router.Push(pathLiked)
 	}
 }
@@ -118,7 +122,7 @@ func (a *app) likedCard(c *ui.Context) {
 func (a *app) likedLine() string {
 	m := &a.memo.likedLine
 	if m.stale(a.session.LikesGen()) {
-		m.v = "Auto playlist · " + strconv.Itoa(a.likedCount()) + " songs"
+		m.v = locales.AutoPlaylistSongs(a.likedCount())
 	}
 	return m.v
 }
@@ -157,7 +161,7 @@ func (a *app) artistCards() []cardText {
 	if m.stale(keyOf(artists)) {
 		m.v = make([]cardText, len(artists))
 		for i, ar := range artists {
-			m.v[i] = cardText{key: ar.Key(), sub: "Artist"}
+			m.v[i] = cardText{key: ar.Key(), sub: locales.Artist()}
 		}
 	}
 	return m.v
@@ -167,11 +171,11 @@ func (a *app) artistCards() []cardText {
 func playlistLine(pl catalog.Playlist, withCount bool) string {
 	switch {
 	case withCount && len(pl.Songs) > 0:
-		return "Playlist · " + strconv.Itoa(len(pl.Songs)) + " songs"
+		return locales.PlaylistSongs(len(pl.Songs))
 	case pl.Owner != "":
-		return "Playlist · " + pl.Owner
+		return playlistBy.say1(pl.Owner)
 	}
-	return "Playlist"
+	return locales.Playlist()
 }
 
 // cardGrid is a list of grid rows, so only those in view are built. Not a

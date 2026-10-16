@@ -3,6 +3,10 @@
   "identifier": "dev.lanstar.ytmusicplayer",
   "version": "0.1.0",
   "out": "build",
+  "i18n": {
+    "dir": "locales",
+    "source": "en"
+  },
   "updates": {
     "publicKey": "wRLqR/n4BxqZcAEGgSrKhCyHHOSvzaDB4y5I8yGQ0tw=",
     "github": "xlanstar/yt-music-player"

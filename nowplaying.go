@@ -2,6 +2,7 @@ package main
 
 import (
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -40,7 +41,7 @@ func (a *app) nowPlaying(c *ui.Context, offset float32) {
 		header.Children(func() {
 			a.panelTabs(c)
 			ui.Spacer(c)
-			if iconButton(c, "close-panel", icPanel, "Hide panel", 32, 17, iconOpts{}).Clicked() {
+			if iconButton(c, "close-panel", icPanel, locales.HidePanel(), 32, 17, iconOpts{}).Clicked() {
 				a.panel.isShown = false
 			}
 		})
@@ -56,9 +57,9 @@ func (a *app) nowPlaying(c *ui.Context, offset float32) {
 
 func (a *app) panelTabs(c *ui.Context) {
 	tabs := ui.SegmentedBase(c.Key("panel-tabs"), &a.panel.tab, 2)
-	tabs.Track.Padding(th.Space(0.75)).Radius(th.Radius.Pill).Background(th.Color.Shadow.Alpha(0.3)).Label("Panel")
+	tabs.Track.Padding(th.Space(0.75)).Radius(th.Radius.Pill).Background(th.Color.Shadow.Alpha(0.3)).Label(locales.Panel())
 	tabs.Track.Children(func() {
-		for i, name := range []string{"Up next", "Lyrics"} {
+		for i, name := range [...]string{locales.UpNext(), locales.Lyrics()} {
 			seg := tabs.Segment(i).Height(30).Padding(0, th.Space(3.5)).Radius(th.Radius.Pill).Center().
 				Cursor(ui.CursorPointer).KeepFocus()
 			switch {
@@ -87,11 +88,11 @@ func (a *app) queueView(c *ui.Context) {
 				ui.Text(c, s.Artist).FontSize(th.Type.Lead).TextColor(th.Color.Muted).SingleLine()
 			})
 			a.likeButton(c, s.ID, 36)
-			iconButton(c, "more", icMore, "More", 36, 18, iconOpts{})
+			iconButton(c, "more", icMore, locales.More(), 36, 18, iconOpts{})
 		})
 		ui.Column(c).Gap(th.Space(1)).Margin(th.Space(1.5), 0, 0, 0).Children(func() {
 			ui.Row(c).AlignItems(ui.Center).Margin(0, 0, th.Space(2), 0).Children(func() {
-				eyebrow(c, "Up next").Grow(1)
+				eyebrow(c, locales.UpNext()).Grow(1)
 				ui.Row(c).Gap(th.Space(1.5)).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, icRadio).Size(13, 13).TextColor(th.Color.Faint)
 					ui.Text(c, a.bar.fromAlbum(s.Album)).FontSize(th.Type.Small).TextColor(th.Color.Faint).SingleLine()
@@ -124,7 +125,7 @@ func (a *app) lyricsView(c *ui.Context) {
 		if len(lyrics) == 0 {
 			ui.Column(c).Padding(th.Space(10), 0).Gap(th.Space(2)).AlignItems(ui.Center).Children(func() {
 				ui.Icon(c, icLyrics).Size(28, 28).TextColor(th.Color.Faint)
-				ui.Text(c, "Lyrics aren't available for this song").FontSize(ty.Title).TextColor(th.Color.Muted).
+				ui.Text(c, locales.LyricsUnavailable()).FontSize(ty.Title).TextColor(th.Color.Muted).
 					TextAlign(ui.Center)
 			})
 			return
@@ -142,13 +143,13 @@ func (a *app) lyricsView(c *ui.Context) {
 				}
 			}
 		})
-		ui.Text(c, "Lyrics placeholder").FontSize(ty.Caption).TextColor(th.Color.Faint)
+		ui.Text(c, locales.LyricsPlaceholder()).FontSize(ty.Caption).TextColor(th.Color.Faint)
 	})
 }
 
 func (b *barText) fromAlbum(album string) string {
 	if b.from.stale(album) {
-		b.from.v = "From " + album
+		b.from.v = fromAlbum.say1(album)
 	}
 	return b.from.v
 }

@@ -21,6 +21,7 @@ import (
 	"yt-music-player/internal/job"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/notice"
+	"yt-music-player/locales"
 
 	"github.com/rs/zerolog/log"
 )
@@ -318,7 +319,7 @@ func (s *Session) SetLiked(id string, liked bool) {
 		return
 	}
 	if s.states.State(AccountRes).State == fetchstate.SignedOut {
-		s.notify(signInToLike)
+		s.notify(signInToLike())
 		return
 	}
 	s.applyLike(id, liked)
@@ -347,7 +348,7 @@ func (s *Session) finishLike(id string, liked bool, seq uint64, err error) {
 	log.Debug().Str("song", id).Bool("liked", liked).Err(err).Msg("like failed")
 	if errors.Is(err, catalog.ErrSignedOut) {
 		s.forget()
-		s.notify(signInToLike)
+		s.notify(signInToLike())
 		return
 	}
 	s.applyLike(id, !liked)
@@ -355,20 +356,23 @@ func (s *Session) finishLike(id string, liked bool, seq uint64, err error) {
 }
 
 func (s *Session) likeFailedTitle(id string, liked bool) string {
-	title := "Couldn’t like "
-	if !liked {
-		title = "Couldn’t unlike "
-	}
 	song, ok := s.cat.Song(id)
-	if !ok {
-		return title + "the song"
+	switch {
+	case !ok && liked:
+		return locales.NoticeLikeFailedSong()
+	case !ok:
+		return locales.NoticeUnlikeFailedSong()
+	case liked:
+		return locales.NoticeLikeFailed(song.Title)
 	}
-	return title + "“" + song.Title + "”"
+	return locales.NoticeUnlikeFailed(song.Title)
 }
 
 func (s *Session) notify(n notice.Notice) { s.notices = append(s.notices, n) }
 
-var signInToLike = notice.Notice{Kind: notice.NeedsAccount, Title: "Sign in to like songs", Topic: notice.SignIn}
+func signInToLike() notice.Notice {
+	return notice.Notice{Kind: notice.NeedsAccount, Title: locales.NoticeSignInToLike(), Topic: notice.SignIn}
+}
 
 // TakeNotices returns and clears the notices since the last call.
 func (s *Session) TakeNotices() []notice.Notice {
@@ -515,7 +519,7 @@ func (s *Session) finishSignIn(isCurrent bool, account catalog.Account, err erro
 		// Sources keep credentials out of their errors (see auth).
 		log.Debug().Bool("current", isCurrent).Err(err).Msg("sign-in failed")
 		if isCurrent {
-			s.notify(notice.Notice{Kind: notice.SignInFailed, Title: "Couldn’t sign in", Detail: err.Error()})
+			s.notify(notice.Notice{Kind: notice.SignInFailed, Title: locales.NoticeSignInFailed(), Detail: err.Error()})
 		}
 		return
 	}
@@ -525,7 +529,7 @@ func (s *Session) finishSignIn(isCurrent bool, account catalog.Account, err erro
 		s.fetch(res)
 	}
 	s.loader.Forget(loader.HomeFeed)
-	s.notify(notice.Notice{Kind: notice.SignedIn, Title: "Signed in as " + account.Name})
+	s.notify(notice.Notice{Kind: notice.SignedIn, Title: locales.SignedInAs(account.Name)})
 }
 
 // IsSigningIn reports whether a sign-in is in flight.
@@ -555,12 +559,12 @@ func (s *Session) SignOut() {
 func (s *Session) finishSignOut(err error) {
 	if err != nil {
 		log.Debug().Err(err).Msg("sign-out failed")
-		s.notify(notice.Notice{Kind: notice.Failure, Title: "Couldn’t sign out", Detail: err.Error()})
+		s.notify(notice.Notice{Kind: notice.Failure, Title: locales.NoticeSignOutFailed(), Detail: err.Error()})
 		return
 	}
 	s.CancelSignIn()
 	s.forget()
-	s.notify(notice.Notice{Kind: notice.Info, Title: "Signed out"})
+	s.notify(notice.Notice{Kind: notice.Info, Title: locales.NoticeSignedOut()})
 }
 
 // IsSigningOut reports whether a sign-out is in flight.

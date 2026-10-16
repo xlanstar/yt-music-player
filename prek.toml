@@ -62,14 +62,26 @@ entry = "go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./..."
 files = '^go\.(mod|sum)$'
 pass_filenames = false
 
+# The catalogs of messages parse in every language, and the accessors
+# generated from them (locales/catalog_gen.go, committed so that go build
+# needs no CLI) are current.
+[[repos.hooks]]
+id = "mygo-i18n"
+name = "Message catalogs (mygo generate)"
+language = "system"
+entry = "sh -c 'go tool mygo generate . >/dev/null && git diff --exit-code -- locales/catalog_gen.go'"
+files = '^(locales/|mygo\.json$)'
+pass_filenames = false
+
 # The test hooks run the whole module, on whatever builds or tests read:
-# go.mod and go.sum, testdata, the embedded icons, not only Go files.
+# go.mod and go.sum, testdata, the embedded icons and catalogs, not only
+# Go files.
 [[repos.hooks]]
 id = "go-test-race"
 name = "Go tests (race detector)"
 language = "system"
 entry = "go test -race ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
 # Allocation budgets (`budget.Allocs`) skip under -race, which allocates
@@ -79,7 +91,7 @@ id = "go-alloc-budgets"
 name = "Go allocation budgets"
 language = "system"
 entry = "go test -run Budget ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
 # Every benchmark once, so that none rots between runs of
@@ -90,7 +102,7 @@ id = "go-bench-once"
 name = "Go benchmarks, each once"
 language = "system"
 entry = "go test -run '^$' -bench . -benchtime 1x ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
 # Only the staged SVGs, as every hook takes; scripts/fetch-lucide-icons.sh

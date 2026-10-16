@@ -6,6 +6,7 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -28,13 +29,13 @@ type collection struct {
 func (a *app) likedCollection() collection {
 	owner := a.session.Account().Name
 	if owner == "" {
-		owner = "You"
+		owner = locales.You()
 	}
 	m := &a.memo.collection
 	if m.stale(collectionKey{session.LikedRes, a.cat.Gen(), a.session.LikesGen(), owner}) {
 		songs := a.session.LikedSongs()
 		m.v = collection{
-			kind: playlistCollection, eyebrow: "Auto playlist", title: "Liked music", owner: owner,
+			kind: playlistCollection, eyebrow: locales.AutoPlaylist(), title: locales.LikedMusic(), owner: owner,
 			meta: totalLength(songs), art: artLiked, songs: songs,
 		}
 	}
@@ -42,9 +43,9 @@ func (a *app) likedCollection() collection {
 }
 
 func (a *app) itemPage(c *ui.Context, w float32, r *ui.Route, res fetchstate.Resource) {
-	label, noun := "Album", "album"
+	label, failed := locales.Album(), locales.AlbumFailed()
 	if res.Kind == fetchstate.Playlist {
-		label, noun = "Playlist", "playlist"
+		label, failed = locales.Playlist(), locales.PlaylistFailed()
 	}
 	f := a.fetches.State(res)
 	switch f.State {
@@ -53,7 +54,7 @@ func (a *app) itemPage(c *ui.Context, w float32, r *ui.Route, res fetchstate.Res
 		return
 	case fetchstate.Failed:
 		r.Title(label)
-		loadFailed(c, "Couldn’t load this "+noun, f.Err, func() { a.loader.Retry(res) })
+		loadFailed(c, failed, f.Err, func() { a.loader.Retry(res) })
 		return
 	}
 	col := a.cachedCollection(res)
@@ -80,7 +81,7 @@ func (a *app) cachedCollection(res fetchstate.Resource) collection {
 		if al, ok := a.cat.Album(res.ID); ok {
 			songs := a.cat.AlbumTracks(al.ID)
 			m.v = collection{
-				kind: albumCollection, eyebrow: string(al.Kind), title: al.Title, owner: al.Artist,
+				kind: albumCollection, eyebrow: albumKind(al.Kind), title: al.Title, owner: al.Artist,
 				meta: fmt.Sprintf("· %d %s", al.Year, totalLength(songs)), art: al.Art, songs: songs,
 			}
 		}
@@ -89,11 +90,24 @@ func (a *app) cachedCollection(res fetchstate.Resource) collection {
 	if pl, ok := a.cat.Playlist(res.ID); ok {
 		songs := a.cat.SongsByID(pl.Songs)
 		m.v = collection{
-			kind: playlistCollection, eyebrow: "Playlist", title: pl.Name, owner: pl.Owner,
+			kind: playlistCollection, eyebrow: locales.Playlist(), title: pl.Name, owner: pl.Owner,
 			meta: totalLength(songs), art: pl.Art, songs: songs,
 		}
 	}
 	return m.v
+}
+
+// albumKind says an album's release type in the app's language.
+func albumKind(k catalog.AlbumKind) string {
+	switch k {
+	case catalog.KindAlbum:
+		return locales.Album()
+	case catalog.KindEP:
+		return locales.AlbumEP()
+	case catalog.KindSingle:
+		return locales.AlbumSingle()
+	}
+	return string(k)
 }
 
 func (a *app) collectionPage(c *ui.Context, w float32, col collection) {
@@ -117,8 +131,8 @@ func (a *app) collectionPage(c *ui.Context, w float32, col collection) {
 			a.collectionActions(c, col.songs)
 			if len(col.songs) == 0 {
 				ui.Column(c).Padding(th.Space(12), 0).Gap(th.Space(1.5)).AlignItems(ui.Center).Children(func() {
-					heading(c, "Nothing here yet", ty.Minor, 2)
-					ui.Text(c, "Songs you like will show up here.").TextColor(th.Color.Muted)
+					heading(c, locales.NothingHereYet(), ty.Minor, 2)
+					ui.Text(c, locales.LikedEmpty()).TextColor(th.Color.Muted)
 				})
 			}
 		})
@@ -162,9 +176,9 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 	row := ui.Row(c).Gap(th.Space(2.5)).AlignItems(ui.Center).Margin(th.Space(7), 0, th.Space(3), 0).
 		FocusGroup(ui.Horizontal)
 	row.Children(func() {
-		icon, label := icPlay, "Play"
+		icon, label := icPlay, locales.Play()
 		if holdsCurrent && a.player.Playing {
-			icon, label = icPause, "Pause"
+			icon, label = icPause, locales.Pause()
 		}
 		play := ui.ButtonBase(c.Key("play-all")).Size(56, 56).Radius(28).Center().Background(th.Color.Accent).
 			Label(label).Cursor(ui.CursorPointer).KeepFocus().Shadow(0, 8, 24, 0, th.Color.Accent.Alpha(0.35))
@@ -181,9 +195,9 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 		}
 		ui.Box(c).Width(th.Space(1.5))
 		a.shuffleButton(c, 42, 22)
-		iconButton(c, "save", icPlus, "Save to library", 42, 22, iconOpts{})
-		iconButton(c, "download", icDownload, "Download", 42, 22, iconOpts{})
-		iconButton(c, "more", icMore, "More", 42, 22, iconOpts{})
+		iconButton(c, "save", icPlus, locales.SaveToLibrary(), 42, 22, iconOpts{})
+		iconButton(c, "download", icDownload, locales.Download(), 42, 22, iconOpts{})
+		iconButton(c, "more", icMore, locales.More(), 42, 22, iconOpts{})
 	})
 }
 
@@ -270,9 +284,9 @@ func tableHead(c *ui.Context, showAlbum bool, albumWidth float32) {
 		BorderWidth(0, 0, 1, 0).BorderColor(th.Color.Line).Margin(0, 0, th.Space(2), 0).
 		TextColor(th.Color.Faint).FontSize(th.Type.Small).FontWeight(600).Children(func() {
 		ui.Text(c, "#").Width(28).TextAlign(ui.Center)
-		ui.Text(c, "TITLE").LetterSpacing(1).Grow(1)
+		ui.Text(c, locales.ColumnTitle()).LetterSpacing(1).Grow(1)
 		if showAlbum {
-			ui.Text(c, "ALBUM").LetterSpacing(1).Width(albumWidth)
+			ui.Text(c, locales.ColumnAlbum()).LetterSpacing(1).Width(albumWidth)
 		}
 		ui.Box(c).Width(36)
 		ui.Row(c).Width(48).Justify(ui.End).Children(func() { ui.Icon(c, icClock).Size(15, 15) })

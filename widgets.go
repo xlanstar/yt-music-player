@@ -4,6 +4,7 @@ import (
 	"math"
 	"time"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -69,9 +70,9 @@ func (a *app) likeButton(c *ui.Context, id string, size float32) {
 	liked := a.session.Liked(id)
 	icon, opts := icHeart, iconOpts{isToggle: true, isChecked: liked}
 	if liked {
-		icon, opts.tip, opts.fg = icHeartFilled, "Unlike", th.Color.Accent
+		icon, opts.tip, opts.fg = icHeartFilled, locales.Unlike(), th.Color.Accent
 	}
-	if iconButton(c, "like", icon, "Like", size, size*0.5, opts).Clicked() {
+	if iconButton(c, "like", icon, locales.Like(), size, size*0.5, opts).Clicked() {
 		a.session.SetLiked(id, !liked)
 	}
 }
@@ -79,7 +80,7 @@ func (a *app) likeButton(c *ui.Context, id string, size float32) {
 func (a *app) shuffleButton(c *ui.Context, size, iconSize float32) {
 	isShuffled := a.player.IsShuffled()
 	opts := iconOpts{isOn: isShuffled, isToggle: true, isChecked: isShuffled}
-	if iconButton(c, "shuffle", icShuffle, "Shuffle", size, iconSize, opts).Clicked() {
+	if iconButton(c, "shuffle", icShuffle, locales.Shuffle(), size, iconSize, opts).Clicked() {
 		a.player.ToggleShuffle()
 	}
 }
@@ -416,5 +417,5 @@ func boneCard(c *ui.Context, width, height, subRatio float32) {
 
 // loadingStatus tells assistive technology that a skeleton is loading.
 func loadingStatus(c *ui.Context) ui.Element {
-	return ui.Text(c, "Loading…").TextColor(th.Color.Muted).Role(ui.RoleStatus)
+	return ui.Text(c, locales.Loading()).TextColor(th.Color.Muted).Role(ui.RoleStatus)
 }

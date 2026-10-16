@@ -16,6 +16,7 @@ type viewMemo struct {
 	liked      kept[uint64, int]        // by the session's LikesGen
 	likedLine  kept[uint64, string]     // by the session's LikesGen
 	sidebar    kept[uint64, []sideItem] // by the catalog's Gen
+	likedItem  sideItem
 	home       kept[feedKey, [][]cardText]
 	releases   kept[feedKey, []cardText]
 	moods      kept[feedKey, []any] // the moods' keys, boxed
@@ -31,6 +32,7 @@ type viewMemo struct {
 	themesHint kept[settings.Dir, string]
 	// noCredentials is whether the sign-in sheet's text cleans to nothing.
 	noCredentials kept[string, bool]
+	devtoolsStep  string
 	rows          map[string]*rowText
 }
 
@@ -59,7 +61,7 @@ func (a *app) rowText(s *catalog.Song) *rowText {
 	t := &rowText{
 		from:  from,
 		key:   s.ID,
-		label: s.Title + " by " + s.Artist,
+		label: songByArtist.say2(s.Title, s.Artist),
 		sub:   s.Artist + " · " + s.Album,
 	}
 	a.memo.rows[s.ID] = t

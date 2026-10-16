@@ -29,6 +29,12 @@ One engine on every system (`internal/audio`): YouTube's Opus in WebM, fetched i
 - The source asks for ranges of up to 2 MiB, the next once the reader used half: a few requests a song, and none while paused. It keeps 128 KiB chunks, up to 8 MiB: a song of up to about eight minutes stays whole, so seeking back costs no request. A 4 MB song allocates about 4.3 MB, once (`BenchmarkSourceRead`); the heap in use while playing is 3–4 MB (`TestLiveStream`).
 - No polling while a song plays: MyGo tells no one when a player ends or runs dry, so a timer fires at the computed end, and another, once the source has waited 200 ms for the network, when what was decoded ahead runs out (MyGo decodes about a second ahead). Only a stall is polled, every 100 ms, until half a second is decoded ahead: a seek's refill, or each piece of a slow response, would otherwise report a stall and its end.
 
+## Messages
+
+- A message without arguments is a map lookup once said (MyGo keeps it by language): no allocation, so pages say theirs every build. Reading the language is one atomic load once the app knows it; tests set it the same way (`TestMain`), as MyGo's own path before `App.Run` allocates on each call.
+- A message with arguments goes through ICU formatting, about ten allocations a call. Those said often with string arguments (rows' names, the seek bar's value, search's lines) are `phrase`s: formatted once per language with markers, then filled in with one allocation. Plural ones (song counts, lengths) stay ICU's, on memo misses only.
+- Catalogs and CLDR's data for formatting add about 250 KB to the release binary.
+
 ## JSON
 
 - encoding/json/v2 everywhere, with its defaults. Options only where a format needs them: theme files reject unknown names; `theme.Encode` and recorded fixtures sort keys; files people read are indented; InnerTube responses skip a string or number of another type (`lenient`), as maps did.

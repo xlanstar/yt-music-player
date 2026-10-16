@@ -6,6 +6,7 @@ import (
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -20,7 +21,7 @@ func (a *app) accountButton(c *ui.Context) {
 		if !canSignIn || a.fetches.State(session.AccountRes).State != fetchstate.SignedOut {
 			return
 		}
-		signIn := pill(c, "sign-in", nil, "Sign in", pillLight).
+		signIn := pill(c, "sign-in", nil, locales.SignIn(), pillLight).
 			Height(34).Padding(0, th.Space(4)).Margin(0, 0, 0, th.Space(1.5))
 		if signIn.Clicked() {
 			a.openSignIn()
@@ -39,12 +40,12 @@ func (a *app) accountButton(c *ui.Context) {
 		}
 	})
 	button.Menu(func(m *ui.Menu) {
-		m.Item("Signed in as " + name).Disabled(true)
+		m.Item(locales.SignedInAs(name)).Disabled(true)
 		if !canSignIn {
 			return
 		}
 		m.Separator()
-		if m.Item("Sign out").Disabled(a.session.IsSigningOut()).Chosen() {
+		if m.Item(locales.SignOut()).Disabled(a.session.IsSigningOut()).Chosen() {
 			a.session.SignOut()
 		}
 	})
@@ -57,8 +58,14 @@ var devtoolsKeys = func() string {
 	return "Ctrl+Shift+I"
 }()
 
-// devtoolsStep is joined once, not per build.
-var devtoolsStep = "Open its developer tools (" + devtoolsKeys + "), then the Network tab, and reload."
+// devtoolsStep is formatted once per language, not per build.
+func (a *app) devtoolsStep() string {
+	m := &a.memo.devtoolsStep
+	if *m == "" {
+		*m = locales.SignInDevtools(devtoolsKeys)
+	}
+	return *m
+}
 
 // signInSheet asks for the Cookie header of a signed-in YouTube Music
 // tab: the only credentials usable without Google's sign-in flow.
@@ -69,39 +76,39 @@ func (a *app) signInSheet(c *ui.Context) {
 		back.Background(col.Shadow.Alpha(0.6))
 		panel.Width(540).Padding(th.Space(7)).Gap(th.Space(4.5)).
 			Radius(th.Radius.Dialog).Background(col.Panel).Border(1, col.Line).
-			Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label("Sign in to YouTube Music")
+			Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label(locales.SignInTitle())
 		ui.Column(c).Gap(th.Space(1.5)).Children(func() {
-			heading(c, "Sign in to YouTube Music", ty.Section, 1)
-			ui.Text(c, "Your library and likes come from your account, through your browser’s session.").
+			heading(c, locales.SignInTitle(), ty.Section, 1)
+			ui.Text(c, locales.SignInIntro()).
 				FontSize(ty.Label).TextColor(col.Muted)
 		})
 		ui.Column(c).Gap(th.Space(2)).Children(func() {
 			step(c, 1, "", func() {
-				ui.Text(c, "Open ")
+				ui.Text(c, locales.SignInOpenBefore())
 				ui.Link(c, "music.youtube.com", musicURL)
-				ui.Text(c, " in your browser, signed in.")
+				ui.Text(c, locales.SignInOpenAfter())
 			})
-			step(c, 2, devtoolsStep, nil)
-			step(c, 3, "Pick any request to music.youtube.com and copy the value of its Cookie request header.", nil)
-			step(c, 4, "Paste it here.", nil)
+			step(c, 2, a.devtoolsStep(), nil)
+			step(c, 3, locales.SignInPickRequest(), nil)
+			step(c, 4, locales.SignInPaste(), nil)
 		})
 		field := ui.TextArea(c.Key(a.sheet.attempt), &a.sheet.credentials).Lines(3, 6).FontSize(ty.Sub).
-			Label("Cookie header").Placeholder("Paste the Cookie header").AutoFocus().ReadOnly(busy)
+			Label(locales.CookieHeader()).Placeholder(locales.CookiePlaceholder()).AutoFocus().ReadOnly(busy)
 		submit := field.Shortcut(ui.Cmd, ui.KeyEnter)
 		if a.sheet.failure != "" {
-			ui.Text(c, "Couldn’t sign in: "+a.sheet.failure).FontSize(ty.Detail).TextColor(col.Error).MaxLines(4)
+			ui.Text(c, locales.SignInFailedReason(a.sheet.failure)).FontSize(ty.Detail).TextColor(col.Error).MaxLines(4)
 		}
-		ui.Text(c, "It stays on this computer, and goes only to YouTube Music.").FontSize(ty.Small).TextColor(col.Faint)
+		ui.Text(c, locales.SignInPrivacy()).FontSize(ty.Small).TextColor(col.Faint)
 		ui.Row(c).Gap(th.Space(2.5)).Justify(ui.End).AlignItems(ui.Center).Children(func() {
 			if busy {
-				ui.Text(c, "Signing in…").FontSize(ty.Detail).TextColor(col.Muted).Role(ui.RoleStatus).Grow(1)
+				ui.Text(c, locales.SigningIn()).FontSize(ty.Detail).TextColor(col.Muted).Role(ui.RoleStatus).Grow(1)
 			}
-			if pill(c, "cancel", nil, "Cancel", pillGhost).Clicked() {
+			if pill(c, "cancel", nil, locales.Cancel(), pillGhost).Clicked() {
 				a.sheet.isOpen = false
 			}
-			label := "Sign in"
+			label := locales.SignIn()
 			if busy {
-				label = "Signing in…"
+				label = locales.SigningIn()
 			}
 			if sheetButton(c, label, busy || a.noCredentials()).Clicked() {
 				submit = true
@@ -159,7 +166,7 @@ func (a *app) signedOutPage(c *ui.Context, icon *ui.SVG, title, body string) {
 	var signIn func()
 	if a.session.CanSignIn() {
 		signIn = func() {
-			if pill(c, "sign-in-page", nil, "Sign in", pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
+			if pill(c, "sign-in-page", nil, locales.SignIn(), pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
 				a.openSignIn()
 			}
 		}
@@ -174,13 +181,13 @@ func (a *app) likedPage(c *ui.Context, width float32) {
 		a.signedOutPage(
 			c,
 			icHeart,
-			"Sign in to see your likes",
-			"Songs you like on YouTube Music show up here.",
+			locales.LikesSignInTitle(),
+			locales.LikesSignInDetail(),
 		)
 	case fetchstate.Failed:
-		loadFailed(c, "Couldn’t load your likes", fetch.Err, func() { a.session.Retry(session.LikedRes) })
+		loadFailed(c, locales.LikesFailed(), fetch.Err, func() { a.session.Retry(session.LikedRes) })
 	case fetchstate.Loading:
-		collectionSkeleton(c, width, "Auto playlist")
+		collectionSkeleton(c, width, locales.AutoPlaylist())
 	default:
 		a.collectionPage(c, width, a.likedCollection())
 	}
@@ -194,11 +201,11 @@ func (a *app) libraryState(c *ui.Context, width float32, header func()) bool {
 		a.signedOutPage(
 			c,
 			icLibrary,
-			"Sign in to see your library",
-			"Your playlists, songs, albums and artists from YouTube Music show up here.",
+			locales.LibrarySignInTitle(),
+			locales.LibrarySignInDetail(),
 		)
 	case fetchstate.Failed:
-		loadFailed(c, "Couldn’t load your library", fetch.Err, func() { a.session.Retry(session.LibraryRes) })
+		loadFailed(c, locales.LibraryFailed(), fetch.Err, func() { a.session.Retry(session.LibraryRes) })
 	case fetchstate.Loading:
 		librarySkeleton(c, width, header)
 	default:
@@ -262,7 +269,7 @@ func toasts(c *ui.Context) {
 					})
 				}
 				closeButton := toast.CloseButton().Size(28, 28).Radius(14).Center().
-					Label("Dismiss").Cursor(ui.CursorPointer)
+					Label(locales.Dismiss()).Cursor(ui.CursorPointer)
 				closeButton.Children(func() { ui.Icon(c, icClose).Size(14, 14).TextColor(th.Color.Muted) })
 			})
 		}

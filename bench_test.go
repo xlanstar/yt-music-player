@@ -514,10 +514,12 @@ var helperCases = []struct {
 	{"CoverOf/other", 0, func(*app, int) { sinkCover = coverOf("unknown") }},
 	{"ColumnsFor", 0, func(*app, int) { sinkInt = moodColumns(1012) }},
 	{"Greeting", 0, func(*app, int) { sinkString = greeting(time.Date(2026, 5, 1, 14, 0, 0, 0, time.UTC)) }},
-	{"TotalLength/18", 1, func(a *app, _ int) { sinkString = totalLength(a.cat.Songs[:18]) }},
-	{"TotalLength/2000", 4, func(a *app, _ int) { sinkString = totalLength(a.cat.Songs) }}, // 3 allocs today.
+	// Plural messages go through ICU formatting (locales), which allocates
+	// about ten times a count; they are made again only as music changes.
+	{"TotalLength/18", 23, func(a *app, _ int) { sinkString = totalLength(a.cat.Songs[:18]) }}, // 20 allocs today.
+	{"TotalLength/2000", 28, func(a *app, _ int) { sinkString = totalLength(a.cat.Songs) }},    // 24 allocs today.
 	{"Upper", 0, func(*app, int) { sinkString = upper("Auto playlist") }},
-	{"PlaylistLine/count", 1, func(a *app, _ int) { sinkString = playlistLine(a.cat.Playlists[0], true) }},
+	{"PlaylistLine/count", 17, func(a *app, _ int) { sinkString = playlistLine(a.cat.Playlists[0], true) }}, // 14 allocs today: plural.
 	{"PlaylistLine/owner", 1, func(a *app, _ int) { sinkString = playlistLine(a.cat.Playlists[0], false) }},
 	{"Percent", 0, func(*app, int) { sinkString = percent(70) }},
 	// Table rows' positions, cached as far as playlists go.
@@ -594,27 +596,29 @@ var memoCases = []struct {
 	get  func(a *app)
 }{
 	{"LikedCount", 0, func(a *app) { sinkInt = a.likedCount() }},
-	// 4 allocs today: 2000 songs, and the line under the title.
-	{"LikedCollection", 5, func(a *app) { sinkCollection = a.likedCollection() }},
+	// LikedCollection, LikedLine, PlaylistCards and CachedCollection say
+	// counts in plural messages: see TotalLength. 25 allocs today: 2000
+	// songs, and the line under the title.
+	{"LikedCollection", 29, func(a *app) { sinkCollection = a.likedCollection() }},
 	{"SidebarItems", 26, func(a *app) { sinkSideItems = a.sidebarItems() }}, // 22 allocs today.
 	// 134 allocs today: a card's line for each of 90 items.
 	{"HomeCards", 155, func(a *app) { sinkCards = a.homeCards() }},
-	{"ReleaseCards", 25, func(a *app) { sinkCardRow = a.releaseCards() }}, // 21 allocs today.
-	{"MoodKeys", 15, func(a *app) { sinkKeys = a.moodKeys() }},            // 13 allocs today.
-	{"LikedLine", 2, func(a *app) { sinkString = a.likedLine() }},
-	{"PlaylistCards", 18, func(a *app) { sinkCardRow = a.playlistCards() }}, // 15 allocs today.
-	{"AlbumCards", 36, func(a *app) { sinkCardRow = a.albumCards() }},       // 31 allocs today.
-	{"ArtistCards", 13, func(a *app) { sinkCardRow = a.artistCards() }},     // 11 allocs today.
+	{"ReleaseCards", 25, func(a *app) { sinkCardRow = a.releaseCards() }},    // 21 allocs today.
+	{"MoodKeys", 15, func(a *app) { sinkKeys = a.moodKeys() }},               // 13 allocs today.
+	{"LikedLine", 19, func(a *app) { sinkString = a.likedLine() }},           // 16 allocs today.
+	{"PlaylistCards", 122, func(a *app) { sinkCardRow = a.playlistCards() }}, // 106 allocs today.
+	{"AlbumCards", 36, func(a *app) { sinkCardRow = a.albumCards() }},        // 31 allocs today.
+	{"ArtistCards", 13, func(a *app) { sinkCardRow = a.artistCards() }},      // 11 allocs today.
 	{"TypedText", 2, func(a *app) { sinkTyped = a.typedText("lumen") }},
 	{"FoundText", 37, func(a *app) { sinkFound = a.foundText("lumen", a.cat.Albums) }}, // 32 allocs today.
 	// A scan of 2000 songs, without allocating.
 	{"HoldsCurrent", 0, func(a *app) { sinkBool = a.holdsCurrent(a.cat.Songs) }},
 	{"RowText", 7, func(a *app) { sinkRowText = a.rowText(&a.cat.Songs[0]) }}, // 6 allocs today, the map included.
-	// 14 allocs today: the tracks of a scan of 2000 songs.
-	{"CachedCollection/album", 17, func(a *app) {
+	// 35 allocs today: the tracks of a scan of 2000 songs, and the line.
+	{"CachedCollection/album", 41, func(a *app) {
 		sinkCollection = a.cachedCollection(fetchstate.Resource{Kind: fetchstate.Album, ID: "neon-tide"})
 	}},
-	{"CachedCollection/playlist", 2, func(a *app) {
+	{"CachedCollection/playlist", 25, func(a *app) { // 21 allocs today.
 		sinkCollection = a.cachedCollection(fetchstate.Resource{Kind: fetchstate.Playlist, ID: "late-night-drive"})
 	}},
 }

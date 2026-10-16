@@ -6,6 +6,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ### Added
 
+- Traditional Chinese: the app, its menus and the update window follow the system's language (or the app's, in System Settings on macOS). Names from YouTube Music stay as YouTube sends them.
 - Linux and Windows downloads, amd64 and arm64: `install.sh` or a Debian package on Linux, a setup on Windows (not code-signed yet, so SmartScreen warns). They update themselves, but for the Debian package, which `apt` updates.
 
 ### Changed

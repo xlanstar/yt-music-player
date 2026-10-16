@@ -2,6 +2,7 @@ package main
 
 import (
 	"yt-music-player/internal/catalog"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -22,13 +23,13 @@ func (a *app) sidebar(c *ui.Context) {
 		})
 		ui.Box(c).Height(1).Background(th.Color.Line).Margin(th.Space(4.5), th.Space(6))
 		ui.Row(c).Padding(0, th.Space(4), th.Space(2), th.Space(6)).AlignItems(ui.Center).Children(func() {
-			eyebrow(c, "Playlists").Grow(1)
-			iconButton(c, "new-playlist", icPlus, "New playlist", 28, 16, iconOpts{})
+			eyebrow(c, locales.SidebarPlaylists()).Grow(1)
+			iconButton(c, "new-playlist", icPlus, locales.NewPlaylist(), 28, 16, iconOpts{})
 		})
 		playlists := ui.Scroll(c.Key("playlists")).Grow(1).Padding(0, th.Space(3), th.Space(4)).Gap(th.Space(0.5)).
 			FocusGroup(ui.Vertical)
 		playlists.Children(func() {
-			a.playlistItem(c, &likedItem)
+			a.playlistItem(c, a.likedItem())
 			items := a.sidebarItems()
 			for i := range items {
 				a.playlistItem(c, &items[i])
@@ -56,22 +57,23 @@ func paintMark(p *ui.Painter, r ui.Rect) {
 	ring(p, r.X+r.W/2, r.Y+r.H/2, r.W*0.32, 1.6, th.Color.Light.Alpha(0.9))
 }
 
-// navTarget is a sidebar item or an Explore tile. key is label, boxed
-// once.
+// navTarget is a sidebar item or an Explore tile. key is the English
+// label, boxed once; label says it in the app's language.
 type navTarget struct {
-	key         any
-	path, label string
-	icon        *ui.SVG
+	key   any
+	path  string
+	label func() string
+	icon  *ui.SVG
 }
 
 var navItems = [...]navTarget{
-	{key: "Home", path: pathHome, label: "Home", icon: icHome},
-	{key: "Explore", path: pathExplore, label: "Explore", icon: icCompass},
-	{key: "Library", path: pathLibrary, label: "Library", icon: icLibrary},
+	{key: "Home", path: pathHome, label: locales.NavHome, icon: icHome},
+	{key: "Explore", path: pathExplore, label: locales.NavExplore, icon: icCompass},
+	{key: "Library", path: pathLibrary, label: locales.NavLibrary, icon: icLibrary},
 }
 
 func (a *app) navItem(c *ui.Context, item *navTarget) {
-	path, icon, label := item.path, item.icon, item.label
+	path, icon, label := item.path, item.icon, item.label()
 	// Playlists live in the library, so it stays lit while one is open.
 	isPlaylistOpen := path == pathLibrary && (a.onPath(playlistPrefix) || a.onPath(pathLiked))
 	isActive := a.onPath(path) || isPlaylistOpen
@@ -105,7 +107,14 @@ type sideItem struct {
 	art             catalog.Art
 }
 
-var likedItem = sideItem{key: pathLiked, path: pathLiked, name: "Liked music", sub: "Auto playlist", art: artLiked}
+// likedItem is Liked music's, in the app's language.
+func (a *app) likedItem() *sideItem {
+	m := &a.memo.likedItem
+	if m.key == nil {
+		*m = sideItem{key: pathLiked, path: pathLiked, name: locales.LikedMusic(), sub: locales.AutoPlaylist(), art: artLiked}
+	}
+	return m
+}
 
 func (a *app) sidebarItems() []sideItem {
 	m := &a.memo.sidebar

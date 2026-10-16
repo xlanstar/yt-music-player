@@ -43,10 +43,13 @@ func main() {
 		a.useSettings(dir)
 	}
 	a.quiet.start()
-	// English, as the rest of the app. Builds that cannot update themselves
-	// (go run, the placeholder) never check; Check for Updates… says why.
-	mygo.Use(native.New(updater.Options{Language: "en"}))
+	// In the app's language. Builds that cannot update themselves (go run,
+	// the placeholder) never check; Check for Updates… says why.
+	mygo.Use(native.New(updater.Options{}))
 	mygo.App.SetMenu(appMenu())
+	// Items labelled by their role follow the language themselves; Check
+	// for Updates… is labelled once.
+	mygo.App.OnLocaleChanged(func(string) { mygo.App.SetMenu(appMenu()) })
 	mygo.App.WhenReady(a.openWindow)
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal().Err(err).Msg("run")

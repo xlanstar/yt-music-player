@@ -5,22 +5,26 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
 
-var homeChips = []string{"All", "Energize", "Relax", "Focus", "Workout", "Commute", "Feel good", "Sleep"}
+var homeChips = [...]func() string{
+	locales.MoodAll, locales.MoodEnergize, locales.MoodRelax, locales.MoodFocus,
+	locales.MoodWorkout, locales.MoodCommute, locales.MoodFeelGood, locales.MoodSleep,
+}
 
 func greeting(now time.Time) string {
 	switch h := now.Hour(); {
 	case h < 5:
-		return "Up late"
+		return locales.GreetingLate()
 	case h < 12:
-		return "Good morning"
+		return locales.GreetingMorning()
 	case h < 18:
-		return "Good afternoon"
+		return locales.GreetingAfternoon()
 	default:
-		return "Good evening"
+		return locales.GreetingEvening()
 	}
 }
 
@@ -37,23 +41,22 @@ func (a *app) feedState(res fetchstate.Resource) fetchstate.Fetch {
 func (a *app) homePage(c *ui.Context, w float32) {
 	ui.Column(c).Padding(th.Space(1), th.Layout.Page, th.Space(12)).Gap(th.Space(10)).Children(func() {
 		ui.Column(c).Gap(th.Space(4.5)).Children(func() {
-			pageTitle(c, greeting(c.Now()), "Listen now")
+			pageTitle(c, greeting(c.Now()), locales.ListenNow())
 			// Segmented: screen readers announce radio buttons, and it is one Tab stop.
 			moods := ui.SegmentedBase(c.Key("moods"), &a.page.mood, len(homeChips))
-			moods.Track.Gap(th.Space(2)).Wrap().Label("Mood").Children(func() {
+			moods.Track.Gap(th.Space(2)).Wrap().Label(locales.Mood()).Children(func() {
 				for i, name := range homeChips {
-					chip(c, moods.Segment(i), name, i == a.page.mood)
+					chip(c, moods.Segment(i), name(), i == a.page.mood)
 				}
 			})
 		})
 		switch f := a.feedState(loader.HomeFeed); {
 		case f.State == fetchstate.Failed:
-			loadFailed(c, "Couldn’t load your home", f.Err, func() { a.loader.Retry(loader.HomeFeed) })
+			loadFailed(c, locales.HomeFailed(), f.Err, func() { a.loader.Retry(loader.HomeFeed) })
 		case f.State == fetchstate.Loading:
 			homeSkeleton(c, w)
 		case !hasItems(a.loader.Home().Shelves):
-			message(c, icSparkles, "Nothing to recommend yet",
-				"Your picks show up here as YouTube Music gets to know you.", 2, nil)
+			message(c, icSparkles, locales.HomeEmptyTitle(), locales.HomeEmptyDetail(), 2, nil)
 		default:
 			a.homeShelves(c, w)
 		}
@@ -116,11 +119,11 @@ func cardSub(it catalog.Item) string {
 		if it.Album.Kind == "" {
 			return it.Album.Artist
 		}
-		return string(it.Album.Kind) + " · " + it.Album.Artist
+		return albumKind(it.Album.Kind) + " · " + it.Album.Artist
 	case catalog.ItemPlaylist:
 		return it.Playlist.Owner
 	}
-	return "Artist"
+	return locales.Artist()
 }
 
 func songsOnly(items []catalog.Item) bool {
@@ -136,7 +139,7 @@ func (a *app) songShelf(c *ui.Context, w float32, sh *catalog.Shelf, playAll boo
 	ui.Column(c).Children(func() {
 		action := ""
 		if playAll {
-			action = "Play all"
+			action = locales.PlayAll()
 		}
 		if sectionHeader(c, "play-all", sh.Strapline, sh.Title, action) {
 			ids := make([]string, len(sh.Items))
@@ -238,10 +241,10 @@ func (a *app) hero(c *ui.Context, w float32, sh *catalog.Shelf, itemIndex int) {
 					MaxWidth(420).MaxLines(2)
 			}
 			ui.Row(c).Gap(th.Space(2.5)).Margin(th.Space(2.5), 0, 0, 0).Children(func() {
-				if pill(c, "hero-play", icPlay, "Play", pillLight).Clicked() {
+				if pill(c, "hero-play", icPlay, locales.Play(), pillLight).Clicked() {
 					a.playPlaylist(playlist.ID)
 				}
-				if pill(c, "hero-open", icQueue, "Open", pillGlass).Clicked() {
+				if pill(c, "hero-open", icQueue, locales.Open(), pillGlass).Clicked() {
 					a.router.Push(playlistPath(playlist.ID))
 				}
 			})

@@ -15,7 +15,6 @@ import (
 	"context"
 	"errors"
 	"math"
-	"strconv"
 	"time"
 	"yt-music-player/internal/audio"
 	"yt-music-player/internal/catalog"
@@ -23,6 +22,7 @@ import (
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/player"
 	"yt-music-player/internal/stream"
+	"yt-music-player/locales"
 
 	"github.com/rs/zerolog/log"
 )
@@ -312,7 +312,7 @@ func (pb *Playback) startEngine() bool {
 	eng, err := pb.NewEngine(func(ev audio.Event) { post(func() { pb.audioEvent(ev) }) })
 	if err != nil {
 		log.Debug().Err(err).Msg("no audio engine")
-		pb.notice = failure("Can’t play audio", err.Error())
+		pb.notice = failure(locales.NoticeNoAudio(), err.Error())
 		pb.Resolver, pb.state = nil, unloaded
 		return false
 	}
@@ -405,20 +405,20 @@ func (pb *Playback) playFailed(err error) {
 	title := pb.currentSong().Title
 	pb.state, pb.isPlaying = unloaded, false
 	pb.failures++
-	heading := "Couldn’t play “" + title + "”"
+	heading := locales.NoticePlayFailed(title)
 	if errors.Is(err, stream.ErrUnplayable) {
-		heading = "“" + title + "” isn’t available"
+		heading = locales.NoticeUnplayable(title)
 	}
 	if pb.failures >= min(maxSkips, p.Len()) {
-		detail := "Playback stopped."
+		detail := locales.NoticePlaybackStopped()
 		if pb.failures > 1 {
-			detail = "Playback stopped: " + strconv.Itoa(pb.failures) + " songs in a row couldn’t play."
+			detail = locales.NoticePlaybackStoppedAfter(pb.failures)
 		}
 		pb.notice = failure(heading, detail)
 		pb.failures, p.Playing = 0, false
 		return
 	}
-	pb.notice = failure(heading, "Skipped to the next song.")
+	pb.notice = failure(heading, locales.NoticeSkipped())
 	p.Next()
 }
 

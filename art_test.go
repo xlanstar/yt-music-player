@@ -17,6 +17,7 @@ import (
 	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
 
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 	"github.com/rs/zerolog"
 )
@@ -26,6 +27,9 @@ func TestMain(m *testing.M) {
 	artCacheDir = ""
 	// Otherwise tests print every failure they provoke.
 	zerolog.SetGlobalLevel(zerolog.Disabled)
+	// English whatever the machine's languages, read as cheaply as the
+	// running app reads its own; inLanguage switches it.
+	i18n.SetLocaleFunc(func() string { return testLocale })
 	os.Exit(m.Run())
 }
 

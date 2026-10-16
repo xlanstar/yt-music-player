@@ -5,6 +5,7 @@ import (
 	"strings"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -51,23 +52,23 @@ func (a *app) pages(c *ui.Context, width float32) {
 	a.router.View(c, func(r *ui.Route) {
 		switch a.route(r) {
 		case routeHome, routeRoot:
-			r.Title("Home")
+			r.Title(locales.NavHome())
 			scrollPage(c, func() { a.homePage(c, width) })
 		case routeExplore:
-			r.Title("Explore")
+			r.Title(locales.NavExplore())
 			scrollPage(c, func() { a.explorePage(c, width) })
 		case routeLibrary:
-			r.Title("Library")
+			r.Title(locales.NavLibrary())
 			a.libraryPage(c, width, libraryTabOf(r.Query("tab")))
 		case routeLiked:
-			r.Title("Liked music")
+			r.Title(locales.LikedMusic())
 			a.likedPage(c, width)
 		case routeAlbum:
 			a.itemPage(c, width, r, fetchstate.Resource{Kind: fetchstate.Album, ID: r.Param("id")})
 		case routePlaylist:
 			a.itemPage(c, width, r, fetchstate.Resource{Kind: fetchstate.Playlist, ID: r.Param("id")})
 		case routeSearch:
-			r.Title("Search")
+			r.Title(locales.NavSearch())
 			scrollPage(c, func() { a.searchPage(c, width, r.Query("q")) })
 		default:
 			notFound(c)
@@ -140,12 +141,12 @@ func message(c *ui.Context, icon *ui.SVG, title, body string, level int, more fu
 }
 
 func notFound(c *ui.Context) {
-	message(c, nil, "Nothing here", "This page may have moved or been removed.", 1, nil)
+	message(c, nil, locales.NotFoundTitle(), locales.NotFoundDetail(), 1, nil)
 }
 
 func loadFailed(c *ui.Context, title string, err error, retry func()) {
 	message(c, nil, title, err.Error(), 1, func() {
-		if pill(c, "retry", nil, "Retry", pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
+		if pill(c, "retry", nil, locales.Retry(), pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
 			retry()
 		}
 	})

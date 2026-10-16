@@ -2,6 +2,7 @@ package main
 
 import (
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -22,19 +23,19 @@ func (a *app) topBar(c *ui.Context, width, panelShown float32) {
 	bar.Children(func() {
 		ui.Row(c).Gap(th.Space(2)).AlignItems(ui.Center).FocusGroup(ui.Horizontal).Children(func() {
 			history := iconOpts{bg: th.Color.Shadow.Alpha(0.25), isDisabled: !a.router.CanGoBack(), keys: hints.back}
-			if iconButton(c, "back", icChevronLeft, "Back", 34, 18, history).Clicked() {
+			if iconButton(c, "back", icChevronLeft, locales.NavBack(), 34, 18, history).Clicked() {
 				a.router.Back()
 			}
 			history.isDisabled, history.keys = !a.router.CanGoForward(), hints.forward
-			if iconButton(c, "forward", icChevronRight, "Forward", 34, 18, history).Clicked() {
+			if iconButton(c, "forward", icChevronRight, locales.NavForward(), 34, 18, history).Clicked() {
 				a.router.Forward()
 			}
 		})
 		ui.Box(c).Width(th.Space(2))
 		a.searchBox(c, width > 560)
 		ui.Spacer(c)
-		iconButton(c, "notifications", icBell, "Notifications", 36, 18, iconOpts{})
-		if iconButton(c, "appearance", icPalette, "Appearance", 36, 18, iconOpts{keys: hints.appearance}).Clicked() {
+		iconButton(c, "notifications", icBell, locales.Notifications(), 36, 18, iconOpts{})
+		if iconButton(c, "appearance", icPalette, locales.Appearance(), 36, 18, iconOpts{keys: hints.appearance}).Clicked() {
 			a.openLook()
 		}
 		a.accountButton(c)
@@ -55,21 +56,21 @@ func (a *app) searchBox(c *ui.Context, roomy bool) {
 	default:
 		box.Background(th.Color.Field).Border(1, th.Color.Line)
 	}
-	placeholder := "Search"
+	placeholder := locales.NavSearch()
 	if roomy {
-		placeholder = "Search songs, albums, artists"
+		placeholder = locales.SearchPlaceholder()
 	}
 	box.Children(func() {
 		ui.Icon(c, icSearch).Size(16, 16).TextColor(th.Color.Muted)
 		input := ui.TextInputBase(c.Key("search"), &a.search.query).Grow(1).FontSize(th.Type.Title).
-			Placeholder(placeholder).Label("Search").Description(hints.search).FocusRing(false).Bind(&a.search.field).
+			Placeholder(placeholder).Label(locales.NavSearch()).Description(hints.search).FocusRing(false).Bind(&a.search.field).
 			OnChange(a.actions.search)
 		if input.Shortcut(0, ui.KeyEscape) {
 			a.search.query = ""
 			a.leaveSearch()
 		}
 		if a.search.query != "" {
-			if iconButton(c, "clear", icClose, "Clear search", 28, 14, iconOpts{}).Clicked() {
+			if iconButton(c, "clear", icClose, locales.ClearSearch(), 28, 14, iconOpts{}).Clicked() {
 				a.search.query = ""
 				a.leaveSearch()
 				a.search.field.Focus(c)

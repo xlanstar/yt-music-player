@@ -4,10 +4,10 @@ import (
 	"cmp"
 	"context"
 	"slices"
-	"strings"
 	"yt-music-player/internal/job"
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -41,16 +41,16 @@ type themeOption struct {
 func (a *app) useSettings(dir settings.Dir) {
 	a.look.dir = dir
 	a.look.saver = settings.NewSaver(dir, func(err error) {
-		a.post(func() { a.note("Couldn’t save your settings", err.Error()) })
+		a.post(func() { a.note(locales.SettingsSaveFailed(), err.Error()) })
 	})
 	set, err := dir.Load()
 	if err != nil {
-		a.note("Couldn’t read your settings", err.Error())
+		a.note(locales.SettingsReadFailed(), err.Error())
 	}
 	a.look.set = set
 	users, err := dir.Themes()
 	if err != nil {
-		a.note("Couldn’t read your themes", err.Error())
+		a.note(locales.ThemesReadFailed(), err.Error())
 	}
 	a.useThemes(users)
 }
@@ -66,7 +66,7 @@ func (a *app) useThemes(users []settings.UserTheme) {
 		prev := slices.IndexFunc(a.look.users, func(old settings.UserTheme) bool { return old.File == userTheme.File })
 		wasTold := prev >= 0 && errText(a.look.users[prev].Err) == userTheme.Err.Error()
 		if !wasTold {
-			a.note("Couldn’t read the theme "+userTheme.File, userTheme.Err.Error())
+			a.note(locales.ThemeReadFailed(userTheme.File), userTheme.Err.Error())
 		}
 	}
 	a.look.users = users
@@ -103,10 +103,10 @@ func (a *app) applyLook() {
 	}
 	a.look.problem = problem
 	if themeErr != nil {
-		a.note("Couldn’t read the theme "+a.look.set.Theme, themeErr.Error()+". The default theme shows instead.")
+		a.note(locales.ThemeReadFailed(a.look.set.Theme), locales.ThemeFallback(themeErr.Error()))
 	}
 	if layoutErr != nil {
-		a.note("Couldn’t use your layout", layoutErr.Error())
+		a.note(locales.LayoutFailed(), layoutErr.Error())
 	}
 }
 
@@ -146,12 +146,29 @@ func (a *app) themeOptions() {
 		})
 	}
 	for _, p := range theme.Presets() {
-		add(p.ID, p.Name, p.Theme(), nil)
+		add(p.ID, presetName(p), p.Theme(), nil)
 	}
 	for _, u := range a.look.users {
 		add(u.File, u.Name, u.Theme, u.Err)
 	}
 	a.look.options = opts
+}
+
+// presetName says a built-in theme's name in the app's language.
+func presetName(p theme.Preset) string {
+	switch p.ID {
+	case theme.DefaultID:
+		return locales.ThemeDefault()
+	case "midnight":
+		return locales.ThemeMidnight()
+	case "forest":
+		return locales.ThemeForest()
+	case "orchid":
+		return locales.ThemeOrchid()
+	case "studio":
+		return locales.ThemeStudio()
+	}
+	return p.Name
 }
 
 func (a *app) chooseTheme(id string) {
@@ -161,15 +178,22 @@ func (a *app) chooseTheme(id string) {
 }
 
 // layoutChoices are the layout's segmented controls, in the order of
-// arrangement's fields. A chip's label, lowercased, is its value.
+// arrangement's fields.
 var layoutChoices = [...]struct {
-	label string
-	chips []string
+	label func() string
+	chips []layoutChip
 }{
-	{"Sidebar", []string{"Left", "Right", "Hidden"}},
-	{"Now playing panel", []string{"Left", "Right", "Hidden"}},
-	{"Player bar", []string{"Bottom", "Top"}},
-	{"Density", []string{"Comfortable", "Compact"}},
+	{locales.LayoutSidebar, []layoutChip{{"left", locales.LayoutLeft}, {"right", locales.LayoutRight}, {"hidden", locales.LayoutHidden}}},
+	{locales.LayoutPanel, []layoutChip{{"left", locales.LayoutLeft}, {"right", locales.LayoutRight}, {"hidden", locales.LayoutHidden}}},
+	{locales.LayoutPlayerBar, []layoutChip{{"bottom", locales.LayoutBottom}, {"top", locales.LayoutTop}}},
+	{locales.LayoutDensity, []layoutChip{{"comfortable", locales.LayoutComfortable}, {"compact", locales.LayoutCompact}}},
+}
+
+// layoutChip is an option of a layout choice: value is what settings keep,
+// label what the user reads.
+type layoutChip struct {
+	value string
+	label func() string
 }
 
 func arrangement(ar *theme.Arrangement) [len(layoutChoices)]*string {
@@ -182,7 +206,7 @@ func arrangement(ar *theme.Arrangement) [len(layoutChoices)]*string {
 func (a *app) chooseChip(choice, option int) {
 	layout := &a.look.set.Layout
 	field := arrangement(layout)[choice]
-	*field = strings.ToLower(layoutChoices[choice].chips[option])
+	*field = layoutChoices[choice].chips[option].value
 	side := theme.Side(option) //nolint:gosec // option indexes a few chips
 	takesSidebarSide := field == &layout.Panel && side != theme.Hidden && side == a.theme.Layout.SidebarSide
 	if takesSidebarSide {
@@ -223,28 +247,28 @@ func (a *app) appearanceSheet(c *ui.Context) {
 		back.Background(col.Shadow.Alpha(0.6))
 		panel.Width(600).MaxHeight(780).Padding(th.Space(7)).Gap(th.Space(6)).
 			Radius(th.Radius.Dialog).Background(col.Panel).Border(1, col.Line).
-			Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label("Appearance")
+			Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label(locales.Appearance())
 		ui.Column(c).Gap(th.Space(1.5)).Children(func() {
-			heading(c, "Appearance", ty.Section, 1)
-			ui.Text(c, "Colors and layout. Album art brings its own color, so every theme stays dark.").
+			heading(c, locales.Appearance(), ty.Section, 1)
+			ui.Text(c, locales.AppearanceIntro()).
 				FontSize(ty.Label).TextColor(col.Muted)
 		})
 		ui.Scroll(c.Key("appearance-scroll")).Grow(1).MinHeight(0).Gap(th.Space(6)).Children(func() {
 			ui.Column(c).Gap(th.Space(3)).Children(func() {
-				eyebrow(c, "Theme")
+				eyebrow(c, locales.Theme())
 				ui.RadioGroup(c, func() {
 					for i := range a.look.options {
 						a.themeCard(c, &a.look.options[i])
 					}
-				}).Row().Wrap().Gap(th.Space(2.5)).Label("Theme")
+				}).Row().Wrap().Gap(th.Space(2.5)).Label(locales.Theme())
 				ui.Text(c, a.themesHint()).
 					FontSize(ty.Small).TextColor(col.Faint).Selectable()
 			})
 			ui.Column(c).Gap(th.Space(3)).Children(func() {
 				ui.Row(c).AlignItems(ui.Center).Children(func() {
-					eyebrow(c, "Layout").Grow(1)
+					eyebrow(c, locales.Layout()).Grow(1)
 					if a.look.set.Layout != (theme.Arrangement{}) &&
-						pill(c, "reset-layout", nil, "Use the theme’s", pillGhost).
+						pill(c, "reset-layout", nil, locales.UseThemeLayout(), pillGhost).
 							Height(30).Padding(0, th.Space(3.5)).Clicked() {
 						a.look.set.Layout = theme.Arrangement{}
 						a.arrange()
@@ -256,7 +280,7 @@ func (a *app) appearanceSheet(c *ui.Context) {
 			})
 		})
 		ui.Row(c).Justify(ui.End).Children(func() {
-			if pill(c, "appearance-done", nil, "Done", pillLight).Clicked() {
+			if pill(c, "appearance-done", nil, locales.Done(), pillLight).Clicked() {
 				a.look.isOpen = false
 			}
 		})
@@ -306,20 +330,20 @@ func paintThemePreview(p *ui.Painter, bounds ui.Rect, panel, accent, text, dim u
 func (a *app) themesHint() string {
 	m := &a.memo.themesHint
 	if m.stale(a.look.dir) {
-		m.v = "Add your own as JSON files in " + a.look.dir.ThemesDir()
+		m.v = locales.ThemesHint(a.look.dir.ThemesDir())
 	}
 	return m.v
 }
 
 func (a *app) layoutChoice(c *ui.Context, choice int) {
-	label, chips, selected := layoutChoices[choice].label, layoutChoices[choice].chips, &a.look.chips[choice]
+	label, chips, selected := layoutChoices[choice].label(), layoutChoices[choice].chips, &a.look.chips[choice]
 	ui.Row(c).Gap(th.Space(4)).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, label).FontSize(th.Type.Label).TextColor(th.Color.Muted).Grow(1).MinWidth(0)
-		seg := ui.SegmentedBase(c.Key(label), selected, len(chips))
+		seg := ui.SegmentedBase(c.Key(choice), selected, len(chips))
 		seg.Track.Gap(th.Space(1.5)).Label(label).Children(func() {
-			for option, name := range chips {
+			for option, opt := range chips {
 				segment := seg.Segment(option)
-				chip(c, segment, name, option == *selected)
+				chip(c, segment, opt.label(), option == *selected)
 				segment.OnChange(a.actions.chooseChip[choice][option])
 			}
 		})

@@ -3,6 +3,7 @@ package main
 import (
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/session"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -37,13 +38,13 @@ func (a *app) tell(c *ui.Context, n notice.Notice) {
 		t.Type = "error"
 	case notice.NeedsAccount:
 		if a.session.CanSignIn() {
-			t.Action, t.OnAction = "Sign in", a.openSignIn
+			t.Action, t.OnAction = locales.SignIn(), a.openSignIn
 		}
 	case notice.SignedIn:
 		a.sheet.isOpen = false
 	case notice.SignInFailed:
 		a.sheet.failure = n.Detail
-		c.Announce(n.Title + ": " + n.Detail)
+		c.Announce(locales.Announcement(n.Title, n.Detail))
 		return
 	}
 	c.AddToast(t)

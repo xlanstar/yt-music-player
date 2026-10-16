@@ -2,6 +2,7 @@ package main
 
 import (
 	"yt-music-player/internal/catalog"
+	"yt-music-player/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -121,7 +122,7 @@ func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hover
 	}
 	like()
 	if opts.hasActions && hovered {
-		iconButton(c, "more", icMore, "More", 32, 18, iconOpts{})
+		iconButton(c, "more", icMore, locales.More(), 32, 18, iconOpts{})
 		return
 	}
 	size := th.Type.Sub

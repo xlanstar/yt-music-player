@@ -13,7 +13,9 @@ import (
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/theme"
+	"yt-music-player/locales"
 
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -96,9 +98,9 @@ type pageState struct {
 }
 
 // seenState is what reconcile last acted on (the loader's location, the
-// announced song), so it acts once per change.
+// announced song, the language), so it acts once per change.
 type seenState struct {
-	loc, song string
+	loc, song, lang string
 }
 
 // newApp starts with nothing queued. Nothing plays until a.playback has a
@@ -191,6 +193,7 @@ func (a *app) view(c *ui.Context) {
 // reconcile catches up with changes since the last pass, before anything
 // builds. Its steps are independent of order.
 func (a *app) reconcile(c *ui.Context) {
+	a.syncLanguage()
 	a.syncQuery()
 	a.syncLoad()
 	a.syncAccount(c)
@@ -220,7 +223,7 @@ func (a *app) announceSong(c *ui.Context) {
 	}
 	a.seen.song = id
 	if s, ok := a.cat.Song(id); ok {
-		c.Announce("Now playing: " + s.Title + " by " + s.Artist)
+		c.Announce(locales.NowPlayingSong(locales.SongByArtist(s.Title, s.Artist)))
 	}
 }
 
@@ -399,5 +402,25 @@ func numeral(n int) string {
 
 // totalLength starts with "· ": the meta line shows it after the owner.
 func totalLength(songs []catalog.Song) string {
-	return fmt.Sprintf("· %d songs · %d min", len(songs), catalog.TotalSeconds(songs)/60)
+	return locales.CollectionLength(len(songs), catalog.TotalSeconds(songs)/60)
+}
+
+// syncLanguage drops the text made in the language shown before, so the
+// view says the new one: the memo, the player bar's strings and the
+// themes' names.
+func (a *app) syncLanguage() {
+	lang := i18n.Locale()
+	if lang == a.seen.lang {
+		return
+	}
+	isFirst := a.seen.lang == ""
+	a.seen.lang = lang
+	if isFirst {
+		return
+	}
+	a.memo = viewMemo{}
+	a.bar.seek, a.bar.from = kept[[2]int, string]{}, kept[string, string]{}
+	if a.look.isOpen {
+		a.themeOptions()
+	}
 }
