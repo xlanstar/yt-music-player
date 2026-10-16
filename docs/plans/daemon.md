@@ -542,19 +542,23 @@ binary "#{appdir}/YT Music Player.app/Contents/Resources/ytm"
 
 uninstall early_script: { executable: "#{appdir}/YT Music Player.app/Contents/Resources/ytm",
                           args: ["daemon", "stop"], must_succeed: false },
-          launchctl:    "dev.lanstar.ytmusicplayer.daemon",
-          delete:       ["~/Library/Application Support/yt-music-player/ytmd.sock",
-                         "~/Library/Application Support/yt-music-player/ytmd.lock",
-                         "~/Library/LaunchAgents/dev.lanstar.ytmusicplayer.daemon.plist"]
+          quit:         "dev.lanstar.ytmusicplayer"
 
-zap trash: ["~/Library/Application Support/yt-music-player",
-            "~/Library/Caches/yt-music-player"]
+zap launchctl: "dev.lanstar.ytmusicplayer.daemon",
+    trash:     ["~/Library/Application Support/yt-music-player",
+                "~/Library/Caches/yt-music-player", …]
 ```
 
 - 用 `early_script` 是為了在移除 app 之前先停止 daemon，因為停止要用到 app 裡的 `ytm`。
-- 確切的 stanza 與 `~` 的展開方式依 Homebrew 現行規格調整（P8）。改動只在 `packaging/homebrew/yt-music-player.rb`，不直接改 tap。
+- **依 Homebrew 現行規格（7.0）調整：**
+  - 升級（`brew upgrade`、`reinstall`）時，`uninstall` 除了 `signal` 之外的每一項都會執行。所以 `launchctl` 放在 `zap`：放在 `uninstall` 的話，每次升級都會刪掉 LaunchAgent，開機啟動就被悄悄關掉。代價是單純的 `brew uninstall` 會留下 LaunchAgent，文件請使用者先關閉開機啟動，或用 `--zap`。`launchctl` 會一併刪除 `~/Library/LaunchAgents/<label>.plist`，不必另列。
+  - `early_script` 在升級時也會停止 daemon；Homebrew 升級時本來就會結束並重開 Desktop，重開後的 Desktop 依 §4.2 啟動新的 daemon（暫停）。
+  - 不用 `delete`：它以 `sudo` 執行 `rm`，會為使用者自己的檔案要求密碼。socket 由 `ytm daemon stop` 刪除，鎖檔留在 `zap` 會移到垃圾桶的目錄裡。
+  - `~` 由 Homebrew 展開（`uninstall`/`zap` 的路徑都是）。`signal` 只找得到 `launchctl list` 裡的工作，前端啟動的 daemon 不在其中，所以不用它停止 daemon。
+  - 執行檔不存在時（使用者先把 app 丟進垃圾桶），`early_script` 會讓 `brew uninstall` 失敗，要加 `--force`。
+- 改動只在 `packaging/homebrew/yt-music-player.rb`，不直接改 tap。
 - socket 若因路徑過長而改放在 `$TMPDIR`（§4.1），重開機後就會消失，不必另外刪除。
-- `ytmd.app` 放在 `Contents/Resources` 已通過簽章與公證（§9.1），不需要 `Contents/Helpers`。
+- daemon bundle 放在 `Contents/Resources` 已通過簽章與公證（§9.1、§12，實驗時叫 `ytmd.app`），不需要 `Contents/Helpers`。
 
 ### 9.3 Linux 與 Windows
 

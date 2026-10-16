@@ -73,6 +73,11 @@ jobs:
             --apple-id "$APPLE_ID" --team-id LJJN3L2PS6 --password "$APPLE_APP_PASSWORD"
           echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
 
+      # resources/darwin-*/, which mygo build merges into universal
+      # binaries and signs with the app.
+      - name: Build ytmd and ytm
+        run: scripts/build-helpers.sh darwin-arm64 darwin-amd64
+
       # Only here: mygo.json signs nothing, so builds elsewhere stay ad hoc
       # and need no notary credentials. mygo staples the app before it
       # archives it, so the update carries the ticket too.
@@ -97,6 +102,27 @@ jobs:
           xcrun stapler validate "$app"
           xcrun stapler validate "$dmg"
 
+      # The app plays through ytmd and ships ytm, for both architectures.
+      - name: Check ytmd and ytm
+        run: |
+          res="build/darwin-universal/YT Music Player.app/Contents/Resources"
+          helper="$res/YT Music Player Helper.app"
+          for exe in "$helper/Contents/MacOS/ytmd" "$res/ytm"; do
+            case $(file -b "$exe") in
+            *"universal binary with 2 architectures"*) ;;
+            *)
+              echo "::error::$exe is not a universal binary"
+              exit 1
+              ;;
+            esac
+            lipo "$exe" -verify_arch arm64
+            lipo "$exe" -verify_arch x86_64
+            codesign --verify --strict "$exe"
+          done
+          codesign --verify --strict "$helper"
+          plutil -lint "$helper/Contents/Info.plist"
+          [ "$(plutil -extract CFBundleShortVersionString raw "$helper/Contents/Info.plist")" = "${GITHUB_REF_NAME#v}" ]
+
       # The update files keep their names: the manifest links to them.
       - name: Package
         run: |
@@ -108,6 +134,13 @@ jobs:
             echo "::error::no signed update: is MYGO_UPDATER_PRIVATE_KEY in the release environment?"
             exit 1
           fi
+          tar -tzf "$archive" > "$RUNNER_TEMP/archive.txt"
+          for exe in "YT Music Player Helper.app/Contents/MacOS/ytmd" ytm; do
+            if ! grep -qx "\(\./\)\{0,1\}YT Music Player.app/Contents/Resources/$exe" "$RUNNER_TEMP/archive.txt"; then
+              echo "::error::the update has no $exe"
+              exit 1
+            fi
+          done
           mkdir dist
           cp "$out/YT Music Player $version.dmg" \
             "dist/YT-Music-Player-$version-macos-universal.dmg"
@@ -151,16 +184,43 @@ jobs:
         if: matrix.os == 'windows'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
 
+      # resources/<platform>/, which mygo build ships beside the app.
+      - name: Build ytmd and ytm
+        run: scripts/build-helpers.sh "$TARGET_OS-amd64" "$TARGET_OS-arm64"
+
       - name: Build and sign the updates
         env:
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: go tool mygo build -platform "$TARGET_OS/amd64,$TARGET_OS/arm64"
 
       # The update files keep their names: the manifests link to them.
-      # Linux's archive is also what install.sh installs.
+      # Linux's archive is also what install.sh installs. Each package
+      # holds ytmd and ytm, for its architecture, next to the app.
       - name: Check and package
         run: |
           version="${GITHUB_REF_NAME#v}"
+          # code <file> <arch>: the file is code for arch.
+          code() {
+            case $2:$(file -b "$1") in
+            amd64:*x86-64* | arm64:*[Aa]arch64* | arm64:*ARM64*) ;; # file 5.46 names PE's ARM64
+            *)
+              echo "::error::$1 is not built for $2"
+              exit 1
+              ;;
+            esac
+          }
+          # holds <what> <list> <path>…: the list of what's files has each path.
+          holds() {
+            what=$1 list=$2
+            shift 2
+            for path in "$@"; do
+              if ! grep -qx "\(\./\)\{0,1\}$path" "$list"; then
+                echo "::error::$what has no $path"
+                exit 1
+              fi
+            done
+          }
+          list="$RUNNER_TEMP/files.txt"
           mkdir dist
           for arch in amd64 arm64; do
             target="$TARGET_OS-$arch"
@@ -173,18 +233,26 @@ jobs:
             fi
             if [ "$TARGET_OS" = linux ]; then
               exe="$out/yt-music-player"
-              cp "$out/yt-music-player_${version}_$arch.deb" "dist/YT-Music-Player-$version-$target.deb"
+              helpers="ytmd ytm"
+              deb="$out/yt-music-player_${version}_$arch.deb"
+              dpkg-deb -c "$deb" | awk '{ print $6 }' > "$list"
+              holds "$deb" "$list" opt/yt-music-player/ytmd opt/yt-music-player/ytm \
+                opt/yt-music-player/ytmd.service usr/bin/ytm
+              cp "$deb" "dist/YT-Music-Player-$version-$target.deb"
             else
               exe="$out/YT Music Player.exe"
+              helpers="ytmd.exe ytm.exe"
+              # ytmd runs without a console window, ytm in the terminal.
+              file -b "$out/ytmd.exe" | grep -q '(GUI)' || { echo "::error::$out/ytmd.exe opens a console"; exit 1; }
+              file -b "$out/ytm.exe" | grep -q '(console)' || { echo "::error::$out/ytm.exe has no console"; exit 1; }
               cp "$out/YT Music Player Setup $version $arch.exe" "dist/YT-Music-Player-$version-$target-setup.exe"
             fi
-            case $arch:$(file -b "$exe") in
-            amd64:*x86-64* | arm64:*[Aa]arch64*) ;;
-            *)
-              echo "::error::$exe is not built for $arch"
-              exit 1
-              ;;
-            esac
+            tar -tzf "$archive" > "$list"
+            for f in $helpers; do
+              code "$out/$f" "$arch"
+              holds "$archive" "$list" "$f"
+            done
+            code "$exe" "$arch"
             cp "$archive" "$manifest" dist/
             for delta in "$out"/*.delta; do
               [ ! -e "$delta" ] || cp "$delta" dist/

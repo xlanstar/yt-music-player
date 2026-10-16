@@ -20,16 +20,28 @@ cask "yt-music-player" do
   depends_on macos: :monterey
 
   app "YT Music Player.app"
+  binary "#{appdir}/YT Music Player.app/Contents/Resources/ytm"
 
-  uninstall quit: "dev.lanstar.ytmusicplayer"
+  # early_script stops the background player with the app's ytm before the
+  # app goes. Homebrew runs these on upgrades too, so starting the player
+  # at login (its LaunchAgent) is undone only by zap, not on every upgrade.
+  uninstall early_script: {
+              executable:   "#{appdir}/YT Music Player.app/Contents/Resources/ytm",
+              args:         ["daemon", "stop"],
+              must_succeed: false,
+            },
+            quit:         "dev.lanstar.ytmusicplayer"
 
-  # The script forgets the sign-in, a Keychain item of service yt-music-player.
-  zap script: {
+  # launchctl removes the background player's LaunchAgent and its plist;
+  # the script forgets the sign-in, a Keychain item of service
+  # yt-music-player.
+  zap launchctl: "dev.lanstar.ytmusicplayer.daemon",
+      script:    {
         executable:   "/usr/bin/security",
         args:         ["delete-generic-password", "-s", "yt-music-player"],
         must_succeed: false,
       },
-      trash:  [
+      trash:     [
         "~/Library/Application Support/YT Music Player",
         "~/Library/Application Support/yt-music-player",
         "~/Library/Caches/yt-music-player",
