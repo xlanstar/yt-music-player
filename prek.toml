@@ -75,13 +75,13 @@ pass_filenames = false
 
 # The test hooks run the whole module, on whatever builds or tests read:
 # go.mod and go.sum, testdata, the embedded icons and catalogs, not only
-# Go files.
+# Go files; the tests also check the systemd unit Linux packages ship.
 [[repos.hooks]]
 id = "go-test-race"
 name = "Go tests (race detector)"
 language = "system"
 entry = "go test -race ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^cmd/desktop/icons/.+\.svg|^locales/.+\.json)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^cmd/desktop/icons/.+\.svg|^locales/.+\.json|^packaging/linux/.+)$'
 pass_filenames = false
 
 # Allocation budgets (`budget.Allocs`) skip under -race, which allocates

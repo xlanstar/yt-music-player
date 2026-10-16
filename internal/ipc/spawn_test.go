@@ -30,7 +30,7 @@ func TestFindDaemonOrder(t *testing.T) {
 	app := filepath.Join(t.TempDir(), "YT Music Player.app", "Contents")
 	desktop := filepath.Join(app, "MacOS", "yt-music-player")
 	ytm := filepath.Join(app, "Resources", "ytm")
-	bundled := filepath.Join(app, "Resources", "ytmd.app", "Contents", "MacOS", "ytmd")
+	bundled := filepath.Join(app, "Resources", "YT Music Player Helper.app", "Contents", "MacOS", "ytmd")
 	touch(t, bundled)
 
 	for _, exe := range []string{desktop, ytm} {

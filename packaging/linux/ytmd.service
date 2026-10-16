@@ -1,0 +1,9 @@
+[Unit]
+Description=YT Music Player background player
+
+[Service]
+ExecStart=/opt/yt-music-player/ytmd
+Restart=no
+
+[Install]
+WantedBy=default.target

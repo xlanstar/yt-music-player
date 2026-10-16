@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-const appYtmd = "/Applications/YT Music Player.app/Contents/Resources/ytmd.app/Contents/MacOS/ytmd"
+const appYtmd = "/Applications/YT Music Player.app/Contents/Resources/YT Music Player Helper.app/Contents/MacOS/ytmd"
 
 const wantPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -23,7 +23,7 @@ const wantPlist = `<?xml version="1.0" encoding="UTF-8"?>
 	<string>dev.lanstar.ytmusicplayer.daemon</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/Applications/YT Music Player.app/Contents/Resources/ytmd.app/Contents/MacOS/ytmd</string>
+		<string>/Applications/YT Music Player.app/Contents/Resources/YT Music Player Helper.app/Contents/MacOS/ytmd</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
@@ -267,6 +267,11 @@ func TestUnit(t *testing.T) {
 	got, err := Unit("/opt/yt-music-player/ytmd")
 	if err != nil || string(got) != wantUnit {
 		t.Errorf("Unit = %q, %v; want %q", got, err, wantUnit)
+	}
+	// The template Linux packages ship (scripts/build-helpers.sh), for the
+	// Debian package's ytmd.
+	if shipped := readFile(t, "../../packaging/linux/ytmd.service"); shipped != string(got) {
+		t.Errorf("packaging/linux/ytmd.service = %q; want Unit's %q", shipped, got)
 	}
 	for _, bad := range []string{"", "ytmd", "./ytmd", "/opt/a\nb/ytmd", "/opt/\xff/ytmd"} {
 		if _, err := Unit(bad); err == nil {

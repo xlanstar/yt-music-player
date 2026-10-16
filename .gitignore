@@ -14,3 +14,7 @@ tmp/
 /perf/benchmarks-against.txt
 /perf/footprint-latest.txt
 /ytm
+# ytmd and ytm, which scripts/build-helpers.sh builds for mygo build to ship
+/resources/darwin-*/
+/resources/linux-*/
+/resources/windows-*/

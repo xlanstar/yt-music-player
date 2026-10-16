@@ -96,8 +96,8 @@ yt-music-player/                      一個 module
      1. 環境變數 `YTMD_PATH`；
      2. `dir := filepath.Dir(filepath.EvalSymlinks(os.Executable()))`，依序找：
         - `dir/ytmd`（或 `ytmd.exe`）：Linux、Windows 的 Desktop 和 ytm；
-        - `dir/ytmd.app/Contents/MacOS/ytmd`：macOS 的 ytm，它本身在 `Contents/Resources`，cask 連結的是 symlink；
-        - `dir/../Resources/ytmd.app/Contents/MacOS/ytmd`：macOS 的 Desktop，它在 `Contents/MacOS`；
+        - `dir/YT Music Player Helper.app/Contents/MacOS/ytmd`：macOS 的 ytm，它本身在 `Contents/Resources`，cask 連結的是 symlink；
+        - `dir/../Resources/YT Music Player Helper.app/Contents/MacOS/ytmd`：macOS 的 Desktop，它在 `Contents/MacOS`；
      3. 都找不到就回傳 `api.ErrDaemonNotFound`，訊息中提示設定 `YTMD_PATH`。開發時用 `go run` 就靠它，見 P3 的 `scripts/dev.sh`。
    - **Unix：** `exec.Command` 加 `SysProcAttr{Setsid: true}`，stdin/stdout/stderr 接 `/dev/null`。
    - **Windows：** `CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS`；ytmd 以 `-H=windowsgui` 編譯。
@@ -516,7 +516,7 @@ type Event struct {
   ```
 
   沒有注入時為 `dev`，`dev` 不參與版本比較，也不觸發交接，檔名加 `-dev` 後綴（§4.1）。
-- **macOS：** `ytmd.app` 的 `Info.plist` 中，`CFBundleShortVersionString` 和 `CFBundleVersion` 也由 `build-helpers.sh` 填入同一個版本。
+- **macOS：** daemon bundle（`YT Music Player Helper.app`，§9.1）的 `Info.plist` 中，`CFBundleShortVersionString` 和 `CFBundleVersion` 也由 `build-helpers.sh` 填入同一個版本。
 
 ## 9. 打包與發布
 
@@ -527,10 +527,12 @@ type Event struct {
 - MyGo 把它們放進 `Contents/Resources/`，由內而外簽章、為 universal 合併架構，公證和更新的 tarball 都包含它們（§12）。
 - universal 建置要求 `darwin-arm64` 和 `darwin-amd64` 的檔案一一對應，非執行檔必須完全相同，所以兩邊寫入同一份 `Info.plist`。
 - `.gitignore` 只忽略這些平台目錄，例如 `resources/darwin-*/`；`resources/` 底下其他已提交的檔案（`icon.png` 等）照舊。
-- **bundle 的資料夾名稱**就是 Control Center 顯示的名稱（§6.4），所以不叫 `ytmd.app`。建議和主程式同名 `YT Music Player.app`，附上同一個圖示：使用者在 Now Playing 看到的就是他認得的 app。要在 P8-3 確認 Spotlight 和 Launchpad 不會列出第二個同名的 app（daemon 是 `LSUIElement`，被點開也看不到任何東西）；會的話改用 `YT Music Player Helper.app`。§4.2 的路徑和 cask 跟著改；執行檔名稱仍是 `ytmd`。
+- **bundle 的資料夾名稱**就是 Control Center 顯示的名稱（§6.4），所以不叫 `ytmd.app`，而是 `YT Music Player Helper.app`，附上主程式的圖示；執行檔名稱仍是 `ytmd`。
+  - 不和主程式同名：LaunchServices 也會登錄已安裝 app 裡面的 app（在一台 Mac 上 `lsregister -dump` 列出近兩百個，`Contents/MacOS`、`Contents/Frameworks`、`Contents/Helpers` 和 framework 的 `Resources` 裡的都有），同名就會有兩個「YT Music Player」，`open -a`、AppleScript、Spotlight 和啟動器依名稱找 app 時可能打開看不到視窗的 daemon。Chromium 的輔助程式也是「<名稱> Helper」。
+  - P8-3 確認：Now Playing 顯示「YT Music Player Helper」和圖示；Spotlight、Launchpad 只列出主程式一個「YT Music Player」。
 - 各平台的內容：
-  - **`darwin-arm64`、`darwin-amd64`：** `ytmd.app/Contents/{Info.plist,MacOS/ytmd}`（`CFBundleIdentifier=dev.lanstar.ytmusicplayer.daemon`、`CFBundleExecutable=ytmd`、`LSUIElement=true`、版本見 §8）、`ytm`
-  - **`linux-amd64`、`linux-arm64`：** `ytmd`、`ytm`、`ytmd.service`（範本）
+  - **`darwin-arm64`、`darwin-amd64`：** `YT Music Player Helper.app/Contents/{Info.plist,MacOS/ytmd,Resources/AppIcon.icns}`（`CFBundleIdentifier=dev.lanstar.ytmusicplayer.daemon`、`CFBundleExecutable=ytmd`、`LSUIElement=true`、版本見 §8）、`ytm`
+  - **`linux-amd64`、`linux-arm64`：** `ytmd`、`ytm`、`ytmd.service`（範本 `packaging/linux/ytmd.service`，路徑是 `.deb` 的 `/opt/yt-music-player/ytmd`；`autostart` 的測試確認它等於 `autostart.Unit` 的輸出）
   - **`windows-amd64`、`windows-arm64`：** `ytmd.exe`（`-H=windowsgui`）、`ytm.exe`
 
 ### 9.2 macOS 與 Homebrew cask
@@ -703,5 +705,5 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
 - Linux 在真正的 PulseAudio／PipeWire 上播放；Windows 整條路徑，包括 `-H=windowsgui` 和沒有視窗的 WASAPI。
 - Windows 10／11 上的 AF_UNIX，包括使用者名稱含中文的路徑。
 - Windows 在 `ytmd.exe` 播放中、`ytm.exe` 開著時更新，以及這時重跑 NSIS 安裝程式。
-- `ytmd.app` 不會出現在 LaunchServices 或 Spotlight 不該出現的地方；暫停時經 launchd 啟動的 App Nap。
+- `YT Music Player Helper.app` 不會出現在 Spotlight、Launchpad 不該出現的地方，Now Playing 顯示它的名稱和圖示；暫停時經 launchd 啟動的 App Nap。
 - Windows Terminal 和 conhost 上的 focus、Ctrl+C、方向鍵、離開 alt screen 與游標。

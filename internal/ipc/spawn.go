@@ -15,9 +15,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// daemonBundle is the macOS bundle ytmd runs in, which names it in Control
-// Center.
-const daemonBundle = "ytmd.app"
+// daemonBundle is the macOS bundle ytmd runs in (scripts/build-helpers.sh),
+// whose folder name Control Center shows. Not the app's own name:
+// LaunchServices registers apps nested in installed apps too, and a second
+// "YT Music Player", showing no window, would answer open -a, AppleScript
+// and launchers that look apps up by name.
+const daemonBundle = "YT Music Player Helper.app"
 
 // FindDaemon returns the path of ytmd: $YTMD_PATH, else the one shipped
 // with this program; api.ErrDaemonNotFound when there is none.
