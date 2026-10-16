@@ -18,6 +18,7 @@ import (
 )
 
 func main() {
+	runYtm()
 	// Unpackaged (go run, go build), MyGo names the app after its
 	// executable, which go run names after this directory: keep the name
 	// its menus, data and single-instance lock had before cmd/desktop.

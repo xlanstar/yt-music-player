@@ -24,6 +24,7 @@
     ],
     "depends": [
       "libpulse0 | libasound2t64 | libasound2"
-    ]
+    ],
+    "command": "ytm"
   }
 }
