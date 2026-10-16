@@ -6,8 +6,8 @@
 // no words: Follow returns when the shown position next moves, and
 // failures become notices.
 //
-// A Playback belongs to the UI thread, which owns the player and the
-// engine. Resolves run on goroutines that call only the Resolver; their
+// A Playback belongs to the UI thread (the daemon's loop), which owns the
+// player and the engine. Resolves run on goroutines that call only the Resolver; their
 // results and engine events are posted to the UI thread and dropped once
 // the song changed.
 package playback
@@ -197,6 +197,13 @@ func (pb *Playback) tick() time.Duration {
 	untilTurn := time.Duration((nextTurn-pos)*float64(time.Second)) + tickSlack
 	pb.tickDue = now.Add(untilTurn)
 	return untilTurn
+}
+
+// IsWaiting reports whether the player plays a song whose position stands
+// still: its stream resolving or loading, or stalled; always so without a
+// Resolver.
+func (pb *Playback) IsWaiting() bool {
+	return pb.player.Playing && pb.player.Current() != "" && !pb.isAdvancing()
 }
 
 // isAdvancing reports whether the song's position moves on its own.

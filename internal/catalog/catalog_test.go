@@ -136,3 +136,23 @@ func TestLibraryIsSavedPlaylistsOnly(t *testing.T) {
 		t.Errorf("library after Add %+v", got)
 	}
 }
+
+func TestKeepSongs(t *testing.T) {
+	c := New([]Song{{ID: "a"}, {ID: "b"}, {ID: "c"}}, nil, nil)
+	gen := c.Gen()
+	c.KeepSongs(func(string) bool { return true })
+	if c.Gen() != gen {
+		t.Error("keeping every song changed the gen")
+	}
+	c.KeepSongs(func(id string) bool { return id != "b" })
+	if _, ok := c.Song("b"); ok || c.Gen() == gen {
+		t.Errorf("b kept, or the gen kept")
+	}
+	if s, ok := c.Song("c"); !ok || s.ID != "c" || len(c.Songs) != 2 {
+		t.Errorf("c is %+v, %v; songs %+v", s, ok, c.Songs)
+	}
+	c.Add([]Song{{ID: "b"}}, nil, nil)
+	if s, ok := c.Song("b"); !ok || s.ID != "b" {
+		t.Error("b not added back")
+	}
+}

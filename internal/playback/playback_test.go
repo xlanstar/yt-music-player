@@ -680,3 +680,41 @@ func TestPrefetchesWhileAway(t *testing.T) {
 }
 
 var errNoAudio = errors.New("no audio here")
+
+func TestWaiting(t *testing.T) {
+	x := newFixture(&instantResolver{})
+	if x.pb.IsWaiting() {
+		t.Error("waiting while paused")
+	}
+	x.player.Playing = true
+	x.pb.Follow()
+	if !x.pb.IsWaiting() {
+		t.Error("not waiting while resolving")
+	}
+	x.run(t)
+	if !x.pb.IsWaiting() {
+		t.Error("not waiting while loading")
+	}
+	x.f.Dur = 200
+	x.f.Emit(audio.Ready)
+	x.run(t)
+	if x.pb.IsWaiting() {
+		t.Error("waiting once ready")
+	}
+	x.f.Emit(audio.Buffering)
+	x.run(t)
+	if !x.pb.IsWaiting() {
+		t.Error("not waiting while stalled")
+	}
+	x.f.Emit(audio.Playing)
+	x.run(t)
+	if x.pb.IsWaiting() {
+		t.Error("waiting after the stall")
+	}
+
+	silent := newFixture(nil)
+	silent.player.Playing = true
+	if !silent.pb.IsWaiting() {
+		t.Error("playing without a Resolver moves on")
+	}
+}

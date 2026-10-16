@@ -240,9 +240,9 @@ func (c *Catalog) AddAlbum(album Album, tracks []Song) {
 	c.albumTrackIDs[album.ID] = ids
 }
 
-// Gen changes whenever Add, AddAlbum or SetLibrary changes the music, so
-// the UI can cache what it derives until then. Editing the exported
-// slices in place does not change it.
+// Gen changes whenever Add, AddAlbum, KeepSongs or SetLibrary changes the
+// music, so the UI can cache what it derives until then. Editing the
+// exported slices in place does not change it.
 func (c *Catalog) Gen() uint64 { return c.gen }
 
 func upsert[T any](items []T, index map[string]int, add []T, id func(T) string) []T {
@@ -255,6 +255,27 @@ func upsert[T any](items []T, index map[string]int, add []T, id func(T) string) 
 		items = append(items, item)
 	}
 	return items
+}
+
+// KeepSongs drops the songs whose ID keep rejects: a daemon's catalog
+// holds only its queue's songs. The slice Songs is new, as callers may
+// hold the old one.
+func (c *Catalog) KeepSongs(keep func(id string) bool) {
+	kept := make([]Song, 0, len(c.Songs))
+	for _, s := range c.Songs {
+		if keep(s.ID) {
+			kept = append(kept, s)
+		}
+	}
+	if len(kept) == len(c.Songs) {
+		return
+	}
+	c.gen++
+	c.Songs = kept
+	clear(c.songIndex)
+	for i, s := range kept {
+		c.songIndex[s.ID] = i
+	}
 }
 
 // SongIDs returns the IDs of all songs, in catalog order.

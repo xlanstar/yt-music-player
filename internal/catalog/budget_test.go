@@ -114,3 +114,15 @@ func TestBudgetPlaceholderSource(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) { budget.Allocs(t, tc.limit, 50, tc.call) })
 	}
 }
+
+func TestBudgetKeepSongs(t *testing.T) {
+	songs := scaledSongs(bigSongs)
+	drop := songs[bigSongs/2].ID
+	keep := func(id string) bool { return id != drop }
+	c := New(slices.Clone(songs), nil, nil)
+	// 1 alloc today: the songs kept; the index is cleared in place.
+	budget.Allocs(t, 1, 20, func() {
+		c.KeepSongs(keep)
+		c.Add([]Song{songs[bigSongs/2]}, nil, nil)
+	})
+}

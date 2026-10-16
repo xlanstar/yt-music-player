@@ -61,6 +61,7 @@ func idleCases(x *fixture) []struct {
 	}{
 		{"SongLength", func() { sinkFloat = x.pb.SongLength(song) }},
 		{"Watched", func() { sinkBool = x.pb.IsWatched() }},
+		{"Waiting", func() { sinkBool = x.pb.IsWaiting() }},
 		{"TakeNotice", func() { sinkNotice, sinkBool = x.pb.TakeNotice() }},
 	}
 }

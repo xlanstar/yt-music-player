@@ -333,3 +333,18 @@ func BenchmarkPlaceholderSource(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkKeepSongs is a daemon's queue catalog after a song left the
+// queue: all songs scanned, one dropped, the index made again.
+func BenchmarkKeepSongs(b *testing.B) {
+	songs := scaledSongs(bigSongs)
+	drop := songs[bigSongs/2].ID
+	keep := func(id string) bool { return id != drop }
+	b.ReportAllocs()
+	for b.Loop() {
+		b.StopTimer()
+		c := New(slices.Clone(songs), nil, nil)
+		b.StartTimer()
+		c.KeepSongs(keep)
+	}
+}
