@@ -100,12 +100,15 @@ func TestOverDaemon(t *testing.T) {
 		t.Error("ticking while the song loads")
 	}
 
-	d.send(keyMsg("tab"))
-	d.send(keyMsg("/"))
-	for _, r := range "moon" {
-		d.send(keyMsg(string(r)))
-	}
-	d.until("found", func() bool { return d.shows("Slow Burn Summer") })
+	d.send(keyMsg("down"))
+	d.send(keyMsg("l"))
+	d.until("liked", func() bool { return m.session.Liked("satellite-hearts") && !m.session.IsBusy() })
+
+	// Down skips the heading over the playlists.
+	d.send(keyMsg("shift+tab"))
+	d.send(keyMsg("down"))
+	d.send(keyMsg("enter"))
+	d.until("opened a playlist", func() bool { return d.shows("Late Night Drive") && d.shows("Play all") })
 }
 
 // post never blocks, from any goroutine, and one message runs all the

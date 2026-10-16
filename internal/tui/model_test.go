@@ -152,6 +152,12 @@ func TestSearch(t *testing.T) {
 	if got := h.ctl.take(); !reflect.DeepEqual(got, []string{"Play slow-burn-summer 0"}) {
 		t.Errorf("enter sent %q", got)
 	}
+	// An album found opens over the results; esc goes back to them.
+	h.press("down", "enter")
+	h.loaded()
+	h.golden("search-album")
+	h.press("esc")
+	h.screenHas("/ moon", "Slow Burn Summer")
 	if isQuit(h.press("q")) == false {
 		t.Error("q did not quit once the input lost focus")
 	}
@@ -180,6 +186,11 @@ func (f *failing) Search(context.Context, string) (catalog.Results, error) {
 	return catalog.Results{}, f.err
 }
 
+func (f *failing) Album(context.Context, string) (catalog.Album, []catalog.Song, error) {
+	f.calls.Add(1)
+	return catalog.Album{}, nil, f.err
+}
+
 func TestSearchFailed(t *testing.T) {
 	src := &failing{PlaceholderSource: catalog.NewPlaceholderSource(0), err: errors.New("the network is down")}
 	h := newHarness(t, src)
@@ -194,6 +205,73 @@ func TestSearchFailed(t *testing.T) {
 	if got := src.calls.Load(); got != calls+1 {
 		t.Errorf("enter did not retry: %d searches, want %d", got, calls+1)
 	}
+}
+
+func TestLibrary(t *testing.T) {
+	h := placeholderHarness(t)
+	h.press("shift+tab")
+	h.golden("library")
+
+	h.press("enter")
+	h.golden("liked")
+	h.press("enter")
+	if got := h.ctl.take(); len(got) != 1 || !strings.HasPrefix(got[0], "PlayAll ") {
+		t.Errorf("Play all sent %q", got)
+	}
+	h.press("esc", "down", "enter")
+	h.loaded()
+	h.golden("playlist")
+
+	h.press("down", "a")
+	h.screenHas(`Added “Midnight Arcade” to the queue`)
+	h.press("up", "a")
+	h.screenHas("Added 7 songs to the queue")
+	if got := h.ctl.take(); len(got) != 2 || got[0] != "Enqueue midnight-arcade false" {
+		t.Errorf("a sent %q", got)
+	}
+
+	// l likes the selected song at once, through the session.
+	h.press("down", "down", "down", "down", "down", "l")
+	if got := h.daemon.calls; !slices.Contains(got, "Like satellite-hearts true") {
+		t.Errorf("l asked %q", got)
+	}
+	if !h.m.session.Liked("satellite-hearts") {
+		t.Error("the like does not show")
+	}
+}
+
+func TestLibraryStates(t *testing.T) {
+	h := newHarness(t, catalog.NewPlaceholderSource(0))
+	h.press("shift+tab")
+	h.screenHas("Loading…")
+
+	h.m.session.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal}})
+	h.send(postedMsg{})
+	h.golden("library-failed")
+	h.press("enter")
+	if !slices.Contains(h.daemon.calls, "Refresh 2") {
+		t.Errorf("enter asked %q, not to refresh the library", h.daemon.calls)
+	}
+}
+
+func TestCollectionStates(t *testing.T) {
+	src := &failing{PlaceholderSource: catalog.NewPlaceholderSource(0), err: errors.New("the network is down")}
+	h := newHarness(t, src)
+	h.press("shift+tab")
+	h.m.open(opened{kind: itemAlbum, id: "dead-air"})
+	h.send(postedMsg{})
+	h.loaded()
+	h.golden("album-failed")
+	h.press("enter")
+	h.loaded()
+	if got := src.calls.Load(); got != 2 {
+		t.Errorf("%d fetches, want a retry", got)
+	}
+
+	h.m.open(opened{kind: itemPlaylist, id: "nope"})
+	h.send(postedMsg{})
+	h.loaded()
+	h.golden("playlist-missing")
 }
 
 func TestHealth(t *testing.T) {

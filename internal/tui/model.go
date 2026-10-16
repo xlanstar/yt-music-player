@@ -33,6 +33,7 @@ type tab uint8
 const (
 	tabQueue tab = iota
 	tabSearch
+	tabLibrary
 	numTabs
 )
 
@@ -72,6 +73,12 @@ type deps struct {
 	daemonLog string
 }
 
+// opened is a collection open over a tab's list; its zero value is none.
+type opened struct {
+	kind itemKind // itemAlbum, itemPlaylist or itemLiked
+	id   string
+}
+
 // model is the TUI's state. Bubble Tea calls Update and View on one
 // goroutine, the UI thread: the session, the loader, the catalog and the
 // Mirror are touched there only. Update renders the screen once per
@@ -87,15 +94,19 @@ type model struct {
 	isBlurred bool
 	link      remote.Link
 
-	queue, search listState
+	queue, search, library listState
 	// queueFollows keeps the queue's cursor on the current song until
 	// the user moves it.
 	queueFollows bool
+	// opened is each tab's open collection, collection its list.
+	opened     [numTabs]opened
+	collection [numTabs]listState
 
 	query    string
 	isTyping bool
 
-	// searched is what the loader was last told to search.
+	// shown and searched are what the loader was last told.
+	shown    fetchstate.Resource
 	searched string
 
 	// notice is the status line's message, until a clearNoticeMsg of
@@ -202,10 +213,22 @@ func (m *model) untilNextSecond() time.Duration {
 	return time.Duration((1-frac)*float64(time.Second)) + 10*time.Millisecond
 }
 
-// syncLoad tells the loader the search page's query.
+// syncLoad tells the loader what the shown tab shows: the collection open
+// over it, the search page's query.
 func (m *model) syncLoad() {
+	var res fetchstate.Resource
+	switch o := m.opened[m.tab]; o.kind {
+	case itemAlbum:
+		res = fetchstate.Resource{Kind: fetchstate.Album, ID: o.id}
+	case itemPlaylist:
+		res = fetchstate.Resource{Kind: fetchstate.Playlist, ID: o.id}
+	}
+	if res != m.shown {
+		m.shown = res
+		m.loader.Show(res)
+	}
 	query := ""
-	if m.tab == tabSearch {
+	if m.tab == tabSearch && m.opened[tabSearch].kind == 0 {
 		query = strings.TrimSpace(m.query)
 	}
 	if query != m.searched {
@@ -302,6 +325,7 @@ func (m *model) browseKey(s string) (ok bool, cmd tea.Cmd) {
 		m.tab = (m.tab + numTabs - 1) % numTabs
 	case "/":
 		m.tab = tabSearch
+		m.opened[tabSearch] = opened{}
 		m.isTyping = true
 	case "up":
 		m.moveBy(-1)
@@ -317,6 +341,12 @@ func (m *model) browseKey(s string) (ok bool, cmd tea.Cmd) {
 		m.moveBy(math.MaxInt / 2)
 	case "enter":
 		return m.activate(), nil
+	case "a":
+		return m.enqueue(), nil
+	case "l":
+		return m.like(), nil
+	case "esc", "backspace":
+		return m.back(), nil
 	default:
 		return false, nil
 	}
@@ -408,7 +438,8 @@ func (m *model) moveBy(delta int) {
 	p.list.moveBy(delta, p.n, p.selectable)
 }
 
-// activate plays the selected song, or retries what failed.
+// activate plays the selected song or collection, opens the selected
+// album or playlist, or retries what failed.
 func (m *model) activate() bool {
 	p := m.page()
 	if p.retry != nil {
@@ -425,8 +456,79 @@ func (m *model) activate() bool {
 		if p.list == &m.queue {
 			m.queueFollows = true
 		}
+	case itemPlayAll:
+		songs := p.songs()
+		m.ctl.PlayAll(songIDs(songs), songs)
+	case itemAlbum:
+		m.open(opened{kind: itemAlbum, id: it.album.ID})
+	case itemPlaylist:
+		m.open(opened{kind: itemPlaylist, id: it.playlist.ID})
+	case itemLiked:
+		m.open(opened{kind: itemLiked})
 	default:
 		return false
 	}
 	return true
+}
+
+func (m *model) open(o opened) {
+	m.opened[m.tab] = o
+	m.collection[m.tab] = listState{}
+}
+
+// enqueue adds the selected song, or the collection's songs, to the end
+// of the queue.
+func (m *model) enqueue() bool {
+	p := m.page()
+	it, ok := p.selected()
+	if !ok {
+		return false
+	}
+	switch it.kind {
+	case itemSong:
+		m.ctl.Enqueue([]string{it.song.ID}, false, []catalog.Song{it.song})
+		m.say(locales.TuiQueued(it.song.Title))
+	case itemPlayAll:
+		songs := p.songs()
+		m.ctl.Enqueue(songIDs(songs), false, songs)
+		m.say(locales.TuiQueuedSongs(len(songs)))
+	default:
+		return false
+	}
+	return true
+}
+
+// like likes or unlikes the selected song; on a page without a list, the
+// current one.
+func (m *model) like() bool {
+	id := m.mirror.State().Current
+	p := m.page()
+	if it, ok := p.selected(); ok {
+		if it.kind != itemSong {
+			return false
+		}
+		id = it.song.ID
+	}
+	if id == "" {
+		return false
+	}
+	m.session.SetLiked(id, !m.session.Liked(id))
+	return true
+}
+
+// back closes the open collection.
+func (m *model) back() bool {
+	if m.opened[m.tab].kind == 0 {
+		return false
+	}
+	m.opened[m.tab] = opened{}
+	return true
+}
+
+func songIDs(songs []catalog.Song) []string {
+	ids := make([]string, len(songs))
+	for i, s := range songs {
+		ids[i] = s.ID
+	}
+	return ids
 }

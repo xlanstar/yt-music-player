@@ -71,12 +71,19 @@ func (m *model) row(it item, w int, isSelected bool) string {
 	switch it.kind {
 	case itemSong:
 		parts = m.songSegments(segs[:0], &it, inner)
+	case itemPlayAll:
+		parts = append(segs[:0], segment{text: "▶ ", style: styleAccent},
+			segment{text: m.words.playAll, width: max(inner-markWidth, 1), style: styleAccent})
+	case itemLiked:
+		parts = columns(append(segs[:0], segment{text: "♥ ", style: styleAccent}), m.words.likedMusic, it.text, inner-markWidth)
 	case itemAlbum:
 		detail := it.album.Artist
 		if it.album.Year > 0 {
 			detail += " · " + strconv.Itoa(it.album.Year)
 		}
 		parts = columns(append(segs[:0], segment{text: "  "}), it.album.Title, detail, inner-markWidth)
+	case itemPlaylist:
+		parts = columns(append(segs[:0], segment{text: "  "}), it.playlist.Name, it.playlist.Owner, inner-markWidth)
 	}
 	var b strings.Builder
 	b.Grow(4 * w)

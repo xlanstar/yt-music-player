@@ -2564,6 +2564,26 @@ func (msgs Messages) TuiSearchHint() string {
 	return Catalog.Format(msgs.locale, "tuiSearchHint", nil)
 }
 
+// TuiQueued says "Added “{title}” to the queue"
+// in the language the app shows.
+func TuiQueued(title string) string { return In(i18n.Locale()).TuiQueued(title) }
+
+// TuiQueued says "Added “{title}” to the queue"
+// in the language of msgs.
+func (msgs Messages) TuiQueued(title string) string {
+	return Catalog.Format(msgs.locale, "tuiQueued", map[string]any{"title": title})
+}
+
+// TuiQueuedSongs says "Added {count, plural, one {# song} other {# songs}} to the queue"
+// in the language the app shows.
+func TuiQueuedSongs(count int) string { return In(i18n.Locale()).TuiQueuedSongs(count) }
+
+// TuiQueuedSongs says "Added {count, plural, one {# song} other {# songs}} to the queue"
+// in the language of msgs.
+func (msgs Messages) TuiQueuedSongs(count int) string {
+	return Catalog.Format(msgs.locale, "tuiQueuedSongs", map[string]any{"count": count})
+}
+
 // TuiRestart says "Restart"
 // in the language the app shows.
 //

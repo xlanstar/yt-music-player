@@ -1,7 +1,8 @@
 // Package tui is YT Music Player in the terminal, `ytm` without arguments
 // (docs/plans/daemon.md §7.3): a Bubble Tea program over ytmd, through
-// a remote.Client that a Supervisor keeps connected. Two tabs (the
-// queue and search) sit over the player bar, under which a line tells the daemon's health
+// a remote.Client that a Supervisor keeps connected. Three tabs (the
+// queue, search, the library with its albums, playlists and liked songs)
+// sit over the player bar, under which a line tells the daemon's health
 // when it is not connected; there are no images.
 //
 // Threading: Bubble Tea's Update goroutine is the UI thread. The session,

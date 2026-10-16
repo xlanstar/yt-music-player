@@ -10,7 +10,26 @@ import (
 
 // memo holds what renders derive, made again only when its inputs change.
 type memo struct {
+	songs  songsMemo
+	liked  likedMemo
 	volume volumeMemo
+}
+
+type songsKey struct {
+	o                opened
+	catGen, likesGen uint64
+}
+
+type songsMemo struct {
+	key   songsKey
+	songs []catalog.Song
+	ok    bool
+}
+
+type likedMemo struct {
+	gen  uint64
+	text string
+	ok   bool
 }
 
 type volumeMemo struct {
@@ -23,14 +42,20 @@ type volumeMemo struct {
 // words are the messages the screen says without arguments, said once:
 // ytm picks its language at start.
 type words struct {
-	queue, search string
-	notSignedIn   string
+	queue, search, library string
+	notSignedIn            string
 
-	queueEmpty, queueEmptyHint   string
-	searchTitle, searchHint      string
-	searchPlaceholder, searching string
-	searchNoneHint               string
-	songs, albums, retry         string
+	queueEmpty, queueEmptyHint    string
+	searchTitle, searchHint       string
+	searchPlaceholder, searching  string
+	searchNoneHint                string
+	songs, albums, playlists      string
+	likedMusic, playAll           string
+	loading, retry                string
+	notFoundTitle, notFoundDetail string
+	nothingHereYet, likedEmpty    string
+	libraryFailed, likesFailed    string
+	albumFailed, playlistFailed   string
 
 	nothingPlaying              string
 	shuffleOn                   string
@@ -46,6 +71,7 @@ func newWords() words {
 	return words{
 		queue:             locales.Queue(),
 		search:            locales.NavSearch(),
+		library:           locales.NavLibrary(),
 		notSignedIn:       locales.CliSignedOut(),
 		queueEmpty:        locales.TuiQueueEmpty(),
 		queueEmptyHint:    locales.TuiQueueEmptyHint(),
@@ -56,7 +82,19 @@ func newWords() words {
 		searchNoneHint:    locales.SearchNoneHint(),
 		songs:             locales.Songs(),
 		albums:            locales.Albums(),
+		playlists:         locales.SidebarPlaylists(),
+		likedMusic:        locales.LikedMusic(),
+		playAll:           locales.PlayAll(),
+		loading:           locales.Loading(),
 		retry:             locales.Retry(),
+		notFoundTitle:     locales.NotFoundTitle(),
+		notFoundDetail:    locales.NotFoundDetail(),
+		nothingHereYet:    locales.NothingHereYet(),
+		likedEmpty:        locales.LikedEmpty(),
+		libraryFailed:     locales.LibraryFailed(),
+		likesFailed:       locales.LikesFailed(),
+		albumFailed:       locales.AlbumFailed(),
+		playlistFailed:    locales.PlaylistFailed(),
 		nothingPlaying:    locales.TuiNothingPlaying(),
 		shuffleOn:         locales.CliShuffleOn(),
 		repeatAll:         locales.RepeatAll(),

@@ -70,7 +70,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 		at = width(name)
 		rule.WriteString(strings.Repeat("─", at))
 	}
-	labels := [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search}
+	labels := [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search, tabLibrary: m.words.library}
 	for i, label := range labels {
 		cell := " " + label + " "
 		style, mark := paint{}, "─"
