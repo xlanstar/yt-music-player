@@ -35,7 +35,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `innertube`: InnerTube transport; knows nothing about music.
 - `ytmusic`: `catalog.Source` over InnerTube, after ytmusicapi. Song = videoId, Album = `MPREb_…`, Playlist = playlistId without `VL`. Responses decode into the structs of `response.go`. Tests are offline against `testdata/`.
 - `stream`: resolves a song's Opus stream; `audio`: the engine (fetches, decodes Opus in Go, plays through MyGo's `audio`; Now Playing on macOS, MPRIS on Linux) and `Fake`; `webm`: an audio track's frames out of WebM.
-- `player`: queue, shuffle, repeat, volume; `playback`: drives the engine from the player, reports when the next frame is due.
+- `player`: queue, shuffle, repeat, volume; `playback`: drives the engine from the player, on ytmd's loop; the Desktop times the position's frames itself (`cmd/desktop/playback.go`).
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's `Service` (player, playback, account, engine and `daemon.json` on the loop; serves the protocol of `api` over `ipc`).
 - `tui`: `ytm`'s player in the terminal (Bubble Tea, Lip Gloss): its tabs over the player bar and the daemon's health; `Update` is the UI thread, where posted funcs run as one message; screens are golden files in `testdata/` (`-update` rewrites them).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.

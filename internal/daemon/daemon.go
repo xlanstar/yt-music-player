@@ -179,8 +179,6 @@ func newService(opts Options) (*Service, error) {
 
 	s.pb = playback.New(s.cat, s.player, s.post)
 	s.pb.Resolver, s.pb.NewEngine, s.pb.Wake = opts.Resolver, opts.NewEngine, s.post
-	// No window, so no frames: every Follow reads where the engine is.
-	s.pb.SetShown(false)
 	s.acct = account.New(s.src, s.post, s.accountChanged)
 	s.sent.reset(s)
 	return s, nil

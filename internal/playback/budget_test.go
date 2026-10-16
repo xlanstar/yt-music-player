@@ -6,7 +6,7 @@ import (
 	"yt-music-player/internal/player"
 )
 
-// TestBudgetFollow: Follow runs every build.
+// TestBudgetFollow: Follow runs every batch of the daemon's.
 func TestBudgetFollow(t *testing.T) {
 	for _, tc := range followCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -14,13 +14,13 @@ func TestBudgetFollow(t *testing.T) {
 			// 0 allocs today for each.
 			budget.Allocs(t, 0, 100, func() {
 				tc.ready(x)
-				sinkDuration = x.pb.Follow()
+				x.pb.Follow()
 			})
 		})
 	}
 }
 
-// TestBudgetIdle: the view asks these every build.
+// TestBudgetIdle: the daemon asks these every batch.
 func TestBudgetIdle(t *testing.T) {
 	for _, tc := range idleCases(playing(t)) {
 		// 0 allocs today for each.

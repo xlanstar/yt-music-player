@@ -116,12 +116,11 @@ func (x *fixture) startPlaying(t testing.TB) {
 	x.f.TakeCalls()
 }
 
-// turn mimics the frame Follow asked for: the step turns and the position
-// is read anew.
-func (x *fixture) turn(pos float64) time.Duration {
+// turn moves the engine to pos and has Follow read it, as the next
+// request or event does.
+func (x *fixture) turn(pos float64) {
 	x.f.Pos = pos
-	x.pb.Resync()
-	return x.pb.Follow()
+	x.pb.Follow()
 }
 
 func TestLoadsAndPlays(t *testing.T) {
@@ -140,8 +139,9 @@ func TestLoadsAndPlays(t *testing.T) {
 	if x.f.Info.Title == "" || x.f.Info.Seconds == 0 {
 		t.Errorf("info %+v", x.f.Info)
 	}
-	if d := x.pb.Follow(); d != 0 {
-		t.Errorf("ticks every %v before the stream is ready", d)
+	x.turn(90)
+	if x.player.Position != 84 {
+		t.Errorf("at %v before the stream is ready, want 84", x.player.Position)
 	}
 	x.f.Dur, x.f.Pos = 201.5, 84.25
 	x.f.Emit(audio.Ready)
@@ -150,8 +150,8 @@ func TestLoadsAndPlays(t *testing.T) {
 	if got := x.pb.SongLength(song); got != 201.5 {
 		t.Errorf("length %v, want the engine's 201.5", got)
 	}
-	if d := x.pb.Follow(); d < 700*time.Millisecond || d > 800*time.Millisecond {
-		t.Errorf("next tick in %v, want as 84.25 turns 85", d)
+	if x.pb.Follow(); x.player.Position != 84.25 {
+		t.Errorf("at %v once ready, want the engine's 84.25", x.player.Position)
 	}
 
 	x.player.Next()
@@ -370,8 +370,8 @@ func TestEngineFails(t *testing.T) {
 	}
 	// The player goes on as a mock.
 	x.player.Next()
-	if d := x.pb.Follow(); d != 0 || len(x.q) != 0 {
-		t.Errorf("without an engine: a tick in %v, %d posts", d, len(x.q))
+	if x.pb.Follow(); len(x.q) != 0 {
+		t.Errorf("without an engine: %d posts", len(x.q))
 	}
 }
 
@@ -392,35 +392,32 @@ func TestSeekAndVolumeAreForwarded(t *testing.T) {
 	x.wantCalls(t, "seek 100")
 }
 
-func TestNoTicksWhilePaused(t *testing.T) {
+// Paused or stalled, the position stands still, whatever the engine says.
+func TestPositionStandsStill(t *testing.T) {
 	x := newFixture(&instantResolver{})
 	x.startPlaying(t)
-	if d := x.turn(10.5); d <= 0 || x.player.Position != 10.5 {
-		t.Fatalf("playing: tick in %v, at %v", d, x.player.Position)
+	if x.turn(10.5); x.player.Position != 10.5 {
+		t.Fatalf("playing at %v, want 10.5", x.player.Position)
 	}
 	x.player.TogglePlay()
-	if d := x.pb.Follow(); d != 0 {
-		t.Errorf("paused, a tick in %v", d)
-	}
+	x.pb.Follow()
 	x.wantCalls(t, "pause")
-	x.f.Pos = 30
-	if d := x.pb.Follow(); d != 0 || x.player.Position != 10.5 {
-		t.Errorf("paused, tick in %v, at %v", d, x.player.Position)
+	if x.turn(30); x.player.Position != 10.5 {
+		t.Errorf("paused at %v, want 10.5", x.player.Position)
 	}
 	x.noPost(t, 1200*time.Millisecond)
 
-	// Stalled, the position stands still too.
 	x.player.TogglePlay()
 	x.pb.Follow()
 	x.f.Emit(audio.Buffering)
 	x.run(t)
-	if d := x.pb.Follow(); d != 0 {
-		t.Errorf("buffering, a tick in %v", d)
+	if x.turn(40); x.player.Position != 30 {
+		t.Errorf("buffering at %v, want 30", x.player.Position)
 	}
 	x.f.Emit(audio.Playing)
 	x.run(t)
-	if d := x.pb.Follow(); d <= 0 {
-		t.Error("no tick once playing on")
+	if x.turn(41); x.player.Position != 41 {
+		t.Errorf("playing on at %v, want 41", x.player.Position)
 	}
 }
 
@@ -558,8 +555,8 @@ func TestNoPlaybackWithoutResolver(t *testing.T) {
 		return nil, errNoAudio
 	}
 	x.player.Playing = true
-	if d := x.pb.Follow(); d != 0 || len(x.q) != 0 || x.pb.state != unloaded {
-		t.Errorf("no resolver: a tick in %v, %d posts, state %v", d, len(x.q), x.pb.state)
+	if x.pb.Follow(); len(x.q) != 0 || x.pb.state != unloaded {
+		t.Errorf("no resolver: %d posts, state %v", len(x.q), x.pb.state)
 	}
 }
 
@@ -569,99 +566,21 @@ func TestStop(t *testing.T) {
 	x.pb.Stop()
 	x.wantCalls(t, "close")
 	x.player.Next()
-	if d := x.pb.Follow(); d != 0 || len(x.q) != 0 {
-		t.Errorf("stopped: a tick in %v, %d posts", d, len(x.q))
+	if x.pb.Follow(); len(x.q) != 0 {
+		t.Errorf("stopped: %d posts", len(x.q))
 	}
 }
 
-func tickIn(t *testing.T, d, lo, hi time.Duration) {
-	t.Helper()
-	if d < lo || d > hi {
-		t.Errorf("next frame in %v, want %v to %v", d, lo, hi)
-	}
-}
-
-func TestTicksFollowTheWindow(t *testing.T) {
-	x := newFixture(&instantResolver{})
-	x.startPlaying(t)
-
-	// Focused: a frame as each second turns.
-	tickIn(t, x.turn(62.3), 700*time.Millisecond, 750*time.Millisecond)
-
-	// Unfocused: at the next multiple of 5 s, then every 5 s, so that the
-	// clock moves by whole steps.
-	x.pb.SetFocused(false)
-	if d := x.pb.Follow(); d > 750*time.Millisecond {
-		t.Errorf("losing the focus moved the frame due to %v", d)
-	}
-	tickIn(t, x.turn(63.02), 1980*time.Millisecond, 2*time.Second)
-	tickIn(t, x.turn(65.01), 4990*time.Millisecond, 5010*time.Millisecond)
-	if x.player.Position != 65.01 {
-		t.Errorf("shows %v, want 65.01", x.player.Position)
-	}
-	x.f.Pos = 67
-	if d := x.pb.Follow(); d <= 0 || x.player.Position != 65.01 {
-		t.Errorf("between steps: frame in %v, at %v", d, x.player.Position)
-	}
-
-	// Refocused: the next frame reads the engine, then each second again.
-	x.pb.SetFocused(true)
-	x.f.Pos = 67.4
-	tickIn(t, x.pb.Follow(), 600*time.Millisecond, 650*time.Millisecond)
-	if x.player.Position != 67.4 {
-		t.Errorf("refocused at %v, want the engine's 67.4", x.player.Position)
-	}
-
-	// Minimized or hidden: no frame, whatever the focus; shown again, the
-	// next frame reads the engine.
-	for _, focused := range []bool{true, false} {
-		x.pb.SetFocused(focused)
-		x.pb.SetShown(false)
-		if d := x.turn(70.2); d != 0 {
-			t.Errorf("away (focused %v): a frame in %v", focused, d)
-		}
-		x.f.Pos = 80.5
-		x.pb.SetShown(true)
-		if d := x.pb.Follow(); d <= 0 || x.player.Position != 80.5 {
-			t.Errorf("shown again: frame in %v, at %v", d, x.player.Position)
-		}
-	}
-
-	// Paused: no frame, focused or not.
-	x.player.TogglePlay()
-	for _, focused := range []bool{true, false} {
-		x.pb.SetFocused(focused)
-		if d := x.turn(90); d != 0 {
-			t.Errorf("paused (focused %v): a frame in %v", focused, d)
-		}
-	}
-}
-
-func TestWatched(t *testing.T) {
-	pb := New(nil, nil, nil)
-	for _, tc := range []struct{ focused, shown, want bool }{
-		{true, true, true}, {false, true, false}, {true, false, false}, {false, false, false},
-	} {
-		pb.SetFocused(tc.focused)
-		pb.SetShown(tc.shown)
-		if got := pb.IsWatched(); got != tc.want {
-			t.Errorf("focused %v, shown %v: watched %v", tc.focused, tc.shown, got)
-		}
-	}
-}
-
-func TestPrefetchesWhileAway(t *testing.T) {
+// The prefetch comes on a timer: playing, nothing else wakes the loop.
+func TestPrefetchesOnItsTimer(t *testing.T) {
 	res := &instantResolver{}
 	x := newFixture(res)
 	woken := make(posts, 4)
 	x.pb.Wake = func(fn func()) { woken <- fn }
 	x.startPlaying(t)
 	next := x.player.AppendUpNext(nil, 1)[0]
-	x.pb.SetShown(false)
-	// 100 ms before the prefetch is due, with no frame to come.
-	if d := x.turn(200 - prefetchLead - 0.1); d != 0 {
-		t.Fatalf("away, a frame in %v", d)
-	}
+	// 100 ms before the prefetch is due.
+	x.turn(200 - prefetchLead - 0.1)
 	x.f.Pos = 200 - prefetchLead + 1
 	// The timer wakes the UI thread without a frame.
 	select {

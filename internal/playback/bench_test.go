@@ -2,26 +2,23 @@ package playback
 
 import (
 	"testing"
-	"time"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/player"
 )
 
 var (
-	sinkDuration time.Duration
-	sinkFloat    float64
-	sinkBool     bool
-	sinkNotice   notice.Notice
+	sinkFloat  float64
+	sinkBool   bool
+	sinkNotice notice.Notice
 )
 
-// followCases are the states builds find the player in: playing between
-// steps (most builds), at a step (reads the engine), and paused.
+// followCases are the states the daemon's batches find the player in:
+// playing (reads the engine) and paused.
 var followCases = []struct {
 	name  string
 	ready func(x *fixture)
 }{
-	{"playing", func(x *fixture) { x.pb.tickDue = time.Now().Add(time.Hour) }},
-	{"step", func(x *fixture) { x.pb.Resync() }},
+	{"playing", func(*fixture) {}},
 	{"paused", func(x *fixture) { x.player.Playing = false }},
 }
 
@@ -42,13 +39,13 @@ func BenchmarkFollow(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				tc.ready(x)
-				sinkDuration = x.pb.Follow()
+				x.pb.Follow()
 			}
 		})
 	}
 }
 
-// idleCases are what the view asks of playback every build, besides
+// idleCases are what the daemon asks of playback every batch, besides
 // Follow.
 func idleCases(x *fixture) []struct {
 	name string
@@ -60,7 +57,6 @@ func idleCases(x *fixture) []struct {
 		call func()
 	}{
 		{"SongLength", func() { sinkFloat = x.pb.SongLength(song) }},
-		{"Watched", func() { sinkBool = x.pb.IsWatched() }},
 		{"Waiting", func() { sinkBool = x.pb.IsWaiting() }},
 		{"TakeNotice", func() { sinkNotice, sinkBool = x.pb.TakeNotice() }},
 	}

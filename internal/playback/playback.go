@@ -1,21 +1,20 @@
 // Package playback drives an audio engine from a player.Player: Follow
-// passes on whatever changed in the player (click, shortcut, media key).
-// It resolves streams off the UI thread, prefetches the next song near the
-// end, resolves a stream that fails once loaded anew (once), and skips
-// unplayable songs, stopping after a few in a row. It knows no UI and says
-// no words: Follow returns when the shown position next moves, and
-// failures become notices.
+// passes on whatever changed in the player (a request, a media key) and
+// reads where the engine is. It resolves streams off its thread,
+// prefetches the next song near the end, resolves a stream that fails once
+// loaded anew (once), and skips unplayable songs, stopping after a few in
+// a row. It knows no UI and says no words: failures become notices, and
+// the front-ends time their frames themselves.
 //
-// A Playback belongs to the UI thread (the daemon's loop), which owns the
-// player and the engine. Resolves run on goroutines that call only the Resolver; their
-// results and engine events are posted to the UI thread and dropped once
-// the song changed.
+// A Playback belongs to the daemon's loop, which owns the player and the
+// engine. Resolves run on goroutines that call only the Resolver; their
+// results and engine events are posted to the loop and dropped once the
+// song changed.
 package playback
 
 import (
 	"context"
 	"errors"
-	"math"
 	"time"
 	"yt-music-player/internal/audio"
 	"yt-music-player/internal/catalog"
@@ -37,15 +36,6 @@ const (
 	// expirySlack: a stream expiring sooner is resolved anew instead of
 	// played, as its URL would stop working mid-song.
 	expirySlack = time.Minute
-	// tickSlack makes the position redraw land just after its step turns.
-	tickSlack = 15 * time.Millisecond
-	// focusedStep is the shown position's step, in seconds, while the
-	// window has keyboard focus.
-	focusedStep = 1
-	// blurredStep is the step while unfocused: the window is glanced at,
-	// not watched. The Metal driver holds about 250 MB for two seconds
-	// after each frame; 5 s steps give it back for 3 s of every 5.
-	blurredStep = 5
 )
 
 type loadState uint8
@@ -64,9 +54,7 @@ type Playback struct {
 	// acts as a mock; Stop, or failing to make an engine, clears it.
 	Resolver  stream.Resolver
 	NewEngine func(events func(audio.Event)) (audio.Engine, error)
-	// Wake runs the prefetch timer's func on the UI thread without a
-	// frame, as none is needed and none come while the window is hidden;
-	// nil means post.
+	// Wake runs the prefetch timer's func on the loop; nil means post.
 	Wake func(func())
 
 	cat    *catalog.Catalog
@@ -93,12 +81,6 @@ type Playback struct {
 	volume    float64
 	// seconds is the song's length per the engine, 0 until ready.
 	seconds float64
-	// tickDue is when the shown position's step turns; the next Follow
-	// after it reads the engine.
-	tickDue time.Time
-	// isBlurred: the window lost keyboard focus; isHidden: it is minimized
-	// or hidden.
-	isBlurred, isHidden bool
 	// failures counts songs in a row that could not play.
 	failures int
 	// notice is the next failure to tell; only the last matters.
@@ -116,20 +98,19 @@ type prefetch struct {
 }
 
 // New returns a Playback following p, whose songs cat describes; it is
-// silent until given a Resolver. post runs a func on the UI thread and is
-// first called once a song plays.
+// silent until given a Resolver. post runs a func on the loop and is first
+// called once a song plays.
 func New(cat *catalog.Catalog, p *player.Player, post func(func())) *Playback {
 	pb := &Playback{cat: cat, player: p, post: post}
 	pb.onResolved = pb.resolved
 	return pb
 }
 
-// Follow tells the engine what changed in the player since the last call.
-// It returns when to call it again in a frame (as the shown position's
-// step turns), or 0 when no frame is needed.
-func (pb *Playback) Follow() time.Duration {
+// Follow tells the engine what changed in the player since the last call,
+// and moves the player's position to where the engine is.
+func (pb *Playback) Follow() {
 	if pb.Resolver == nil {
-		return 0
+		return
 	}
 	p := pb.player
 	if current := p.Current(); current != pb.song {
@@ -140,13 +121,13 @@ func (pb *Playback) Follow() time.Duration {
 		pb.engine.SetVolume(volume)
 	}
 	if p.Position != pb.pos {
-		pb.pos, pb.tickDue = p.Position, time.Time{}
+		pb.pos = p.Position
 		if pb.state >= loading {
 			pb.engine.Seek(p.Position)
 		}
 	}
 	if p.Playing != pb.isPlaying {
-		pb.isPlaying, pb.tickDue = p.Playing, time.Time{}
+		pb.isPlaying = p.Playing
 		switch {
 		case !p.Playing:
 			pb.readPosition()
@@ -161,22 +142,14 @@ func (pb *Playback) Follow() time.Duration {
 			pb.engine.Play()
 		}
 	}
-	return pb.tick()
+	pb.follow()
 }
 
-// tick reads the engine's position once the shown step has turned and
-// returns the time until the next turn: every second while focused, on
-// multiples of blurredStep while not (so the clock moves in whole steps),
-// never while hidden. Song end, errors and Now Playing arrive as engine
-// events regardless.
-func (pb *Playback) tick() time.Duration {
+// follow reads the engine's position while the song moves on its own.
+// Song end, errors and Now Playing arrive as engine events regardless.
+func (pb *Playback) follow() {
 	if !pb.isAdvancing() {
-		pb.tickDue = time.Time{}
-		return 0
-	}
-	now := time.Now()
-	if now.Before(pb.tickDue) {
-		return pb.tickDue.Sub(now)
+		return
 	}
 	pos := pb.engine.Position()
 	if pb.seconds > 0 {
@@ -184,19 +157,6 @@ func (pb *Playback) tick() time.Duration {
 	}
 	pb.player.Position, pb.pos = pos, pos
 	pb.armPrefetch(pos)
-	if pb.isHidden {
-		// SetShown(true) has the next Follow read it.
-		pb.tickDue = time.Time{}
-		return 0
-	}
-	step := float64(focusedStep)
-	if pb.isBlurred {
-		step = blurredStep
-	}
-	nextTurn := (math.Floor(pos/step) + 1) * step
-	untilTurn := time.Duration((nextTurn-pos)*float64(time.Second)) + tickSlack
-	pb.tickDue = now.Add(untilTurn)
-	return untilTurn
 }
 
 // IsWaiting reports whether the player plays a song whose position stands
@@ -217,29 +177,6 @@ func (pb *Playback) readPosition() {
 		pb.player.Position = pb.pos
 	}
 }
-
-// Resync has the next Follow read where the engine is, whatever the step.
-func (pb *Playback) Resync() { pb.tickDue = time.Time{} }
-
-// SetFocused records whether the window has keyboard focus.
-func (pb *Playback) SetFocused(focused bool) {
-	pb.isBlurred = !focused
-	if focused {
-		pb.Resync()
-	}
-}
-
-// SetShown records whether the window is shown, not minimized or hidden.
-func (pb *Playback) SetShown(shown bool) {
-	pb.isHidden = !shown
-	if shown {
-		pb.Resync()
-	}
-}
-
-// IsWatched reports whether the window is focused and shown: only then are
-// animations that follow the song worth their frames.
-func (pb *Playback) IsWatched() bool { return !pb.isBlurred && !pb.isHidden }
 
 func gain(p *player.Player) float64 {
 	if p.Muted {
@@ -267,10 +204,10 @@ func (pb *Playback) switchSong(id string) {
 	pb.song, pb.state, pb.stream, pb.seconds = id, unloaded, stream.Stream{}, 0
 	pb.isStalled, pb.hasRetried = false, false
 	// Not playing yet, so Follow loads it if the player plays.
-	pb.isPlaying, pb.pos, pb.tickDue = false, pb.player.Position, time.Time{}
+	pb.isPlaying, pb.pos = false, pb.player.Position
 }
 
-// resolve finds the current song's stream, off the UI thread unless
+// resolve finds the current song's stream, off the loop unless
 // prefetched.
 func (pb *Playback) resolve() {
 	pb.resolving.Stop()
@@ -297,7 +234,7 @@ func (pb *Playback) resolved(s stream.Stream, err error) {
 		return
 	}
 	p, song := pb.player, pb.currentSong()
-	pb.stream, pb.state, pb.isStalled, pb.seconds, pb.tickDue = s, loading, false, 0, time.Time{}
+	pb.stream, pb.state, pb.isStalled, pb.seconds = s, loading, false, 0
 	pb.loads++
 	pb.engine.SetInfo(audio.Info{
 		Title: song.Title, Artist: song.Artist, Album: song.Album,
@@ -339,7 +276,6 @@ func (pb *Playback) audioEvent(ev audio.Event) {
 	if ev.Load != pb.loads || pb.state < loading {
 		return
 	}
-	pb.tickDue = time.Time{}
 	switch ev.Kind {
 	case audio.Ready:
 		pb.state, pb.isStalled, pb.failures, pb.hasRetried = loaded, false, 0, false
@@ -358,8 +294,8 @@ func (pb *Playback) audioEvent(ev audio.Event) {
 
 // command applies a media key or Now Playing command to the player.
 func (pb *Playback) command(ev audio.Event) {
-	// No frame reads the position while the window is hidden, so it may
-	// lag; Prev depends on it.
+	// The position was read at the last request or event, so it may lag;
+	// Prev depends on it.
 	pb.readPosition()
 	p := pb.player
 	switch ev.Kind {
@@ -514,7 +450,7 @@ func (pb *Playback) SongLength(s catalog.Song) float64 {
 	return float64(s.Seconds)
 }
 
-// Stop cancels resolves and closes the engine as the window closes;
+// Stop cancels resolves and closes the engine as the daemon stops;
 // nothing plays after.
 func (pb *Playback) Stop() {
 	pb.resolving.Stop()
