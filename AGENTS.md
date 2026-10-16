@@ -7,8 +7,8 @@ MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `
 ## Commands
 
 - `prek`: the only check needed; it must pass.
-- `go run ./cmd/desktop`: YouTube Music (signed-in account from the Keychain); songs play through the Go engine (`internal/audio`) on every system.
-- `go run -tags placeholder ./cmd/desktop`: offline fake, always signed in, no audio; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in.
+- `scripts/dev.sh`: the Desktop on YouTube Music. It plays and signs in through ytmd (signed-in account from ytmd's Keychain; songs play through the Go engine, `internal/audio`, on every system), which it starts if none runs: beside the app, or at `YTMD_PATH`, which `scripts/dev.sh` sets to the ytmd it builds. A bare `go run ./cmd/desktop` finds none unless `YTMD_PATH` names one, and shows the banner.
+- `scripts/dev.sh -placeholder` (`go run -tags placeholder ./cmd/desktop` with `YTMD_PATH` naming a placeholder ytmd): offline fake, always signed in, playing silently on a clock; with it, `YT_SOURCE_DELAY=800ms` shows loading states. Without the tag (the release build) the fake is not linked in. Quitting leaves ytmd running: the app menu's Quit and Stop Playback, or `ytm daemon stop`, stops it.
 - `YT_LOG=debug|info|warn|error` (default `warn`): `debug` tells why fetches, likes, sign-ins and streams failed.
 - `go run ./cmd/ytmd` (`-tags placeholder`: the fake, playing silently on a clock): the background player (`docs/plans/daemon.md`); dev builds use `-dev` files (socket, `daemon-dev.json`, `<cache>/logs/ytmd-dev.log`); Ctrl+C stops it. `scripts/dev.sh [-placeholder] [desktop|ytm]` builds it into `build/dev/` and runs a front-end with `YTMD_PATH` set.
 - Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` and `go test -tags audiolive -run LiveDaemon -v ./internal/daemon/` (play sound); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
@@ -44,9 +44,10 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 `cmd/desktop` (`package main`, the MyGo app; `mygo.json`, `resources/` and `locales/` stay at the root, `mygo.json`'s `main` names this package):
 
-- `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online, what failed is fetched again).
+- `main.go` (the window, the menu bar with Quit and Stop Playback, the updater plugin, ytmd's paths and the app's version), `demo.go` (`demo`; `demo_placeholder.go` under the `placeholder` tag starts with the placeholder's music), `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online: ytmd and what failed are retried).
+- `daemon.go`: the remote Client and its Supervisor (the loader's source, the Controller, the Mirror); its Handler routes the account's events to the session, notices to `tell`, the Link to `banner.go` (ytmd's health, Retry, Restart, View Log); Quit and Stop Playback. `startup.go`: starting ytmd at login and, on Windows, ytm on the Path (package `autostart`, through `job.Run`).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
-- `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (account and session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
+- `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (the session over ytmd, `tell`: the one path for every notice), `playback.go` (what plays, from the Mirror: the position's frames, the current song and those up next, controls with the songs' data, sliders held while dragged), `appearance.go` (the settings sheet).
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.
 - Pages: `home.go`, `explore.go`, `library.go`, `collection.go`, `search.go`. Chrome: `sidebar.go`, `topbar.go`, `playerbar.go`, `nowplaying.go`.
 - `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `icons/` (Lucide SVGs, embedded; `mygo.json` ships them too), `phrase.go` (messages of string arguments in one allocation).
@@ -96,8 +97,8 @@ Reasons and measurements: `docs/performance.md`.
 ### Tests
 
 - No window, no network, no disk cache, no config dir.
-- Apps: `testApp()`/`sourceApp(src)`, `idleApp()` (feeds preloaded), `scriptedApp()` (only opened pages ask), `anonApp()`, `accountApp()` (over `catalogtest.Accounts`), `playbackApp(res)` (on `audio.Fake`), `lookApp(t, prepare)` (settings in a `TempDir`). Tests show English; `inLanguage(t, "zh-Hant")` switches.
-- `newScreen`/`showApp` show one on a Tester that counts builds; `settleLoads`/`busy` wait for fetches, thumbnails and the session; scripted sources wait drawing frames: `src.Next(t, tt.Frame, …)`, `Take`, `None`.
+- Apps sit on ytmd in the test's process (`ytmd_test.go`: a `daemon.Service` over `net.Pipe`, the placeholder's queue, no saved state): `testApp(t)`/`sourceApp(t, src)`, `idleApp(t)` (feeds preloaded), `scriptedApp(t)` (only opened pages ask), `anonApp(t)`, `accountApp(t)` (over `catalogtest.Accounts`), `playbackApp(t, res)` (ytmd plays on `audio.Fake`), `lookApp(t, prepare)` (settings in a `TempDir`). Tests show English; `inLanguage(t, "zh-Hant")` switches.
+- `newScreen`/`showApp`/`newTester` show one on a Tester whose builds first run the Client's posts; `settleLoads`/`busy` wait for fetches, thumbnails, the session and ytmd's round trips (`syncDaemon`, `settled`); `answer` waits until ytmd took the reply and the app has it; scripted sources wait drawing frames: `src.Next(t, tt.Frame, …)`, `Take`, `None`.
 - Loader, account, session, playback, job and settings logic is tested in their packages.
 
 ### Benchmarks and budgets

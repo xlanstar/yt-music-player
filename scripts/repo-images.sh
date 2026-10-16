@@ -11,8 +11,9 @@
 #
 #   -readme      copy readme-hero-*.jpg to docs/images/, which README shows
 #   window.png   the window to show; without it, the placeholder build is
-#                opened with a fresh home (default theme and window size)
-#                and its window captured. A shot of your own: ⌘⇧4, Space,
+#                opened with a fresh home (default theme and window size),
+#                over a placeholder ytmd of its own 84 s into a song, and its
+#                window captured. A shot of your own: ⌘⇧4, Space,
 #                Option-click the window (no macOS shadow: the pages add one).
 #
 # macOS only (screencapture, sips), with Google Chrome. Capture on a Retina
@@ -22,7 +23,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,19s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,20s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
@@ -50,12 +51,20 @@ chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 out=build/repo-images
 tmp=$(mktemp -d)
 pid=
+ytm=
 cleanup() {
 	[ -z "$pid" ] || kill "$pid" 2>/dev/null || true
+	# The app leaves ytmd playing: stop the one it started.
+	[ -z "$ytm" ] || isolated "$ytm" daemon stop >/dev/null 2>&1 || true
 	rm -rf "$tmp"
 }
 trap cleanup EXIT
 trap 'exit 1' INT TERM
+
+# isolated runs a command in the capture's own home, with its ytmd.
+isolated() {
+	env HOME="$tmp/home" TMPDIR="$tmp/tmp" YTMD_PATH="$tmp/ytmd" "$@"
+}
 
 # windowOf prints the ID of pid's normal window, if it has one on screen.
 windowOf() {
@@ -68,10 +77,16 @@ windowOf() {
 
 if [ -z "$window" ]; then
 	go build -tags placeholder -o "$tmp/yt-music-player" ./cmd/desktop
-	# A home of its own: the user's theme, window size and caches stay out.
-	mkdir "$tmp/home"
-	HOME=$tmp/home "$tmp/yt-music-player" >/dev/null 2>&1 &
+	# The app plays through ytmd, which it starts: a placeholder one, found
+	# through YTMD_PATH, and ytm to move it and stop it.
+	go build -tags placeholder -o "$tmp/ytmd" ./cmd/ytmd
+	go build -tags placeholder -o "$tmp/ytm" ./cmd/ytm
+	# A home of its own: the user's theme, window size, caches and ytmd
+	# stay out; TMPDIR too, where a long socket path falls back to.
+	mkdir "$tmp/home" "$tmp/tmp"
+	isolated "$tmp/yt-music-player" >/dev/null 2>&1 &
 	pid=$!
+	ytm=$tmp/ytm
 	id=
 	for _ in $(seq 60); do
 		id=$(windowOf "$pid")
@@ -82,6 +97,8 @@ if [ -z "$window" ]; then
 		echo "repo-images.sh: the placeholder build showed no window" >&2
 		exit 1
 	}
+	# Part-way into the song, so the window shows progress.
+	isolated "$ytm" seek 84 >/dev/null
 	# Let the first frames and the covers draw.
 	sleep 2
 	window=$tmp/app-window.png

@@ -4,10 +4,14 @@
 # compares them with perf/footprint-baseline.txt. It opens the window,
 # which needs the focus (click it if it stays behind: macOS lets no app
 # take it from the one in front), and later gives it to Finder: about 70
-# seconds, hands off the keyboard and mouse after that click.
+# seconds, hands off the keyboard and mouse after that click. The app plays
+# through a development ytmd built beside it (YTMD_PATH), whose memory is
+# its own process's: one already running serves instead; one started here
+# is stopped at the end.
 #
-#   scripts/footprint.sh           the placeholder catalog, offline
-#   scripts/footprint.sh -live     the signed-in account, as thumbnails cost
+#   scripts/footprint.sh           the placeholder catalog, offline, silent
+#   scripts/footprint.sh -live     the signed-in account, as thumbnails cost;
+#                                  its songs play aloud
 #   scripts/footprint.sh -update   make perf/footprint-latest.txt the baseline,
 #                                  after a placeholder run of a deliberate change
 set -eu
@@ -18,7 +22,7 @@ latest=perf/footprint-latest.txt
 baseline=perf/footprint-baseline.txt
 
 usage() {
-	sed -n '2,13s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,17s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
@@ -55,17 +59,32 @@ fi
 }
 
 source=placeholder
-# The placeholder build tag swaps YouTube Music for the offline fake.
-tags=memprof,placeholder
-[ -z "$live" ] || { source=live; tags=memprof; }
+# The placeholder build tag swaps YouTube Music for the offline fake, in
+# the app and in ytmd, which plays it silently on a clock.
+tags=placeholder
+[ -z "$live" ] || { source=live; tags=; }
 tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT INT TERM
+ytm=$tmp/ytm
+started=
+cleanup() {
+	[ -z "$started" ] || "$ytm" daemon stop >/dev/null 2>&1 || :
+	rm -rf "$tmp"
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
+
+go build -tags "$tags" -o "$tmp/ytmd" ./cmd/ytmd
+go build -tags "$tags" -o "$ytm" ./cmd/ytm
+YTMD_PATH=$tmp/ytmd
+export YTMD_PATH
+# Exit code 3: none running, so the app starts this one.
+"$ytm" daemon status >/dev/null 2>&1 || [ $? != 3 ] || started=1
 
 # An app bundle, opened as the Finder would: macOS gives the focus to an
 # app the user launches, and keeps it from one a shell starts.
 app=$tmp/YT\ Music\ Footprint.app
 mkdir -p "$app/Contents/MacOS"
-go build -tags "$tags" -o "$app/Contents/MacOS/yt-music-player" ./cmd/desktop
+go build -tags "memprof,$tags" -o "$app/Contents/MacOS/yt-music-player" ./cmd/desktop
 cat >"$app/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -91,7 +110,7 @@ echo "footprint.sh: measuring ($source), about 70 seconds: click the window if i
 
 # Port 0: no clash with another memprof build's pprof (docs/performance.md).
 open -n -F -W --env YT_HARNESS=footprint --env MYGO_FRAME_STATS=all \
-	--env YT_PPROF_ADDR=127.0.0.1:0 \
+	--env YT_PPROF_ADDR=127.0.0.1:0 --env YTMD_PATH="$YTMD_PATH" \
 	--stdout "$tmp/report.txt" --stderr "$tmp/log.txt" "$app" &
 pid=$!
 # Its own sleep, stopped with it, so that no child holds the output open.

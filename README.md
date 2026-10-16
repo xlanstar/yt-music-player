@@ -37,16 +37,16 @@ If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is on your `PATH`, it's used for s
 Requires Go 1.27+.
 
 ```sh
-go run ./cmd/desktop           # run the app
+scripts/dev.sh                 # run the app, with the background player (ytmd) it starts
 go tool mygo build             # build for this system into build/
 ```
 
 ## Development
 
 ```sh
-go run -tags placeholder ./cmd/desktop   # offline fake catalog, no audio
-YT_SOURCE_DELAY=800ms go run -tags placeholder ./cmd/desktop   # with loading states
-YT_LOG=debug go run ./cmd/desktop        # why fetches, sign-ins or streams failed
+scripts/dev.sh -placeholder              # offline fake catalog, no audio
+YT_SOURCE_DELAY=800ms scripts/dev.sh -placeholder   # with loading states
+YT_LOG=debug scripts/dev.sh              # why fetches, sign-ins or streams failed
 prek run --all-files                     # every check; must pass
 ```
 
