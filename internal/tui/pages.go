@@ -201,7 +201,7 @@ func (m *model) accountPage(res fetchstate.Resource, failed string) (page, bool)
 	case fetchstate.Loaded:
 		return page{}, true
 	case fetchstate.SignedOut:
-		return page{title: m.words.notSignedIn}, false
+		return m.signedOutPage(), false
 	case fetchstate.Failed:
 		return page{
 			title: failed, detail: m.why(f.Err), hint: keyHint("enter", m.words.retry),
@@ -209,6 +209,14 @@ func (m *model) accountPage(res fetchstate.Resource, failed string) (page, bool)
 		}, false
 	}
 	return page{title: m.words.loading}, false
+}
+
+func (m *model) signedOutPage() page {
+	return page{
+		title:  m.words.signedOutTitle,
+		detail: m.words.signedOutDetail,
+		hint:   keyHint("o", m.words.openDesktop),
+	}
 }
 
 // collectionPage shows an album, a playlist or Liked music: Play all,

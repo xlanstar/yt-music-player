@@ -106,19 +106,23 @@ func fitStyled(s string, w int) string {
 	return truncate(s, w)
 }
 
-// appendBody adds the shown page in exactly h lines.
+// appendBody adds the shown page, or the help, in exactly h lines.
 func (m *model) appendBody(lines []string, w, h int) []string {
 	start := len(lines)
-	p := m.page()
-	for _, line := range p.header {
-		lines = append(lines, fitStyled(line, w))
-	}
-	rows := h - len(p.header)
-	switch {
-	case p.title != "":
-		lines = appendMessage(lines, w, &p)
-	case p.list != nil:
-		lines = m.appendList(lines, w, rows, &p)
+	if m.isHelp {
+		lines = m.appendHelp(lines, w, h)
+	} else {
+		p := m.page()
+		for _, line := range p.header {
+			lines = append(lines, fitStyled(line, w))
+		}
+		rows := h - len(p.header)
+		switch {
+		case p.title != "":
+			lines = appendMessage(lines, w, &p)
+		case p.list != nil:
+			lines = m.appendList(lines, w, rows, &p)
+		}
 	}
 	if len(lines)-start > h {
 		lines = lines[:start+h]
@@ -154,6 +158,45 @@ func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 	return lines
 }
 
+// appendHelp adds the keys and what they do in h lines, in as many
+// columns as that takes, each as wide as its text.
+func (m *model) appendHelp(lines []string, w, h int) []string {
+	lines = append(lines, "", " "+styleBold.Render(fit(m.words.helpTitle, w-2)))
+	keys := m.words.helpKeys
+	rows := max(h-2, 1)
+	cols := (len(keys) + rows - 1) / rows
+	rows = (len(keys) + cols - 1) / cols
+	keyWidth := 0
+	for _, k := range keys {
+		keyWidth = max(keyWidth, width(k.keys))
+	}
+	doesWidth := make([]int, cols)
+	for i, k := range keys {
+		doesWidth[i/rows] = max(doesWidth[i/rows], width(k.does))
+	}
+	for r := range rows {
+		var b strings.Builder
+		left := w
+		for c := range cols {
+			i := c*rows + r
+			if i >= len(keys) || left <= 0 {
+				break
+			}
+			key := fit("   "+pad(keys[i].keys, keyWidth)+"  ", left)
+			left -= width(key)
+			does := fit(keys[i].does, max(left, 0))
+			if c < cols-1 {
+				does = pad(does, min(doesWidth[c], max(left, 0)))
+			}
+			left -= width(does)
+			b.WriteString(styleKey.Render(key))
+			b.WriteString(does)
+		}
+		lines = append(lines, b.String())
+	}
+	return lines
+}
+
 // keyHint shows a key and what it does.
 func keyHint(key, does string) string { return styleKey.Render(key) + " " + does }
 
@@ -185,7 +228,7 @@ func (m *model) banner(w int) string {
 }
 
 // appendBar adds the player bar: the current song, its progress, and
-// the status line (shuffle, repeat, volume; a notice).
+// the status line (shuffle, repeat, volume; a notice, or the help key).
 func (m *model) appendBar(lines []string, w int) []string {
 	st := m.mirror.State()
 	lines = append(lines, styleMuted.Render(strings.Repeat("─", w)))
@@ -210,11 +253,16 @@ func (m *model) appendBar(lines []string, w int) []string {
 		}
 		lines = append(lines, spread(title, heart, w), m.progress(st, w))
 	}
-	right := ""
+	right := keyHint("?", m.words.help) + " "
 	if m.notice != "" {
 		right = styleAccent.Render(fit(m.notice, max(w*2/3, 1))) + " "
 	}
-	return append(lines, spread(" "+styleMuted.Render(m.status(st)), right, w))
+	status := ""
+	if m.link.Connection > 0 {
+		// Before any daemon spoke, its volume is no one's.
+		status = m.status(st)
+	}
+	return append(lines, spread(" "+styleMuted.Render(status), right, w))
 }
 
 // progress is the current song's time, as a bar between its elapsed and

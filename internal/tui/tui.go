@@ -56,6 +56,9 @@ type Config struct {
 	// DaemonLog is the path of ytmd's log, shown when it cannot be
 	// reached.
 	DaemonLog string
+	// OpenDesktop opens the Desktop app, for a signed-out user; nil is
+	// the platform's way.
+	OpenDesktop func() error
 	// Input and Output are the terminal's; nil are stdin and stdout.
 	Input  io.Reader
 	Output io.Writer
@@ -110,16 +113,21 @@ func newApp(cfg Config) *app {
 	states := &fetchstate.Registry{}
 	cat := catalog.New(nil, nil, nil)
 	load := loader.New(c, states, cat, posts.post)
+	open := cfg.OpenDesktop
+	if open == nil {
+		open = openDesktop
+	}
 	m.deps = deps{
-		ctl:       c,
-		mirror:    c.Mirror(),
-		session:   session.New(session.NewRemote(c), states, load, cat),
-		loader:    load,
-		cat:       cat,
-		states:    states,
-		posts:     posts,
-		now:       time.Now,
-		daemonLog: cfg.DaemonLog,
+		ctl:         c,
+		mirror:      c.Mirror(),
+		session:     session.New(session.NewRemote(c), states, load, cat),
+		loader:      load,
+		cat:         cat,
+		states:      states,
+		posts:       posts,
+		now:         time.Now,
+		openDesktop: open,
+		daemonLog:   cfg.DaemonLog,
 	}
 	sup := remote.Supervise(c, remote.Options{
 		Role: api.RoleTUI, Version: cfg.Version, Dialer: cfg.Dialer, Spawn: cfg.Spawn,

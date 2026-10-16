@@ -19,6 +19,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/egoist/mygo/i18n"
 	"github.com/rs/zerolog"
 )
 
@@ -142,6 +143,7 @@ type harness struct {
 	mirror *fakeMirror
 	sup    *fakeSup
 	daemon *fakeDaemon
+	opened int
 }
 
 // newHarness shows the placeholder's queue, paused, on an 80×24
@@ -156,15 +158,19 @@ func newHarness(t testing.TB, src catalog.Source) *harness {
 	h := &harness{t: t, ctl: &fakeCtl{}, mirror: &fakeMirror{}, sup: &fakeSup{}, daemon: &fakeDaemon{}}
 	h.mirror.setQueue(catalog.Placeholder().Songs)
 	h.m = newModel(deps{
-		ctl:       h.ctl,
-		mirror:    h.mirror,
-		sup:       h.sup,
-		session:   session.New(h.daemon, states, load, cat),
-		loader:    load,
-		cat:       cat,
-		states:    states,
-		posts:     posts,
-		now:       func() time.Time { return epoch },
+		ctl:     h.ctl,
+		mirror:  h.mirror,
+		sup:     h.sup,
+		session: session.New(h.daemon, states, load, cat),
+		loader:  load,
+		cat:     cat,
+		states:  states,
+		posts:   posts,
+		now:     func() time.Time { return epoch },
+		openDesktop: func() error {
+			h.opened++
+			return nil
+		},
 		daemonLog: "/logs/ytmd.log",
 	})
 	h.m.link = remote.Link{Health: remote.Connected, Connection: 1}
@@ -315,4 +321,12 @@ func (h *harness) screenHas(texts ...string) {
 			h.t.Errorf("the screen lacks %q:\n%s", text, s)
 		}
 	}
+}
+
+// inLanguage shows messages in lang until the test ends; make the
+// harness after.
+func inLanguage(t *testing.T, lang string) {
+	t.Helper()
+	i18n.SetLocaleFunc(func() string { return lang })
+	t.Cleanup(func() { i18n.SetLocaleFunc(func() string { return "" }) })
 }

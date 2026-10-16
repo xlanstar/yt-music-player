@@ -45,27 +45,34 @@ type words struct {
 	queue, search, library string
 	notSignedIn            string
 
-	queueEmpty, queueEmptyHint    string
-	searchTitle, searchHint       string
-	searchPlaceholder, searching  string
-	searchNoneHint                string
-	songs, albums, playlists      string
-	likedMusic, playAll           string
-	loading, retry                string
-	notFoundTitle, notFoundDetail string
-	nothingHereYet, likedEmpty    string
-	libraryFailed, likesFailed    string
-	albumFailed, playlistFailed   string
+	queueEmpty, queueEmptyHint      string
+	searchTitle, searchHint         string
+	searchPlaceholder, searching    string
+	searchNoneHint                  string
+	songs, albums, playlists        string
+	likedMusic, playAll             string
+	loading, retry                  string
+	notFoundTitle, notFoundDetail   string
+	nothingHereYet, likedEmpty      string
+	libraryFailed, likesFailed      string
+	albumFailed, playlistFailed     string
+	signedOutTitle, signedOutDetail string
+	openDesktop, openDesktopFailed  string
 
 	nothingPlaying              string
 	shuffleOn                   string
 	repeatAll, rOne             string
-	restart                     string
+	help, restart               string
 	connecting, reconnecting    string
 	unresponsive, unavailable   string
+	helpTitle                   string
+	helpKeys                    []helpKey
 	whyDisconnected, whyTimeout string
 	whySignedOut, whyCanceled   string
 }
+
+// helpKey is a line of the help: keys and what they do.
+type helpKey struct{ keys, does string }
 
 func newWords() words {
 	return words{
@@ -95,19 +102,43 @@ func newWords() words {
 		likesFailed:       locales.LikesFailed(),
 		albumFailed:       locales.AlbumFailed(),
 		playlistFailed:    locales.PlaylistFailed(),
+		signedOutTitle:    locales.TuiSignedOutTitle(),
+		signedOutDetail:   locales.TuiSignedOutDetail(),
+		openDesktop:       locales.TuiOpenDesktop(),
+		openDesktopFailed: locales.TuiOpenDesktopFailed(),
 		nothingPlaying:    locales.TuiNothingPlaying(),
 		shuffleOn:         locales.CliShuffleOn(),
 		repeatAll:         locales.RepeatAll(),
 		rOne:              locales.RepeatOne(),
+		help:              locales.TuiHelp(),
 		restart:           locales.TuiRestart(),
 		connecting:        locales.TuiConnecting(),
 		reconnecting:      locales.TuiReconnecting(),
 		unresponsive:      locales.TuiUnresponsive(),
 		unavailable:       locales.TuiUnavailable(),
-		whyDisconnected:   locales.CliWhyDisconnected(),
-		whyTimeout:        locales.CliWhyTimeout(),
-		whySignedOut:      locales.CliWhySignedOut(),
-		whyCanceled:       locales.CliWhyCanceled(),
+		helpTitle:         locales.TuiHelpTitle(),
+		helpKeys: []helpKey{
+			{"space", locales.TuiHelpToggle()},
+			{"n / p", locales.TuiHelpNext()},
+			{"← / →", locales.TuiHelpSeek()},
+			{"+ / -", locales.TuiHelpVolume()},
+			{"s", locales.TuiHelpShuffle()},
+			{"r", locales.TuiHelpRepeat()},
+			{"↑ / ↓", locales.TuiHelpSelect()},
+			{"enter", locales.TuiHelpPlay()},
+			{"a", locales.TuiHelpAdd()},
+			{"l", locales.TuiHelpLike()},
+			{"/", locales.TuiHelpSearch()},
+			{"tab", locales.TuiHelpTab()},
+			{"esc", locales.TuiHelpBack()},
+			{"R", locales.TuiHelpRetry()},
+			{"?", locales.TuiHelpHelp()},
+			{"q", locales.TuiHelpQuit()},
+		},
+		whyDisconnected: locales.CliWhyDisconnected(),
+		whyTimeout:      locales.CliWhyTimeout(),
+		whySignedOut:    locales.CliWhySignedOut(),
+		whyCanceled:     locales.CliWhyCanceled(),
 	}
 }
 

@@ -22,6 +22,15 @@ func fit(s string, w int) string {
 	return ansi.Truncate(s, w, ellipsis)
 }
 
+// pad fits s to w cells and fills the rest with spaces.
+func pad(s string, w int) string {
+	s = fit(s, w)
+	if n := w - ansi.StringWidth(s); n > 0 {
+		return s + strings.Repeat(" ", n)
+	}
+	return s
+}
+
 // width is s's display width; s may hold styles.
 func width(s string) int { return ansi.StringWidth(s) }
 

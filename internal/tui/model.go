@@ -69,6 +69,9 @@ type deps struct {
 	posts   *poster
 	// now is the clock the progress reads.
 	now func() time.Time
+	// openDesktop opens the Desktop app; it may block, so it runs as a
+	// tea.Cmd.
+	openDesktop func() error
 	// daemonLog is the path of ytmd's log, shown when it fails.
 	daemonLog string
 }
@@ -89,6 +92,7 @@ type model struct {
 
 	width, height int
 	tab           tab
+	isHelp        bool
 	// isBlurred holds once the terminal said it lost focus; one that
 	// reports no focus counts as focused.
 	isBlurred bool
@@ -126,6 +130,9 @@ type tickMsg struct{}
 // clearNoticeMsg ends the notice seq.
 type clearNoticeMsg struct{ seq uint64 }
 
+// openedDesktopMsg is how opening the Desktop app went.
+type openedDesktopMsg struct{ err error }
+
 func newModel(d deps) *model {
 	return &model{deps: d, words: newWords(), queueFollows: true}
 }
@@ -161,6 +168,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.notice = ""
+	case openedDesktopMsg:
+		if msg.err == nil {
+			return m, nil
+		}
+		m.say(locales.CliFailed(m.words.openDesktopFailed, m.why(msg.err)))
 	case tea.PasteMsg:
 		if !m.isTyping {
 			return m, nil
@@ -282,6 +294,14 @@ func (m *model) key(k tea.KeyPressMsg) (ok bool, cmd tea.Cmd) {
 	if ok, cmd := m.playbackKey(s); ok {
 		return true, cmd
 	}
+	if m.isHelp {
+		switch s {
+		case "?", "esc", "backspace":
+			m.isHelp = false
+			return true, nil
+		}
+		return false, nil
+	}
 	return m.browseKey(s)
 }
 
@@ -290,6 +310,8 @@ func (m *model) playbackKey(s string) (ok bool, cmd tea.Cmd) {
 	switch s {
 	case "q":
 		return true, tea.Quit
+	case "?":
+		m.isHelp = !m.isHelp
 	case "space":
 		m.ctl.Toggle()
 	case "n":
@@ -310,6 +332,12 @@ func (m *model) playbackKey(s string) (ok bool, cmd tea.Cmd) {
 		m.ctl.CycleRepeat()
 	case "R":
 		return m.retryDaemon(), nil
+	case "o":
+		if !m.isSignedOut() {
+			return false, nil
+		}
+		open := m.openDesktop
+		return true, func() tea.Msg { return openedDesktopMsg{err: open()} }
 	default:
 		return false, nil
 	}

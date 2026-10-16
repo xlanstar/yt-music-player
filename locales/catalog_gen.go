@@ -2584,6 +2584,72 @@ func (msgs Messages) TuiQueuedSongs(count int) string {
 	return Catalog.Format(msgs.locale, "tuiQueuedSongs", map[string]any{"count": count})
 }
 
+// TuiSignedOutTitle says "You’re not signed in"
+// in the language the app shows.
+func TuiSignedOutTitle() string { return In(i18n.Locale()).TuiSignedOutTitle() }
+
+// TuiSignedOutTitle says "You’re not signed in"
+// in the language of msgs.
+func (msgs Messages) TuiSignedOutTitle() string {
+	return Catalog.Format(msgs.locale, "tuiSignedOutTitle", nil)
+}
+
+// TuiSignedOutDetail says "Sign in from the Desktop app, or run “ytm login” in a terminal."
+// in the language the app shows.
+//
+// The terminal player without an account. “ytm login” is a command,
+// untranslated.
+func TuiSignedOutDetail() string { return In(i18n.Locale()).TuiSignedOutDetail() }
+
+// TuiSignedOutDetail says "Sign in from the Desktop app, or run “ytm login” in a terminal."
+// in the language of msgs.
+//
+// The terminal player without an account. “ytm login” is a command,
+// untranslated.
+func (msgs Messages) TuiSignedOutDetail() string {
+	return Catalog.Format(msgs.locale, "tuiSignedOutDetail", nil)
+}
+
+// TuiOpenDesktop says "Open the Desktop app"
+// in the language the app shows.
+//
+// After the key o, which opens YT Music Player's window from the terminal
+// player.
+func TuiOpenDesktop() string { return In(i18n.Locale()).TuiOpenDesktop() }
+
+// TuiOpenDesktop says "Open the Desktop app"
+// in the language of msgs.
+//
+// After the key o, which opens YT Music Player's window from the terminal
+// player.
+func (msgs Messages) TuiOpenDesktop() string {
+	return Catalog.Format(msgs.locale, "tuiOpenDesktop", nil)
+}
+
+// TuiOpenDesktopFailed says "Couldn’t open the Desktop app"
+// in the language the app shows.
+func TuiOpenDesktopFailed() string { return In(i18n.Locale()).TuiOpenDesktopFailed() }
+
+// TuiOpenDesktopFailed says "Couldn’t open the Desktop app"
+// in the language of msgs.
+func (msgs Messages) TuiOpenDesktopFailed() string {
+	return Catalog.Format(msgs.locale, "tuiOpenDesktopFailed", nil)
+}
+
+// TuiHelp says "Help"
+// in the language the app shows.
+//
+// After the key ?, in the terminal player's status line.
+func TuiHelp() string { return In(i18n.Locale()).TuiHelp() }
+
+// TuiHelp says "Help"
+// in the language of msgs.
+//
+// After the key ?, in the terminal player's status line.
+func (msgs Messages) TuiHelp() string {
+	return Catalog.Format(msgs.locale, "tuiHelp", nil)
+}
+
 // TuiRestart says "Restart"
 // in the language the app shows.
 //
@@ -2678,4 +2744,182 @@ func TuiFrontendOutdated(daemon string, ours string) string {
 // in the language of msgs.
 func (msgs Messages) TuiFrontendOutdated(daemon string, ours string) string {
 	return Catalog.Format(msgs.locale, "tuiFrontendOutdated", map[string]any{"daemon": daemon, "ours": ours})
+}
+
+// TuiHelpTitle says "Keys"
+// in the language the app shows.
+//
+// The title of the terminal player's help, a list of keys and what they do.
+func TuiHelpTitle() string { return In(i18n.Locale()).TuiHelpTitle() }
+
+// TuiHelpTitle says "Keys"
+// in the language of msgs.
+//
+// The title of the terminal player's help, a list of keys and what they do.
+func (msgs Messages) TuiHelpTitle() string {
+	return Catalog.Format(msgs.locale, "tuiHelpTitle", nil)
+}
+
+// TuiHelpToggle says "Play or pause"
+// in the language the app shows.
+func TuiHelpToggle() string { return In(i18n.Locale()).TuiHelpToggle() }
+
+// TuiHelpToggle says "Play or pause"
+// in the language of msgs.
+func (msgs Messages) TuiHelpToggle() string {
+	return Catalog.Format(msgs.locale, "tuiHelpToggle", nil)
+}
+
+// TuiHelpNext says "Next or previous song"
+// in the language the app shows.
+func TuiHelpNext() string { return In(i18n.Locale()).TuiHelpNext() }
+
+// TuiHelpNext says "Next or previous song"
+// in the language of msgs.
+func (msgs Messages) TuiHelpNext() string {
+	return Catalog.Format(msgs.locale, "tuiHelpNext", nil)
+}
+
+// TuiHelpSeek says "Back or forward 5 seconds"
+// in the language the app shows.
+func TuiHelpSeek() string { return In(i18n.Locale()).TuiHelpSeek() }
+
+// TuiHelpSeek says "Back or forward 5 seconds"
+// in the language of msgs.
+func (msgs Messages) TuiHelpSeek() string {
+	return Catalog.Format(msgs.locale, "tuiHelpSeek", nil)
+}
+
+// TuiHelpVolume says "Volume up or down"
+// in the language the app shows.
+func TuiHelpVolume() string { return In(i18n.Locale()).TuiHelpVolume() }
+
+// TuiHelpVolume says "Volume up or down"
+// in the language of msgs.
+func (msgs Messages) TuiHelpVolume() string {
+	return Catalog.Format(msgs.locale, "tuiHelpVolume", nil)
+}
+
+// TuiHelpShuffle says "Shuffle on or off"
+// in the language the app shows.
+func TuiHelpShuffle() string { return In(i18n.Locale()).TuiHelpShuffle() }
+
+// TuiHelpShuffle says "Shuffle on or off"
+// in the language of msgs.
+func (msgs Messages) TuiHelpShuffle() string {
+	return Catalog.Format(msgs.locale, "tuiHelpShuffle", nil)
+}
+
+// TuiHelpRepeat says "Repeat off, all or one"
+// in the language the app shows.
+func TuiHelpRepeat() string { return In(i18n.Locale()).TuiHelpRepeat() }
+
+// TuiHelpRepeat says "Repeat off, all or one"
+// in the language of msgs.
+func (msgs Messages) TuiHelpRepeat() string {
+	return Catalog.Format(msgs.locale, "tuiHelpRepeat", nil)
+}
+
+// TuiHelpSelect says "Select"
+// in the language the app shows.
+func TuiHelpSelect() string { return In(i18n.Locale()).TuiHelpSelect() }
+
+// TuiHelpSelect says "Select"
+// in the language of msgs.
+func (msgs Messages) TuiHelpSelect() string {
+	return Catalog.Format(msgs.locale, "tuiHelpSelect", nil)
+}
+
+// TuiHelpPlay says "Play, open or retry"
+// in the language the app shows.
+func TuiHelpPlay() string { return In(i18n.Locale()).TuiHelpPlay() }
+
+// TuiHelpPlay says "Play, open or retry"
+// in the language of msgs.
+func (msgs Messages) TuiHelpPlay() string {
+	return Catalog.Format(msgs.locale, "tuiHelpPlay", nil)
+}
+
+// TuiHelpAdd says "Add to the queue"
+// in the language the app shows.
+func TuiHelpAdd() string { return In(i18n.Locale()).TuiHelpAdd() }
+
+// TuiHelpAdd says "Add to the queue"
+// in the language of msgs.
+func (msgs Messages) TuiHelpAdd() string {
+	return Catalog.Format(msgs.locale, "tuiHelpAdd", nil)
+}
+
+// TuiHelpLike says "Like or unlike"
+// in the language the app shows.
+func TuiHelpLike() string { return In(i18n.Locale()).TuiHelpLike() }
+
+// TuiHelpLike says "Like or unlike"
+// in the language of msgs.
+func (msgs Messages) TuiHelpLike() string {
+	return Catalog.Format(msgs.locale, "tuiHelpLike", nil)
+}
+
+// TuiHelpSearch says "Search"
+// in the language the app shows.
+func TuiHelpSearch() string { return In(i18n.Locale()).TuiHelpSearch() }
+
+// TuiHelpSearch says "Search"
+// in the language of msgs.
+func (msgs Messages) TuiHelpSearch() string {
+	return Catalog.Format(msgs.locale, "tuiHelpSearch", nil)
+}
+
+// TuiHelpTab says "Queue, Search, Library"
+// in the language the app shows.
+//
+// What the tab key does: switch between the three tabs, named as they show.
+func TuiHelpTab() string { return In(i18n.Locale()).TuiHelpTab() }
+
+// TuiHelpTab says "Queue, Search, Library"
+// in the language of msgs.
+//
+// What the tab key does: switch between the three tabs, named as they show.
+func (msgs Messages) TuiHelpTab() string {
+	return Catalog.Format(msgs.locale, "tuiHelpTab", nil)
+}
+
+// TuiHelpBack says "Back, or stop typing"
+// in the language the app shows.
+func TuiHelpBack() string { return In(i18n.Locale()).TuiHelpBack() }
+
+// TuiHelpBack says "Back, or stop typing"
+// in the language of msgs.
+func (msgs Messages) TuiHelpBack() string {
+	return Catalog.Format(msgs.locale, "tuiHelpBack", nil)
+}
+
+// TuiHelpRetry says "Reconnect, or restart the background player"
+// in the language the app shows.
+func TuiHelpRetry() string { return In(i18n.Locale()).TuiHelpRetry() }
+
+// TuiHelpRetry says "Reconnect, or restart the background player"
+// in the language of msgs.
+func (msgs Messages) TuiHelpRetry() string {
+	return Catalog.Format(msgs.locale, "tuiHelpRetry", nil)
+}
+
+// TuiHelpHelp says "Show or hide the keys"
+// in the language the app shows.
+func TuiHelpHelp() string { return In(i18n.Locale()).TuiHelpHelp() }
+
+// TuiHelpHelp says "Show or hide the keys"
+// in the language of msgs.
+func (msgs Messages) TuiHelpHelp() string {
+	return Catalog.Format(msgs.locale, "tuiHelpHelp", nil)
+}
+
+// TuiHelpQuit says "Quit; the music plays on"
+// in the language the app shows.
+func TuiHelpQuit() string { return In(i18n.Locale()).TuiHelpQuit() }
+
+// TuiHelpQuit says "Quit; the music plays on"
+// in the language of msgs.
+func (msgs Messages) TuiHelpQuit() string {
+	return Catalog.Format(msgs.locale, "tuiHelpQuit", nil)
 }

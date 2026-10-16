@@ -254,6 +254,53 @@ func TestLibraryStates(t *testing.T) {
 	}
 }
 
+func TestSignedOut(t *testing.T) {
+	h := placeholderHarness(t)
+	h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
+	h.press("shift+tab")
+	h.golden("signed-out")
+
+	cmd := h.press("o")
+	if cmd == nil {
+		t.Fatal("o did nothing")
+	}
+	h.send(runCmd(cmd))
+	if h.opened != 1 {
+		t.Errorf("opened the Desktop %d times", h.opened)
+	}
+	h.m.openDesktop = func() error { return errors.New("no such app") }
+	h.send(runCmd(h.press("o")))
+	h.screenHas("Couldn’t open the Desktop app: no such app")
+
+	// Liking asks to sign in.
+	h.press("tab", "l")
+	h.screenHas("Sign in to like songs")
+}
+
+// runCmd runs cmd, maybe a batch, and returns the message it makes that
+// is not a timer's.
+func runCmd(cmd tea.Cmd) tea.Msg {
+	msg := cmd()
+	if batch, ok := msg.(tea.BatchMsg); ok {
+		for _, c := range batch {
+			if c == nil {
+				continue
+			}
+			if m, ok := c().(openedDesktopMsg); ok {
+				return m
+			}
+		}
+	}
+	return msg
+}
+
+func TestSignedInOnlyOpens(t *testing.T) {
+	h := placeholderHarness(t)
+	if cmd := h.press("o"); cmd != nil || h.opened != 0 {
+		t.Error("o opened the Desktop for a signed-in user")
+	}
+}
+
 func TestCollectionStates(t *testing.T) {
 	src := &failing{PlaceholderSource: catalog.NewPlaceholderSource(0), err: errors.New("the network is down")}
 	h := newHarness(t, src)
@@ -272,6 +319,24 @@ func TestCollectionStates(t *testing.T) {
 	h.send(postedMsg{})
 	h.loaded()
 	h.golden("playlist-missing")
+}
+
+func TestHelp(t *testing.T) {
+	h := placeholderHarness(t)
+	h.press("?")
+	h.golden("help")
+	// Playback keys still work; browsing keys wait.
+	h.press("space", "down")
+	if got := h.ctl.take(); !reflect.DeepEqual(got, []string{"Toggle"}) {
+		t.Errorf("sent %q", got)
+	}
+	h.press("esc")
+	if h.m.isHelp {
+		t.Error("esc left the help open")
+	}
+	h.resize(100, 14)
+	h.press("?")
+	h.golden("help-columns")
 }
 
 func TestHealth(t *testing.T) {
@@ -380,6 +445,20 @@ func TestPaste(t *testing.T) {
 	if h.m.query != "paper moons" {
 		t.Errorf("pasted %q", h.m.query)
 	}
+}
+
+func TestTraditionalChinese(t *testing.T) {
+	inLanguage(t, "zh-Hant")
+	h := placeholderHarness(t)
+	h.mirror.state.Repeat = api.RepeatOne
+	h.send(postedMsg{})
+	h.golden("queue-zh-Hant")
+	h.press("?")
+	h.golden("help-zh-Hant")
+	h.press("?", "shift+tab")
+	h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
+	h.send(postedMsg{})
+	h.golden("signed-out-zh-Hant")
 }
 
 // Titles are cut by their width on screen: wide characters take two

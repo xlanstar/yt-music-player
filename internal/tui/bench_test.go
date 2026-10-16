@@ -6,7 +6,8 @@ import (
 )
 
 // viewCases are screens as Update renders them: a long queue playing
-// (which draws only the rows that show), the library and search results. allocs is each one's budget (TestBudgetView).
+// (which draws only the rows that show), the library, search results and
+// the help. allocs is each one's budget (TestBudgetView).
 var viewCases = []struct {
 	name    string
 	prepare func(h *harness)
@@ -28,6 +29,8 @@ var viewCases = []struct {
 		h.loaded()
 		h.press("esc")
 	}, 102},
+	// 98 allocs today.
+	{"help", func(h *harness) { h.press("?") }, 113},
 }
 
 // viewing is a screen of tc, rendered once.
