@@ -28,7 +28,8 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `fetchstate`: `Resource` and `Fetch` state; the `Registry` pages read (`a.fetches`).
 - `notice`: messages for the user, made by session and playback, as codes and arguments; `noticetext`: their words, which `tell` shows (`Render`).
 - `loader`: page fetches (album, playlist, feeds, search) for the page shown.
-- `session`: account, library and likes (every like through `SetLiked`), sign-in/out.
+- `account`: sign-in/out, fetching the account, library and likes, sending likes; reports changes as plain values and holds no UI state, so a process without a window can own it.
+- `session`: what `account` reports, as pages read it (fetch states, the catalog, notices); every like through `SetLiked`, shown at once and undone on failure.
 - `auth`: browser-cookie credentials and their store (Keychain on macOS).
 - `innertube`: InnerTube transport; knows nothing about music.
 - `ytmusic`: `catalog.Source` over InnerTube, after ytmusicapi. Song = videoId, Album = `MPREb_…`, Playlist = playlistId without `VL`. Responses decode into the structs of `response.go`. Tests are offline against `testdata/`.
@@ -42,7 +43,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 - `main.go` (the window, the menu bar, the updater plugin), `source.go` (`newSource`; `source_placeholder.go` under the `placeholder` tag), `log.go`, `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online, what failed is fetched again).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
-- `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
+- `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (account and session wiring, `tell`: the one path for every notice), `playback.go`, `appearance.go`.
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.
 - Pages: `home.go`, `explore.go`, `library.go`, `collection.go`, `search.go`. Chrome: `sidebar.go`, `topbar.go`, `playerbar.go`, `nowplaying.go`.
 - `rows.go` (the one song row), `widgets.go`, `theme.go` (`th`), `art.go`, `icons.go` + `icons/` (Lucide SVGs, embedded; `mygo.json` ships them too), `phrase.go` (messages of string arguments in one allocation).
@@ -58,7 +59,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 ### Threading
 
 - Never call a `Source` or touch `a.cat` (or the player) from a goroutine: fetch off-thread with `job.Run`, whose `done` runs on the UI thread through `post`, dropped when stale, and merges.
-- Goroutines return plain values; loader, session, playback, artwork and settings change shared state only in posted funcs.
+- Goroutines return plain values; loader, account, playback, artwork and settings change shared state only in posted funcs.
 
 ### UI
 
@@ -92,7 +93,7 @@ Reasons and measurements: `docs/performance.md`.
 - No window, no network, no disk cache, no config dir.
 - Apps: `testApp()`/`sourceApp(src)`, `idleApp()` (feeds preloaded), `scriptedApp()` (only opened pages ask), `anonApp()`, `accountApp()` (over `catalogtest.Accounts`), `playbackApp(res)` (on `audio.Fake`), `lookApp(t, prepare)` (settings in a `TempDir`). Tests show English; `inLanguage(t, "zh-Hant")` switches.
 - `newScreen`/`showApp` show one on a Tester that counts builds; `settleLoads`/`busy` wait for fetches, thumbnails and the session; scripted sources wait drawing frames: `src.Next(t, tt.Frame, …)`, `Take`, `None`.
-- Loader, session, playback, job and settings logic is tested in their packages.
+- Loader, account, session, playback, job and settings logic is tested in their packages.
 
 ### Benchmarks and budgets
 

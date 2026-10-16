@@ -243,6 +243,12 @@ BenchmarkMemo/CachedCollection/playlist/miss-16 ns/op 317.3 317.1 318.2 313.4 31
 BenchmarkMemo/CachedCollection/playlist/miss-16 B/op 792
 BenchmarkMemo/CachedCollection/playlist/miss-16 allocs/op 2
 
+pkg: yt-music-player/internal/account
+BenchmarkCleanCredentials-16 ns/op 2699 2755 2734 2725 2738 2723
+BenchmarkCleanCredentials-16 MB/s 727.21 712.56 717.99 720.32 716.91 720.95
+BenchmarkCleanCredentials-16 B/op 2048
+BenchmarkCleanCredentials-16 allocs/op 1
+
 pkg: yt-music-player/internal/artwork
 BenchmarkBucket/96-16 ns/op 3.212 3.200 3.159 3.167 3.187 3.193
 BenchmarkBucket/96-16 B/op 0
@@ -774,10 +780,6 @@ BenchmarkSetLiked-16 allocs/op 2
 BenchmarkRetry-16 ns/op 1311 1298 1310 1299 1300 1289
 BenchmarkRetry-16 B/op 1136
 BenchmarkRetry-16 allocs/op 11
-BenchmarkCleanCredentials-16 ns/op 2699 2755 2734 2725 2738 2723
-BenchmarkCleanCredentials-16 MB/s 727.21 712.56 717.99 720.32 716.91 720.95
-BenchmarkCleanCredentials-16 B/op 2048
-BenchmarkCleanCredentials-16 allocs/op 1
 
 pkg: yt-music-player/internal/settings
 BenchmarkLoad-16 ns/op 14333 14132 13951 14110 14175 14104

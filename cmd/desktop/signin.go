@@ -3,6 +3,7 @@ package main
 import (
 	"runtime"
 	"strconv"
+	"yt-music-player/internal/account"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/theme"
@@ -28,15 +29,15 @@ func (a *app) accountButton(c *ui.Context) {
 		}
 		return
 	}
-	account, name := a.session.Account(), a.session.DisplayName()
+	user, name := a.session.Account(), a.session.DisplayName()
 	button := ui.ButtonBase(c.Key("account")).Size(34, 34).Radius(17).Center().Margin(0, 0, 0, th.Space(1.5)).
-		Label(account.Name).Cursor(ui.CursorPointer).KeepFocus()
+		Label(user.Name).Cursor(ui.CursorPointer).KeepFocus()
 	tip(c, button, name, "")
 	button.Children(func() {
-		if isURL(account.Photo) {
-			coverArt(c, account.Photo, 34, 34, 17)
+		if isURL(user.Photo) {
+			coverArt(c, user.Photo, 34, 34, 17)
 		} else {
-			ui.Avatar(c, account.Name, nil).Size(34, 34)
+			ui.Avatar(c, user.Name, nil).Size(34, 34)
 		}
 	})
 	button.Menu(func(m *ui.Menu) {
@@ -124,7 +125,7 @@ func (a *app) signInSheet(c *ui.Context) {
 func (a *app) noCredentials() bool {
 	m := &a.memo.noCredentials
 	if m.stale(a.sheet.credentials) {
-		m.v = session.CleanCredentials(a.sheet.credentials) == ""
+		m.v = account.CleanCredentials(a.sheet.credentials) == ""
 	}
 	return m.v
 }

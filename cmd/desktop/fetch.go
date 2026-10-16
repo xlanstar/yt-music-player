@@ -82,7 +82,7 @@ func (a *app) stopWork() {
 	if a.art != nil {
 		a.art.Close()
 	}
-	a.session.Stop()
+	a.account.Stop()
 	a.playback.Stop()
 	a.look.scan.Stop()
 	a.look.saver.Wait()

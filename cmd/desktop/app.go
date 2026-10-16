@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"yt-music-player/internal/account"
 	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
@@ -53,6 +54,7 @@ type app struct {
 	showLook func()
 	actions  actions
 
+	account *account.Account
 	session *session.Session
 	sheet   sheetState
 	memo    viewMemo
@@ -138,7 +140,7 @@ func appWith(src catalog.Source, cat *catalog.Catalog, queue *player.Player) *ap
 	}
 	a.post = a.updates.post
 	a.loader = loader.New(src, &a.fetches, cat, a.post)
-	a.session = session.New(src, &a.fetches, a.loader, cat, a.post)
+	a.connectAccount(src, cat)
 	a.playback = playback.New(cat, queue, a.post)
 	for i, path := range [...]string{pathHome, pathExplore, pathLibrary} {
 		a.goTo[i] = func() { a.router.Push(path) }

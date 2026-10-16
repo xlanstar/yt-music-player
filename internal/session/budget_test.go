@@ -1,7 +1,6 @@
 package session
 
 import (
-	"strings"
 	"testing"
 	"yt-music-player/internal/budget"
 	"yt-music-player/internal/catalog"
@@ -41,8 +40,11 @@ func TestBudgetSetLiked(t *testing.T) {
 	s, q := idleSession(t, bigLikes)
 	id := catalog.Placeholder().Songs[0].ID
 	on := !s.Liked(id)
-	// 2 allocs today: the goroutine's func and the post.
-	budget.Allocs(t, 2, 100, func() {
+	// 5 allocs today: the answer's func, the account's goroutine func and
+	// post, and the change it reports (Likes and its slice). Raised from 2
+	// when sending likes moved to package account, which reports each that
+	// went through.
+	budget.Allocs(t, 6, 100, func() {
 		likeRoundTrip(s, q, id, on)
 		on = !on
 	})
@@ -55,12 +57,4 @@ func TestBudgetRetry(t *testing.T) {
 		s.Retry(LikedRes)
 		(<-q)()
 	})
-}
-
-func TestBudgetCleanCredentials(t *testing.T) {
-	// 1 alloc today: the header collapsed onto one line.
-	budget.Allocs(t, 1, 100, func() { sinkString = CleanCredentials(cookieHeader) })
-	// 0 allocs today: on one line already, the header is its own part.
-	oneLine := strings.Join(strings.Fields(cookieHeader), " ")
-	budget.Allocs(t, 0, 100, func() { sinkString = CleanCredentials(oneLine) })
 }

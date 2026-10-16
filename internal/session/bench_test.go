@@ -2,8 +2,8 @@ package session
 
 import (
 	"strconv"
-	"strings"
 	"testing"
+	"yt-music-player/internal/account"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
@@ -30,7 +30,9 @@ func idleSession(tb testing.TB, likeCount int) (*Session, posts) {
 	post := func(fn func()) { q <- fn }
 	src := catalog.NewPlaceholderSource(0)
 	var states fetchstate.Registry
-	s := New(src, &states, loader.New(src, &states, cat, post), cat, post)
+	var s *Session
+	acct := account.New(src, post, func(c account.Change) { s.Apply(c) })
+	s = New(acct, &states, loader.New(src, &states, cat, post), cat)
 	s.Start()
 	for range Resources {
 		(<-q)()
@@ -121,7 +123,7 @@ func BenchmarkSeedLikes(b *testing.B) {
 }
 
 // likeRoundTrip is a Like click and its answer from a source that answers
-// at once, so only the session's cost is measured.
+// at once, so only the session's and the account's cost is measured.
 func likeRoundTrip(s *Session, q posts, id string, on bool) {
 	s.SetLiked(id, on)
 	(<-q)()
@@ -138,37 +140,13 @@ func BenchmarkSetLiked(b *testing.B) {
 	}
 }
 
-// BenchmarkRetry measures the job, the placeholder and the seeding, from
-// a source that answers at once.
+// BenchmarkRetry measures the account's fetch, the placeholder and the
+// seeding, from a source that answers at once.
 func BenchmarkRetry(b *testing.B) {
 	s, q := idleSession(b, 0)
 	b.ReportAllocs()
 	for b.Loop() {
 		s.Retry(LikedRes)
 		(<-q)()
-	}
-}
-
-// cookieHeader is a pasted Cookie header the size of YouTube Music's,
-// over several lines.
-var cookieHeader = func() string {
-	var sb strings.Builder
-	sb.WriteString("Cookie: ")
-	for i := range 40 {
-		sb.WriteString("NAME" + strconv.Itoa(i) + "=" + strings.Repeat("v", 40) + ";")
-		if i%8 == 7 {
-			sb.WriteString("\n ")
-		} else {
-			sb.WriteString(" ")
-		}
-	}
-	return sb.String()
-}()
-
-func BenchmarkCleanCredentials(b *testing.B) {
-	b.SetBytes(int64(len(cookieHeader)))
-	b.ReportAllocs()
-	for b.Loop() {
-		sinkString = CleanCredentials(cookieHeader)
 	}
 }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"yt-music-player/internal/account"
+	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/noticetext"
 	"yt-music-player/internal/session"
@@ -16,6 +18,14 @@ type sheetState struct {
 	credentials string
 	attempt     int
 	failure     string
+}
+
+// connectAccount makes the account, which talks to src, and the session,
+// which keeps what the account reports for the pages: in one process, a
+// report is a call.
+func (a *app) connectAccount(src catalog.Source, cat *catalog.Catalog) {
+	a.account = account.New(src, a.post, func(c account.Change) { a.session.Apply(c) })
+	a.session = session.New(a.account, &a.fetches, a.loader, cat)
 }
 
 func (a *app) syncAccount(c *ui.Context) {
@@ -72,7 +82,7 @@ func (a *app) signIn() {
 	credentials := a.sheet.credentials
 	a.sheet.credentials = ""
 	a.sheet.attempt++
-	if a.session.CanSignIn() && session.CleanCredentials(credentials) != "" {
+	if a.session.CanSignIn() && account.CleanCredentials(credentials) != "" {
 		a.sheet.failure = ""
 		a.session.SignIn(credentials)
 	}

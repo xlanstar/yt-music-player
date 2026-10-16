@@ -4,9 +4,9 @@ import (
 	"errors"
 	"reflect"
 	"slices"
-	"strings"
 	"testing"
 	"time"
+	"yt-music-player/internal/account"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 	"yt-music-player/internal/fetchstate"
@@ -18,9 +18,11 @@ import (
 // own goroutine.
 type posts chan func()
 
-// fixture is a Session over catalogtest.Accounts, which the test answers.
+// fixture is a Session over an Account over catalogtest.Accounts, which
+// the test answers.
 type fixture struct {
 	src    catalogtest.Accounts
+	acct   *account.Account
 	s      *Session
 	states fetchstate.Registry
 	load   *loader.Loader
@@ -35,7 +37,8 @@ func newFixture() *fixture {
 	}
 	post := func(fn func()) { f.q <- fn }
 	f.load = loader.New(f.src, &f.states, f.cat, post)
-	f.s = New(f.src, &f.states, f.load, f.cat, post)
+	f.acct = account.New(f.src, post, func(c account.Change) { f.s.Apply(c) })
+	f.s = New(f.acct, &f.states, f.load, f.cat)
 	// Loaded so changed can see an account change forget it.
 	f.states.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
 	return f
@@ -352,6 +355,34 @@ func TestLaterLikeDecides(t *testing.T) {
 	}
 }
 
+// Likes the account reports apply, unless the user's own like of the song
+// is pending: it is newer.
+func TestLikesReported(t *testing.T) {
+	f := signedIn(t)
+	gen := f.s.LikesGen()
+	f.s.Apply(account.Change{Likes: &account.Likes{Added: []string{"far-1"}}})
+	if f.s.LikesGen() != gen {
+		t.Error("a like the session had changed the likes")
+	}
+	f.s.SetLiked("far-2", false)
+	unlike := f.next(t, "like", "-far-2")
+	f.s.Apply(account.Change{Likes: &account.Likes{
+		Added:   []string{"far-2", "midnight-arcade"},
+		Removed: []string{"far-1"},
+	}})
+	if f.s.Liked("far-2") || !f.s.Liked("midnight-arcade") || f.s.Liked("far-1") {
+		t.Error("reported likes not applied, or applied over a pending one")
+	}
+	if got := f.s.likeOrder; !slices.Equal(got, []string{"midnight-arcade", "far-2", "far-1"}) {
+		t.Errorf("likes %q, want newest first", got)
+	}
+	unlike.Reply <- catalogtest.Reply{}
+	f.settle(t)
+	if f.s.Liked("far-2") || len(f.s.TakeNotices()) != 0 {
+		t.Error("the unlike that went through was undone")
+	}
+}
+
 func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
 	f := newFixture()
 	f.s.Start()
@@ -382,9 +413,6 @@ func TestSignIn(t *testing.T) {
 	if !f.s.CanSignIn() {
 		t.Fatal("Accounts cannot sign in")
 	}
-	// Blank credentials send nothing.
-	f.s.SignIn(" \n ")
-	f.none(t)
 	f.s.SignIn("Cookie: SID=bad;\n HSID=worse")
 	signIn := f.next(t, "signin", "SID=bad; HSID=worse")
 	if !f.s.IsSigningIn() || !f.s.IsBusy() {
@@ -417,45 +445,6 @@ func TestSignIn(t *testing.T) {
 	if len(f.cat.LibraryPlaylists()) != 1 || !f.s.Liked("far-1") {
 		t.Error("Ada's library or likes missing")
 	}
-}
-
-func TestSignInCanceled(t *testing.T) {
-	f := signedOut(t)
-	f.s.SignIn("SID=slow")
-	signIn := f.next(t, "signin", "SID=slow")
-	f.s.CancelSignIn()
-	if signIn.Ctx.Err() == nil || f.s.IsSigningIn() {
-		t.Fatal("canceling left it signing in")
-	}
-	signIn.Reply <- catalogtest.Reply{Err: signIn.Ctx.Err()}
-	f.none(t)
-	f.drain()
-	if f.s.IsSignedIn() || len(f.s.TakeNotices()) != 0 {
-		t.Error("a sign-in given up on still told")
-	}
-
-	// Credentials stored despite the cancellation still sign in.
-	f.s.SignIn("SID=raced")
-	signIn = f.next(t, "signin", "SID=raced")
-	f.s.CancelSignIn()
-	signIn.Reply <- catalogtest.Reply{Account: ada}
-	f.held(t)()
-	if !f.s.IsSignedIn() {
-		t.Error("credentials stored did not sign in")
-	}
-	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
-}
-
-func TestSignInWithoutAccounts(t *testing.T) {
-	src := catalogtest.New()
-	var states fetchstate.Registry
-	s := New(src, &states, loader.New(src, &states, nil, nil), nil, nil)
-	if s.CanSignIn() {
-		t.Error("a source without accounts signs in")
-	}
-	s.SignIn("SID=good")
-	s.SignOut()
-	src.None(t, nil, 50*time.Millisecond)
 }
 
 func TestSignOut(t *testing.T) {
@@ -545,55 +534,6 @@ func TestStaleResultsRejected(t *testing.T) {
 	if f.s.Account() != grace || len(f.cat.LibraryPlaylists()) != 0 {
 		t.Errorf("Grace's account wrong: %+v", f.s.Account())
 	}
-}
-
-func TestStop(t *testing.T) {
-	f := newFixture()
-	f.s.Start()
-	calls := f.take(t, "account", "library", "playlist LM")
-	f.s.SignIn("SID=slow")
-	signIn := f.next(t, "signin", "SID=slow")
-	f.s.Stop()
-	for name, call := range calls {
-		if call.Ctx.Err() == nil {
-			t.Errorf("%s still running", name)
-		}
-		call.Reply <- catalogtest.Reply{Err: call.Ctx.Err()}
-	}
-	if signIn.Ctx.Err() == nil || f.s.IsBusy() {
-		t.Error("stopping left work running")
-	}
-	signIn.Reply <- catalogtest.Reply{Err: signIn.Ctx.Err()}
-	f.none(t)
-	f.drain()
-}
-
-func TestCleanCredentials(t *testing.T) {
-	for _, tc := range []struct{ in, want string }{
-		{"SID=a; HSID=b", "SID=a; HSID=b"},
-		{"Cookie: SID=a;\n  HSID=b\n", "SID=a; HSID=b"},
-		{"cookie:SID=a", "SID=a"},
-		{" \n\t", ""},
-		{"Cookie:", ""},
-	} {
-		if got := CleanCredentials(tc.in); got != tc.want {
-			t.Errorf("CleanCredentials(%q) = %q, want %q", tc.in, got, tc.want)
-		}
-	}
-}
-
-// FuzzCollapseSpace holds collapseSpace to what it stands for.
-func FuzzCollapseSpace(f *testing.F) {
-	for _, s := range []string{
-		"", " ", "a", "a b", " a  b ", "a\tb", "a\nb\n", "a \u00a0b", "\u2003a\u2003", "a\xffb \xff", "a\u0085b", "Cookie: SID=a;\n  HSID=b\n",
-	} {
-		f.Add(s)
-	}
-	f.Fuzz(func(t *testing.T, s string) {
-		if got, want := collapseSpace(s), strings.Join(strings.Fields(s), " "); got != want {
-			t.Errorf("collapseSpace(%q) = %q, want %q", s, got, want)
-		}
-	})
 }
 
 func TestRetryFailed(t *testing.T) {
