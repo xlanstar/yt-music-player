@@ -153,7 +153,7 @@ func TestAppearanceArranges(t *testing.T) {
 
 // A user theme that cannot be read says why and cannot be chosen.
 func TestAppearanceUserThemes(t *testing.T) {
-	example, err := os.ReadFile("internal/theme/testdata/dusk.json")
+	example, err := os.ReadFile("../../internal/theme/testdata/dusk.json")
 	if err != nil {
 		t.Fatal(err)
 	}

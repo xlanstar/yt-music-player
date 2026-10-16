@@ -3,6 +3,10 @@
   "identifier": "dev.lanstar.ytmusicplayer",
   "version": "0.1.0",
   "out": "build",
+  "main": "./cmd/desktop",
+  "resources": [
+    "cmd/desktop/icons"
+  ],
   "i18n": {
     "dir": "locales",
     "source": "en"

@@ -7,13 +7,14 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// Lucide icons, fetched by scripts/fetch-lucide-icons.sh.
+// Lucide icons, fetched by scripts/fetch-lucide-icons.sh. mygo.json ships
+// the directory too (resources), for Lucide's LICENSE.
 //
-//go:embed resources/icons/*.svg
+//go:embed icons/*.svg
 var iconFiles embed.FS
 
 func iconData(name string) []byte {
-	data, err := iconFiles.ReadFile("resources/icons/" + name + ".svg")
+	data, err := iconFiles.ReadFile("icons/" + name + ".svg")
 	if err != nil {
 		panic(err)
 	}

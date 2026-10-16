@@ -81,7 +81,7 @@ id = "go-test-race"
 name = "Go tests (race detector)"
 language = "system"
 entry = "go test -race ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg|^locales/.+\.json)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^cmd/desktop/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
 # Allocation budgets (`budget.Allocs`) skip under -race, which allocates
@@ -91,7 +91,7 @@ id = "go-alloc-budgets"
 name = "Go allocation budgets"
 language = "system"
 entry = "go test -run Budget ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg|^locales/.+\.json)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^cmd/desktop/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
 # Every benchmark once, so that none rots between runs of
@@ -102,7 +102,7 @@ id = "go-bench-once"
 name = "Go benchmarks, each once"
 language = "system"
 entry = "go test -run '^$' -bench . -benchtime 1x ./..."
-files = '(\.go|^go\.(mod|sum)|/testdata/.+|^resources/icons/.+\.svg|^locales/.+\.json)$'
+files = '(\.go|^go\.(mod|sum)|/testdata/.+|^cmd/desktop/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
 # Only the staged SVGs, as every hook takes; scripts/fetch-lucide-icons.sh
@@ -113,4 +113,4 @@ name = "SVG compression (svgo)"
 language = "bun"
 entry = "svgo --multipass --final-newline --eol lf --quiet"
 additional_dependencies = ["svgo@4.1.0"]
-files = '^resources/.*\.svg$'
+files = '^cmd/desktop/icons/.*\.svg$'

@@ -17,6 +17,12 @@ import (
 )
 
 func main() {
+	// Unpackaged (go run, go build), MyGo names the app after its
+	// executable, which go run names after this directory: keep the name
+	// its menus, data and single-instance lock had before cmd/desktop.
+	if !mygo.App.IsPackaged() {
+		mygo.App.SetName("yt-music-player")
+	}
 	// zerolog's global level only: MyGo's own log.Printf output (frame
 	// stats) is not affected.
 	level, err := logLevel(os.Getenv("YT_LOG"))
