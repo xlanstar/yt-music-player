@@ -38,7 +38,7 @@ yt-music-player/                      一個 module
     ├── noticetext/ 已建立：notice 的代碼和參數 → locales 的文字，供前端的 tell 使用（§5.6）
     ├── version/    新增：Version（-ldflags -X 注入，預設 "dev"）
     ├── logfile/    新增：固定大小的輪替 log 寫入器
-    ├── autostart/  新增：LaunchAgent、systemd user unit、HKCU Run
+    ├── autostart/  新增：LaunchAgent、systemd user unit、HKCU Run；Windows 的 `Path` 開關（§9.3）
     ├── tui/        新增：Bubble Tea v2 的畫面
     └── （現有套件）
 ```
@@ -462,6 +462,7 @@ type Notice struct {
 - **選單與設定：**
   - App 選單新增「結束並停止播放」。
   - 設定新增「登入時啟動背景播放器」，預設關閉。
+  - Windows 的設定另外新增「在終端機使用 `ytm`」，預設關閉（§9.3）。
   - daemon 狀態的橫幅（§4.3）。
 - **測試：**
   - `testApp()` 等 helper 改成接一個在同一行程內、以 `net.Pipe` 相連的 `daemon.Service`：底下用 `audio.Fake` 和 `catalogtest`、`auth.MemoryStore`，持久化關閉，繼續遵守「不開視窗、不連網路、不寫硬碟」。
@@ -570,7 +571,7 @@ type Notice struct {
 - **已驗證（§12）：** MyGo 把它們放進 `Contents/Resources/`，由內而外以 Developer ID、hardened runtime 和時間戳記簽章（`cmd/mygo/resources.go` 的 `signNestedCode`），universal 建置時以 lipo 合併；公證通過，更新的 tarball 也包含它們。
 - universal 建置要求 `darwin-arm64` 和 `darwin-amd64` 的檔案一一對應，非執行檔必須完全相同，所以兩邊寫入同一份 `Info.plist`。
 - `.gitignore` 只忽略這些平台目錄，例如 `resources/darwin-*/`；`resources/` 底下其他已提交的檔案（`icon.png` 等）照舊。
-- **bundle 的資料夾名稱**就是 Control Center 顯示的名稱（§6.4），所以不叫 `ytmd.app`，例如 `YT Music Player Daemon.app`（待決；§4.2 的路徑和 cask 跟著改），並考慮附上 app 的圖示。
+- **bundle 的資料夾名稱**就是 Control Center 顯示的名稱（§6.4），所以不叫 `ytmd.app`。建議和主程式同名 `YT Music Player.app`，附上同一個圖示：使用者在 Now Playing 看到的就是他認得的 app。要在 P8-3 確認 Spotlight 和 Launchpad 不會列出第二個同名的 app（daemon 是 `LSUIElement`，被點開也看不到任何東西）；會的話改用 `YT Music Player Helper.app`。§4.2 的路徑和 cask 跟著改；執行檔名稱仍是 `ytmd`。
 - 各平台的內容：
   - **`darwin-arm64`、`darwin-amd64`：** `ytmd.app/Contents/{Info.plist,MacOS/ytmd}`（`CFBundleIdentifier=dev.lanstar.ytmusicplayer.daemon`、`CFBundleExecutable=ytmd`、`LSUIElement=true`、版本見 §8）、`ytm`
   - **`linux-amd64`、`linux-arm64`：** `ytmd`、`ytm`、`ytmd.service`（範本）
@@ -605,9 +606,11 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
   - **讓 `ytm` 在 PATH 上：** MyGo 只支援 `linux.command`，它把 `/usr/bin/<cmd>` 或 `~/.local/bin/<cmd>` 連到 **Desktop** 的執行檔，解除安裝時一併移除。所以設 `"command": "ytm"`，Desktop 啟動時第一件事是檢查自己是不是以 `ytm` 的名字被執行，是的話就 `syscall.Exec` 旁邊的 `ytm`。MyGo 在這之前只鎖定 OS 執行緒，不會啟動任何 GUI。
   - `.deb` 沒有 maintainer scripts，移除時無法停止 daemon。
   - `.deb` 依賴 `libwebkit2gtk-4.1-0` 和 GTK，對沒有桌面環境的伺服器很重。
-- **Windows：** NSIS 安裝包附上 `ytmd.exe` 和 `ytm.exe`（`%LOCALAPPDATA%\Programs\YT Music Player\`）。MyGo 的 NSIS 腳本寫死在程式中，解除安裝只做 `RMDir /r`。兩種做法，待決：
-  - **(a)** PATH 由 Desktop 設定中的「安裝命令列工具」加入；解除安裝後 Run 值會留下來，指向不存在的檔案。Windows 登入時會略過它，但它仍會出現在工作管理員的「啟動」清單中，要在文件中說明。
-  - **(b)** `release.yml` 用包一層的 `makensis`（MyGo 以 `exec.LookPath("makensis")` 找編譯器，已驗證能收到並改寫產生的腳本），加入：安裝前與解除安裝時執行 `ytm.exe daemon stop`、`DeleteRegValue` 刪除 Run 值、把安裝目錄加入使用者的 PATH。缺點是 MyGo 改版時容易壞。
+- **Windows：** NSIS 安裝包附上 `ytmd.exe` 和 `ytm.exe`（`%LOCALAPPDATA%\Programs\YT Music Player\`）。MyGo 的 NSIS 腳本寫死在程式中，解除安裝只做 `RMDir /r`；安裝包照 MyGo 產生的用，不改寫。
+  - **PATH：** Desktop 設定新增「在終端機使用 `ytm`」（只在 Windows 出現，預設關閉）。開啟時把安裝目錄加到 `HKCU\Environment` 的 `Path`（保留原本的值與 `REG_EXPAND_SZ` 型別），關閉時移除，兩者都廣播 `WM_SETTINGCHANGE`（`"Environment"`），之後開的終端機才看得到。和開機啟動一樣，Desktop 每次啟動時若它是開的，就檢查並修正路徑。
+  - **解除安裝留下的東西：** HKCU Run 值（開機啟動）和 `Path` 裡的安裝目錄，都指向不存在的位置；Windows 登入時會略過 Run 值，但它仍會出現在工作管理員的「啟動」清單中。解除安裝時 `ytmd.exe` 若還在執行，`RMDir /r` 刪不掉它，安裝目錄會留到下次登出。
+  - **文件說明：** 解除安裝前先在 Desktop 選「結束並停止播放」，並關閉「登入時啟動背景播放器」和「在終端機使用 `ytm`」。
+  - 另外向 MyGo 提需求（NSIS 的 include 或解除安裝 hook）；有了之後改在解除安裝時執行 `ytm.exe daemon stop`、刪除 Run 值與 `Path` 項目。不採用在 CI 包一層 `makensis` 改寫腳本的做法：MyGo 改版時容易壞。
 
 ### 9.4 CI 與發布
 
@@ -644,7 +647,7 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
 - **`session`（前端）**
   - 測試：改用 `remote` 的型別之後，現有的 `Apply` 與樂觀按讚測試照樣通過
 - **`autostart`**
-  - 測試：對暫存目錄與假的 `launchctl`/`systemctl`/登錄檔做測試；切換時不會停止 daemon
+  - 測試：對暫存目錄與假的 `launchctl`/`systemctl`/登錄檔做測試；切換時不會停止 daemon；Windows 的 `Path` 開關保留原本的值與型別，重複開啟不會加兩次，關閉只移除自己的項目
 - **`tui`**
   - 測試：Bubble Tea 的 model 測試，丟入訊息後比對畫面的 golden 結果
 - **`cmd/ytm`**
@@ -703,12 +706,12 @@ MyGo 的三種安裝包都不能直接自訂（§12），以下是不靠 hook �
 
 ### P7 開機自動啟動
 
-`internal/autostart` 的三個平台實作，加上 Desktop 設定頁和 `ytm autostart`。
+`internal/autostart` 的三個平台實作與 Windows 的 `Path` 開關，加上 Desktop 設定頁和 `ytm autostart`。
 
 ### P8 打包與發布
 
 1. `scripts/build-helpers.sh`，以及決定 daemon bundle 的資料夾名稱（§9.1）。
-2. `release.yml`、cask、Linux 的 `linux.command` 轉接、Windows 擇一 §9.3 的 (a) 或 (b)。
+2. `release.yml`、cask、Linux 的 `linux.command` 轉接、Windows 的「在終端機使用 `ytm`」設定（§9.3）。
 3. 實際走一次 draft 發布並在三個平台安裝驗證，包括 §12 列出還沒在實機上確認的項目。
 
 ### P9 文件收尾
@@ -736,7 +739,7 @@ P0 的實驗在 macOS arm64（MyGo v0.5.5、Go 1.27.2）上做；Linux 部分在
 | macOS 媒體鍵 | 只需鎖定主執行緒加 `CFRunLoopRun`，不需 NSApplication；直接執行或 `open -g` 都能接到 Now Playing 的指令 | §3、§6.4 |
 | Windows 的 AF_UNIX | 可用，不需 named pipe；連線失敗一律啟動 daemon，殘留的 socket 先刪除 | §4.1、§4.2、§5.1 |
 | Windows 更新 | `Install` 以改名替換檔案，執行中的 exe 不受影響；不需安裝前的交接 | §4.5 |
-| 安裝包自訂 | 三種都不能直接自訂；Linux 用 `linux.command` 轉接，Windows 待決 | §9.3 |
+| 安裝包自訂 | 三種都不能直接自訂；Linux 用 `linux.command` 轉接，Windows 由 Desktop 設定加入 PATH | §9.3 |
 | TUI 的語言 | 不經 App 可用 `i18n`；Bubble Tea v2 在 Windows 有閒置喚醒等問題 | §7.3 |
 
 **尚未在實機上確認**（P8-3）：
