@@ -80,7 +80,7 @@ func fullFrame() *Frame {
 		},
 		Call: &Call{
 			Method: MethodPlay,
-			IDs:    &IDsArgs{IDs: []string{"a", "b"}, Start: 1, Next: true},
+			IDs:    &IDsArgs{IDs: []string{"a", "b"}, Start: 1, Next: true, Songs: songs},
 			Index:  &IndexArgs{Index: 2},
 			Move:   &MoveArgs{From: 1, To: 4},
 			Seek:   &SeekArgs{Seconds: 12.5},

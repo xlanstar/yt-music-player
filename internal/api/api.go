@@ -106,6 +106,9 @@ type IDsArgs struct {
 	Start int
 	// Next enqueues after the current song rather than at the end.
 	Next bool
+	// Songs describe the songs of IDs, which only the front-end's catalog
+	// has.
+	Songs []catalog.Song
 }
 
 // IndexArgs name a song by its index in the queue.
