@@ -399,6 +399,15 @@ func TestAccount(t *testing.T) {
 		}
 	}
 
+	// A new subscriber hears of the failure too, after its snapshot.
+	early := h.connect(true)
+	if snap := early.event(); snap.Account == nil || snap.Library == nil || snap.Likes != nil {
+		t.Errorf("snapshot %+v", snap)
+	}
+	if f := early.event().Failed; f == nil || f.Part != api.PartLiked {
+		t.Errorf("failed %+v after the snapshot", f)
+	}
+
 	// Retry, as the Refresh of a page's Retry.
 	c.call(api.Call{Method: api.MethodRefresh, Part: &api.PartArgs{Part: api.PartLiked}})
 	h.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
