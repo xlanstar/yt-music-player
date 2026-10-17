@@ -1,17 +1,14 @@
 package remote
 
 import (
-	"errors"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 )
 
 // Controller is playback and the queue, as a front-end's UI drives them.
-// Its methods never block, so the UI thread calls them: each sends its
-// request at once (so requests keep their order) and returns. Only the
-// daemon's events change the Mirror. A request that fails, or gets no
-// reply within ControlTimeout, is told as a notice.ControlFailed through
-// Handler.Notice; a timeout also has the Supervisor ping the daemon.
+// Its methods send at once, in order, and never block; only the daemon's
+// events change the Mirror. A request that fails or goes unanswered is
+// told as notice.ControlFailed, and a timeout pings the daemon.
 type Controller interface {
 	// Play plays ids from index start; songs describe them (the daemon
 	// knows no song but those queued).
@@ -99,5 +96,3 @@ func (c *Client) Move(from, to int) {
 
 // ClearUpNext implements Controller.
 func (c *Client) ClearUpNext() { c.control(&api.Call{Method: api.MethodClearUpNext}) }
-
-func isDisconnected(err error) bool { return errors.Is(err, api.ErrDisconnected) }

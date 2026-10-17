@@ -14,78 +14,55 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ControlTimeout is how long a control waits for the daemon's reply before
-// it is told as failed, and the daemon pinged.
-const ControlTimeout = 2 * time.Second
+// controlTimeout is how long a control waits for its reply before it is
+// told as failed and the daemon pinged.
+const controlTimeout = 2 * time.Second
 
-// errNoResult is a reply that lacks the result its method gives.
 var errNoResult = fmt.Errorf("%w: a reply without its result", api.ErrInvalid)
 
-// Handler gets what the daemon reports besides playback, as plain values,
-// on the front-end's thread (through post). A nil func drops its reports.
+// Handler gets what the daemon reports besides playback, on the
+// front-end's thread. A nil func drops its reports.
 type Handler struct {
-	// Account, Library, Likes and Failed are package account's changes
-	// (Status, Library, Likes, Failure), for the front-end's session.
+	// Account, Library, Likes and Failed go to the session's Apply methods.
 	Account func(api.AccountEvent)
 	Library func(catalog.Library)
 	Likes   func(api.Likes)
-	// Failed's Err reads with its Err method.
-	Failed func(api.FailedEvent)
-	// Notice gets the daemon's notices and the controls that failed
-	// (notice.ControlFailed); say them through tell.
+	Failed  func(api.FailedEvent)
+	// Notice gets the daemon's notices and notice.ControlFailed.
 	Notice func(notice.Notice)
-	// Link gets the Supervisor's Link when it changed: the latest, so
-	// changes in quick succession may show as one.
+	// Link gets the Supervisor's latest Link when it changed: changes in
+	// quick succession may show as one.
 	Link func(Link)
 }
 
-// Client is a front-end's end of the daemon's socket: catalog.Source and
-// catalog.Accounts for its loader, session and sign-in, a Controller for
-// playback, and the Mirror of what plays. The Supervisor connects it, and
-// connects it again after the daemon went away; Connect connects it once,
-// for a command. Without a connection, every call fails with
-// api.ErrDisconnected.
+// Client is a front-end's end of the daemon's socket. Without a
+// connection, every call fails with api.ErrDisconnected.
 //
 // Its methods are safe for concurrent use. Those that take a ctx block
-// until the reply: call them off the UI thread (job.Run). When ctx ends
-// first they return ctx.Err() and tell the daemon to cancel. The
-// Controller's methods never block: see Controller.
+// until the reply, so run them off the UI thread; when ctx ends first
+// they return ctx.Err() and tell the daemon to cancel.
 type Client struct {
 	post func(func())
 	h    Handler
-	// watch is the Supervisor, set before the first connection; nil
-	// without one.
-	watch watcher
+	// sup is set before the first connection; nil without a Supervisor.
+	sup *Supervisor
 	// flushFn is c.flush, made once rather than on every post.
 	flushFn func()
 
-	mu sync.Mutex
-	// link is the connection calls go through, nil when there is none.
-	link *link
-	// links numbers the connections made.
+	mu    sync.Mutex
+	link  *link // calls go through it; nil when there is none
 	links uint64
 
 	evMu sync.Mutex
-	// queue holds the events received and the callbacks due, in the
-	// order their frames came, not yet flushed; isPosted reports a flush
-	// posted and not yet run.
+	// queue holds the events and callbacks not yet flushed, in the order
+	// their frames came.
 	queue    []received
 	isPosted bool
-	// spare is the batch flush emptied last, for the events after the
-	// next one; the front-end's thread owns it.
+	// spare is the batch flushed last, reused for the next one; the
+	// front-end's thread owns it.
 	spare []received
 
 	mirror Mirror
-}
-
-// watcher is what a Supervisor learns from its Client's connections.
-type watcher interface {
-	// heard is called on every frame received.
-	heard()
-	// handoff is called when another front-end hands off.
-	handoff(api.HandoffEvent)
-	// timedOut is called when a control got no reply in time.
-	timedOut()
 }
 
 // link is one connection to the daemon.
@@ -104,13 +81,12 @@ type link struct {
 	pending map[uint32]*pending
 }
 
-// pending is a call sent and not yet answered: a blocking call's (ch), a
-// Go's (done), or else a control's.
+// pending is a call not yet answered: a blocking call's (ch), a Go's
+// (done), or else a control's.
 type pending struct {
-	ch   chan result
-	done func(*api.Reply, error)
-	// timer ends a control after ControlTimeout.
-	timer *time.Timer
+	ch    chan result
+	done  func(*api.Reply, error)
+	timer *time.Timer // a control's
 	// ctx is a Go's; stop stops watching it.
 	ctx  context.Context
 	stop func() bool
@@ -121,7 +97,7 @@ type result struct {
 	err   error
 }
 
-// received is an event, when and over which connection it came; or else a
+// received is an event, when and over which connection it came, or a
 // callback due.
 type received struct {
 	ev   *api.Event
@@ -131,10 +107,9 @@ type received struct {
 }
 
 // NewClient returns a Client without a connection. post runs a func on
-// the front-end's thread (Desktop's a.post; the TUI sends a tea.Msg that
-// runs it in Update), in order; h gets its reports there. post must not
-// block, as tea.Program.Send does: the Client's goroutines call it, also
-// while that thread waits for them in Close.
+// the front-end's thread, in order; it must not block (as
+// tea.Program.Send does): the Client's goroutines call it, also while
+// that thread waits for them in Close.
 func NewClient(post func(func()), h Handler) *Client {
 	c := &Client{post: post, h: h}
 	c.flushFn = c.flush
@@ -144,8 +119,8 @@ func NewClient(post func(func()), h Handler) *Client {
 // Mirror returns the daemon's playback; read it on the front-end's thread.
 func (c *Client) Mirror() *Mirror { return &c.mirror }
 
-// Close closes the connection, failing the calls in flight. A Client
-// under a Supervisor is closed by Supervisor.Close.
+// Close closes the connection, failing the calls in flight; under a
+// Supervisor, Supervisor.Close does.
 func (c *Client) Close() {
 	c.mu.Lock()
 	l := c.link
@@ -192,8 +167,7 @@ func (c *Client) current() *link {
 	return c.link
 }
 
-// read is l's reader goroutine: replies go to their calls, events are
-// gathered for the front-end's thread.
+// read is l's reader goroutine.
 func (c *Client) read(l *link) {
 	defer close(l.closed)
 	// Receive zeroes f and allocates what it points to anew, so pointers
@@ -204,8 +178,8 @@ func (c *Client) read(l *link) {
 			c.drop(l, err)
 			return
 		}
-		if c.watch != nil {
-			c.watch.heard()
+		if c.sup != nil {
+			c.sup.heard()
 		}
 		switch {
 		case f.Reply != nil:
@@ -233,7 +207,7 @@ func (c *Client) drop(l *link, err error) {
 	}
 }
 
-// take removes call id of l from those pending, nil if it is no longer.
+// take removes call id of l from those pending; nil if it was not.
 func (c *Client) take(l *link, id uint32) *pending {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -288,7 +262,7 @@ func (c *Client) send(l *link, call *api.Call, p *pending) (*link, uint32, error
 	case p.ctx != nil:
 		p.stop = context.AfterFunc(p.ctx, func() { c.abandon(l, id) })
 	case p.ch == nil && p.done == nil:
-		p.timer = time.AfterFunc(ControlTimeout, func() { c.expire(l, id) })
+		p.timer = time.AfterFunc(controlTimeout, func() { c.expire(l, id) })
 	}
 	c.mu.Unlock()
 	if err := l.conn.Send(api.Frame{ID: id, Call: call}); err != nil {
@@ -320,14 +294,14 @@ func (c *Client) expire(l *link, id uint32) {
 	_ = l.conn.Send(api.Frame{ID: id, Cancel: true})
 	log.Debug().Uint32("id", id).Msg("remote: no reply to a control")
 	c.later(func() { c.tell(controlFailed(context.DeadlineExceeded)) })
-	if c.watch != nil {
-		c.watch.timedOut()
+	if c.sup != nil {
+		signal(c.sup.ping)
 	}
 }
 
-// Call sends call and waits for its reply, returned unless it is an
-// error. Prefer the typed methods; this is for calls without one (a
-// command's controls, which must not return before the daemon took them).
+// Call sends call and waits for its reply, for calls without a typed
+// method (a command's controls, which must not return before the daemon
+// took them).
 func (c *Client) Call(ctx context.Context, call api.Call) (*api.Reply, error) {
 	return c.callOn(ctx, nil, &call)
 }
@@ -356,12 +330,10 @@ func (c *Client) callOn(ctx context.Context, l *link, call *api.Call) (*api.Repl
 	}
 }
 
-// Go sends call without waiting. done gets the reply, or why there is
-// none, on the front-end's thread, in the order of the frames received:
-// before the events the call caused (a Like's ErrSignedOut, then the
-// Account event of the sign-out), which a blocking call cannot promise.
-// When ctx ends first, the daemon is told to cancel and done gets
-// ctx.Err().
+// Go sends call without waiting. done gets the reply or the error on the
+// front-end's thread, before the events the call caused, which a blocking
+// call cannot promise. When ctx ends first, the daemon is told to cancel
+// and done gets ctx.Err().
 func (c *Client) Go(ctx context.Context, call api.Call, done func(*api.Reply, error)) {
 	if err := ctx.Err(); err != nil {
 		c.later(func() { done(nil, err) })
@@ -379,9 +351,9 @@ func (c *Client) control(call *api.Call) {
 	}
 }
 
-// controlFailed is the notice of a control that failed for err. Only the
-// daemon's own errors say more: the Link tells of a lost connection, and
-// a timeout says nothing more.
+// controlFailed is the notice of a control that failed for err; only the
+// daemon's own errors add a detail, as the Link tells of a lost
+// connection.
 func controlFailed(err error) notice.Notice {
 	n := notice.Notice{Kind: notice.Failure, Title: notice.ControlFailed, Topic: notice.Control}
 	if e, ok := errors.AsType[*api.Error](err); ok && e.Detail != "" {
@@ -396,11 +368,11 @@ func (c *Client) tell(n notice.Notice) {
 	}
 }
 
-// receive gathers ev, from l, for the front-end's thread, posting a flush
-// unless one is pending: a burst of events costs one post.
+// receive queues ev for the front-end's thread; a burst of events costs
+// one post.
 func (c *Client) receive(l *link, ev *api.Event) {
-	if ev.Handoff != nil && c.watch != nil {
-		c.watch.handoff(*ev.Handoff)
+	if ev.Handoff != nil && c.sup != nil {
+		c.sup.handoff(*ev.Handoff)
 	}
 	if l.isQuiet {
 		return
@@ -422,8 +394,7 @@ func (c *Client) enqueue(r received) {
 	}
 }
 
-// flush applies the events received and runs the callbacks due since the
-// last flush, in order, on the front-end's thread.
+// flush applies what was queued, on the front-end's thread.
 func (c *Client) flush() {
 	c.evMu.Lock()
 	batch := c.queue

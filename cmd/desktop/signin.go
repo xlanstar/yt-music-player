@@ -17,9 +17,8 @@ const musicURL = "https://music.youtube.com"
 // accountButton shows nothing while the account loads or after it
 // failed: the library page reports that.
 func (a *app) accountButton(c *ui.Context) {
-	canSignIn := a.session.CanSignIn()
 	if !a.session.IsSignedIn() {
-		if !canSignIn || a.fetches.State(session.AccountRes).State != fetchstate.SignedOut {
+		if a.fetches.State(session.AccountRes).State != fetchstate.SignedOut {
 			return
 		}
 		signIn := pill(c, "sign-in", nil, locales.SignIn(), pillLight).
@@ -42,9 +41,6 @@ func (a *app) accountButton(c *ui.Context) {
 	})
 	button.Menu(func(m *ui.Menu) {
 		m.Item(locales.SignedInAs(name)).Disabled(true)
-		if !canSignIn {
-			return
-		}
 		m.Separator()
 		if m.Item(locales.SignOut()).Disabled(a.session.IsSigningOut()).Chosen() {
 			a.session.SignOut()
@@ -164,12 +160,9 @@ func sheetButton(c *ui.Context, label string, disabled bool) ui.Element {
 }
 
 func (a *app) signedOutPage(c *ui.Context, icon *ui.SVG, title, body string) {
-	var signIn func()
-	if a.session.CanSignIn() {
-		signIn = func() {
-			if pill(c, "sign-in-page", nil, locales.SignIn(), pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
-				a.openSignIn()
-			}
+	signIn := func() {
+		if pill(c, "sign-in-page", nil, locales.SignIn(), pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
+			a.openSignIn()
 		}
 	}
 	scrollPage(c, func() { message(c, icon, title, body, 1, signIn) })

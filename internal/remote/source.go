@@ -2,15 +2,13 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 )
 
-var (
-	_ catalog.Source   = (*Client)(nil)
-	_ catalog.Accounts = (*Client)(nil)
-)
+var _ catalog.Source = (*Client)(nil)
 
 // Search implements catalog.Source.
 func (c *Client) Search(ctx context.Context, query string) (catalog.Results, error) {
@@ -96,18 +94,10 @@ func (c *Client) Like(ctx context.Context, songID string, liked bool) error {
 	return err
 }
 
-// SignIn implements catalog.Accounts: the daemon cleans the credentials,
-// checks and stores them.
+// SignIn has the daemon clean, check and store credentials.
 func (c *Client) SignIn(ctx context.Context, credentials string) (catalog.Account, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodSignIn, SignIn: &api.SignInArgs{Credentials: credentials}})
 	return account(r, err)
-}
-
-// SignOut implements catalog.Accounts. It waits for the reply, or the
-// connection's end, as the interface takes no ctx.
-func (c *Client) SignOut() error {
-	_, err := c.Call(context.Background(), api.Call{Method: api.MethodSignOut})
-	return err
 }
 
 func account(r *api.Reply, err error) (catalog.Account, error) {
@@ -118,13 +108,6 @@ func account(r *api.Reply, err error) (catalog.Account, error) {
 		return catalog.Account{}, errNoResult
 	}
 	return *r.Account, nil
-}
-
-// Refresh has the daemon fetch part anew (the session's Retry); the
-// result comes as an event.
-func (c *Client) Refresh(ctx context.Context, part api.Part) error {
-	_, err := c.Call(ctx, api.Call{Method: api.MethodRefresh, Part: &api.PartArgs{Part: part}})
-	return err
 }
 
 // Status returns the daemon's snapshot for `ytm status`.
@@ -139,16 +122,9 @@ func (c *Client) Status(ctx context.Context) (api.Status, error) {
 	return *r.Status, nil
 }
 
-// Ping returns once the daemon answers.
-func (c *Client) Ping(ctx context.Context) error {
-	_, err := c.Call(ctx, api.Call{Method: api.MethodPing})
-	return err
-}
-
 // Handoff asks the daemon to save and exit for a newer one, which the
-// caller starts (ipc.SpawnDaemon) within wait; it returns once the daemon
-// closed the connection. A daemon handing off already never replies; it
-// returns as well when it exits.
+// caller starts within wait; it returns once the daemon closed the
+// connection.
 func (c *Client) Handoff(ctx context.Context, wait time.Duration) error {
 	return c.untilGone(ctx, nil, &api.Call{Method: api.MethodHandoff, Hand: &api.HandoffArgs{Wait: wait}})
 }
@@ -160,7 +136,8 @@ func (c *Client) Shutdown(ctx context.Context) error {
 }
 
 // untilGone sends call, after which the daemon exits, over l (the current
-// link if nil), and waits until the connection is gone.
+// link if nil), and waits until the connection is gone: a daemon already
+// handing off never replies.
 func (c *Client) untilGone(ctx context.Context, l *link, call *api.Call) error {
 	if l == nil {
 		l = c.current()
@@ -168,7 +145,7 @@ func (c *Client) untilGone(ctx context.Context, l *link, call *api.Call) error {
 	if l == nil {
 		return api.ErrDisconnected
 	}
-	if _, err := c.callOn(ctx, l, call); err != nil && !isDisconnected(err) {
+	if _, err := c.callOn(ctx, l, call); err != nil && !errors.Is(err, api.ErrDisconnected) {
 		return err
 	}
 	select {

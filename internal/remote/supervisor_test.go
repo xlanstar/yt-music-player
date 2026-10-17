@@ -54,13 +54,13 @@ func TestSupervisorConnects(t *testing.T) {
 		f, s := supervised(t, dl, "1.0.0", Options{})
 		settle(f)
 		wantHealths(t, f, Connected)
-		if s.Link().Daemon.Hello.PID != daemonPID {
-			t.Errorf("Link %+v", s.Link())
+		if s.shown.Daemon.Hello.PID != daemonPID {
+			t.Errorf("Link %+v", s.shown)
 		}
 		if h := d.greetings(); len(h) != 1 || !h[0].Subscribe || h[0].Role != api.RoleTUI || h[0].Proto != api.Proto {
 			t.Errorf("hello %+v", h)
 		}
-		if err := f.client.Ping(t.Context()); err != nil {
+		if err := ping(t.Context(), f.client); err != nil {
 			t.Error(err)
 		}
 	})
@@ -161,7 +161,7 @@ func TestSupervisorReconnects(t *testing.T) {
 		if dl.count("spawn") != 1 {
 			t.Errorf("%d spawns, want 1", dl.count("spawn"))
 		}
-		if err := f.client.Ping(t.Context()); err != nil {
+		if err := ping(t.Context(), f.client); err != nil {
 			t.Error(err)
 		}
 	})
@@ -181,7 +181,7 @@ func TestSupervisorUnresponsive(t *testing.T) {
 			t.Fatalf("calls %v while idle", d.calls())
 		}
 		s.Foreground()
-		time.Sleep(PingTimeout)
+		time.Sleep(pingTimeout)
 		settle(f)
 		wantHealths(t, f, Connected, Unresponsive)
 		if got := d.calls(); !slices.Equal(got, []api.Method{api.MethodPing}) {
@@ -202,12 +202,12 @@ func TestSupervisorControlTimeout(t *testing.T) {
 		f, _ := supervised(t, dl, "1.0.0", Options{})
 		settle(f)
 		f.client.Next()
-		time.Sleep(ControlTimeout)
+		time.Sleep(controlTimeout)
 		settle(f)
 		if len(f.notices) != 1 || f.notices[0].Title != notice.ControlFailed {
 			t.Errorf("notices %+v, want ControlFailed", f.notices)
 		}
-		time.Sleep(PingTimeout)
+		time.Sleep(pingTimeout)
 		settle(f)
 		if got := d.calls(); !slices.Equal(got, []api.Method{api.MethodNext, api.MethodPing}) {
 			t.Errorf("calls %v, want Next then Ping", got)
@@ -306,7 +306,7 @@ func TestSupervisorRestart(t *testing.T) {
 					t.Error("no new daemon started")
 				}
 				wantHealths(t, f, Connected, Connected)
-				if c := s.Link().Connection; c != 2 {
+				if c := s.shown.Connection; c != 2 {
 					t.Errorf("Connection %d, want 2", c)
 				}
 			})
@@ -333,10 +333,10 @@ func TestSupervisorHandsOffOnce(t *testing.T) {
 			t.Errorf("dials %+v, want dial, spawn, then wait", got)
 		}
 		wantHealths(t, f, DaemonOutdated)
-		if l := s.Link(); l.Daemon.Hello.Version != "1.1.0" || l.Daemon.Version != "1.2.0" {
+		if l := s.shown; l.Daemon.Hello.Version != "1.1.0" || l.Daemon.Version != "1.2.0" {
 			t.Errorf("Link %+v, want both versions", l)
 		}
-		if err := f.client.Ping(t.Context()); err != nil {
+		if err := ping(t.Context(), f.client); err != nil {
 			t.Errorf("compatible, yet %v", err)
 		}
 
@@ -431,7 +431,7 @@ func TestSupervisorDaemonIncompatible(t *testing.T) {
 			t.Errorf("calls %v, want Handoff, which every Proto knows", got)
 		}
 		wantHealths(t, f, DaemonOutdated)
-		if err := f.client.Ping(t.Context()); !errors.Is(err, api.ErrDisconnected) {
+		if err := ping(t.Context(), f.client); !errors.Is(err, api.ErrDisconnected) {
 			t.Errorf("Ping = %v, want ErrDisconnected", err)
 		}
 	})
