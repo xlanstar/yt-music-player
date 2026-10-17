@@ -15,8 +15,7 @@ type Error struct {
 	Detail string
 }
 
-// Error returns the sentinel's text, then Detail; the sign-in form shows
-// it.
+// Error returns the sentinel's text, then Detail.
 func (e *Error) Error() string {
 	text := sentinels[e.Code].Error()
 	if e.Detail == "" {
@@ -28,8 +27,8 @@ func (e *Error) Error() string {
 // Unwrap returns the sentinel of e's code.
 func (e *Error) Unwrap() error { return sentinels[e.Code] }
 
-// sentinels are api's, by code; api keeps its table to itself, so they
-// are read back through its own decoding.
+// sentinels are api's table, which it keeps to itself, read back through
+// its decoding.
 var sentinels = func() map[api.ErrorCode]error {
 	table := map[api.ErrorCode]error{}
 	for code := api.ErrorCode(1); code.Valid(); code++ {

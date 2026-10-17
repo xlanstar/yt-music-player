@@ -13,53 +13,40 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// The Supervisor's times (docs/daemon.md, Health; Versions and hand-off).
+// The Supervisor's times (docs/daemon.md, Health).
 const (
-	// PingTimeout is how long a Ping waits before the daemon is
-	// Unresponsive.
-	PingTimeout = 2 * time.Second
+	// pingTimeout unanswered makes the daemon Unresponsive.
+	pingTimeout = 2 * time.Second
 	// HandoffWait is how long a hand-off gives the new daemon to come.
 	HandoffWait = 5 * time.Second
 	// RestartGrace is how long Restart lets the daemon stop before it
 	// kills it.
 	RestartGrace = 3 * time.Second
-	// The waits between connection attempts double from minBackoff up to
-	// maxBackoff.
-	minBackoff = 250 * time.Millisecond
-	maxBackoff = 30 * time.Second
-	// unavailableAfter is how many attempts in a row fail before the
-	// daemon is Unavailable.
+	minBackoff   = 250 * time.Millisecond
+	maxBackoff   = 30 * time.Second
+	// unavailableAfter failures in a row make the daemon Unavailable.
 	unavailableAfter = 3
-	// exitPoll is how often Restart looks whether the daemon exited.
-	exitPoll = 50 * time.Millisecond
+	exitPoll         = 50 * time.Millisecond
 )
 
 // Options configure a Supervisor.
 type Options struct {
-	// Role is this front-end's: api.RoleDesktop or api.RoleTUI.
-	Role api.Role
-	// Version is this front-end's: version.Version, or Desktop's.
-	Version string
-	// Dialer reaches the daemon; an *ipc.Dialer.
-	Dialer Dialer
+	Role    api.Role // api.RoleDesktop or api.RoleTUI
+	Version string   // this front-end's
+	Dialer  Dialer
 	// Spawn starts this front-end's own ytmd after a hand-off; nil is
 	// ipc.SpawnDaemon.
 	Spawn func() error
 
-	// isAlive and kill look at and end a process; nil are the OS's.
+	// isAlive and kill are the OS's unless a test sets them.
 	isAlive func(pid int) bool
 	kill    func(pid int) error
 }
 
-// Supervisor keeps a Client connected (docs/daemon.md, Health; Versions and hand-off):
-// it greets each daemon and compares versions, hands an older daemon off
-// to this front-end's own ytmd once per version, connects again with
-// backoff whenever the connection ends, and pings when the front-end
-// comes to the foreground or a control goes unanswered. Nothing runs on
-// a timer while connected: idle costs no wake-ups.
-//
-// Its methods are safe for concurrent use; Link is for the front-end's
-// thread, as are Handler.Link's calls.
+// Supervisor keeps a Client connected, as docs/daemon.md (Health;
+// Versions and hand-off) describes. Nothing runs on a timer while
+// connected: idle costs no wake-ups. Its methods are safe for concurrent
+// use.
 type Supervisor struct {
 	c    *Client
 	opts Options
@@ -68,8 +55,7 @@ type Supervisor struct {
 	cancel context.CancelFunc
 	done   chan struct{} // closed when run returns
 
-	// Signals to run, buffered 1: a second before run takes the first
-	// adds nothing.
+	// Signals to run, buffered 1.
 	retry, foreground, ping, restart chan struct{}
 
 	// isUnresponsive is read on every frame received, so atomic.
@@ -81,15 +67,15 @@ type Supervisor struct {
 	peer Peer
 	// connection counts the links opened for calls.
 	connection uint64
-	// handoffUntil ends the wait of another front-end's hand-off: until
-	// then, connecting never starts ytmd.
+	// handoffUntil ends another front-end's hand-off: until then,
+	// connecting never starts ytmd.
 	handoffUntil time.Time
 
-	// Run's own.
+	// run's own.
 	handedOff map[string]bool // daemon versions handed off
 	backoff   time.Duration
 
-	// shown is the Link last handed to the front-end, on its thread.
+	// shown is the Link last posted; the front-end's thread owns it.
 	shown     Link
 	publishFn func()
 }
@@ -119,7 +105,7 @@ func Supervise(c *Client, opts Options) *Supervisor {
 		handedOff:  map[string]bool{},
 	}
 	s.publishFn = s.publish
-	c.watch = s
+	c.sup = s
 	go s.run()
 	return s
 }
@@ -130,20 +116,15 @@ func (s *Supervisor) Close() {
 	<-s.done
 }
 
-// Link returns the connection as last posted, on the front-end's thread.
-func (s *Supervisor) Link() Link { return s.shown }
-
-// Retry connects now, waiting again from the shortest backoff: the user
-// asked to.
+// Retry connects now, waiting again from the shortest backoff.
 func (s *Supervisor) Retry() { signal(s.retry) }
 
-// Foreground tells that the front-end came to the foreground (a window's
-// focus, a terminal's): it pings the daemon if connected, else connects
-// now as Retry does.
+// Foreground tells that the front-end came to the foreground: it pings
+// the daemon if connected, else connects now as Retry does.
 func (s *Supervisor) Foreground() { signal(s.foreground) }
 
-// Restart stops the daemon (Shutdown, then killing it if still alive
-// after RestartGrace) and starts another; for an Unresponsive one.
+// Restart stops the daemon (Shutdown, then a kill after RestartGrace) and
+// starts another.
 func (s *Supervisor) Restart() { signal(s.restart) }
 
 func signal(ch chan struct{}) {
@@ -153,7 +134,7 @@ func signal(ch chan struct{}) {
 	}
 }
 
-// heard implements watcher: any frame shows the daemon answers.
+// heard runs on every frame received: the daemon answers.
 func (s *Supervisor) heard() {
 	if !s.isUnresponsive.Load() {
 		return
@@ -166,16 +147,13 @@ func (s *Supervisor) heard() {
 	}
 }
 
-// handoff implements watcher.
+// handoff runs when another front-end hands off.
 func (s *Supervisor) handoff(ev api.HandoffEvent) {
 	log.Debug().Int("by", ev.By).Dur("wait", ev.Wait).Msg("remote: another front-end hands off")
 	s.mu.Lock()
 	s.handoffUntil = time.Now().Add(ev.Wait)
 	s.mu.Unlock()
 }
-
-// timedOut implements watcher.
-func (s *Supervisor) timedOut() { signal(s.ping) }
 
 // set makes h the health, with the daemon peer, and posts it.
 func (s *Supervisor) set(h Health, peer Peer) {
@@ -193,8 +171,8 @@ func (s *Supervisor) setUnresponsive() {
 	s.c.post(s.publishFn)
 }
 
-// publish hands the latest Link to the front-end, on its thread; it reads
-// the latest rather than what changed when posted, so posts may cross.
+// publish hands the latest Link to the front-end, on its thread; posts
+// may cross, as each reads the latest.
 func (s *Supervisor) publish() {
 	s.mu.Lock()
 	l := Link{Health: s.base, Daemon: s.peer, Connection: s.connection}
@@ -215,14 +193,13 @@ func (s *Supervisor) publish() {
 type outcome uint8
 
 const (
-	failed    outcome = iota
-	connected         // serve it
-	again             // a hand-off: connect again now
-	stopped           // the versions forbid working: wait for Retry
+	failed outcome = iota
+	connected
+	again   // after a hand-off: connect again now
+	stopped // the versions forbid working: wait for Retry
 )
 
-// run connects, serves the connection until it ends, and connects again,
-// until Close.
+// run connects and serves connections until Close.
 func (s *Supervisor) run() {
 	defer close(s.done)
 	defer s.c.Close()
@@ -385,10 +362,9 @@ func (s *Supervisor) serve(l *link) {
 	}
 }
 
-// pingOn pings the daemon of l: no reply within PingTimeout makes it
-// Unresponsive. A lost connection shows on l.closed.
+// pingOn pings the daemon of l; a lost connection shows on l.closed.
 func (s *Supervisor) pingOn(l *link) {
-	ctx, cancel := context.WithTimeout(s.ctx, PingTimeout)
+	ctx, cancel := context.WithTimeout(s.ctx, pingTimeout)
 	defer cancel()
 	_, err := s.c.callOn(ctx, l, &api.Call{Method: api.MethodPing})
 	if errors.Is(err, context.DeadlineExceeded) && s.ctx.Err() == nil {
@@ -397,8 +373,7 @@ func (s *Supervisor) pingOn(l *link) {
 	}
 }
 
-// restartOn stops the daemon of l: Shutdown, then, if its process still
-// runs after RestartGrace, kill it. The next connection starts another.
+// restartOn stops the daemon of l; the next connection starts another.
 func (s *Supervisor) restartOn(l *link) {
 	ctx, cancel := context.WithTimeout(s.ctx, RestartGrace)
 	defer cancel()

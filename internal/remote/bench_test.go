@@ -90,7 +90,7 @@ func BenchmarkCall(b *testing.B) {
 	b.Run("ping", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if err := f.client.Ping(b.Context()); err != nil {
+			if err := ping(b.Context(), f.client); err != nil {
 				b.Fatal(err)
 			}
 		}

@@ -40,6 +40,11 @@ func attach(t *testing.T, f *front, d *daemon) {
 	})
 }
 
+func ping(ctx context.Context, c *Client) error {
+	_, err := c.Call(ctx, api.Call{Method: api.MethodPing})
+	return err
+}
+
 func song(id string) catalog.Song { return catalog.Song{ID: id, Title: "Song " + id} }
 
 func TestCallsNumberFromOne(t *testing.T) {
@@ -104,9 +109,6 @@ func TestSourceReplies(t *testing.T) {
 		// A reply without the result its method gives.
 		if _, err := f.client.Home(ctx); !errors.Is(err, api.ErrInvalid) {
 			t.Errorf("Home without a result: %v", err)
-		}
-		if err := f.client.SignOut(); err != nil {
-			t.Errorf("SignOut: %v", err)
 		}
 	})
 }
@@ -286,11 +288,11 @@ func TestControlTimeout(t *testing.T) {
 		f := newFront()
 		attach(t, f, d)
 		f.client.Next()
-		time.Sleep(ControlTimeout - time.Millisecond)
+		time.Sleep(controlTimeout - time.Millisecond)
 		synctest.Wait()
 		f.ui.run()
 		if len(f.notices) != 0 {
-			t.Fatalf("told before %v", ControlTimeout)
+			t.Fatalf("told before %v", controlTimeout)
 		}
 		time.Sleep(time.Millisecond)
 		synctest.Wait()
@@ -342,11 +344,8 @@ func TestEventsBatched(t *testing.T) {
 		if st := m.State(); st.Current != "b" || st.Playing {
 			t.Errorf("State %+v, want the last", st)
 		}
-		if cur, ok := m.Current(); !ok || cur.ID != "b" {
-			t.Errorf("Current = %+v, %v", cur, ok)
-		}
-		if got := m.Songs(); len(got) != 2 {
-			t.Errorf("Songs %+v", got)
+		if _, ok := m.Song("b"); !ok || !slices.Equal(m.Queue(), []string{"a", "b"}) {
+			t.Errorf("queue %v, without song b", m.Queue())
 		}
 		if want := []string{"account", "library", "likes", "failed"}; !slices.Equal(f.events, want) {
 			t.Errorf("handler got %v, want %v", f.events, want)
@@ -386,8 +385,8 @@ func TestMirrorReplacedAfterReconnect(t *testing.T) {
 		if _, ok := m.Song("a"); ok {
 			t.Error("the first daemon's song stays")
 		}
-		if cur, ok := m.Current(); !ok || cur.ID != "c" || !slices.Equal(m.Queue(), []string{"c"}) {
-			t.Errorf("Current = %+v, %v; queue %v", cur, ok, m.Queue())
+		if _, ok := m.Song("c"); !ok || m.State().Current != "c" || !slices.Equal(m.Queue(), []string{"c"}) {
+			t.Errorf("State %+v, queue %v", m.State(), m.Queue())
 		}
 		if m.QueueGen() == gen {
 			t.Error("QueueGen unchanged")
@@ -486,7 +485,7 @@ func TestConnect(t *testing.T) {
 		if h := d.greetings(); len(h) != 1 || h[0].Subscribe || h[0].Role != api.RoleCLI {
 			t.Errorf("hello %+v, want a CLI's, not subscribing", h)
 		}
-		if err := c.Ping(t.Context()); err != nil {
+		if err := ping(t.Context(), c); err != nil {
 			t.Error(err)
 		}
 		if err := c.Shutdown(t.Context()); err != nil {
