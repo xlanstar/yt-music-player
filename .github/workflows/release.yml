@@ -73,11 +73,6 @@ jobs:
             --apple-id "$APPLE_ID" --team-id LJJN3L2PS6 --password "$APPLE_APP_PASSWORD"
           echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
 
-      # resources/darwin-*/, which mygo build merges into universal
-      # binaries and signs with the app.
-      - name: Build ytmd and ytm
-        run: scripts/build-helpers.sh darwin-arm64 darwin-amd64
-
       # Only here: mygo.json signs nothing, so builds elsewhere stay ad hoc
       # and need no notary credentials. mygo staples the app before it
       # archives it, so the update carries the ticket too.
@@ -89,7 +84,7 @@ jobs:
             '.macos.notarize = {keychainProfile: "notary", keychain: $k}' \
             mygo.json > "$RUNNER_TEMP/mygo.json"
           mv "$RUNNER_TEMP/mygo.json" mygo.json
-          go tool mygo build -platform darwin/universal -sign "$MACOS_SIGNING_IDENTITY"
+          scripts/build.sh -platform darwin/universal -sign "$MACOS_SIGNING_IDENTITY"
 
       # A release that Gatekeeper would stop never becomes a draft.
       - name: Check the signature and the tickets
@@ -184,14 +179,10 @@ jobs:
         if: matrix.os == 'windows'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
 
-      # resources/<platform>/, which mygo build ships beside the app.
-      - name: Build ytmd and ytm
-        run: scripts/build-helpers.sh "$TARGET_OS-amd64" "$TARGET_OS-arm64"
-
       - name: Build and sign the updates
         env:
           MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
-        run: go tool mygo build -platform "$TARGET_OS/amd64,$TARGET_OS/arm64"
+        run: scripts/build.sh -platform "$TARGET_OS/amd64,$TARGET_OS/arm64"
 
       # The update files keep their names: the manifests link to them.
       # Linux's archive is also what install.sh installs. Each package

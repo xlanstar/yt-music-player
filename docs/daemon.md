@@ -146,7 +146,7 @@ Accepted trade-off: an app on a disk not mounted at login (an external drive) re
 
 ## Packaging
 
-`scripts/build-helpers.sh <platform>…` builds ytmd and ytm into `resources/<platform>/` before `mygo build`, which ships, signs and (universal) merges them (`docs/release.md`):
+`scripts/build.sh` builds ytmd and ytm into `resources/<platform>/`, then runs `mygo build`, which ships, signs and (universal) merges them (`docs/release.md`):
 
 - **macOS:** `Contents/Resources/YT Music Player Helper.app` (`ytmd`, `dev.lanstar.ytmusicplayer.daemon`, `LSUIElement`, the app's icon; Now Playing shows the folder's name, which is not the app's so that nothing finds two *YT Music Player*s) and `Contents/Resources/ytm`, which the cask links into Homebrew's `bin`; `brew uninstall` runs `ytm daemon stop` first and leaves the LaunchAgent, so that upgrades keep it: without the app, it removes itself at the next login (`--zap` removes it at once).
 - **Linux:** `ytmd`, `ytm` and the `ytmd.service` template beside the app; `linux.command` puts `ytm` on the `PATH` as a link to the app, which runs the `ytm` beside it under that name.

@@ -274,7 +274,7 @@ func TestUnit(t *testing.T) {
 	if err != nil || string(got) != wantUnit {
 		t.Errorf("Unit = %q, %v; want %q", got, err, wantUnit)
 	}
-	// The template Linux packages ship (scripts/build-helpers.sh), for the
+	// The template Linux packages ship (scripts/build.sh), for the
 	// Debian package's ytmd.
 	if shipped := readFile(t, "../../packaging/linux/ytmd.service"); shipped != string(got) {
 		t.Errorf("packaging/linux/ytmd.service = %q; want Unit's %q", shipped, got)

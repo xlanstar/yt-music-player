@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// daemonBundle is the macOS bundle ytmd runs in (scripts/build-helpers.sh),
+// daemonBundle is the macOS bundle ytmd runs in (scripts/build.sh),
 // whose folder name Control Center shows. Not the app's own name:
 // LaunchServices registers apps nested in installed apps too, and a second
 // "YT Music Player", showing no window, would answer open -a, AppleScript

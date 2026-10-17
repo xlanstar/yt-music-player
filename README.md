@@ -47,7 +47,7 @@ Requires Go 1.27+.
 
 ```sh
 scripts/dev.sh                 # run the app, with the background player (ytmd) it starts
-go tool mygo build             # build for this system into build/
+scripts/build.sh               # build for this system into build/
 ```
 
 ## Development
