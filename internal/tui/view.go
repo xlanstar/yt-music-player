@@ -19,8 +19,13 @@ const (
 	minBody = 1
 )
 
-// appName is the app's name, untranslated.
-const appName = "YT Music Player"
+// appName is the app's name, untranslated; nameCell shows it in the
+// header, from nameFrom cells wide.
+const (
+	appName  = "YT Music Player"
+	nameCell = " " + appName + "  "
+	nameFrom = 60
+)
 
 // render draws the screen into m.content: the tabs, the shown page, the
 // daemon's health when it is not connected, and the player bar at the
@@ -63,15 +68,12 @@ func (m *model) bodyHeight() int {
 // that marks the shown tab.
 func (m *model) appendHeader(lines []string, w int) []string {
 	var top, rule strings.Builder
-	at := 0
-	if w >= 60 {
-		name := " " + appName + "  "
-		styleAccentB.write(&top, name)
-		at = width(name)
+	at := tabsFrom(w)
+	if at > 0 {
+		styleAccentB.write(&top, nameCell)
 		rule.WriteString(strings.Repeat("─", at))
 	}
-	labels := [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search, tabLibrary: m.words.library}
-	for i, label := range labels {
+	for i, label := range m.tabLabels() {
 		cell := " " + label + " "
 		style, mark := paint{}, "─"
 		if tab(i) == m.tab {
@@ -96,6 +98,20 @@ func (m *model) appendHeader(lines []string, w int) []string {
 		rule.WriteString(strings.Repeat("─", w-at))
 	}
 	return append(lines, line, styleMuted.Render(fitStyled(rule.String(), w)))
+}
+
+// tabsFrom is the cell where the tabs start: after the app's name, if
+// it shows.
+func tabsFrom(w int) int {
+	if w < nameFrom {
+		return 0
+	}
+	return width(nameCell)
+}
+
+// tabLabels are the tabs' names; each shows as " label ", then a space.
+func (m *model) tabLabels() [numTabs]string {
+	return [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search, tabLibrary: m.words.library}
 }
 
 // fitStyled cuts s, which may hold styles, to w cells.
@@ -161,7 +177,12 @@ func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 // appendHelp adds the keys and what they do in h lines, in as many
 // columns as that takes, each as wide as its text.
 func (m *model) appendHelp(lines []string, w, h int) []string {
-	lines = append(lines, "", " "+styleBold.Render(fit(m.words.helpTitle, w-2)))
+	title := fit(m.words.helpTitle, w-2)
+	mouse := fit(m.words.helpMouse, w-width(title)-4)
+	if mouse != "" {
+		mouse = "  " + styleMuted.Render(mouse)
+	}
+	lines = append(lines, "", " "+styleBold.Render(title)+mouse)
 	keys := m.words.helpKeys
 	rows := max(h-2, 1)
 	cols := (len(keys) + rows - 1) / rows
@@ -268,19 +289,31 @@ func (m *model) appendBar(lines []string, w int) []string {
 // progress is the current song's time, as a bar between its elapsed and
 // whole length.
 func (m *model) progress(st api.State, w int) string {
-	pos := m.mirror.Position(m.now())
+	pos := m.position(st)
 	elapsed := clock(pos)
 	if st.Duration <= 0 {
 		return " " + elapsed
 	}
 	total := clock(st.Duration)
-	bar := w - width(elapsed) - width(total) - 4
-	if bar < 4 {
+	_, bar := barSpan(elapsed, total, w)
+	if bar == 0 {
 		return " " + elapsed + " / " + total
 	}
 	done := min(int(pos/st.Duration*float64(bar)), bar)
 	return " " + elapsed + " " + styleAccent.Render(strings.Repeat("━", done)) +
 		styleMuted.Render(strings.Repeat("─", bar-done)) + " " + total
+}
+
+// barSpan is where the progress's bar lies on its line of w cells,
+// between elapsed and total, a space before the end: from cell start, n
+// cells; n is 0 when there is no room for one.
+func barSpan(elapsed, total string, w int) (start, n int) {
+	start = 1 + width(elapsed) + 1
+	n = w - start - 1 - width(total) - 1
+	if n < 4 {
+		return start, 0
+	}
+	return start, n
 }
 
 // status says what is on of shuffle and repeat, and the volume.

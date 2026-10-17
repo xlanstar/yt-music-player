@@ -17,9 +17,17 @@ func TestBudgetView(t *testing.T) {
 	}
 }
 
-// TestBudgetUpdate holds the tick a second while playing.
+// TestBudgetUpdate holds the tick a second while playing, and a click
+// that selects a row.
 func TestBudgetUpdate(t *testing.T) {
-	h := viewing(t, func(h *harness) { h.mirror.state.Playing = true })
-	// 100 allocs today: the render, and the tick's timer.
-	budget.Allocs(t, 115, 100, func() { h.send(tickMsg{}) })
+	t.Run("tick", func(t *testing.T) {
+		h := viewing(t, func(h *harness) { h.mirror.state.Playing = true })
+		// 100 allocs today: the render, and the tick's timer.
+		budget.Allocs(t, 115, 100, func() { h.send(tickMsg{}) })
+	})
+	t.Run("click", func(t *testing.T) {
+		h := viewing(t, func(*harness) {})
+		// 96 allocs today: the page found again, and the render.
+		budget.Allocs(t, 110, 100, clicking(h))
+	})
 }

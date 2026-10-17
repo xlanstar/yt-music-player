@@ -10,6 +10,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 - Linux and Windows downloads, amd64 and arm64: `install.sh` or a Debian package on Linux, a setup on Windows (not code-signed yet, so SmartScreen warns). They update themselves, but for the Debian package, which `apt` updates.
 - Background playback: music plays on when the window closes or the app quits, in a small background player that the app starts and that sleeps while paused. Quit and Stop Playback, in the app menu, stops the music with the app.
 - `ytm`, the player in a terminal (queue, search, your library; no images) and a command line: `ytm status`, `ytm play`, `ytm next`, `ytm volume 50`, `ytm login` to sign in by pasting the cookie, `ytm help` for the rest. Homebrew and the Linux packages put it on the `PATH`; on Windows, turn on Use ytm in a terminal in the settings.
+- Mouse in `ytm`: click a song or row to select it, click it again (or double-click) to play or open it; click or drag the progress to seek; click the tabs; the wheel scrolls. Hold Shift (Option in iTerm2, Fn in Terminal) while dragging to select text.
 - Start background player at login, in the settings (off by default; `ytm autostart on` too): the media keys and `ytm` work from login, before the app is opened. Deleting the app on macOS or Linux turns it off at the next login; on Windows, turn it off before uninstalling.
 
 ### Changed

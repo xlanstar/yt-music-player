@@ -3,6 +3,8 @@ package tui
 import (
 	"testing"
 	"yt-music-player/internal/api"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 // viewCases are screens as Update renders them: a long queue playing
@@ -29,7 +31,7 @@ var viewCases = []struct {
 		h.loaded()
 		h.press("esc")
 	}, 102},
-	// 98 allocs today.
+	// 100 allocs today.
 	{"help", func(h *harness) { h.press("?") }, 113},
 }
 
@@ -57,8 +59,9 @@ func BenchmarkView(b *testing.B) {
 	}
 }
 
-// BenchmarkUpdate is the progress's tick a second while playing: an
-// update that renders the screen and schedules the next tick.
+// BenchmarkUpdate is the progress's tick a second while playing (an
+// update that renders the screen and schedules the next tick), and a
+// click that selects a row of the queue.
 func BenchmarkUpdate(b *testing.B) {
 	h := viewing(b, func(h *harness) { h.mirror.state.Playing = true })
 	b.Run("tick", func(b *testing.B) {
@@ -68,4 +71,24 @@ func BenchmarkUpdate(b *testing.B) {
 		}
 		sinkContent = h.m.content
 	})
+	b.Run("click", func(b *testing.B) {
+		h := viewing(b, func(*harness) {})
+		click := clicking(h)
+		b.ReportAllocs()
+		for b.Loop() {
+			click()
+		}
+		sinkContent = h.m.content
+	})
+}
+
+// clicking returns a click on the queue's second or third row, in turn:
+// each selects, none plays.
+func clicking(h *harness) func() {
+	_, y := h.find("Satellite Hearts")
+	i := 0
+	return func() {
+		i++
+		h.send(tea.MouseClickMsg{X: 10, Y: y + i%2, Button: tea.MouseLeft})
+	}
 }

@@ -411,6 +411,8 @@
   "@tuiFrontendOutdated": { "placeholders": { "daemon": { "type": "String", "example": "1.0.0" }, "ours": { "type": "String", "example": "0.3.0" } } },
   "tuiHelpTitle": "Keys",
   "@tuiHelpTitle": { "description": "The title of the terminal player's help, a list of keys and what they do." },
+  "tuiHelpMouse": "Click selects, again plays; Shift-, Option- or Fn-drag selects text",
+  "@tuiHelpMouse": { "description": "Beside the title of the terminal player's help: a click selects a row, a second click plays or opens it, a click on the progress seeks. The player takes the mouse, so the terminal selects text only with Shift (Option in iTerm2, Fn in macOS Terminal) held while dragging." },
   "tuiHelpToggle": "Play or pause",
   "tuiHelpNext": "Next or previous song",
   "tuiHelpSeek": "Back or forward 5 seconds",
