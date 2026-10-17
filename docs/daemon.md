@@ -86,7 +86,7 @@ type Frame struct { ID uint32; Hello *Hello; Call *Call; Reply *Reply; Cancel bo
 - **Methods** (`api.Method`, numbered from 1, only appended):
   - bootstrap: `Ping`, `Handoff(Wait)`, `Shutdown`; `Status` (`ytm status`'s snapshot);
   - playback: `Play(IDs, Start)` (as Desktop's rows: resume or pause the current song, jump to a queued one, else queue it next), `PlayAll(IDs, Start)` (the IDs become the queue), `Toggle`, `Pause`, `Resume`, `Next`, `Prev`, `Seek(Seconds)`, `SetVolume(0–1)`, `ToggleMute`, `CycleRepeat`, `ToggleShuffle`;
-  - queue: `Enqueue(IDs, Next)`, `Remove(Index)`, `Move(From, To)`, `ClearUpNext`. `IDsArgs.Songs` carry the songs' data: ytmd keeps no catalog but its queue's songs;
+  - queue: `Enqueue(IDs, Next)`, `Remove(Index)`, `Move(From, To)`, `ClearUpNext`. `IDsArgs.Songs` carry the songs' data: ytmd keeps no catalog but its queue's songs. The queue holds each ID once (package `player`): `Enqueue` skips IDs queued, or with `Next` moves them after the current song; `PlayAll` keeps an ID's first place, `Start` naming the same song;
   - catalog (`catalog.Source`): `Search`, `Album`, `Playlist`, `Home`, `Explore`, `Account`, `Library`; ytmd caches no pages;
   - account (`catalog.Accounts`): `Like(ID, Liked, Song)`, where the optional `Song` lets ytmd add a song it never sent to the likes' data; `SignIn(Credentials)` (never logged; a newer sign-in replaces one in flight); `SignOut`; `Refresh(Part)` fetches the profile, library or likes anew.
 - **Events** go to connections whose Hello subscribed (Desktop, TUI); several fields may be set:

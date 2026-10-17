@@ -20,6 +20,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 ### Fixed
 
 - Pages, search and your library that failed to load while offline load again by themselves once the computer is back online, without a click on Retry.
+- A song is queued only once: adding a song already queued adds nothing (`ytm` says so), playing it next moves it after the current song, and a playlist that lists a song twice plays it once.
 
 ## [0.1.0] - 2026-10-16
 

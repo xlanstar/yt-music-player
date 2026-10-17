@@ -193,6 +193,65 @@ func TestQueueEdits(t *testing.T) {
 	}
 }
 
+// The queue holds each song once, whatever a front-end sends.
+func TestQueueOnce(t *testing.T) {
+	h := newHarness(t, Options{})
+	c := h.connect(true)
+	c.event()
+	queue := songs(3)
+	c.call(playAll([]catalog.Song{queue[0], queue[1], queue[0], queue[2], queue[1]}, 2))
+	ev := c.eventWith(hasState)
+	if !slices.Equal(ev.Queue.IDs, []string{"s0", "s1", "s2"}) || ev.State.Current != "s0" || ev.State.Index != 0 {
+		t.Errorf("repeats played: queue %q, state %+v", ev.Queue.IDs, ev.State)
+	}
+	if len(ev.Songs) != 3 {
+		t.Errorf("repeats played: songs %+v", ev.Songs)
+	}
+
+	x := catalog.Song{ID: "x", Title: "X"}
+	for _, tc := range []struct {
+		name  string
+		args  api.IDsArgs
+		queue []string
+		songs []catalog.Song
+	}{
+		{"add queued", api.IDsArgs{IDs: []string{"s1", "x", "x"}, Songs: []catalog.Song{queue[1], x, x}}, []string{"s0", "s1", "s2", "x"}, []catalog.Song{x}},
+		{"play queued next", api.IDsArgs{IDs: []string{"x", "s0", "s2"}, Songs: []catalog.Song{x, queue[0], queue[2]}, Next: true}, []string{"s0", "x", "s2", "s1"}, nil},
+	} {
+		c.call(api.Call{Method: api.MethodEnqueue, IDs: &tc.args})
+		ev := c.eventWith(func(ev api.Event) bool { return ev.Queue != nil })
+		if !slices.Equal(ev.Queue.IDs, tc.queue) || !reflect.DeepEqual(ev.Songs, tc.songs) {
+			t.Errorf("%s: queue %q, new songs %+v; want %q, %+v", tc.name, ev.Queue.IDs, ev.Songs, tc.queue, tc.songs)
+		}
+		if ev.State == nil || ev.State.Current != "s0" || ev.State.Index != 0 {
+			t.Errorf("%s: state %+v", tc.name, ev.State)
+		}
+	}
+
+	// Adding only queued songs changes nothing, so tells nothing.
+	c.call(api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: []string{"s2", "x", "s0"}}})
+	c.ping()
+	for _, ev := range c.events {
+		if ev.Queue != nil {
+			t.Errorf("adding queued songs told queue %q", ev.Queue.IDs)
+		}
+	}
+	h.do(func() {
+		if got := slices.Sorted(slices.Values(ids(h.svc.cat.Songs))); !slices.Equal(got, []string{"s0", "s1", "s2", "x"}) {
+			t.Errorf("catalog %q", got)
+		}
+		if got := h.svc.player.Queued(); len(got) != 4 {
+			t.Errorf("queued %q", got)
+		}
+	})
+	// A new subscriber gets each song once.
+	late := h.connect(true)
+	ev = late.event()
+	if !slices.Equal(ev.Queue.IDs, []string{"s0", "x", "s2", "s1"}) || len(ev.Songs) != 4 {
+		t.Errorf("snapshot queue %q, %d songs", ev.Queue.IDs, len(ev.Songs))
+	}
+}
+
 func TestPlayOne(t *testing.T) {
 	h := newHarness(t, Options{Seed: songs(3)})
 	c := h.connect(true)
@@ -348,7 +407,8 @@ func TestBackpressure(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := h.connect(false)
-	extra := songs(ipc.QueueLen * 2)
+	// Past the seed's s0, so that each changes the queue.
+	extra := songs(ipc.QueueLen*2 + 1)[1:]
 	for i := range extra {
 		// Each makes a Queue event, which nothing coalesces.
 		c.call(api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: ids(extra[i : i+1])}})

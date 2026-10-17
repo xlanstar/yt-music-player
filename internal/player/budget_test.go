@@ -63,13 +63,23 @@ func TestBudgetPlay(t *testing.T) {
 }
 
 func TestBudgetPlayAll(t *testing.T) {
-	p := bigPlayer()
-	ids := queueIDs(bigQueue)
-	// 2 allocs today: the queue and its order.
-	budget.Allocs(t, 2, 20, func() { p.PlayAll(ids) })
-	p.isShuffled = true
-	// 3 allocs today: plus the shuffled order.
-	budget.Allocs(t, 3, 20, func() { p.PlayAll(ids) })
+	for _, tc := range playAllCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := bigPlayer()
+			p.isShuffled = tc.shuffle
+			budget.Allocs(t, tc.limit, 20, func() { p.PlayAll(tc.ids) })
+		})
+	}
+}
+
+func TestBudgetEnqueue(t *testing.T) {
+	ids := queueIDs(100)
+	for _, tc := range enqueueCases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := bigPlayer()
+			budget.Allocs(t, tc.limit, 20, func() { p.Enqueue(ids, tc.next) })
+		})
+	}
 }
 
 func TestBudgetAppendUpNext(t *testing.T) {
