@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/ebitengine/purego"
 	"github.com/rs/zerolog/log"
@@ -32,7 +31,7 @@ func RunMain(start func()) {
 
 type runLoop struct{ run, dispatchAsyncF, mainQueue uintptr }
 
-var loadRunLoop = sync.OnceValues(func() (runLoop, error) {
+func loadRunLoop() (runLoop, error) {
 	const path = "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
 	lib, err := purego.Dlopen(path, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
 	if err != nil {
@@ -50,4 +49,4 @@ var loadRunLoop = sync.OnceValues(func() (runLoop, error) {
 		mainQueue: sym(purego.RTLD_DEFAULT, "_dispatch_main_q"),
 	}
 	return cf, err
-})
+}

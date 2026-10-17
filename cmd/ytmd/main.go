@@ -47,9 +47,6 @@ func main() {
 			svc.Shutdown()
 		case <-svc.Done():
 		}
-	}()
-	go func() {
-		<-svc.Done()
 		_ = logs.Close()
 		os.Exit(0)
 	}()
