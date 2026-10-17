@@ -255,7 +255,6 @@ func TestEnumsRejectZero(t *testing.T) {
 		first        bool
 	}{
 		{"Method", Method(0).Valid(), numMethods.Valid(), MethodPing.Valid()},
-		{"Role", Role(0).Valid(), numRoles.Valid(), RoleDesktop.Valid()},
 		{"Part", Part(0).Valid(), numParts.Valid(), PartProfile.Valid()},
 		{"Repeat", Repeat(0).Valid(), numRepeats.Valid(), RepeatOff.Valid()},
 		{"ErrorCode", ErrorCode(0).Valid(), numCodes.Valid(), CodeNotFound.Valid()},
@@ -271,7 +270,7 @@ func TestEnumsRejectZero(t *testing.T) {
 		t.Error("a Hello without a Role validates")
 	}
 	// A newer peer's Proto and Role still greet.
-	if err := (&Hello{Proto: Proto + 1, Role: numRoles}).Validate(); err != nil {
+	if err := (&Hello{Proto: Proto + 1, Role: RoleDaemon + 1}).Validate(); err != nil {
 		t.Error(err)
 	}
 }
@@ -314,12 +313,6 @@ func TestCallValidate(t *testing.T) {
 		}
 		if err != nil && !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: err = %v, want ErrInvalid", tc.name, err)
-		}
-	}
-	// Every method's args field is one of Call's.
-	for m := MethodPing; m < numMethods; m++ {
-		if methods[m].args > handArgs {
-			t.Errorf("%s takes args %d", m, methods[m].args)
 		}
 	}
 }

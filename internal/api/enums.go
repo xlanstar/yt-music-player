@@ -177,11 +177,7 @@ const (
 	RoleTUI
 	RoleCLI
 	RoleDaemon
-	numRoles
 )
-
-// Valid reports whether r is a role of this Proto.
-func (r Role) Valid() bool { return r > 0 && r < numRoles }
 
 // Part is what the daemon's account fetches (account.Part, which counts
 // from 0, plus 1).

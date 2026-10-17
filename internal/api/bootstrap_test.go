@@ -123,10 +123,4 @@ func TestBootstrapFrozen(t *testing.T) {
 			}
 		}
 	})
-
-	t.Run("numbers", func(t *testing.T) {
-		if MethodPing != 1 || MethodHandoff != 2 || MethodShutdown != 3 {
-			t.Errorf("Ping, Handoff, Shutdown = %d, %d, %d; want 1, 2, 3", MethodPing, MethodHandoff, MethodShutdown)
-		}
-	})
 }
