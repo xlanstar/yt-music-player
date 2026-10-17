@@ -21,9 +21,7 @@ import (
 
 // Tests run the app over ytmd in this process: a daemon.Service, with no
 // saved state, connected to the app's client over net.Pipe. It plays the
-// placeholder's queue on audio.Fake when a test gives it a Resolver, and
-// acts as a mock otherwise. Its source is tracked, so that answer knows
-// when the daemon took a reply.
+// placeholder's queue on audio.Fake when a test gives it a Resolver.
 
 // wait bounds every wait for the daemon, the app's posts or a request.
 const wait = 5 * time.Second
@@ -41,7 +39,6 @@ type posts struct {
 // testYtmd is an app's in-process ytmd.
 type testYtmd struct {
 	svc *daemon.Service
-	src *tracked
 	// engine plays, nil without a Resolver.
 	engine *testEngine
 	q      posts
@@ -50,21 +47,8 @@ type testYtmd struct {
 	a *app
 }
 
-var (
-	ytmdsMu sync.Mutex
-	ytmds   = map[*app]*testYtmd{}
-)
-
 // ytmdOf returns a's in-process ytmd.
-func ytmdOf(a *app) *testYtmd {
-	ytmdsMu.Lock()
-	defer ytmdsMu.Unlock()
-	y := ytmds[a]
-	if y == nil {
-		panic("an app without its test ytmd")
-	}
-	return y
-}
+func ytmdOf(a *app) *testYtmd { return a.daemon.ytmd.dialer.(pipeDialer).y }
 
 // ytmdOptions are what a test's ytmd plays with; the zero value plays
 // nothing.
@@ -85,8 +69,8 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 	if opts.signedOut {
 		src = signedOutSource{src}
 	}
-	y := &testYtmd{src: newTracked(src)}
-	dopts := daemon.Options{Source: y.src.source(), Seed: catalog.Placeholder().Songs}
+	y := &testYtmd{}
+	dopts := daemon.Options{Source: src, Seed: catalog.Placeholder().Songs}
 	if opts.resolver != nil {
 		y.engine = &testEngine{}
 		dopts.Resolver = opts.resolver
@@ -107,10 +91,7 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 		a.updates.attach(func(fn func()) { appPosts <- fn })
 	}
 	y.a = a
-	ytmdsMu.Lock()
-	ytmds[a] = y
-	ytmdsMu.Unlock()
-	a.connect(ytmd{dialer: pipeDialer{svc}, spawn: errNoSpawn, version: version.Dev, log: testLog})
+	a.connect(ytmd{dialer: pipeDialer{y}, spawn: errNoSpawn, version: version.Dev, log: testLog})
 	tb.Cleanup(y.close)
 	y.until(tb, "connected", func() bool {
 		return a.daemon.link.Health == remote.Connected && a.mirror.StateGen() > 0
@@ -136,19 +117,16 @@ func (y *testYtmd) disconnect() {
 	if y.a == nil {
 		return
 	}
-	ytmdsMu.Lock()
-	delete(ytmds, y.a)
-	ytmdsMu.Unlock()
 	y.a.disconnect()
 	y.a, y.q.app, y.q.client = nil, nil, nil
 }
 
-// pipeDialer connects to an in-process Service over net.Pipe.
-type pipeDialer struct{ svc *daemon.Service }
+// pipeDialer connects to an in-process ytmd over net.Pipe.
+type pipeDialer struct{ y *testYtmd }
 
 func (d pipeDialer) Dial(context.Context) (net.Conn, error) {
 	ours, theirs := net.Pipe()
-	go d.svc.Serve(theirs) //nolint:contextcheck // the Service's end outlives the dial, as a socket's does
+	go d.y.svc.Serve(theirs) //nolint:contextcheck // the Service's end outlives the dial, as a socket's does
 	return ours, nil
 }
 
@@ -203,99 +181,6 @@ func syncDaemon(tb testing.TB, q posts) {
 		})
 		y.until(tb, "pinged", func() bool { return isDone })
 	}
-}
-
-// tracked is a Source that counts the requests it answered, by kind and
-// ID as catalogtest names them.
-type tracked struct {
-	src      catalog.Source
-	mu       sync.Mutex
-	returned map[string]int
-}
-
-func newTracked(src catalog.Source) *tracked {
-	return &tracked{src: src, returned: map[string]int{}}
-}
-
-// source returns t as the daemon's source: catalog.Accounts when t's
-// source signs in.
-func (t *tracked) source() catalog.Source {
-	if _, ok := t.src.(catalog.Accounts); ok {
-		return trackedAccounts{t}
-	}
-	return t
-}
-
-func (t *tracked) answered(kind, id string) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.returned[kind+" "+id]++
-}
-
-// count returns how many requests of kind and id were answered.
-func (t *tracked) count(kind, id string) int {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	return t.returned[kind+" "+id]
-}
-
-// The deferred count runs before the caller, the daemon, gets the
-// result, which it posts to its loop at once.
-
-func (t *tracked) Search(ctx context.Context, query string) (catalog.Results, error) {
-	defer t.answered("search", query)
-	return t.src.Search(ctx, query)
-}
-
-func (t *tracked) Album(ctx context.Context, id string) (catalog.Album, []catalog.Song, error) {
-	defer t.answered("album", id)
-	return t.src.Album(ctx, id)
-}
-
-func (t *tracked) Playlist(ctx context.Context, id string) (catalog.Playlist, []catalog.Song, error) {
-	defer t.answered("playlist", id)
-	return t.src.Playlist(ctx, id)
-}
-
-func (t *tracked) Home(ctx context.Context) (catalog.Home, error) {
-	defer t.answered("home", "")
-	return t.src.Home(ctx)
-}
-
-func (t *tracked) Explore(ctx context.Context) (catalog.Explore, error) {
-	defer t.answered("explore", "")
-	return t.src.Explore(ctx)
-}
-
-func (t *tracked) Account(ctx context.Context) (catalog.Account, error) {
-	defer t.answered("account", "")
-	return t.src.Account(ctx)
-}
-
-func (t *tracked) Library(ctx context.Context) (catalog.Library, error) {
-	defer t.answered("library", "")
-	return t.src.Library(ctx)
-}
-
-func (t *tracked) Like(ctx context.Context, id string, liked bool) error {
-	sign := "-"
-	if liked {
-		sign = "+"
-	}
-	defer t.answered("like", sign+id)
-	return t.src.Like(ctx, id, liked)
-}
-
-type trackedAccounts struct{ *tracked }
-
-func (t trackedAccounts) SignIn(ctx context.Context, credentials string) (catalog.Account, error) {
-	defer t.answered("signin", credentials)
-	return t.src.(catalog.Accounts).SignIn(ctx, credentials)
-}
-
-func (t trackedAccounts) SignOut() error {
-	defer t.answered("signout", "")
-	return t.src.(catalog.Accounts).SignOut()
 }
 
 // signedOutSource has no one signed in: it answers the account's fetches
@@ -417,7 +302,7 @@ func eventually(t testing.TB, tt *ui.Tester, q posts, what string, cond func() b
 // without subscribing, and calls what it likes.
 func peer(tb testing.TB, q posts) *remote.Client {
 	tb.Helper()
-	c, _, err := remote.Connect(tb.Context(), pipeDialer{q.ytmd.svc}, false, api.RoleCLI, version.Dev)
+	c, _, err := remote.Connect(tb.Context(), pipeDialer{q.ytmd}, false, api.RoleCLI, version.Dev)
 	if err != nil {
 		tb.Fatal(err)
 	}

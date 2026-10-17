@@ -88,10 +88,9 @@ func heldPost(t testing.TB, q posts) func() {
 // sent with it arrived.
 func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply) {
 	t.Helper()
-	src := q.ytmd.src
-	n := src.count(call.Kind, call.ID)
 	call.Reply <- r
-	q.ytmd.until(t, "answered "+call.Kind, func() bool { return src.count(call.Kind, call.ID) > n })
+	// The Reply's buffer empties as ytmd's source takes it.
+	q.ytmd.until(t, "took the "+call.Kind, func() bool { return len(call.Reply) == 0 })
 	if isPage(call) {
 		heldPost(t, q)()
 	}
