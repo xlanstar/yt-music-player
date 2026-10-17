@@ -10,7 +10,6 @@ var (
 	ErrDaemonNotFound    = errors.New("api: ytmd not found next to this program; set YTMD_PATH to its path")
 	ErrDaemonUnavailable = errors.New("api: ytmd did not answer")
 	ErrDisconnected      = errors.New("api: disconnected from ytmd")
-	ErrProtoMismatch     = errors.New("api: ytmd speaks another protocol version")
 )
 
 // ErrInternal is what a front-end reads for any failure in the daemon
