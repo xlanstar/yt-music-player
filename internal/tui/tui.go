@@ -33,7 +33,6 @@ package tui
 import (
 	"context"
 	"errors"
-	"io"
 	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
@@ -61,26 +60,13 @@ type Config struct {
 	// DaemonLog is the path of ytmd's log, shown when it cannot be
 	// reached.
 	DaemonLog string
-	// OpenDesktop opens the Desktop app, for a signed-out user; nil is
-	// the platform's way.
-	OpenDesktop func() error
-	// Input and Output are the terminal's; nil are stdin and stdout.
-	Input  io.Reader
-	Output io.Writer
 }
 
 // Run runs the TUI until the user quits or ctx ends. Quitting leaves ytmd
 // playing.
 func Run(ctx context.Context, cfg Config) error {
 	a := newApp(cfg) //nolint:contextcheck // the fetches end with the app (loader.Stop), not with ctx
-	opts := []tea.ProgramOption{tea.WithContext(ctx), tea.WithFPS(fps)}
-	if cfg.Input != nil {
-		opts = append(opts, tea.WithInput(cfg.Input))
-	}
-	if cfg.Output != nil {
-		opts = append(opts, tea.WithOutput(cfg.Output))
-	}
-	p := tea.NewProgram(a.m, opts...)
+	p := tea.NewProgram(a.m, tea.WithContext(ctx), tea.WithFPS(fps))
 	pumpCtx, stop := context.WithCancel(ctx)
 	go a.posts.pump(pumpCtx, p.Send)
 	_, err := p.Run()
@@ -118,10 +104,6 @@ func newApp(cfg Config) *app {
 	states := &fetchstate.Registry{}
 	cat := catalog.New(nil, nil, nil)
 	load := loader.New(c, states, cat, posts.post)
-	open := cfg.OpenDesktop
-	if open == nil {
-		open = openDesktop
-	}
 	m.deps = deps{
 		ctl:         c,
 		mirror:      c.Mirror(),
@@ -131,7 +113,7 @@ func newApp(cfg Config) *app {
 		states:      states,
 		posts:       posts,
 		now:         time.Now,
-		openDesktop: open,
+		openDesktop: openDesktop,
 		daemonLog:   cfg.DaemonLog,
 	}
 	sup := remote.Supervise(c, remote.Options{
