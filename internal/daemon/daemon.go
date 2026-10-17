@@ -1,38 +1,12 @@
-// Package daemon is ytmd's Service: it owns the player, the playback and
-// its engine (with the system's media controls), the account and the
-// saved state on one loop goroutine (package loop), and serves front-ends
-// the api protocol over connections (package ipc).
-//
-// Every request, engine event and fetch result runs on the loop; after each
-// batch the Service sends its subscribers what changed: the State when
-// anything but the moving position changed, or the position jumped (a
-// seek), never on a timer; the queue when it changed, with the songs new
-// to it; the playback's notices. The account's changes go out as they
-// come, after the reply of the request that caused them (a Like's reply
-// precedes its Likes; SignIn's and SignOut's follow their Account, as
-// package account orders them). A subscriber first gets a snapshot: the
-// State, the queue and all its songs, then the account's status, library
-// and likes as far as fetched (a kind not yet fetched is left out; its
-// event follows), then a Failed event per Part whose last fetch failed.
-//
-// Catalog requests run on goroutines of their own with a context that a
-// Cancel frame or the connection's end cancels; their replies come back
-// through the loop. A Cancel or the connection's end cancels a SignIn too,
-// unless another replaced it. The loop never waits on a socket: a peer
-// that reads too slowly loses its connection (ipc.Conn).
+// Package daemon is ytmd's Service: the player, the playback and its
+// engine, the account and the saved state live on one loop goroutine
+// (package loop), which serves front-ends the api protocol (package ipc)
+// and never waits on a socket. After each batch on the loop, settle sends
+// subscribers what changed; catalog requests run off the loop.
+// docs/daemon.md describes the protocol, the events and daemon.json.
 //
 // The daemon keeps no catalog but its queue's songs, which callers send
-// with the IDs they play or enqueue (api.IDsArgs.Songs) and daemon.json
-// keeps, and the account's liked songs: those of Liked music fetched, and
-// those liked since whose Like described them (api.LikeArgs.Song), which
-// the Likes event of the like carries to the other front-ends. A sign-in that switches accounts empties the queue: its songs
-// were the previous account's. Play plays one song as Desktop's rows do
-// (resumes or pauses it when current, jumps to it when queued, else
-// queues it after the current song); PlayAll makes the IDs the queue,
-// from Start. The queue holds each song once (package player).
-//
-// A peer of another Proto may only Ping, Handoff and Shutdown; it gets no
-// events but a HandoffEvent.
+// with the IDs (api.IDsArgs.Songs), and the account's liked songs.
 package daemon
 
 import (
@@ -172,11 +146,9 @@ func newService(opts Options) *Service {
 	return s
 }
 
-// Open starts ytmd's way (ipc): it prepares the directories of paths,
-// takes the lock (ipc.ErrLocked: a daemon runs already), loads the state
-// from paths.State, and listens on paths.Socket, removing a stale one. The
-// state is loaded before anyone can connect, so the first snapshot is
-// whole. Start accepts the connections; stopping releases the lock.
+// Open takes the lock (ipc.ErrLocked: a daemon runs already), loads the
+// state, then listens on paths.Socket, so the first snapshot is whole.
+// Start accepts the connections; stopping releases the lock.
 func Open(paths ipc.Paths, opts Options) (*Service, error) {
 	if err := paths.Prepare(); err != nil {
 		return nil, err
@@ -241,11 +213,8 @@ func (s *Service) isClosed() bool {
 	return s.closed
 }
 
-// Shutdown stops the Service as ytmd stops (Shutdown, SIGTERM, SIGINT):
-// it pauses, saves the state, closes the engine and its media controls,
-// stops listening (removing the socket), flushes and closes the
-// connections and releases the lock, then returns. It returns at once
-// once the Service stopped.
+// Shutdown pauses, saves and stops the Service, and returns once it is
+// done.
 func (s *Service) Shutdown() {
 	s.post(func() { s.stop(time.Time{}) })
 	<-s.done
@@ -255,9 +224,8 @@ func (s *Service) Shutdown() {
 // request or a hand-off.
 func (s *Service) Done() <-chan struct{} { return s.done }
 
-// stop pauses, saves, closes everything and stops the loop; a hand-off
-// has the next daemon resume until resumeBefore. The connections are
-// flushed and closed off the loop.
+// stop pauses, saves and stops the loop; a hand-off has the next daemon
+// resume until resumeBefore. The connections close off the loop.
 func (s *Service) stop(resumeBefore time.Time) {
 	if s.stopping {
 		return
@@ -282,15 +250,12 @@ func (s *Service) stop(resumeBefore time.Time) {
 	}
 	s.quiet.stop()
 	if s.lis != nil {
-		// The socket goes with it.
-		_ = s.lis.Close()
+		_ = s.lis.Close() // removes the socket
 	}
 	s.loop.Stop()
 	go s.finish()
 }
 
-// finish flushes and closes every connection, releases the lock and marks
-// the Service done.
 func (s *Service) finish() {
 	s.mu.Lock()
 	s.closed = true

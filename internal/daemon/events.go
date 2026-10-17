@@ -12,17 +12,17 @@ import (
 )
 
 // jumpSlack is how far, in seconds, the position may stray from where the
-// last State said it would be before it counts as a jump (a seek) and a
-// State goes out: the engine's clock and the loop's drift apart a little.
+// last State put it before it counts as a seek: the engine's clock and the
+// loop's drift apart a little.
 const jumpSlack = 1
 
-// sentState is what the subscribers were last told, and what the state
-// file last kept, to send and save only what changed.
+// sentState is what the subscribers were last told and the state file
+// last kept, to send and save only what changed.
 type sentState struct {
 	state api.State
 	at    time.Time // when state was sent
 	// queueGen is the player's QueueGen when the queue was last told;
-	// queued holds its IDs, spare the map made anew next time.
+	// queued holds its IDs, spare the next queued's room.
 	queueGen      uint64
 	queued, spare map[string]struct{}
 	// catGen is the catalog's Gen once it held only the queue's songs.
@@ -32,8 +32,7 @@ type sentState struct {
 	seen, mark saveMark
 }
 
-// reset takes the Service's state as told and saved: at start, nothing
-// changed.
+// reset takes the Service's state as told and saved.
 func (t *sentState) reset(s *Service) {
 	t.state, t.at = s.state(), s.now()
 	t.queueGen = s.player.QueueGen()
@@ -46,7 +45,6 @@ func (t *sentState) reset(s *Service) {
 	t.mark = t.seen
 }
 
-// state is the playback's State now.
 func (s *Service) state() api.State {
 	p := s.player
 	current := p.Current()
@@ -68,9 +66,9 @@ func (s *Service) state() api.State {
 	}
 }
 
-// settle runs after each batch on the loop: it has the engine follow,
-// sends what changed, saves what must be, and arms the memory's release.
-// A batch that changed nothing allocates nothing.
+// settle runs after each batch on the loop: the engine follows, then the
+// subscribers hear what changed and the state saves. A batch that changed
+// nothing allocates nothing.
 func (s *Service) settle() {
 	if s.stopping {
 		return
@@ -92,8 +90,7 @@ func (s *Service) settle() {
 	s.quiet.active()
 }
 
-// tell sends the subscribers the State, with the queue if it changed and
-// the notice if any.
+// tell sends the State, with the queue if it changed and the notice.
 func (s *Service) tell(st api.State, now time.Time, queueChanged bool, n notice.Notice, hasNotice bool) {
 	ev := &api.Event{State: &st}
 	s.sent.state, s.sent.at = st, now
@@ -112,8 +109,7 @@ func (s *Service) tell(st api.State, now time.Time, queueChanged bool, n notice.
 }
 
 // compare reports whether st differs from the State last sent but in its
-// position, and whether the position jumped from where that State said it
-// would be by now.
+// position, and whether the position jumped from where that State put it.
 func (s *Service) compare(st api.State, now time.Time) (changed, jumped bool) {
 	last := s.sent.state
 	moved := st
@@ -160,7 +156,7 @@ func (s *Service) keepQueued() {
 	s.sent.catGen = s.cat.Gen()
 }
 
-// snapshot is what a new subscriber gets first: everything, as known.
+// snapshot is what a new subscriber gets first: everything known.
 func (s *Service) snapshot() []api.Frame {
 	s.pb.Follow()
 	st := s.state()
@@ -195,8 +191,8 @@ func failedEvent(f account.Failure) *api.FailedEvent {
 	return &api.FailedEvent{Part: api.Part(f.Part) + 1, Err: api.Encode(f.Err)}
 }
 
-// accountChanged tells the subscribers what the account reports, as it
-// comes: after the reply of the request that caused it.
+// accountChanged tells the subscribers what the account reports, after
+// the reply of the request that caused it.
 func (s *Service) accountChanged(c account.Change) {
 	var ev api.Event
 	switch {

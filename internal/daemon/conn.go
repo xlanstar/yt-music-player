@@ -18,10 +18,9 @@ type sender interface{ Send(api.Frame) error }
 type conn struct {
 	out   sender
 	hello api.Hello
-	// compatible: the peer speaks this Proto. Others may only Ping, Handoff
-	// and Shutdown.
+	// compatible: the peer speaks this Proto, else it may only Ping,
+	// Handoff and Shutdown.
 	compatible bool
-	// subscribed: it asked for events and got its snapshot.
 	subscribed bool
 	// calls cancel its catalog requests and SignIn in flight, by ID, as a
 	// Cancel or the connection's end does.
@@ -45,11 +44,8 @@ func (c *conn) cancelAll() {
 	}
 }
 
-// Serve runs a connection until it ends, as Open's listener does for each:
-// it reads the peer's Hello, answers with the daemon's (and a snapshot,
-// for a subscriber), then hands each request to the loop. In-process
-// front-ends (tests, Desktop's in P4) serve one end of a net.Pipe. It
-// takes nc, which it closes.
+// Serve runs a connection until it ends, and closes nc: Open's listener
+// serves each, tests one end of a net.Pipe.
 func (s *Service) Serve(nc net.Conn) {
 	ic := ipc.NewConn(nc)
 	defer ic.Close() //nolint:errcheck // always nil
@@ -139,8 +135,7 @@ func (s *Service) cancelCall(c *conn, id uint32) {
 	}
 }
 
-// broadcast sends ev to every subscriber. They share it: no one may
-// modify it once sent.
+// broadcast sends ev to every subscriber, which share it.
 func (s *Service) broadcast(ev *api.Event) {
 	for c := range s.conns {
 		if c.subscribed {

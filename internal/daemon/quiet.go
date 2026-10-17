@@ -18,13 +18,12 @@ const (
 )
 
 // quietGC returns free heap memory to the OS once the loop has run nothing
-// for quietAfter, as Desktop's does once its view stops building: busy,
-// the heap grows to twice the live size, and the scavenger takes minutes
-// to give it back. Activity arms its one timer; idle, nothing wakes.
+// for quietAfter, as Desktop's does: busy, the heap grows to twice the
+// live size, and the scavenger takes minutes to give it back.
 type quietGC struct {
-	timer *time.Timer // the loop's
-	// last is the heap's total allocations at the last free; atomic as a
-	// free runs on the timer's goroutine.
+	timer *time.Timer
+	// last is the heap's total allocations at the last free; atomic as
+	// frees run on the timer's goroutines.
 	last atomic.Uint64
 }
 

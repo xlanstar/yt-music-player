@@ -22,8 +22,8 @@ var (
 	errLikeSong    = fmt.Errorf("%w: a like describing another song", api.ErrInvalid)
 )
 
-// dispatch answers a request, on the loop. A stopping Service answers
-// none: a hand-off's later requests wait for its HandoffEvent instead.
+// dispatch answers a request. A stopping Service answers none: after a
+// hand-off, its peers wait for the next daemon.
 func (s *Service) dispatch(c *conn, id uint32, cl *api.Call) {
 	if s.stopping {
 		return
@@ -90,8 +90,8 @@ func (s *Service) bootstrap(c *conn, id uint32, cl *api.Call) {
 	}
 }
 
-// handoff tells the other connections who hands off, answers, then saves
-// with resumePlaying and stops (only the first: stop answers no more).
+// handoff tells the other connections, answers, then stops, saving with
+// resumePlaying.
 func (s *Service) handoff(c *conn, id uint32, wait time.Duration) {
 	ev := &api.Event{Handoff: &api.HandoffEvent{By: c.hello.PID, Wait: wait}}
 	for o := range s.conns {
@@ -157,8 +157,8 @@ func (s *Service) control(cl *api.Call) error {
 	return nil
 }
 
-// fetch asks the source off the loop; the reply comes back through it,
-// unless the request was canceled or its connection ended.
+// fetch asks the source off the loop; a request canceled meanwhile gets
+// no reply.
 func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 	s.cancelCall(c, id)
 	ctx, cancel := context.WithCancel(s.ctx)
@@ -180,7 +180,7 @@ func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 	}()
 }
 
-// ask runs a catalog request; off the loop, it touches nothing but src.
+// ask runs a catalog request off the loop: it touches nothing but src.
 func ask(ctx context.Context, src catalog.Source, cl *api.Call) *api.Reply {
 	var (
 		r   api.Reply
@@ -229,7 +229,7 @@ type pendingReply struct {
 	id uint32
 }
 
-// pendingSignIn is a SignIn in flight; answered once.
+// pendingSignIn is a SignIn in flight, answered once.
 type pendingSignIn struct {
 	pendingReply
 	isAnswered bool
@@ -253,13 +253,9 @@ func (p *pendingSignIn) fail(err error) {
 }
 
 // signInFor signs in for c. A sign-in replaces the one in flight, whose
-// caller hears so now: the account never answers a sign-in canceled.
-//
+// caller hears so now, as the account never answers a sign-in canceled.
 // A Cancel of the request, or the end of its connection, cancels the
-// account's sign-in, unless another SignIn replaced it since (maybe
-// another front-end's, which goes on). The canceled one gets no reply; as
-// the account has it, one whose credentials were stored anyway still
-// signs in, which the Account event tells.
+// account's sign-in unless another replaced it; it gets no reply.
 func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 	switch {
 	case !s.acct.CanSignIn():
@@ -290,8 +286,8 @@ func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 	})
 }
 
-// cancelSignIn drops p's reply and, if p is still the sign-in in flight,
-// cancels the account's.
+// cancelSignIn drops p's reply and, if p is still in flight, cancels the
+// account's sign-in.
 func (s *Service) cancelSignIn(p *pendingSignIn) {
 	p.isAnswered = true
 	if s.signIn != p {

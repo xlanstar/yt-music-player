@@ -20,9 +20,8 @@ import (
 // stateVersion is daemon.json's "v"; a file of another is set aside.
 const stateVersion = 1
 
-// savedState is daemon.json. The queue's songs are kept with it, compact
-// (zero fields left out), as the daemon has no catalog to describe them
-// on the next start.
+// savedState is daemon.json, with the queue's songs: the daemon has no
+// catalog to describe them on the next start.
 type savedState struct {
 	V        int           `json:"v"`
 	Queue    []string      `json:"queue"`
@@ -34,13 +33,13 @@ type savedState struct {
 	Repeat   player.Repeat `json:"repeat"`
 	Shuffled bool          `json:"shuffled"`
 	Songs    []savedSong   `json:"songs,omitzero"`
-	// ResumePlaying, written by a hand-off, has the next daemon play on if
-	// it starts before ResumeBefore; read once.
+	// ResumePlaying, from a hand-off, has the next daemon play on if it
+	// starts before ResumeBefore.
 	ResumePlaying bool      `json:"resumePlaying,omitzero"`
 	ResumeBefore  time.Time `json:"resumeBefore,omitzero"`
 }
 
-// savedSong is a catalog.Song in daemon.json.
+// savedSong is a catalog.Song in daemon.json, zero fields left out.
 type savedSong struct {
 	ID      string      `json:"id"`
 	Title   string      `json:"title,omitzero"`
@@ -51,8 +50,7 @@ type savedSong struct {
 	Art     catalog.Art `json:"art,omitzero"`
 }
 
-// saveMark is what, changed, saves the state after the delay; the
-// position saves at once on a pause, a seek or a new song instead.
+// saveMark is what saves the state a delay after it changes.
 type saveMark struct {
 	queueGen uint64
 	index    int
@@ -68,7 +66,7 @@ func (s *Service) mark() saveMark {
 }
 
 // loadState reads daemon.json; ok is false without one. One unreadable is
-// kept aside as daemon.json.bad, and the daemon starts empty.
+// kept aside as daemon.json.bad, and st is empty.
 func loadState(path string) (st savedState, ok bool) {
 	if path == "" {
 		return savedState{}, false
@@ -114,6 +112,7 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	if p.Current() != "" {
 		p.Position = max(saved.Position, 0)
 	}
+	// Else unreadable: the default volume.
 	if saved.V == stateVersion {
 		p.Volume, p.Muted = min(max(saved.Volume, 0), 1), saved.Muted
 	}
@@ -124,8 +123,8 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	s.resume = saved.ResumePlaying && s.now().Before(saved.ResumeBefore) && p.Current() != ""
 }
 
-// saved is the state to save now. Its slices are its own: it is written
-// off the loop.
+// saved is the state now, in slices of its own: it is written off the
+// loop.
 func (s *Service) saved() *savedState {
 	p := s.player
 	songs := make([]savedSong, len(s.cat.Songs))
@@ -146,9 +145,8 @@ func (s *Service) saved() *savedState {
 	}
 }
 
-// persist saves the position at once on a pause, a seek or a new song
-// since last, the State told before, and the rest a while after it
-// changes. Nothing waits while idle.
+// persist saves at once on a pause, seek or new song since last, the
+// State told before, and a delay after a change of the saveMark.
 func (s *Service) persist(st, last api.State, jumped bool) {
 	if s.store == nil {
 		return
@@ -168,14 +166,12 @@ func (s *Service) persist(st, last api.State, jumped bool) {
 	}
 }
 
-// saveDue runs when the delay after a change ends.
 func (s *Service) saveDue() {
 	if !s.stopping && s.mark() != s.sent.mark {
 		s.save()
 	}
 }
 
-// save writes the state off the loop.
 func (s *Service) save() {
 	if s.store == nil {
 		return
@@ -184,8 +180,8 @@ func (s *Service) save() {
 	s.store.save(s.saved())
 }
 
-// store writes daemon.json: whole or not at all, the latest of what it is
-// given, on a goroutine of its own while there is something to write.
+// store writes the latest daemon.json it is given, whole or not at all, on
+// a goroutine of its own while there is something to write.
 type store struct {
 	path  string
 	delay time.Duration
@@ -203,8 +199,7 @@ func newStore(path string, delay time.Duration) *store {
 	return w
 }
 
-// arm has due run on the loop after the delay, or later if armed again
-// meanwhile.
+// arm has due run on the loop after the delay, from the latest arm.
 func (w *store) arm(post func(func()), due func()) {
 	if w.timer == nil {
 		w.timer = time.AfterFunc(w.delay, func() { post(due) })
@@ -213,7 +208,6 @@ func (w *store) arm(post func(func()), due func()) {
 	w.timer.Reset(w.delay)
 }
 
-// save writes st off the caller's goroutine.
 func (w *store) save(st *savedState) {
 	if w.timer != nil {
 		w.timer.Stop()
@@ -264,8 +258,8 @@ func (w *store) write(st *savedState) {
 	}
 }
 
-// replaceFile writes a temporary file renamed over path, which a crash
-// midway leaves as it was. CreateTemp makes it 0600.
+// replaceFile renames a temporary file over path, which a crash midway
+// leaves as it was. CreateTemp makes it 0600.
 func replaceFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
