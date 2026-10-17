@@ -1,11 +1,6 @@
-// Package loop runs funcs one at a time on one goroutine, in the order they
-// were posted: the daemon's thread, which owns the player, the playback,
-// the account and the engine as the window's main thread owns them in
-// Desktop. Post is its post and its playback's Wake.
-//
-// Post never waits on the loop: it appends to a queue under a mutex held
-// for the append alone. The loop sleeps on a channel while the queue is
-// empty, so an idle loop wakes nothing.
+// Package loop runs funcs one at a time on one goroutine, in the order
+// they were posted: ytmd's thread, which owns the player, playback, account
+// and engine. Post never waits on the loop, and an idle loop wakes nothing.
 package loop
 
 import "sync"
@@ -25,9 +20,9 @@ type Loop struct {
 	wake chan struct{} // the queue has funcs or Stop was called; buffered 1
 }
 
-// New returns a Loop. after, if not nil, runs on the loop after each batch
-// of funcs, those posted while the previous batch ran: the daemon there
-// sends what they changed, once per batch rather than per func.
+// New returns a Loop. after, if not nil, runs after each batch of funcs
+// (those posted while the previous batch ran), so the daemon sends what
+// they changed once per batch.
 func New(after func()) *Loop {
 	return &Loop{
 		after: after,
