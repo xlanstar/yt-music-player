@@ -29,7 +29,7 @@
 // were the previous account's. Play plays one song as Desktop's rows do
 // (resumes or pauses it when current, jumps to it when queued, else
 // queues it after the current song); PlayAll makes the IDs the queue,
-// from Start.
+// from Start. The queue holds each song once (package player).
 //
 // A peer of another Proto may only Ping, Handoff and Shutdown; it gets no
 // events but a HandoffEvent.

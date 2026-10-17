@@ -134,6 +134,28 @@ func TestBadState(t *testing.T) {
 	}
 }
 
+// A state saved before the queue held each song once loads with each
+// once, at the same song.
+func TestStateRepeats(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "daemon.json")
+	queue := songs(3)
+	data, err := json.Marshal(savedState{
+		V: stateVersion, Queue: []string{"s0", "s1", "s0", "s2"}, Order: []int{2, 3, 0, 1}, Index: 3,
+		Shuffled: true, Volume: 0.5, Songs: savedSongs(queue),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := newHarness(t, Options{State: path})
+	snap := h.connect(true).event()
+	if !slices.Equal(snap.Queue.IDs, []string{"s0", "s2", "s1"}) || snap.State.Current != "s1" || snap.State.Index != 2 || len(snap.Songs) != 3 {
+		t.Errorf("loaded queue %q, %d songs, state %+v", snap.Queue.IDs, len(snap.Songs), snap.State)
+	}
+}
+
 func TestHandoff(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "daemon.json")
 	h := newHarness(t, Options{State: path})

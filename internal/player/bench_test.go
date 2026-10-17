@@ -1,6 +1,7 @@
 package player
 
 import (
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -139,18 +140,31 @@ func BenchmarkPlay(b *testing.B) {
 	})
 }
 
+// playAllCases are lists of bigQueue songs played; their budgets live
+// here.
+var playAllCases = []struct {
+	name    string
+	shuffle bool
+	ids     []string
+	limit   float64
+}{
+	// 2 allocs today: the queue and its order.
+	{"in_order", false, queueIDs(bigQueue), 2},
+	// 3 allocs today: plus the shuffled order.
+	{"shuffled", true, queueIDs(bigQueue), 3},
+	// A list with each song twice, as a playlist may: 2 allocs today, as
+	// in_order's.
+	{"repeated", false, slices.Concat(queueIDs(bigQueue/2), queueIDs(bigQueue/2)), 2},
+}
+
 func BenchmarkPlayAll(b *testing.B) {
-	for _, tc := range []struct {
-		name    string
-		shuffle bool
-	}{{"in_order", false}, {"shuffled", true}} {
+	for _, tc := range playAllCases {
 		b.Run(tc.name, func(b *testing.B) {
 			p := bigPlayer()
 			p.isShuffled = tc.shuffle
-			ids := queueIDs(bigQueue)
 			b.ReportAllocs()
 			for b.Loop() {
-				p.PlayAll(ids)
+				p.PlayAll(tc.ids)
 			}
 		})
 	}
@@ -194,6 +208,32 @@ func BenchmarkMove(b *testing.B) {
 			for b.Loop() {
 				p.Move(10, bigQueue-10)
 				p.Move(bigQueue-10, 10)
+			}
+		})
+	}
+}
+
+// enqueueCases enqueue a collection of 100 songs already in a long queue,
+// past fewIDs, so the queue is indexed; their budgets live here.
+var enqueueCases = []struct {
+	name  string
+	next  bool
+	limit float64
+}{
+	// 9 allocs today: the queue's index.
+	{"queued", false, 11},
+	// 14 allocs today: plus the queued songs' indexes, which move.
+	{"queued_next", true, 17},
+}
+
+func BenchmarkEnqueue(b *testing.B) {
+	ids := queueIDs(100)
+	for _, tc := range enqueueCases {
+		b.Run(tc.name, func(b *testing.B) {
+			p := bigPlayer()
+			b.ReportAllocs()
+			for b.Loop() {
+				p.Enqueue(ids, tc.next)
 			}
 		})
 	}

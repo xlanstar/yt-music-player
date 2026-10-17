@@ -2,6 +2,7 @@ package tui
 
 import (
 	"math"
+	"slices"
 	"strings"
 	"time"
 	"yt-music-player/internal/api"
@@ -536,7 +537,7 @@ func (m *model) open(o opened) {
 }
 
 // enqueue adds the selected song, or the collection's songs, to the end
-// of the queue.
+// of the queue, and says how many the daemon adds: it skips those queued.
 func (m *model) enqueue() bool {
 	p := m.page()
 	it, ok := p.selected()
@@ -546,15 +547,39 @@ func (m *model) enqueue() bool {
 	switch it.kind {
 	case itemSong:
 		m.ctl.Enqueue([]string{it.song.ID}, false, []catalog.Song{it.song})
-		m.say(locales.TuiQueued(it.song.Title))
+		if slices.Contains(m.mirror.Queue(), it.song.ID) {
+			m.say(locales.TuiAlreadyQueued(it.song.Title))
+		} else {
+			m.say(locales.TuiQueued(it.song.Title))
+		}
 	case itemPlayAll:
 		songs := p.songs()
 		m.ctl.Enqueue(songIDs(songs), false, songs)
-		m.say(locales.TuiQueuedSongs(len(songs)))
+		if n := unqueued(m.mirror.Queue(), songs); n > 0 {
+			m.say(locales.TuiQueuedSongs(n))
+		} else {
+			m.say(locales.TuiAllQueued())
+		}
 	default:
 		return false
 	}
 	return true
+}
+
+// unqueued counts the songs, each once, not in queue.
+func unqueued(queue []string, songs []catalog.Song) int {
+	seen := make(map[string]struct{}, len(queue)+len(songs))
+	for _, id := range queue {
+		seen[id] = struct{}{}
+	}
+	n := 0
+	for _, s := range songs {
+		if _, ok := seen[s.ID]; !ok {
+			seen[s.ID] = struct{}{}
+			n++
+		}
+	}
+	return n
 }
 
 // like likes or unlikes the selected song; on a page without a list, the

@@ -1,12 +1,17 @@
 // Package player holds playback state: queue, current song and position,
 // volume, shuffle and repeat. It plays no audio; package playback makes the
 // engine follow it.
+//
+// The queue holds each song ID once, as everything that plays, jumps to or
+// shows a queued song names it by ID: a list played keeps each song's first
+// place, adding a queued song adds nothing, and playing it next moves it.
 package player
 
 import (
 	"math"
 	"math/rand/v2"
 	"slices"
+	"strings"
 )
 
 const (
@@ -17,6 +22,9 @@ const (
 	// is audible.
 	unmuteVolume  = 0.5
 	defaultVolume = 0.7
+	// fewIDs is how many IDs Enqueue looks for in the queue one by one;
+	// past it, it indexes the queue, which reaches thousands of songs.
+	fewIDs = 16
 )
 
 // Repeat is what plays after a song or the queue ends.
@@ -51,14 +59,15 @@ type Player struct {
 
 // New returns a paused player at the start of queue.
 func New(queue []string) *Player {
-	p := &Player{Volume: defaultVolume, queue: slices.Clone(queue)}
-	p.resetOrder()
+	p := &Player{Volume: defaultVolume}
+	p.setQueue(queue, 0)
 	return p
 }
 
 // Restore returns a paused player over queue as Queued and Order gave it,
 // at index in play order: what a daemon saved. An order that is not one of
-// queue's is put back in sequence, unshuffled.
+// queue's is put back in sequence, unshuffled; a song queued more than once
+// keeps its first place.
 func Restore(queue []string, order []int, index int, shuffled bool) *Player {
 	p := &Player{Volume: defaultVolume, queue: slices.Clone(queue)}
 	if isPermutation(order, len(queue)) {
@@ -67,7 +76,65 @@ func Restore(queue []string, order []int, index int, shuffled bool) *Player {
 		p.resetOrder()
 	}
 	p.at = min(max(index, 0), max(len(p.order)-1, 0))
+	p.dropRepeats()
 	return p
+}
+
+// dropRepeats keeps each song's first place in the queue, and in the play
+// order its first place there; the current song stays current. Only a
+// state saved before the queue held each song once has repeats.
+func (p *Player) dropRepeats() {
+	n := len(p.queue)
+	if n < 2 {
+		return
+	}
+	byID := make([]int, n)
+	sortByID(p.queue, byID)
+	// to is each queue index's first place, made once a repeat shows.
+	var to []int
+	first := byID[0]
+	for _, i := range byID[1:] {
+		if p.queue[i] != p.queue[first] {
+			first = i
+			continue
+		}
+		if to == nil {
+			to = make([]int, n)
+			for j := range to {
+				to[j] = j
+			}
+		}
+		to[i] = first
+	}
+	if to == nil {
+		return
+	}
+	// Firsts come before their repeats, so a repeat's first has its new
+	// index already.
+	kept := 0
+	for i, f := range to {
+		if f != i {
+			to[i] = to[f]
+			continue
+		}
+		to[i] = kept
+		p.queue[kept] = p.queue[i]
+		kept++
+	}
+	clear(p.queue[kept:])
+	p.queue = p.queue[:kept]
+	current := to[p.order[p.at]]
+	placed := make([]bool, kept)
+	order := p.order[:0]
+	for _, i := range p.order {
+		if j := to[i]; !placed[j] {
+			placed[j] = true
+			order = append(order, j)
+		}
+	}
+	p.order = order
+	p.at = slices.Index(order, current)
+	p.gen++
 }
 
 func isPermutation(order []int, n int) bool {
@@ -155,27 +222,94 @@ func (p *Player) PlayAll(ids []string) { p.PlayFrom(ids, 0) }
 
 // PlayFrom makes ids the queue and plays it from ids[start]; while
 // shuffling, that song comes first and the others follow in random order.
+// A song in ids more than once is queued at its first place.
 func (p *Player) PlayFrom(ids []string, start int) {
 	if len(ids) == 0 {
 		return
 	}
-	p.queue = slices.Clone(ids)
-	p.order, p.at = nil, 0
-	p.resetOrder()
-	p.at = min(max(start, 0), len(p.order)-1)
+	p.setQueue(ids, start)
 	if p.isShuffled {
 		p.shuffleRest()
 	}
 	p.Position, p.Playing = 0, true
 }
 
+// setQueue makes ids, each once, the queue in sequence, at ids[start].
+func (p *Player) setQueue(ids []string, start int) {
+	p.gen++
+	p.queue, p.order = slices.Clone(ids), make([]int, len(ids))
+	p.queue, p.at = dedupe(p.queue, min(max(start, 0), max(len(ids)-1, 0)), p.order)
+	p.order = p.order[:len(p.queue)]
+	for i := range p.order {
+		p.order[i] = i
+	}
+}
+
+// dedupe removes from q, in place, each ID after its first, and returns q
+// so shortened and where q[start] went. scratch, as long as q, is
+// overwritten.
+func dedupe(q []string, start int, scratch []int) ([]string, int) {
+	if len(q) < 2 {
+		return q, start
+	}
+	sortByID(q, scratch)
+	// The repeats' indexes overwrite scratch's sorted ones, never ahead of
+	// those still to read.
+	repeats := scratch[:0]
+	prev := scratch[0]
+	for _, i := range scratch[1:] {
+		if q[i] == q[prev] {
+			repeats = append(repeats, i)
+		}
+		prev = i
+	}
+	if len(repeats) == 0 {
+		return q, start
+	}
+	slices.Sort(repeats)
+	id, at := q[start], -1
+	kept := q[:0]
+	for i, s := range q {
+		if len(repeats) > 0 && repeats[0] == i {
+			repeats = repeats[1:]
+			continue
+		}
+		if at < 0 && s == id {
+			at = len(kept)
+		}
+		kept = append(kept, s)
+	}
+	clear(q[len(kept):])
+	return kept, at
+}
+
+// sortByID fills idx, as long as q, with q's indexes sorted by ID; equal
+// IDs by index, so each ID's run starts at its first place. Sorting rather
+// than hashing allocates nothing for queues of thousands of songs.
+func sortByID(q []string, idx []int) {
+	for i := range idx {
+		idx[i] = i
+	}
+	slices.SortFunc(idx, func(a, b int) int {
+		if c := strings.Compare(q[a], q[b]); c != 0 {
+			return c
+		}
+		return a - b
+	})
+}
+
 // Enqueue adds ids after the current song, with next, or else at the end
 // of the play order. Into an empty queue, the first becomes current,
-// paused.
+// paused. Each song is queued once: a song already queued stays where it
+// is, or with next moves after the current one, which itself stays.
 func (p *Player) Enqueue(ids []string, next bool) {
+	ids, queued := p.toEnqueue(ids, next)
 	k := len(ids)
 	if k == 0 {
 		return
+	}
+	if len(queued) > 0 {
+		p.removeQueued(queued)
 	}
 	// Unshuffled, order stays the identity, as queue and order grow at the
 	// same index.
@@ -195,6 +329,91 @@ func (p *Player) Enqueue(ids []string, next bool) {
 	for j := range k {
 		p.order[orderIndex+j] = queueIndex + j
 	}
+	p.gen++
+}
+
+// handled marks, in toEnqueue's index of the queue, an ID already seen in
+// ids.
+const handled = -2
+
+// toEnqueue returns the ids Enqueue adds, each once, without the current
+// song or, unless next, songs already queued; ids itself when it drops
+// none. With next, it also returns the queue indexes of the songs that
+// move, already queued.
+func (p *Player) toEnqueue(ids []string, next bool) (add []string, queued []int) {
+	var index map[string]int
+	if len(ids) > fewIDs {
+		index = make(map[string]int, len(p.queue)+len(ids))
+		for i, id := range p.queue {
+			index[id] = i
+		}
+	}
+	current := -1
+	if len(p.order) > 0 {
+		current = p.order[p.at]
+	}
+	dropped := false
+	for j, id := range ids {
+		i := -1
+		switch {
+		case index != nil:
+			if at, ok := index[id]; ok {
+				i = at
+			}
+			index[id] = handled
+		case slices.Contains(ids[:j], id):
+			i = handled
+		default:
+			i = slices.Index(p.queue, id)
+		}
+		if i == handled || (i >= 0 && (i == current || !next)) {
+			if !dropped {
+				dropped, add = true, slices.Clone(ids[:j])
+			}
+			continue
+		}
+		if i >= 0 {
+			queued = append(queued, i)
+		}
+		if dropped {
+			add = append(add, id)
+		}
+	}
+	if !dropped {
+		add = ids
+	}
+	return add, queued
+}
+
+// removeQueued takes the songs at queue indexes out of the queue and its
+// play order, none of them the current song, which stays current.
+func (p *Player) removeQueued(indexes []int) {
+	slices.Sort(indexes)
+	removed := func(i int) bool {
+		_, ok := slices.BinarySearch(indexes, i)
+		return ok
+	}
+	kept := p.queue[:0]
+	for i, id := range p.queue {
+		if !removed(i) {
+			kept = append(kept, id)
+		}
+	}
+	clear(p.queue[len(kept):])
+	p.queue = kept
+	order, at := p.order[:0], p.at
+	for j, i := range p.order {
+		if removed(i) {
+			if j < p.at {
+				at--
+			}
+			continue
+		}
+		// Less the removed indexes before it.
+		before, _ := slices.BinarySearch(indexes, i)
+		order = append(order, i-before)
+	}
+	p.order, p.at = order, at
 	p.gen++
 }
 

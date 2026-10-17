@@ -222,11 +222,19 @@ func TestLibrary(t *testing.T) {
 	h.loaded()
 	h.golden("playlist")
 
+	// The daemon skips songs queued already, which the placeholder's
+	// queue holds; a says so.
+	h.press("down", "a")
+	h.screenHas(`“Midnight Arcade” is already in the queue`)
+	h.press("up", "a")
+	h.screenHas("These songs are already in the queue")
+	h.mirror.queue = nil
 	h.press("down", "a")
 	h.screenHas(`Added “Midnight Arcade” to the queue`)
+	h.mirror.queue = []string{"midnight-arcade"}
 	h.press("up", "a")
-	h.screenHas("Added 7 songs to the queue")
-	if got := h.ctl.take(); len(got) != 2 || got[0] != "Enqueue midnight-arcade false" {
+	h.screenHas("Added 6 songs to the queue")
+	if got := h.ctl.take(); len(got) != 4 || got[0] != "Enqueue midnight-arcade false" {
 		t.Errorf("a sent %q", got)
 	}
 

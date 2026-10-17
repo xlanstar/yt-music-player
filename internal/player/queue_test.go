@@ -2,6 +2,7 @@ package player
 
 import (
 	"math"
+	"math/rand/v2"
 	"slices"
 	"testing"
 )
@@ -251,4 +252,249 @@ func TestQueueGen(t *testing.T) {
 			t.Errorf("%s kept the queue's gen", tc.name)
 		}
 	}
+}
+
+// checkOnce fails t unless p's queue holds each song once and its play
+// order is one of the queue's.
+func checkOnce(t *testing.T, p *Player) {
+	t.Helper()
+	seen := map[string]bool{}
+	for _, id := range playOrder(p) {
+		if seen[id] {
+			t.Errorf("%q queued twice: %q", id, playOrder(p))
+		}
+		seen[id] = true
+	}
+	if !isPermutation(p.order, len(p.queue)) {
+		t.Errorf("order %v is not one of %d songs", p.order, len(p.queue))
+	}
+	if p.Len() > 0 && (p.Index() < 0 || p.Index() >= p.Len()) {
+		t.Errorf("index %d of %d songs", p.Index(), p.Len())
+	}
+}
+
+// many is more IDs than Enqueue looks for one by one.
+func many(prefix string) []string {
+	ids := make([]string, fewIDs+4)
+	for i := range ids {
+		ids[i] = prefix + string(rune('A'+i))
+	}
+	return ids
+}
+
+func TestEnqueueQueuedSkipped(t *testing.T) {
+	for _, shuffle := range []bool{false, true} {
+		p := New(abcd)
+		if shuffle {
+			p.ToggleShuffle()
+		}
+		p.Play("b")
+		before := playOrder(p)
+		p.Enqueue([]string{"c", "x", "b", "x", "a", "y"}, false)
+		checkQueue(t, p, append(before, "x", "y"), "b")
+		checkOnce(t, p)
+
+		gen := p.QueueGen()
+		p.Enqueue([]string{"a", "x", "b"}, false)
+		if p.QueueGen() != gen {
+			t.Errorf("shuffle %v: enqueueing queued songs changed the queue", shuffle)
+		}
+
+		// Past fewIDs, the queue is indexed instead.
+		ids := many("m")
+		before = playOrder(p)
+		p.Enqueue(slices.Concat([]string{"a", "x"}, ids, ids[:3]), false)
+		checkQueue(t, p, append(before, ids...), "b")
+		checkOnce(t, p)
+	}
+}
+
+func TestEnqueueNextMovesQueued(t *testing.T) {
+	p := New([]string{"a", "b", "c", "d", "e"})
+	p.Play("b")
+	p.Position = 30
+	p.Enqueue([]string{"d", "b", "x", "d", "a"}, true)
+	checkQueue(t, p, []string{"b", "d", "x", "a", "c", "e"}, "b")
+	checkOnce(t, p)
+	if p.Position != 30 || !p.Playing {
+		t.Errorf("playing %v at %v", p.Playing, p.Position)
+	}
+	// Unshuffled, the queue moved too, so a shuffle undone keeps it.
+	p.ToggleShuffle()
+	p.ToggleShuffle()
+	checkQueue(t, p, []string{"b", "d", "x", "a", "c", "e"}, "b")
+
+	ids := many("m")
+	p.Enqueue(slices.Concat([]string{"c", "b"}, ids, []string{"c", "a"}), true)
+	checkQueue(t, p, slices.Concat([]string{"b", "c"}, ids, []string{"a", "d", "x", "e"}), "b")
+	checkOnce(t, p)
+}
+
+func TestEnqueueNextMovesQueuedShuffled(t *testing.T) {
+	for _, ids := range [][]string{{"d", "b", "x", "d", "a"}, slices.Concat([]string{"d", "b"}, many("m"), []string{"a", "d"})} {
+		p := New([]string{"a", "b", "c", "d", "e"})
+		p.ToggleShuffle()
+		p.Next()
+		p.Next()
+		current := p.Current()
+		p.Enqueue(ids, true)
+		checkOnce(t, p)
+		var want []string
+		for j, id := range ids {
+			if id != current && !slices.Contains(ids[:j], id) {
+				want = append(want, id)
+			}
+		}
+		got := playOrder(p)
+		if p.Current() != current || !slices.Equal(got[p.Index()+1:p.Index()+1+len(want)], want) {
+			t.Errorf("play order %q at %d, current %q, want %q next after %q", got, p.Index(), p.Current(), want, current)
+		}
+		if all := slices.Compact(slices.Sorted(slices.Values(slices.Concat(abcd, []string{"e"}, ids)))); p.Len() != len(all) {
+			t.Errorf("%d songs, want %d", p.Len(), len(all))
+		}
+	}
+}
+
+func TestPlayFromRepeats(t *testing.T) {
+	ids := []string{"a", "b", "a", "c", "b", "d"}
+	p := New(nil)
+	p.PlayFrom(ids, 4)
+	checkQueue(t, p, abcd, "b")
+	checkOnce(t, p)
+	p.PlayFrom(ids, 2)
+	checkQueue(t, p, abcd, "a")
+	if ids[1] != "b" || len(ids) != 6 {
+		t.Errorf("PlayFrom changed its argument: %q", ids)
+	}
+
+	p.ToggleShuffle()
+	p.PlayFrom(ids, 4)
+	checkOnce(t, p)
+	if got := playOrder(p); got[0] != "b" || p.Index() != 0 || len(got) != 4 {
+		t.Errorf("shuffled from b: %q at %d", got, p.Index())
+	}
+
+	checkQueue(t, New([]string{"a", "a", "b", "a"}), []string{"a", "b"}, "a")
+}
+
+func TestRestoreRepeats(t *testing.T) {
+	queue := []string{"a", "b", "a", "c"}
+	for _, tc := range []struct {
+		name     string
+		order    []int
+		index    int
+		shuffled bool
+		want     []string
+		current  string
+	}{
+		{"in order", nil, 2, false, []string{"a", "b", "c"}, "a"},
+		{"in order, after a repeat", nil, 3, false, []string{"a", "b", "c"}, "c"},
+		{"shuffled, at a repeat", []int{2, 3, 0, 1}, 2, true, []string{"a", "c", "b"}, "a"},
+		{"shuffled", []int{2, 3, 0, 1}, 3, true, []string{"a", "c", "b"}, "b"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := Restore(queue, tc.order, tc.index, tc.shuffled)
+			checkQueue(t, p, tc.want, tc.current)
+			checkOnce(t, p)
+			if p.IsShuffled() != tc.shuffled {
+				t.Errorf("shuffled %v", p.IsShuffled())
+			}
+			if queue[2] != "a" {
+				t.Error("Restore changed its argument")
+			}
+			// Once restored, it saves as it restores.
+			again := Restore(p.Queued(), p.Order(), p.Index(), p.IsShuffled())
+			checkQueue(t, again, tc.want, tc.current)
+		})
+	}
+}
+
+// TestQueueOnce runs random edits, with and without shuffle, and checks
+// after each that every song is queued once and enqueueing keeps the
+// current song.
+func TestQueueOnce(t *testing.T) {
+	pool := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
+	r := rand.New(rand.NewPCG(1, 2))
+	pick := func() []string {
+		ids := make([]string, r.IntN(6))
+		for i := range ids {
+			ids[i] = pool[r.IntN(len(pool))]
+		}
+		return ids
+	}
+	p := New(pick())
+	for range 2000 {
+		current := p.Current()
+		switch op := r.IntN(8); op {
+		case 0, 1:
+			p.Enqueue(pick(), op == 0)
+			if current != "" && p.Current() != current {
+				t.Fatalf("enqueueing changed the current song from %q to %q", current, p.Current())
+			}
+		case 2:
+			if ids := pick(); len(ids) > 0 {
+				start := r.IntN(len(ids))
+				p.PlayFrom(ids, start)
+				if p.Current() != ids[start] {
+					t.Fatalf("PlayFrom(%q, %d) plays %q", ids, start, p.Current())
+				}
+				if got := p.Queued(); !slices.Equal(got, firsts(ids)) {
+					t.Fatalf("PlayFrom(%q, %d) queued %q", ids, start, got)
+				}
+			}
+		case 3:
+			p.ToggleShuffle()
+		case 4:
+			p.Play(pool[r.IntN(len(pool))])
+		case 5:
+			p.Remove(r.IntN(len(pool)))
+		case 6:
+			p.Move(r.IntN(len(pool)), r.IntN(len(pool)))
+		case 7:
+			p.Next()
+		}
+		checkOnce(t, p)
+		if t.Failed() {
+			t.Fatalf("after op on %q", playOrder(p))
+		}
+	}
+}
+
+// TestRestoreRepeatsRandom restores random queues with repeats: each song
+// once, at its first place in the queue and in the play order, the current
+// song kept.
+func TestRestoreRepeatsRandom(t *testing.T) {
+	r := rand.New(rand.NewPCG(3, 4))
+	for range 500 {
+		queue := make([]string, 1+r.IntN(12))
+		for i := range queue {
+			queue[i] = string(rune('a' + r.IntN(6)))
+		}
+		order := r.Perm(len(queue))
+		index := r.IntN(len(queue))
+		var play []string
+		for _, i := range order {
+			play = append(play, queue[i])
+		}
+		p := Restore(queue, order, index, true)
+		checkOnce(t, p)
+		checkQueue(t, p, firsts(play), play[index])
+		if got := p.Queued(); !slices.Equal(got, firsts(queue)) {
+			t.Errorf("queued %q, want %q", got, firsts(queue))
+		}
+		if t.Failed() {
+			t.Fatalf("restored %q, order %v, index %d", queue, order, index)
+		}
+	}
+}
+
+// firsts returns ids without repeats, each at its first place.
+func firsts(ids []string) []string {
+	var out []string
+	for _, id := range ids {
+		if !slices.Contains(out, id) {
+			out = append(out, id)
+		}
+	}
+	return out
 }
