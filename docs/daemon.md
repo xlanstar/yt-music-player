@@ -36,7 +36,7 @@ Each binary's `TestDeps` (and `session`'s) holds the last column; the test binar
 
 ## Starting and stopping
 
-**On demand.** A front-end that cannot connect starts ytmd, whatever the failure, then dials every 50 ms for up to 5 s. It looks for ytmd at `$YTMD_PATH` (`scripts/dev.sh` sets it), else beside itself, symlinks resolved: `ytmd` (`ytmd.exe`), and on macOS inside `YT Music Player Helper.app` (in `Contents/Resources`). ytmd starts detached (its own session or process group), with the null device for its streams, the front-end's environment (`YT_LOG` too) and its own directory as working directory.
+**On demand.** A front-end that cannot connect starts ytmd, whatever the failure, then dials every 50 ms for up to 5 s. It looks for ytmd at `$YTMD_PATH`, else beside itself, symlinks resolved: `ytmd` (`ytmd.exe`), and on macOS inside `YT Music Player Helper.app` (in `Contents/Resources`). ytmd starts detached (its own session or process group), with the null device for its streams, the front-end's environment (`YT_LOG` too) and its own directory as working directory.
 
 **Single instance.** ytmd takes the lock without waiting, or exits 0 when another holds it; loads `daemon.json`; listens, removing a stale socket; resumes after a hand-off; fetches the account, library and likes. The OS releases the lock with the process.
 
@@ -100,7 +100,7 @@ An app on a disk not mounted at login reads as deleted, and macOS turns starting
 
 ## Packaging
 
-`scripts/build-helpers.sh` builds ytmd and ytm for `mygo build` to ship beside the app; where each lands, and what the installers do with them: [docs/release.md](release.md#the-helpers).
+`scripts/build.sh` builds ytmd and ytm, then the app with `mygo build`, which ships them beside it; where each lands, and what the installers do with them: [docs/release.md](release.md#the-helpers).
 
 ## Known limitations
 

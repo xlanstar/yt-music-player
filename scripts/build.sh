@@ -1,33 +1,31 @@
 #!/bin/sh
-# Builds ytmd and ytm, the background player and its command line, into
-# resources/<platform>/, which `mygo build` ships with that platform's app
-# (beside the executable, or in Contents/Resources), signs with it and, for
-# darwin/universal, merges into universal binaries (docs/release.md):
+# Builds the app: ytmd and ytm into resources/<platform>/, then
+# `go tool mygo build`, which ships, signs and, for darwin/universal, merges
+# them (docs/release.md#the-helpers). A bare `mygo build` ships the helpers
+# a previous run left there, or none.
 #
-#   scripts/build-helpers.sh <platform>…
+#   scripts/build.sh [-platform <os/arch>,…] [mygo build flags…]
 #
-#   platform   darwin-arm64, darwin-amd64, linux-amd64, linux-arm64,
-#              windows-amd64 or windows-arm64; each one's directory is
-#              made anew
-#
-# A universal Mac app needs both darwin ones: mygo pairs their files, and
-# all but code must be identical. Built as mygo builds the app: no cgo,
-# trimmed paths, stripped, with mygo.json's version.
+#   -platform   as mygo build's: darwin/universal, darwin/arm64,
+#               linux/amd64, windows/arm64…; this machine's by default
 set -eu
 
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,15s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,11s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
-[ $# -gt 0 ] || usage
-for platform in "$@"; do
-	case $platform in
-	darwin-arm64 | darwin-amd64 | linux-amd64 | linux-arm64 | windows-amd64 | windows-arm64) ;;
-	*) usage ;;
+platforms=
+prev=
+for arg; do
+	case $prev,$arg in
+	-platform,* | --platform,*) platforms=$arg ;;
+	*,-platform=* | *,--platform=*) platforms=${arg#*=} ;;
+	*,-h | *,-help | *,--help) usage ;;
 	esac
+	prev=$arg
 done
 
 version=$(jq -r .version mygo.json)
@@ -35,7 +33,7 @@ identifier=$(jq -r .identifier mygo.json).daemon
 # ytmd's bundle, which internal/ipc looks for (daemonBundle).
 bundle="YT Music Player Helper"
 
-# build <goos> <goarch> <out> <package> [ldflags]
+# build <goos> <goarch> <out> <package> [ldflags]: as mygo builds the app.
 build() {
 	GOOS=$1 GOARCH=$2 CGO_ENABLED=0 go build -trimpath \
 		-ldflags "-s -w -X yt-music-player/internal/version.Version=$version${5:+ $5}" \
@@ -75,33 +73,53 @@ info_plist() {
 EOF
 }
 
-for platform in "$@"; do
-	goos=${platform%-*}
-	goarch=${platform#*-}
-	out=resources/$platform
+# helpers <goos> <goarch> builds resources/<goos>-<goarch>/ anew.
+helpers() {
+	out=resources/$1-$2
 	rm -rf "$out"
 	mkdir -p "$out"
-	case $goos in
+	case $1 in
 	darwin)
 		contents="$out/$bundle.app/Contents"
 		mkdir -p "$contents/MacOS" "$contents/Resources"
-		build "$goos" "$goarch" "$contents/MacOS/ytmd" ./cmd/ytmd
+		build "$1" "$2" "$contents/MacOS/ytmd" ./cmd/ytmd
 		info_plist >"$contents/Info.plist"
 		cp assets/icon/icon.icns "$contents/Resources/AppIcon.icns"
-		build "$goos" "$goarch" "$out/ytm" ./cmd/ytm
+		build "$1" "$2" "$out/ytm" ./cmd/ytm
 		;;
 	linux)
-		build "$goos" "$goarch" "$out/ytmd" ./cmd/ytmd
-		build "$goos" "$goarch" "$out/ytm" ./cmd/ytm
+		build "$1" "$2" "$out/ytmd" ./cmd/ytmd
+		build "$1" "$2" "$out/ytm" ./cmd/ytm
 		# For the Debian package's /opt/yt-music-player/ytmd; ytm
 		# autostart on writes the real one (internal/autostart).
 		cp packaging/linux/ytmd.service "$out/"
 		;;
 	windows)
 		# No console window: the daemon runs detached.
-		build "$goos" "$goarch" "$out/ytmd.exe" ./cmd/ytmd -H=windowsgui
-		build "$goos" "$goarch" "$out/ytm.exe" ./cmd/ytm
+		build "$1" "$2" "$out/ytmd.exe" ./cmd/ytmd -H=windowsgui
+		build "$1" "$2" "$out/ytm.exe" ./cmd/ytm
+		;;
+	*)
+		echo "build.sh: no helpers for $1/$2" >&2
+		exit 2
 		;;
 	esac
-	echo "Built ytmd and ytm $version into $out"
+}
+
+if [ -z "$platforms" ]; then
+	platforms=$(go env GOOS)/$(go env GOARCH)
+	set -- -platform "$platforms" "$@"
+fi
+
+for p in $(echo "$platforms" | tr , ' '); do
+	case $p in
+	darwin/universal)
+		helpers darwin arm64
+		helpers darwin amd64
+		;;
+	*/*) helpers "${p%/*}" "${p#*/}" ;;
+	*) usage ;;
+	esac
 done
+
+exec go tool mygo build "$@"

@@ -46,19 +46,20 @@ Songs play in a small background player, `ytmd`, which the app starts and which 
 Requires Go 1.27+ and jq.
 
 ```sh
-scripts/dev.sh                             # run the app, with the background player (ytmd) it starts
-scripts/build-helpers.sh darwin-arm64      # ytmd and ytm for the app to ship (your platform)
-go tool mygo build                         # build for this system into build/
+scripts/build.sh    # build for this system into build/
+scripts/install.sh  # macOS: build and install with Homebrew, as the cask does
 ```
 
 ## Development
 
 ```sh
-scripts/dev.sh -placeholder                       # offline fake catalog, no audio
-YT_SOURCE_DELAY=800ms scripts/dev.sh -placeholder # with loading states
-YT_LOG=debug scripts/dev.sh                       # why fetches, sign-ins or streams failed
-scripts/dev.sh ytm                                # the terminal player
-prek run --all-files                              # every check; must pass
+go run ./cmd/ytmd                                          # the background player; Ctrl+C stops it
+go run ./cmd/desktop                                       # the app, in another terminal
+go run ./cmd/ytm                                           # the terminal player, in another terminal
+go run -tags placeholder ./cmd/ytmd                        # offline fake catalog, no audio (both with the tag)
+YT_SOURCE_DELAY=800ms go run -tags placeholder ./cmd/ytmd  # with loading states
+YT_LOG=debug go run ./cmd/ytmd                             # why fetches, sign-ins or streams failed; ytm logs shows where
+prek run --all-files                                       # every check; must pass
 ```
 
 Tools are pinned in `.tool-versions`; `prek install` adds the checks as a pre-commit hook. Project rules and layout: [AGENTS.md](AGENTS.md). Releasing: [docs/release.md](docs/release.md). Performance: [docs/performance.md](docs/performance.md).

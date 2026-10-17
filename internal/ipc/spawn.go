@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// daemonBundle is the macOS bundle ytmd runs in (scripts/build-helpers.sh),
+// daemonBundle is the macOS bundle ytmd runs in (scripts/build.sh),
 // whose name Now Playing shows. Not the app's: LaunchServices registers
 // nested apps too, and a second, windowless "YT Music Player" would answer
 // open -a and launchers.

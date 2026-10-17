@@ -15,7 +15,7 @@ tmp/
 /perf/footprint-latest.txt
 /perf/footprint-daemon-latest.txt
 /ytm
-# ytmd and ytm, which scripts/build-helpers.sh builds for mygo build to ship
+# ytmd and ytm, which scripts/build.sh builds for mygo build to ship
 /resources/darwin-*/
 /resources/linux-*/
 /resources/windows-*/
