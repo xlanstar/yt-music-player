@@ -37,6 +37,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/term"
 )
 
 // The exit codes.
@@ -93,7 +94,7 @@ func mainCode() int {
 		// Never on the terminal.
 		zerolog.SetGlobalLevel(zerolog.Disabled)
 	}
-	useLanguage(os.Getenv, systemLanguages)
+	useLanguage()
 	if err != nil {
 		writeLine(os.Stderr, locales.CliFailed(locales.CliNoPaths(), err.Error()))
 		return exitFailed
@@ -108,8 +109,14 @@ func processEnv(paths ipc.Paths) *env {
 		stdin:      os.Stdin,
 		stdout:     os.Stdout,
 		stderr:     os.Stderr,
-		isTerminal: func() bool { return isTerminal(fd) },
-		rawInput:   func() (func(), error) { return rawMode(fd) },
+		isTerminal: func() bool { return term.IsTerminal(fd) },
+		rawInput: func() (func(), error) {
+			old, err := term.MakeRaw(fd)
+			if err != nil {
+				return nil, err
+			}
+			return func() { _ = term.Restore(fd, old) }, nil
+		},
 		paths:      paths,
 		dialer:     &ipc.Dialer{Socket: paths.Socket, Spawn: ipc.SpawnDaemon},
 		spawn:      ipc.SpawnDaemon,
@@ -157,7 +164,7 @@ func run(ctx context.Context, args []string, e *env) int {
 	name, rest := args[0], args[1:]
 	switch name {
 	case "help", "-h", "--help":
-		e.help(e.stdout)
+		e.help()
 		return exitOK
 	case "status":
 		return e.statusCommand(ctx, rest)

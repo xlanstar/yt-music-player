@@ -1,6 +1,10 @@
 package main
 
-import "github.com/egoist/mygo/i18n"
+import (
+	"os"
+
+	"github.com/egoist/mygo/i18n"
+)
 
 // fallbackLanguage is what ytm shows when none of the user's languages is
 // one of the catalogs': the source language.
@@ -10,8 +14,8 @@ const fallbackLanguage = "en"
 // (language). ytm links no MyGo App, which would set the locale function
 // itself, so it sets it here, once, before anything says a message; the
 // TUI reads it as the commands do.
-func useLanguage(getenv func(string) string, system func() []string) {
-	lang := language(getenv, system)
+func useLanguage() {
+	lang := language(os.Getenv, systemLanguages)
 	i18n.SetLocaleFunc(func() string { return lang })
 }
 

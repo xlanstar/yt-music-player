@@ -38,12 +38,9 @@ func TestLanguage(t *testing.T) {
 
 func TestUseLanguage(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLocaleFunc(func() string { return "" }) })
-	useLanguage(func(k string) string {
-		if k == "LC_ALL" {
-			return "zh_TW.UTF-8"
-		}
-		return ""
-	}, func() []string { return nil })
+	// LC_ALL comes before the system's languages.
+	t.Setenv("LC_ALL", "zh_TW.UTF-8")
+	useLanguage()
 	w := newWorld(nil)
 	w.run(t, "daemon", "status")
 	if got, want := w.stdout.String(), "背景播放器沒有在執行。\n"; got != want {
