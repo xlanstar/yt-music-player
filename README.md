@@ -48,6 +48,7 @@ Requires Go 1.27+.
 ```sh
 scripts/dev.sh                 # run the app, with the background player (ytmd) it starts
 scripts/build.sh               # build for this system into build/
+scripts/install.sh             # macOS: build and install with Homebrew, as the cask does
 ```
 
 ## Development
