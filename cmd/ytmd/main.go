@@ -1,8 +1,7 @@
 // Command ytmd is the background player that Desktop and ytm control over
-// a local socket (internal/daemon): it plays on when they close. A front-end
-// starts it when none answers; a second one exits at once, as the lock is
-// held. It logs to <cache>/logs/ytmd.log at YT_LOG's level and stops on
-// SIGTERM, SIGINT or a Shutdown request, pausing and saving first.
+// a local socket (internal/daemon, docs/daemon.md). A second one exits at
+// once, as the lock is held. It logs to <cache>/logs/ytmd.log at YT_LOG's
+// level and stops on SIGTERM, SIGINT or a Shutdown request.
 package main
 
 import (
@@ -45,9 +44,6 @@ func main() {
 			svc.Shutdown()
 		case <-svc.Done():
 		}
-	}()
-	go func() {
-		<-svc.Done()
 		_ = logs.Close()
 		os.Exit(0)
 	}()

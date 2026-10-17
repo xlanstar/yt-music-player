@@ -200,10 +200,11 @@ func TestHandoffTooLate(t *testing.T) {
 	h := newHarness(t, Options{State: path})
 	saved := h.clock.Now()
 	h.do(func() {
-		h.svc.player.PlayAll([]string{"a"})
+		h.svc.player.PlayAll([]string{"a"}, 0)
 		st := h.svc.saved()
 		st.ResumePlaying, st.ResumeBefore = true, saved.Add(time.Minute)
-		h.svc.store.flush(st)
+		h.svc.store.save(st)
+		h.svc.store.wait()
 	})
 	h.close()
 	late := newHarness(t, Options{State: path})
@@ -284,7 +285,7 @@ func TestOpen(t *testing.T) {
 	crashed.SetUnlinkOnClose(false)
 	_ = crashed.Close()
 
-	opts := func() Options { return Options{Source: catalogtest.New(), Version: "dev"} }
+	opts := func() Options { return Options{Source: catalogtest.New()} }
 	svc, err := Open(paths, opts())
 	if err != nil {
 		t.Fatal(err)

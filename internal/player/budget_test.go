@@ -67,7 +67,7 @@ func TestBudgetPlayAll(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := bigPlayer()
 			p.isShuffled = tc.shuffle
-			budget.Allocs(t, tc.limit, 20, func() { p.PlayAll(tc.ids) })
+			budget.Allocs(t, tc.limit, 20, func() { p.PlayAll(tc.ids, 0) })
 		})
 	}
 }

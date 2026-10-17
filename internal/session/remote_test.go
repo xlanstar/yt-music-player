@@ -49,13 +49,9 @@ type frontEnd struct {
 func newRemoteFixture(t *testing.T) *remoteFixture {
 	t.Helper()
 	f := &remoteFixture{src: catalogtest.Accounts{Source: catalogtest.New()}}
-	svc, err := daemon.New(daemon.Options{Source: f.src, Version: "1.2.3"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.svc = svc
-	svc.Start()
-	t.Cleanup(svc.Shutdown)
+	f.svc = daemon.New(daemon.Options{Source: f.src})
+	f.svc.Start()
+	t.Cleanup(f.svc.Shutdown)
 	f.frontEnd = f.connect(t)
 	return f
 }

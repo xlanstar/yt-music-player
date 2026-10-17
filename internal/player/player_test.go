@@ -236,7 +236,7 @@ func TestPlayAllReplacesTheQueue(t *testing.T) {
 	p := New(abcd)
 	p.Play("c")
 	p.Position = 30
-	p.PlayAll([]string{"x", "y", "z"})
+	p.PlayAll([]string{"x", "y", "z"}, 0)
 	if p.Current() != "x" || !p.Playing || p.Position != 0 {
 		t.Fatalf("at %q playing %v position %v", p.Current(), p.Playing, p.Position)
 	}
@@ -245,7 +245,7 @@ func TestPlayAllReplacesTheQueue(t *testing.T) {
 	}
 
 	p.ToggleShuffle()
-	p.PlayAll(abcd)
+	p.PlayAll(abcd, 0)
 	if p.Current() != "a" || !p.IsShuffled() {
 		t.Fatalf("shuffled play all at %q, shuffled %v", p.Current(), p.IsShuffled())
 	}
@@ -255,7 +255,7 @@ func TestPlayAllReplacesTheQueue(t *testing.T) {
 		t.Errorf("shuffled up next %q", rest)
 	}
 
-	p.PlayAll(nil)
+	p.PlayAll(nil, 0)
 	if p.Current() != "a" {
 		t.Errorf("playing nothing moved to %q", p.Current())
 	}

@@ -46,14 +46,10 @@ func (signingSource) SignOut() error { return nil }
 
 func newDaemonApp(t *testing.T) *daemonApp {
 	t.Helper()
-	svc, err := daemon.New(daemon.Options{
-		Source:  signingSource{catalog.NewPlaceholderSource(0)},
-		Seed:    catalog.Placeholder().Songs,
-		Version: "1.2.3",
+	svc := daemon.New(daemon.Options{
+		Source: signingSource{catalog.NewPlaceholderSource(0)},
+		Seed:   catalog.Placeholder().Songs,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	svc.Start()
 	a := newApp(Config{
 		Dialer: pipeDialer{svc}, Version: "1.2.3", DaemonLog: "/logs/ytmd.log",

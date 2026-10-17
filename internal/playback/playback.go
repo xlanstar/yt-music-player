@@ -54,8 +54,6 @@ type Playback struct {
 	// acts as a mock; Stop, or failing to make an engine, clears it.
 	Resolver  stream.Resolver
 	NewEngine func(events func(audio.Event)) (audio.Engine, error)
-	// Wake runs the prefetch timer's func on the loop; nil means post.
-	Wake func(func())
 
 	cat    *catalog.Catalog
 	player *player.Player
@@ -300,9 +298,9 @@ func (pb *Playback) command(ev audio.Event) {
 	p := pb.player
 	switch ev.Kind {
 	case audio.CommandPlay:
-		p.Playing = p.Current() != ""
+		p.Resume()
 	case audio.CommandPause:
-		p.Playing = false
+		p.Pause()
 	case audio.CommandToggle:
 		p.TogglePlay()
 	case audio.CommandNext:
@@ -391,11 +389,8 @@ func (pb *Playback) armPrefetch(pos float64) {
 		pb.prefetchTimer.Reset(d)
 		return
 	}
-	wake := pb.Wake
-	if wake == nil {
-		wake = pb.post
-	}
-	pb.prefetchTimer = time.AfterFunc(d, func() { wake(pb.prefetchDue) })
+	post := pb.post
+	pb.prefetchTimer = time.AfterFunc(d, func() { post(pb.prefetchDue) })
 }
 
 // prefetchDue runs when the prefetch timer fires; the song may have

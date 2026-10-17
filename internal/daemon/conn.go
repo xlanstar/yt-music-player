@@ -1,41 +1,30 @@
 package daemon
 
 import (
-	"context"
 	"net"
 	"strconv"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/ipc"
+	"yt-music-player/internal/version"
 
 	"github.com/rs/zerolog/log"
 )
 
 // sender is where a connection's frames go: an ipc.Conn, or a sink in
 // budgets, which hold no socket.
-type sender interface {
-	Send(api.Frame) error
-	Shutdown(ctx context.Context) error
-}
+type sender interface{ Send(api.Frame) error }
 
 // conn is a front-end's connection, as the loop knows it.
 type conn struct {
 	out   sender
 	hello api.Hello
-	// compatible: the peer speaks this Proto. Others may only Ping, Handoff
-	// and Shutdown.
+	// compatible: the peer speaks this Proto, else it may only Ping,
+	// Handoff and Shutdown.
 	compatible bool
-	// subscribed: it asked for events and got its snapshot.
 	subscribed bool
-	// calls are its catalog requests and SignIn in flight, by ID, which a
-	// Cancel or the connection's end cancels.
-	calls map[uint32]call
-}
-
-// call is a request in flight: a catalog request, which ctx tells from a
-// later one of the same ID, or a SignIn, without ctx.
-type call struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	// calls cancel its catalog requests and SignIn in flight, by ID, as a
+	// Cancel or the connection's end does.
+	calls map[uint32]func()
 }
 
 func (c *conn) send(f api.Frame) {
@@ -49,17 +38,14 @@ func (c *conn) reply(id uint32, r *api.Reply) { c.send(api.Frame{ID: id, Reply: 
 func (c *conn) fail(id uint32, err error) { c.reply(id, &api.Reply{Err: api.Encode(err)}) }
 
 func (c *conn) cancelAll() {
-	for id, call := range c.calls {
-		call.cancel()
+	for id, cancel := range c.calls {
+		cancel()
 		delete(c.calls, id)
 	}
 }
 
-// Serve runs a connection until it ends, as Open's listener does for each:
-// it reads the peer's Hello, answers with the daemon's (and a snapshot,
-// for a subscriber), then hands each request to the loop. In-process
-// front-ends (tests, Desktop's in P4) serve one end of a net.Pipe. It
-// takes nc, which it closes.
+// Serve runs a connection until it ends, and closes nc: Open's listener
+// serves each, tests one end of a net.Pipe.
 func (s *Service) Serve(nc net.Conn) {
 	ic := ipc.NewConn(nc)
 	defer ic.Close() //nolint:errcheck // always nil
@@ -84,7 +70,7 @@ func (s *Service) Serve(nc net.Conn) {
 		out:        ic,
 		hello:      *f.Hello,
 		compatible: f.Hello.Proto == api.Proto,
-		calls:      map[uint32]call{},
+		calls:      map[uint32]func(){},
 	}
 	s.post(func() { s.register(c) })
 	defer s.post(func() { s.unregister(c) })
@@ -127,7 +113,7 @@ func (s *Service) register(c *conn) {
 	}
 	s.conns[c] = struct{}{}
 	c.send(api.Frame{Hello: &api.Hello{
-		Proto: api.Proto, Version: s.version, Role: api.RoleDaemon, PID: s.pid,
+		Proto: api.Proto, Version: version.Version, Role: api.RoleDaemon, PID: s.pid,
 	}})
 	if c.hello.Subscribe && c.compatible {
 		c.subscribed = true
@@ -143,14 +129,13 @@ func (s *Service) unregister(c *conn) {
 }
 
 func (s *Service) cancelCall(c *conn, id uint32) {
-	if call, ok := c.calls[id]; ok {
-		call.cancel()
+	if cancel, ok := c.calls[id]; ok {
+		cancel()
 		delete(c.calls, id)
 	}
 }
 
-// broadcast sends ev to every subscriber. They share it: no one may
-// modify it once sent.
+// broadcast sends ev to every subscriber, which share it.
 func (s *Service) broadcast(ev *api.Event) {
 	for c := range s.conns {
 		if c.subscribed {

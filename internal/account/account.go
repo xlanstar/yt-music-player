@@ -8,8 +8,8 @@
 //
 // An Account belongs to the thread post runs funcs on. Its goroutines call
 // only the Source; results come back through post, and what changed is
-// reported on that thread as a Change. It keeps the latest of each, for a
-// daemon to tell the front-ends that connect later (Latest).
+// reported on that thread as a Change. It keeps the latest of each for
+// front-ends that connect later (Latest).
 package account
 
 import (
@@ -73,11 +73,8 @@ type Failure struct {
 
 // Account is the credentials the Source holds, and what they fetch.
 type Account struct {
-	src catalog.Source
-	// accounts is src as catalog.Accounts, or nil. CanSignIn runs every
-	// build, and asserting an interface there allocated now and then (the
-	// runtime building its assertion cache).
-	accounts catalog.Accounts
+	src      catalog.Source
+	accounts catalog.Accounts // src as catalog.Accounts, or nil
 	post     func(func())
 	report   func(Change)
 

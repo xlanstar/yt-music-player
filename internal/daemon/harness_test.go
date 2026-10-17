@@ -86,14 +86,7 @@ func newHarness(t *testing.T, opts Options) *harness {
 		return h.fake, nil
 	}
 	opts.Now = h.clock.Now
-	if opts.Version == "" {
-		opts.Version = "1.2.3"
-	}
-	svc, err := New(opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.svc = svc
+	h.svc = New(opts)
 	t.Cleanup(h.close)
 	return h
 }
