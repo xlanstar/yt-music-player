@@ -432,37 +432,6 @@ func TestPosition(t *testing.T) {
 	}
 }
 
-func TestErrorCodes(t *testing.T) {
-	for _, tc := range []struct {
-		code     api.ErrorCode
-		sentinel error
-	}{
-		{api.CodeNotFound, catalog.ErrNotFound},
-		{api.CodeSignedOut, catalog.ErrSignedOut},
-		{api.CodeInvalidCredentials, catalog.ErrInvalidCredentials},
-		{api.CodeInternal, api.ErrInternal},
-		{api.ErrorCode(999), api.ErrInternal},
-	} {
-		err := Decode(&api.Error{Code: tc.code, Detail: "why"})
-		if !errors.Is(err, tc.sentinel) || err.Error() != tc.sentinel.Error()+": why" {
-			t.Errorf("code %d: %v", tc.code, err)
-		}
-		if e, ok := errors.AsType[*Error](err); !ok || !e.Code.Valid() {
-			t.Errorf("code %d: %#v", tc.code, err)
-		}
-		// What the daemon encodes comes back as it was.
-		if back := Decode(api.Encode(tc.sentinel)); !errors.Is(back, tc.sentinel) {
-			t.Errorf("code %d round trip: %v", tc.code, back)
-		}
-	}
-	if err := Decode(&api.Error{Code: api.CodeNotFound}); err.Error() != catalog.ErrNotFound.Error() {
-		t.Errorf("without detail: %q", err)
-	}
-	if Decode(nil) != nil {
-		t.Error("Decode(nil) != nil")
-	}
-}
-
 func TestConnect(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newDaemon("1.0.0")

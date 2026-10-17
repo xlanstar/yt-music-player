@@ -29,7 +29,7 @@ type Handler struct {
 	Account func(api.AccountEvent)
 	Library func(catalog.Library)
 	Likes   func(api.Likes)
-	// Failed's Err decodes with Decode.
+	// Failed's Err reads with its Err method.
 	Failed func(api.FailedEvent)
 	// Notice gets the daemon's notices and the controls that failed
 	// (notice.ControlFailed); say them through tell.
@@ -210,7 +210,7 @@ func (c *Client) read(l *link) {
 		switch {
 		case f.Reply != nil:
 			if p := c.take(l, f.ID); p != nil {
-				c.finish(p, f.Reply, Decode(f.Reply.Err))
+				c.finish(p, f.Reply, f.Reply.Err.Err())
 			}
 		case f.Event != nil:
 			c.receive(l, f.Event)
@@ -384,7 +384,7 @@ func (c *Client) control(call *api.Call) {
 // a timeout says nothing more.
 func controlFailed(err error) notice.Notice {
 	n := notice.Notice{Kind: notice.Failure, Title: notice.ControlFailed, Topic: notice.Control}
-	if e, ok := errors.AsType[*Error](err); ok && e.Detail != "" {
+	if e, ok := errors.AsType[*api.Error](err); ok && e.Detail != "" {
 		n.Detail, n.Args = notice.Reason, []string{e.Detail}
 	}
 	return n

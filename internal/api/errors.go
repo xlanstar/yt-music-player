@@ -43,7 +43,10 @@ var sentinels = [numCodes]error{
 // Valid reports whether c is a code of this Proto.
 func (c ErrorCode) Valid() bool { return c > 0 && c < numCodes }
 
-// Error is an error on the wire. Bootstrap: never changes.
+// Error is an error on the wire, and the error a front-end reads:
+// errors.Is finds its code's sentinel (ErrInternal for a code unknown
+// here), and its text is the sentinel's, then Detail. Bootstrap: never
+// changes.
 type Error struct {
 	Code ErrorCode
 	// Detail is text safe to show: never cookies, headers, visitorData or
@@ -70,31 +73,26 @@ func Encode(err error) *Error {
 	return &Error{Code: CodeInternal}
 }
 
-// Err returns e as an error, nil for nil: errors.Is finds its code's
-// sentinel (ErrInternal for a code unknown here), and its text is the
-// sentinel's, then Detail. Front-ends wrap it as they need.
+// Err returns e as an error, nil for nil (not an error holding a nil
+// *Error).
 func (e *Error) Err() error {
 	if e == nil {
 		return nil
 	}
-	code := e.Code
-	if !code.Valid() {
-		code = CodeInternal
+	return e
+}
+
+func (e *Error) Error() string {
+	if e.Detail == "" {
+		return e.Unwrap().Error()
 	}
-	return &decoded{sentinel: sentinels[code], detail: e.Detail}
+	return e.Unwrap().Error() + ": " + e.Detail
 }
 
-// decoded is an Error received.
-type decoded struct {
-	sentinel error
-	detail   string
-}
-
-func (d *decoded) Error() string {
-	if d.detail == "" {
-		return d.sentinel.Error()
+// Unwrap returns the sentinel of e's code.
+func (e *Error) Unwrap() error {
+	if !e.Code.Valid() {
+		return ErrInternal
 	}
-	return d.sentinel.Error() + ": " + d.detail
+	return sentinels[e.Code]
 }
-
-func (d *decoded) Unwrap() error { return d.sentinel }

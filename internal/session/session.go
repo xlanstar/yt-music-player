@@ -23,7 +23,6 @@ import (
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/notice"
-	"yt-music-player/internal/remote"
 )
 
 // Unlike pages' resources, these are fetched at start whatever page shows,
@@ -207,7 +206,7 @@ func (s *Session) ApplyFailed(f api.FailedEvent) {
 	if !f.Part.Valid() {
 		return
 	}
-	err := remote.Decode(f.Err)
+	err := f.Err.Err()
 	if err == nil {
 		err = api.ErrInternal
 	}
