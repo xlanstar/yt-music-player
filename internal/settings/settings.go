@@ -1,6 +1,5 @@
-// Package settings keeps the player's preferences (theme and layout, and
-// on Windows the folder put on the user's Path for ytm) between runs as
-// JSON in the user's config directory, beside the user's own themes.
+// Package settings keeps the player's preferences between runs as JSON in
+// the user's config directory, beside the user's own themes.
 // The app hands it the directory, so tests can use a temporary one.
 package settings
 
@@ -28,9 +27,8 @@ type Settings struct {
 	Theme string `json:"theme,omitzero"`
 	// Layout overrides the theme's layout.
 	Layout theme.Arrangement `json:"layout,omitzero"`
-	// TerminalPath is the folder the app put on the user's Path, so that
-	// terminals find ytm (Windows); empty when it put none. Kept to move
-	// the entry when the app moves.
+	// TerminalPath is the folder the app put on the user's Path for ytm
+	// (Windows), kept to move the entry when the app moves.
 	TerminalPath string `json:"terminalPath,omitzero"`
 }
 
