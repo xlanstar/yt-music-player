@@ -1,5 +1,6 @@
 [Unit]
 Description=YT Music Player background player
+ConditionPathExists=/opt/yt-music-player/ytmd
 
 [Service]
 ExecStart=/opt/yt-music-player/ytmd

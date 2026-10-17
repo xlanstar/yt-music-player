@@ -2,20 +2,49 @@ package autostart
 
 import (
 	"bytes"
-	"encoding/xml"
+	"cmp"
 	"errors"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
 const appYtmd = "/Applications/YT Music Player.app/Contents/Resources/YT Music Player Helper.app/Contents/MacOS/ytmd"
 
+// wantPlist is what Enable writes for appYtmd under the home @HOME@.
 const wantPlist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.lanstar.ytmusicplayer.daemon</string>
+	<key>AssociatedBundleIdentifiers</key>
+	<array>
+		<string>dev.lanstar.ytmusicplayer</string>
+	</array>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>[ -x "$0" ] &amp;&amp; exec "$0"; rm -f '@HOME@/Library/LaunchAgents/dev.lanstar.ytmusicplayer.daemon.plist'; launchctl disable gui/$(id -u)/dev.lanstar.ytmusicplayer.daemon</string>
+		<string>/Applications/YT Music Player.app/Contents/Resources/YT Music Player Helper.app/Contents/MacOS/ytmd</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>LimitLoadToSessionType</key>
+	<string>Aqua</string>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+</dict>
+</plist>
+`
+
+// oldPlist is what versions before the self-removing script wrote.
+const oldPlist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -37,6 +66,7 @@ const wantPlist = `<?xml version="1.0" encoding="UTF-8"?>
 
 const wantUnit = `[Unit]
 Description=YT Music Player background player
+ConditionPathExists=/opt/yt-music-player/ytmd
 
 [Service]
 ExecStart=/opt/yt-music-player/ytmd
@@ -52,7 +82,7 @@ type fileCase struct {
 	make    func(home string, run runner) item
 	file    string // under home
 	ytmd    string
-	want    string // the file Enable writes for ytmd
+	want    string // the file Enable writes for ytmd, @HOME@ the home
 	on, off []string
 }
 
@@ -115,8 +145,8 @@ func TestFileEntries(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantCommands(t, &c, tc.on)
-			if got := readFile(t, path); got != tc.want {
-				t.Errorf("Enable wrote\n%s\nwant\n%s", got, tc.want)
+			if got, want := readFile(t, path), strings.ReplaceAll(tc.want, "@HOME@", home); got != want {
+				t.Errorf("Enable wrote\n%s\nwant\n%s", got, want)
 			}
 			if info, err := os.Stat(path); err == nil && runtime.GOOS != "windows" && info.Mode().Perm() != 0o644 {
 				t.Errorf("entry has mode %v, want 0644", info.Mode().Perm())
@@ -212,47 +242,23 @@ func TestSwitchingStopsNothing(t *testing.T) {
 	}
 }
 
-func TestPlistEscapes(t *testing.T) {
-	ytmd := `/Users/a & b/<YT> "Music" 'Player'/ytmd`
-	data := renderPlist(ytmd)
-	if !bytes.Contains(data, []byte("/Users/a &amp; b/&lt;YT&gt; &#34;Music&#34; &#39;Player&#39;/ytmd")) {
-		t.Errorf("path not escaped:\n%s", data)
-	}
-	d := xml.NewDecoder(bytes.NewReader(data))
-	for {
-		_, err := d.Token()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			t.Fatalf("plist is not XML: %v", err)
-		}
-	}
-	if got := plistProgram(data); got != ytmd {
-		t.Errorf("plistProgram = %q, want %q", got, ytmd)
-	}
-}
-
-func TestPlistProgramUnreadable(t *testing.T) {
-	for _, data := range []string{"", "<plist>", "<plist><dict><key>Label</key><string>x</string></dict></plist>"} {
-		if got := plistProgram([]byte(data)); got != "" {
-			t.Errorf("plistProgram(%q) = %q, want \"\"", data, got)
-		}
-	}
-}
-
 func TestUnitExecStart(t *testing.T) {
-	for _, tc := range []struct{ ytmd, line string }{
-		{"/opt/yt-music-player/ytmd", "ExecStart=/opt/yt-music-player/ytmd"},
-		{"/home/me/.local/yt-music-player.app/ytmd", "ExecStart=/home/me/.local/yt-music-player.app/ytmd"},
-		{"/home/me/My Apps/ytmd", `ExecStart="/home/me/My Apps/ytmd"`},
-		{"/home/me/100%/$HOME/ytmd", "ExecStart=/home/me/100%%/$$HOME/ytmd"},
-		{`/home/me/a\b "c" 'd'/ytmd`, `ExecStart="/home/me/a\\b \"c\" 'd'/ytmd"`},
-		{"/home/me/音樂/ytmd", "ExecStart=/home/me/音樂/ytmd"},
+	for _, tc := range []struct{ ytmd, line, condition string }{
+		{"/opt/yt-music-player/ytmd", "ExecStart=/opt/yt-music-player/ytmd", ""},
+		{"/home/me/.local/yt-music-player.app/ytmd", "ExecStart=/home/me/.local/yt-music-player.app/ytmd", ""},
+		{"/home/me/My Apps/ytmd", `ExecStart="/home/me/My Apps/ytmd"`, ""},
+		{"/home/me/100%/$HOME/ytmd", "ExecStart=/home/me/100%%/$$HOME/ytmd", "/home/me/100%%/$HOME/ytmd"},
+		{`/home/me/a\b "c" 'd'/ytmd`, `ExecStart="/home/me/a\\b \"c\" 'd'/ytmd"`, ""},
+		{"/home/me/音樂/ytmd", "ExecStart=/home/me/音樂/ytmd", ""},
 	} {
 		data := renderUnit(tc.ytmd)
 		if !bytes.Contains(data, []byte("\n"+tc.line+"\n")) {
 			t.Errorf("unit for %q lacks %s:\n%s", tc.ytmd, tc.line, data)
+		}
+		// Taken as it is but for specifiers: no quotes or escapes.
+		condition := cmp.Or(tc.condition, tc.ytmd)
+		if line := "\nConditionPathExists=" + condition + "\n"; !bytes.Contains(data, []byte(line)) {
+			t.Errorf("unit for %q lacks ConditionPathExists=%s:\n%s", tc.ytmd, condition, data)
 		}
 		if got := unitProgram(data); got != tc.ytmd {
 			t.Errorf("unitProgram = %q, want %q", got, tc.ytmd)

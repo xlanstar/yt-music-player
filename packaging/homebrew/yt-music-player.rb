@@ -24,7 +24,8 @@ cask "yt-music-player" do
 
   # early_script stops the background player with the app's ytm before the
   # app goes. Homebrew runs these on upgrades too, so starting the player
-  # at login (its LaunchAgent) is undone only by zap, not on every upgrade.
+  # at login (its LaunchAgent) is undone only by zap, not on every upgrade;
+  # once the app is gone, the LaunchAgent removes itself at the next login.
   uninstall early_script: {
               executable:   "#{appdir}/YT Music Player.app/Contents/Resources/ytm",
               args:         ["daemon", "stop"],

@@ -138,15 +138,17 @@ ytmd and ytm log through `logfile.Writer` to `<cache>/logs/` (ytm owns the termi
 
 Off by default; Desktop's settings (*Start background player at login*) or `ytm autostart on|off|status` (package `autostart`). Switching decides only the next login, never starts or stops ytmd now. Desktop and ytm repair the entry's path at start, as the app may move.
 
-- **macOS:** the LaunchAgent above (`RunAtLoad`, `LimitLoadToSessionType=Aqua`, `ProcessType=Interactive`, no `KeepAlive`, which would restart a stopped ytmd), `launchctl enable|disable gui/<uid>/<label>`, never `bootstrap` or `bootout`.
-- **Linux:** the user unit (`Restart=no`, `WantedBy=default.target`), `systemctl --user enable|disable` without `--now`.
-- **Windows:** the Run value, `"<ytmd.exe>"`. Desktop's *Use ytm in a terminal* (Windows only, off by default) adds the app's folder to `HKCU\Environment`'s `Path`, keeping its type, and broadcasts `WM_SETTINGCHANGE`.
+- **macOS:** the LaunchAgent above (`RunAtLoad`, `LimitLoadToSessionType=Aqua`, `ProcessType=Interactive`, no `KeepAlive`, which would restart a stopped ytmd), `launchctl enable|disable gui/<uid>/<label>`, never `bootstrap` or `bootout`. Its `ProgramArguments` are `/bin/sh`, `-c`, `[ -x "$0" ] && exec "$0"; rm -f '<plist>'; launchctl disable gui/$(id -u)/<label>` and `<ytmd>`: ytmd as before while it exists, else the agent removes its plist and disables its label, so deleting the app (brew, the Trash, anything) turns starting at login off at the next login. ytmd is `$0`, never parsed as shell; the plist is its absolute path, single-quoted. `AssociatedBundleIdentifiers` (the app's) has Login Items show *YT Music Player*, not `sh` (macOS 13+). Repair rewrites a plist of the older format, which ran ytmd directly.
+- **Linux:** the user unit (`ConditionPathExists=<ytmd>`, `Restart=no`, `WantedBy=default.target`), `systemctl --user enable|disable` without `--now`. With ytmd gone, systemd skips the unit (no failure); the file stays.
+- **Windows:** the Run value, `"<ytmd.exe>"`, which cannot clean itself up: turn it off before uninstalling. Desktop's *Use ytm in a terminal* (Windows only, off by default) adds the app's folder to `HKCU\Environment`'s `Path`, keeping its type, and broadcasts `WM_SETTINGCHANGE`.
+
+Accepted trade-off: an app on a disk not mounted at login (an external drive) reads as deleted, and macOS turns starting at login off; turn it on again.
 
 ## Packaging
 
 `scripts/build-helpers.sh <platform>…` builds ytmd and ytm into `resources/<platform>/` before `mygo build`, which ships, signs and (universal) merges them (`docs/release.md`):
 
-- **macOS:** `Contents/Resources/YT Music Player Helper.app` (`ytmd`, `dev.lanstar.ytmusicplayer.daemon`, `LSUIElement`, the app's icon; Now Playing shows the folder's name, which is not the app's so that nothing finds two *YT Music Player*s) and `Contents/Resources/ytm`, which the cask links into Homebrew's `bin`; `brew uninstall` runs `ytm daemon stop` first, `--zap` also removes the LaunchAgent.
+- **macOS:** `Contents/Resources/YT Music Player Helper.app` (`ytmd`, `dev.lanstar.ytmusicplayer.daemon`, `LSUIElement`, the app's icon; Now Playing shows the folder's name, which is not the app's so that nothing finds two *YT Music Player*s) and `Contents/Resources/ytm`, which the cask links into Homebrew's `bin`; `brew uninstall` runs `ytm daemon stop` first and leaves the LaunchAgent, so that upgrades keep it: without the app, it removes itself at the next login (`--zap` removes it at once).
 - **Linux:** `ytmd`, `ytm` and the `ytmd.service` template beside the app; `linux.command` puts `ytm` on the `PATH` as a link to the app, which runs the `ytm` beside it under that name.
 - **Windows:** `ytmd.exe` (no console) and `ytm.exe` beside the app. The installer cannot stop ytmd or remove the Run value and `Path` entry: before uninstalling, choose *Quit and Stop Playback* and turn both switches off.
 
