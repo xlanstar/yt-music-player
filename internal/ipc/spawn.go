@@ -32,13 +32,12 @@ func FindDaemon() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%w: %w", api.ErrDaemonNotFound, err)
 	}
-	return findDaemon(exe, os.Getenv, runtime.GOOS)
+	return findDaemon(exe, runtime.GOOS)
 }
 
-// findDaemon is FindDaemon for the program at exe (symlinks resolved), on
-// goos, reading the environment through getenv.
-func findDaemon(exe string, getenv func(string) string, goos string) (string, error) {
-	if path := getenv("YTMD_PATH"); path != "" {
+// findDaemon is FindDaemon for the program at exe, on goos.
+func findDaemon(exe, goos string) (string, error) {
+	if path := os.Getenv("YTMD_PATH"); path != "" {
 		if !isFile(path) {
 			return "", fmt.Errorf("%w: YTMD_PATH %s is no file", api.ErrDaemonNotFound, path)
 		}
@@ -71,7 +70,7 @@ func daemonCandidates(dir, goos string) []string {
 }
 
 func isFile(path string) bool {
-	info, err := os.Stat(path)
+	info, err := os.Stat(path) //nolint:gosec // $YTMD_PATH, the user's own choice
 	return err == nil && info.Mode().IsRegular()
 }
 
@@ -106,16 +105,15 @@ func SpawnDaemon() error {
 	return Spawn(path)
 }
 
-// Dialer connects to ytmd's socket, starting ytmd if asked to. The zero
-// values of its durations are the defaults.
+// Dialer connects to ytmd's socket, starting ytmd if asked to.
 type Dialer struct {
 	Socket string
 	// Spawn starts ytmd; nil is SpawnDaemon.
 	Spawn func() error
-	// Every is the wait between dials, 50 ms when 0.
-	Every time.Duration
-	// Timeout is how long Wait and DialOrSpawn dial for, 5 s when 0.
-	Timeout time.Duration
+
+	// every is the wait between dials, 50 ms when 0; timeout how long
+	// Wait dials for, 5 s when 0. Tests shorten them.
+	every, timeout time.Duration
 }
 
 // Dial connects once, never starting ytmd.
@@ -123,11 +121,10 @@ func (d *Dialer) Dial(ctx context.Context) (net.Conn, error) {
 	return Dial(ctx, d.Socket)
 }
 
-// Wait dials until it connects or Timeout passes, then failing with
-// api.ErrDaemonUnavailable; it never starts ytmd. A front-end told of a
-// hand-off waits so, with the hand-off's wait as Timeout.
+// Wait dials every 50 ms until it connects, or fails with
+// api.ErrDaemonUnavailable after 5 s; it never starts ytmd.
 func (d *Dialer) Wait(ctx context.Context) (net.Conn, error) {
-	every, timeout := d.Every, d.Timeout
+	every, timeout := d.every, d.timeout
 	if every <= 0 {
 		every = 50 * time.Millisecond
 	}
@@ -164,7 +161,7 @@ func (d *Dialer) DialOrSpawn(ctx context.Context) (net.Conn, error) {
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	log.Debug().Err(err).Str("reason", dialFailure(err)).Msg("ipc: no daemon; starting one")
+	log.Debug().Err(err).Msg("ipc: no daemon; starting one")
 	spawn := d.Spawn
 	if spawn == nil {
 		spawn = SpawnDaemon

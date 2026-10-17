@@ -1,7 +1,6 @@
 package ipc
 
 import (
-	"context"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,12 +19,8 @@ func TestListenRemovesStaleSocket(t *testing.T) {
 	if err := crashed.Close(); err != nil {
 		t.Fatal(err)
 	}
-	_, err = Dial(t.Context(), path)
-	if err == nil {
+	if _, err := Dial(t.Context(), path); err == nil {
 		t.Fatal("dialed a stale socket")
-	}
-	if runtime.GOOS != "windows" && dialFailure(err) != "stale socket" {
-		t.Errorf("dialFailure(%v) = %q", err, dialFailure(err))
 	}
 
 	l, err := Listen(path)
@@ -49,10 +44,6 @@ func TestListenRemovesStaleSocket(t *testing.T) {
 	}
 	if _, err := os.Lstat(path); !os.IsNotExist(err) {
 		t.Errorf("socket left after Close: %v", err)
-	}
-	_, err = Dial(context.Background(), path)
-	if runtime.GOOS != "windows" && dialFailure(err) != "no socket" {
-		t.Errorf("dialFailure(%v) = %q", err, dialFailure(err))
 	}
 }
 

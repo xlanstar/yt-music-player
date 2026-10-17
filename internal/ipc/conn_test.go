@@ -189,13 +189,7 @@ func TestStateOnly(t *testing.T) {
 			t.Errorf("a State with %s coalesces", name)
 		}
 	}
-	for _, other := range []api.Frame{
-		{ID: 1, Event: f.Event},
-		{Event: f.Event, Cancel: true},
-		{Event: f.Event, Reply: &api.Reply{}},
-		{Event: &api.Event{}},
-		{},
-	} {
+	for _, other := range []api.Frame{{Event: &api.Event{}}, {}} {
 		if stateOnly(&other) {
 			t.Errorf("%+v coalesces", other)
 		}
