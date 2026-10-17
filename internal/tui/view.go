@@ -101,15 +101,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 	if at < w {
 		rule.WriteString(strings.Repeat("─", w-at))
 	}
-	return append(lines, line, styleMuted.Render(fitStyled(rule.String(), w)))
-}
-
-// fitStyled cuts s, which may hold styles, to w cells.
-func fitStyled(s string, w int) string {
-	if width(s) <= w {
-		return s
-	}
-	return truncate(s, w)
+	return append(lines, line, styleMuted.Render(fit(rule.String(), w)))
 }
 
 // appendBody adds the shown page, or the help, in exactly h lines.
@@ -123,7 +115,7 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
 		for _, line := range p.header {
-			lines = append(lines, fitStyled(line, w))
+			lines = append(lines, fit(line, w))
 		}
 		rows := h - len(p.header)
 		switch {
@@ -153,7 +145,7 @@ func (m *model) appendMessage(lines []string, w int, p *page) []string {
 	}
 	if p.hint != "" {
 		m.mark(hit{y: len(lines) + 1, x1: w, kind: hitHint})
-		lines = append(lines, "", " "+fitStyled(p.hint, w-2))
+		lines = append(lines, "", " "+fit(p.hint, w-2))
 	}
 	return lines
 }
@@ -269,7 +261,7 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 	case remote.FrontendOutdated:
 		text = locales.TuiFrontendOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
 	}
-	return fitStyled(styleWarn.Render(" ! ")+text, w), hasKey
+	return fit(styleWarn.Render(" ! ")+text, w), hasKey
 }
 
 // appendBar adds the player bar: the current song, its progress, and
