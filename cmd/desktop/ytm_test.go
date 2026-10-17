@@ -20,9 +20,8 @@ func TestYtmTarget(t *testing.T) {
 		{"ytm itself", "ytm", filepath.Join("/opt", "yt-music-player", "ytm"), ""},
 	}
 	for _, tt := range tests {
-		got, ok := ytmTarget(tt.arg0, tt.exe)
-		if got != tt.want || ok != (tt.want != "") {
-			t.Errorf("%s: ytmTarget(%q, %q) = %q, %v; want %q", tt.name, tt.arg0, tt.exe, got, ok, tt.want)
+		if got := ytmTarget(tt.arg0, tt.exe); got != tt.want {
+			t.Errorf("%s: ytmTarget(%q, %q) = %q; want %q", tt.name, tt.arg0, tt.exe, got, tt.want)
 		}
 	}
 }

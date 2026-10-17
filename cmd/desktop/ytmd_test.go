@@ -205,15 +205,13 @@ func (s signedOutSource) Playlist(ctx context.Context, id string) (catalog.Playl
 // testEngine is the daemon's engine, an audio.Fake that the daemon's loop
 // and the test share under a lock.
 type testEngine struct {
-	mu     sync.Mutex
-	fake   *audio.Fake
-	events func(audio.Event)
+	mu   sync.Mutex
+	fake *audio.Fake
 }
 
 func (e *testEngine) start(events func(audio.Event)) (audio.Engine, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.events = events
 	e.fake = audio.NewFake(events)
 	return e, nil
 }
@@ -246,13 +244,8 @@ func (e *testEngine) Duration() (dur float64) {
 	return dur
 }
 
-// emit reports k about the last load, as the engine would from its own
-// goroutine; the daemon posts it to its loop.
-func (e *testEngine) emit(k audio.Kind) {
-	var loads uint64
-	e.do(func(f *audio.Fake) { loads = f.Loads })
-	e.events(audio.Event{Kind: k, Load: loads})
-}
+// emit reports k about the last load; the daemon posts it to its loop.
+func (e *testEngine) emit(k audio.Kind) { e.do(func(f *audio.Fake) { f.Emit(k) }) }
 
 // loads returns how many streams the engine loaded, 0 before it was made.
 func (e *testEngine) loads() (n uint64) {

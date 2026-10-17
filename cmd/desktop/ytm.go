@@ -7,12 +7,11 @@ import "path/filepath"
 const ytmCommand = "ytm"
 
 // ytmTarget returns the ytm to run instead of this app when it was started
-// as arg0, its real executable being exe: MyGo's linux.command can only
-// link a command, /usr/bin/ytm or ~/.local/bin/ytm, to the app itself.
-// Started under any other name, or ytm itself, it runs no other.
-func ytmTarget(arg0, exe string) (string, bool) {
+// as arg0, its real executable being exe, else "": MyGo's linux.command can
+// only link a command, /usr/bin/ytm or ~/.local/bin/ytm, to the app itself.
+func ytmTarget(arg0, exe string) string {
 	if filepath.Base(arg0) != ytmCommand || filepath.Base(exe) == ytmCommand {
-		return "", false
+		return ""
 	}
-	return filepath.Join(filepath.Dir(exe), ytmCommand), true
+	return filepath.Join(filepath.Dir(exe), ytmCommand)
 }
