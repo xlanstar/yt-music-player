@@ -276,3 +276,112 @@ func TestClickHints(t *testing.T) {
 		t.Errorf("a click on the banner asked %q", h.sup.calls)
 	}
 }
+
+// TestHitsDrawn holds every hit to what the screen shows in its cells.
+func TestHitsDrawn(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(h *harness)
+		want    map[hitKind]int
+	}{
+		{"queue-5000", viewCases[0].prepare, map[hitKind]int{hitTab: 3, hitRow: 18, hitProgress: 1, hitHelp: 1}},
+		{"signed-out", func(h *harness) {
+			h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
+			h.m.setLink(remote.Link{Health: remote.Unresponsive, Connection: 1})
+			h.press("shift+tab")
+		}, map[hitKind]int{hitTab: 3, hitHint: 1, hitBanner: 1, hitProgress: 1, hitHelp: 1}},
+		{"search", func(h *harness) { h.press("tab") }, map[hitKind]int{hitTab: 3, hitInput: 1, hitProgress: 1, hitHelp: 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := viewing(t, tc.prepare)
+			lines := strings.Split(h.screen(), "\n")
+			got := map[hitKind]int{}
+			for _, x := range h.m.hits {
+				got[x.kind]++
+				span := ansi.Cut(lines[x.y], x.x0, x.x1)
+				var want string
+				switch x.kind {
+				case hitTab:
+					want = []string{" Queue ", " Search ", " Library "}[x.tab]
+					if span != want {
+						t.Errorf("tab %d covers %q, want %q", x.tab, span, want)
+					}
+					continue
+				case hitHelp:
+					if span != "? Help" {
+						t.Errorf("the help's key covers %q", span)
+					}
+					continue
+				case hitProgress:
+					if y, start, n := h.progressBar(); x.y != y || x.x0 != start || x.x1 != start+n {
+						t.Errorf("the progress's hit is %+v, its bar %d, %d+%d", x, y, start, n)
+					}
+					continue
+				case hitRow:
+					want = "Song " + strconv.Itoa(x.i) + " "
+				case hitInput:
+					want = "Search songs"
+				case hitHint:
+					want = "Open the Desktop app"
+				case hitBanner:
+					want = "isn’t responding"
+				}
+				if !strings.Contains(span, want) {
+					t.Errorf("%+v covers %q, want %q", x, span, want)
+				}
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("hits %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// Every row of a long queue that shows selects its own song.
+func TestClickRows(t *testing.T) {
+	h := viewing(t, viewCases[0].prepare)
+	_, top := h.find("Song 2483 ")
+	for y := top; y < top+18; y++ {
+		h.clock = h.clock.Add(time.Second)
+		h.click(10, y)
+		want := "Song " + strconv.Itoa(2483+y-top) + " "
+		if !strings.Contains(h.selectedLine(), want) {
+			t.Errorf("a click on line %d selected %q, want %q", y, h.selectedLine(), want)
+		}
+	}
+	h.wantCalls("clicks on rows")
+}
+
+// A short terminal cuts the body's last lines, then the bar's first: their
+// hits go with them, and those left move up.
+func TestClickShortTerminal(t *testing.T) {
+	h := placeholderHarness(t)
+	h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
+	h.clickOn("Library")
+	_, y := h.find("Open the Desktop app")
+	// The body ends above the hint: the bar's rule shows on its line.
+	h.resize(80, y+barLines)
+	if cmd := h.click(5, y); cmd != nil || h.opened != 0 {
+		t.Error("a click where a cut hint was opened the Desktop")
+	}
+
+	h.m.setLink(remote.Link{Health: remote.Unresponsive, Connection: 1})
+	h.resize(80, 3)
+	h.click(5, 0)
+	if len(h.sup.calls) != 0 {
+		t.Errorf("a click where a cut banner was asked %q", h.sup.calls)
+	}
+	py, start, n := h.progressBar()
+	if py != 1 {
+		t.Fatalf("the progress shows on line %d of 3", py)
+	}
+	h.click(start+n/2, py)
+	h.send(tea.MouseReleaseMsg{X: start + n/2, Y: py, Button: tea.MouseLeft})
+	if got := h.ctl.take(); len(got) != 1 || !strings.HasPrefix(got[0], "Seek ") {
+		t.Errorf("a click on the moved progress sent %q", got)
+	}
+	h.clickOn("? Help")
+	if !h.m.isHelp {
+		t.Error("a click on the moved ? Help did nothing")
+	}
+}

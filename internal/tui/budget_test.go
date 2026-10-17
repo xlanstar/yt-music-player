@@ -27,7 +27,17 @@ func TestBudgetUpdate(t *testing.T) {
 	})
 	t.Run("click", func(t *testing.T) {
 		h := viewing(t, func(*harness) {})
-		// 96 allocs today: the page found again, and the render.
+		// 95 allocs today: the render.
 		budget.Allocs(t, 110, 100, clicking(h))
 	})
+}
+
+// TestBudgetClick holds a click's hit test and what it does.
+func TestBudgetClick(t *testing.T) {
+	for _, tc := range clickCases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := viewing(t, tc.prepare)
+			budget.Allocs(t, tc.allocs, 100, clickingOn(h, tc.targets(h)))
+		})
+	}
 }

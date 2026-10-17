@@ -129,6 +129,9 @@ type model struct {
 
 	memo    memo
 	content string
+	// hits are what content shows that a click acts on, reused so that
+	// frames allocate nothing for them.
+	hits []hit
 }
 
 // tickMsg moves the progress on by a second.

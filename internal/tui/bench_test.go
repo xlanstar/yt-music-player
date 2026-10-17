@@ -92,3 +92,59 @@ func clicking(h *harness) func() {
 		h.send(tea.MouseClickMsg{X: 10, Y: y + i%2, Button: tea.MouseLeft})
 	}
 }
+
+// clickCases are clicks without the render after them, on two targets in
+// turn: rows of a long queue, the tabs, the progress. allocs is each
+// one's budget (TestBudgetClick).
+var clickCases = []struct {
+	name    string
+	prepare func(h *harness)
+	targets func(h *harness) [2]tea.Mouse
+	allocs  float64
+}{
+	// 0 allocs today.
+	{"row-queue-5000", viewCases[0].prepare, func(h *harness) [2]tea.Mouse {
+		_, y := h.find("Song 2490 ")
+		return [2]tea.Mouse{leftAt(10, y), leftAt(10, y+1)}
+	}, 0},
+	// 0 allocs today.
+	{"tab", func(*harness) {}, func(h *harness) [2]tea.Mouse {
+		x, y := h.find("Search")
+		xq, _ := h.find("Queue")
+		return [2]tea.Mouse{leftAt(x, y), leftAt(xq, y)}
+	}, 0},
+	// 0 allocs today.
+	{"progress", func(*harness) {}, func(h *harness) [2]tea.Mouse {
+		y, start, n := h.progressBar()
+		return [2]tea.Mouse{leftAt(start+n/3, y), leftAt(start+2*n/3, y)}
+	}, 0},
+}
+
+func leftAt(x, y int) tea.Mouse { return tea.Mouse{X: x, Y: y, Button: tea.MouseLeft} }
+
+// clickingOn returns a click on targets in turn, each a first click,
+// none dragging.
+func clickingOn(h *harness, targets [2]tea.Mouse) func() {
+	i := 0
+	return func() {
+		i++
+		h.m.lastClick, h.m.seek = click{}, seeking{}
+		if ok, _ := h.m.click(targets[i%2]); !ok {
+			h.t.Fatal("the click did nothing")
+		}
+	}
+}
+
+// BenchmarkClick is a click's hit test and what it does.
+func BenchmarkClick(b *testing.B) {
+	for _, tc := range clickCases {
+		b.Run(tc.name, func(b *testing.B) {
+			h := viewing(b, tc.prepare)
+			click := clickingOn(h, tc.targets(h))
+			b.ReportAllocs()
+			for b.Loop() {
+				click()
+			}
+		})
+	}
+}

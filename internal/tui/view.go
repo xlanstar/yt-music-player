@@ -19,38 +19,38 @@ const (
 	minBody = 1
 )
 
-// appName is the app's name, untranslated; nameCell shows it in the
-// header, from nameFrom cells wide.
-const (
-	appName  = "YT Music Player"
-	nameCell = " " + appName + "  "
-	nameFrom = 60
-)
+// appName is the app's name, untranslated.
+const appName = "YT Music Player"
 
 // render draws the screen into m.content: the tabs, the shown page, the
 // daemon's health when it is not connected, and the player bar at the
-// bottom. Lists draw only their visible rows, so a long queue costs no
-// more than a short one.
+// bottom; m.hits, what a click acts on. Lists draw only their visible
+// rows, so a long queue costs no more than a short one.
 func (m *model) render() {
 	w, h := m.width, m.height
+	m.hits = m.hits[:0]
 	if w <= 0 || h <= 0 {
 		m.content = ""
 		return
 	}
 	lines := make([]string, 0, h+barLines)
-	banner := m.banner(w)
+	banner, hasKey := m.banner(w)
 	body := m.bodyHeight()
 	if body >= minBody {
 		lines = m.appendHeader(lines, w)
 		lines = m.appendBody(lines, w, body)
 	}
 	if banner != "" {
+		if hasKey {
+			m.mark(hit{y: len(lines), x1: w, kind: hitBanner})
+		}
 		lines = append(lines, banner)
 	}
 	lines = m.appendBar(lines, w)
-	if len(lines) > h {
+	if cut := len(lines) - h; cut > 0 {
 		// Too short for the bar: its last lines.
-		lines = lines[len(lines)-h:]
+		m.keepHits(cut, len(lines))
+		lines = lines[cut:]
 	}
 	m.content = strings.Join(lines, "\n")
 }
@@ -68,12 +68,15 @@ func (m *model) bodyHeight() int {
 // that marks the shown tab.
 func (m *model) appendHeader(lines []string, w int) []string {
 	var top, rule strings.Builder
-	at := tabsFrom(w)
-	if at > 0 {
-		styleAccentB.write(&top, nameCell)
+	at := 0
+	if w >= 60 {
+		name := " " + appName + "  "
+		styleAccentB.write(&top, name)
+		at = width(name)
 		rule.WriteString(strings.Repeat("─", at))
 	}
-	for i, label := range m.tabLabels() {
+	labels := [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search, tabLibrary: m.words.library}
+	for i, label := range labels {
 		cell := " " + label + " "
 		style, mark := paint{}, "─"
 		if tab(i) == m.tab {
@@ -84,6 +87,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 		cw := width(cell)
 		rule.WriteString(strings.Repeat(mark, cw))
 		rule.WriteString("─")
+		m.mark(hit{y: len(lines), x0: at, x1: at + cw, kind: hitTab, tab: tab(i)})
 		at += cw + 1
 	}
 	account := ""
@@ -98,20 +102,6 @@ func (m *model) appendHeader(lines []string, w int) []string {
 		rule.WriteString(strings.Repeat("─", w-at))
 	}
 	return append(lines, line, styleMuted.Render(fitStyled(rule.String(), w)))
-}
-
-// tabsFrom is the cell where the tabs start: after the app's name, if
-// it shows.
-func tabsFrom(w int) int {
-	if w < nameFrom {
-		return 0
-	}
-	return width(nameCell)
-}
-
-// tabLabels are the tabs' names; each shows as " label ", then a space.
-func (m *model) tabLabels() [numTabs]string {
-	return [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search, tabLibrary: m.words.library}
 }
 
 // fitStyled cuts s, which may hold styles, to w cells.
@@ -129,18 +119,22 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 		lines = m.appendHelp(lines, w, h)
 	} else {
 		p := m.page()
+		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
+			m.mark(hit{y: start, x1: w, kind: hitInput})
+		}
 		for _, line := range p.header {
 			lines = append(lines, fitStyled(line, w))
 		}
 		rows := h - len(p.header)
 		switch {
 		case p.title != "":
-			lines = appendMessage(lines, w, &p)
+			lines = m.appendMessage(lines, w, &p)
 		case p.list != nil:
 			lines = m.appendList(lines, w, rows, &p)
 		}
 	}
 	if len(lines)-start > h {
+		m.keepHits(0, start+h)
 		lines = lines[:start+h]
 	}
 	for len(lines)-start < h {
@@ -150,7 +144,7 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 }
 
 // appendMessage adds a page's message: its title, detail and hint.
-func appendMessage(lines []string, w int, p *page) []string {
+func (m *model) appendMessage(lines []string, w int, p *page) []string {
 	lines = append(lines, "", " "+styleBold.Render(fit(p.title, w-2)))
 	if p.detail != "" {
 		for line := range strings.Lines(lipgloss.Wrap(p.detail, max(w-2, 1), "")) {
@@ -158,6 +152,7 @@ func appendMessage(lines []string, w int, p *page) []string {
 		}
 	}
 	if p.hint != "" {
+		m.mark(hit{y: len(lines) + 1, x1: w, kind: hitHint})
 		lines = append(lines, "", " "+fitStyled(p.hint, w-2))
 	}
 	return lines
@@ -169,7 +164,11 @@ func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 	l.fit(p.n, rows, p.selectable)
 	end := min(l.offset+max(rows, 0), p.n)
 	for i := l.offset; i < end; i++ {
-		lines = append(lines, m.row(p.at(i), w, i == l.cursor))
+		it := p.at(i)
+		if it.kind != itemHeading {
+			m.mark(hit{y: len(lines), x1: w, kind: hitRow, i: i, list: l})
+		}
+		lines = append(lines, m.row(it, w, i == l.cursor))
 	}
 	return lines
 }
@@ -222,30 +221,30 @@ func (m *model) appendHelp(lines []string, w, h int) []string {
 func keyHint(key, does string) string { return styleKey.Render(key) + " " + does }
 
 // banner is the line that says how the daemon is when it is not
-// connected, with the key that helps; "" when connected.
-func (m *model) banner(w int) string {
+// connected, with the key that helps, if any (hasKey); "" when connected.
+func (m *model) banner(w int) (line string, hasKey bool) {
 	var text string
 	l := m.link
 	switch l.Health {
 	case remote.Connected:
-		return ""
+		return "", false
 	case remote.Connecting:
 		text = m.words.connecting
 	case remote.Reconnecting:
 		text = m.words.reconnecting
 	case remote.Unresponsive:
-		text = m.words.unresponsive + "  " + keyHint("R", m.words.restart)
+		text, hasKey = m.words.unresponsive+"  "+keyHint("R", m.words.restart), true
 	case remote.Unavailable:
-		text = m.words.unavailable + "  " + keyHint("R", m.words.retry) + "  " + locales.TuiLog(m.daemonLog)
+		text, hasKey = m.words.unavailable+"  "+keyHint("R", m.words.retry)+"  "+locales.TuiLog(m.daemonLog), true
 	case remote.DaemonOutdated:
 		text = locales.TuiDaemonOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
 		if !l.Daemon.IsCompatible {
-			text += "  " + keyHint("R", m.words.retry)
+			text, hasKey = text+"  "+keyHint("R", m.words.retry), true
 		}
 	case remote.FrontendOutdated:
 		text = locales.TuiFrontendOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
 	}
-	return fitStyled(styleWarn.Render(" ! ")+text, w)
+	return fitStyled(styleWarn.Render(" ! ")+text, w), hasKey
 }
 
 // appendBar adds the player bar: the current song, its progress, and
@@ -272,11 +271,14 @@ func (m *model) appendBar(lines []string, w int) []string {
 		if song.Artist != "" {
 			title += styleMuted.Render(" · " + song.Artist)
 		}
-		lines = append(lines, spread(title, heart, w), m.progress(st, w))
+		lines = append(lines, spread(title, heart, w))
+		lines = append(lines, m.progress(st, w, len(lines)))
 	}
 	right := keyHint("?", m.words.help) + " "
 	if m.notice != "" {
 		right = styleAccent.Render(fit(m.notice, max(w*2/3, 1))) + " "
+	} else {
+		m.mark(hit{y: len(lines), x0: w - width(right), x1: w - 1, kind: hitHelp})
 	}
 	status := ""
 	if m.link.Connection > 0 {
@@ -286,34 +288,24 @@ func (m *model) appendBar(lines []string, w int) []string {
 	return append(lines, spread(" "+styleMuted.Render(status), right, w))
 }
 
-// progress is the current song's time, as a bar between its elapsed and
-// whole length.
-func (m *model) progress(st api.State, w int) string {
+// progress is the current song's time on line y, as a bar between its
+// elapsed and whole length, a space before the end.
+func (m *model) progress(st api.State, w, y int) string {
 	pos := m.position(st)
 	elapsed := clock(pos)
 	if st.Duration <= 0 {
 		return " " + elapsed
 	}
 	total := clock(st.Duration)
-	_, bar := barSpan(elapsed, total, w)
-	if bar == 0 {
+	start := 1 + width(elapsed) + 1
+	bar := w - start - 1 - width(total) - 1
+	if bar < 4 {
 		return " " + elapsed + " / " + total
 	}
+	m.mark(hit{y: y, x0: start, x1: start + bar, kind: hitProgress})
 	done := min(int(pos/st.Duration*float64(bar)), bar)
 	return " " + elapsed + " " + styleAccent.Render(strings.Repeat("━", done)) +
 		styleMuted.Render(strings.Repeat("─", bar-done)) + " " + total
-}
-
-// barSpan is where the progress's bar lies on its line of w cells,
-// between elapsed and total, a space before the end: from cell start, n
-// cells; n is 0 when there is no room for one.
-func barSpan(elapsed, total string, w int) (start, n int) {
-	start = 1 + width(elapsed) + 1
-	n = w - start - 1 - width(total) - 1
-	if n < 4 {
-		return start, 0
-	}
-	return start, n
 }
 
 // status says what is on of shuffle and repeat, and the volume.

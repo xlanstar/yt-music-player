@@ -7,8 +7,8 @@
 //
 // The mouse (cell motion, so no message per move): a click selects a row,
 // a second click or a double click plays or opens it; the progress seeks
-// where it is let go; the wheel moves the cursor. Hits are worked out
-// from the layout on each click (mouse.go), so frames record nothing.
+// where it is let go; the wheel moves the cursor. Render notes what it
+// draws that a click acts on; a click looks it up (mouse.go).
 //
 // Threading: Bubble Tea's Update goroutine is the UI thread. The session,
 // the loader, the catalog and the Mirror are touched there only. Their
