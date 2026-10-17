@@ -75,7 +75,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 		at = width(name)
 		rule.WriteString(strings.Repeat("─", at))
 	}
-	labels := [numTabs]string{tabQueue: m.words.queue, tabSearch: m.words.search, tabLibrary: m.words.library}
+	labels := [numTabs]string{tabQueue: locales.Queue(), tabSearch: locales.NavSearch(), tabLibrary: locales.NavLibrary()}
 	for i, label := range labels {
 		cell := " " + label + " "
 		style, mark := paint{}, "─"
@@ -95,7 +95,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 	case m.session.IsSignedIn():
 		account = m.session.DisplayName()
 	case m.isSignedOut():
-		account = m.words.notSignedIn
+		account = locales.CliSignedOut()
 	}
 	line := spread(top.String(), styleMuted.Render(fit(account, max(w-at-2, 0))+" "), w)
 	if at < w {
@@ -176,13 +176,13 @@ func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 // appendHelp adds the keys and what they do in h lines, in as many
 // columns as that takes, each as wide as its text.
 func (m *model) appendHelp(lines []string, w, h int) []string {
-	title := fit(m.words.helpTitle, w-2)
-	mouse := fit(m.words.helpMouse, w-width(title)-4)
+	title := fit(locales.TuiHelpTitle(), w-2)
+	mouse := fit(locales.TuiHelpMouse(), w-width(title)-4)
 	if mouse != "" {
 		mouse = "  " + styleMuted.Render(mouse)
 	}
 	lines = append(lines, "", " "+styleBold.Render(title)+mouse)
-	keys := m.words.helpKeys
+	keys := helpKeys
 	rows := max(h-2, 1)
 	cols := (len(keys) + rows - 1) / rows
 	rows = (len(keys) + cols - 1) / cols
@@ -192,7 +192,7 @@ func (m *model) appendHelp(lines []string, w, h int) []string {
 	}
 	doesWidth := make([]int, cols)
 	for i, k := range keys {
-		doesWidth[i/rows] = max(doesWidth[i/rows], width(k.does))
+		doesWidth[i/rows] = max(doesWidth[i/rows], width(k.does()))
 	}
 	for r := range rows {
 		var b strings.Builder
@@ -204,7 +204,7 @@ func (m *model) appendHelp(lines []string, w, h int) []string {
 			}
 			key := fit("   "+pad(keys[i].keys, keyWidth)+"  ", left)
 			left -= width(key)
-			does := fit(keys[i].does, max(left, 0))
+			does := fit(keys[i].does(), max(left, 0))
 			if c < cols-1 {
 				does = pad(does, min(doesWidth[c], max(left, 0)))
 			}
@@ -215,6 +215,31 @@ func (m *model) appendHelp(lines []string, w, h int) []string {
 		lines = append(lines, b.String())
 	}
 	return lines
+}
+
+// helpKey is a line of the help: keys and what they do.
+type helpKey struct {
+	keys string
+	does func() string
+}
+
+var helpKeys = []helpKey{
+	{"space", locales.TuiHelpToggle},
+	{"n / p", locales.TuiHelpNext},
+	{"← / →", locales.TuiHelpSeek},
+	{"+ / -", locales.TuiHelpVolume},
+	{"s", locales.TuiHelpShuffle},
+	{"r", locales.TuiHelpRepeat},
+	{"↑ / ↓", locales.TuiHelpSelect},
+	{"enter", locales.TuiHelpPlay},
+	{"a", locales.TuiHelpAdd},
+	{"l", locales.TuiHelpLike},
+	{"/", locales.TuiHelpSearch},
+	{"tab", locales.TuiHelpTab},
+	{"esc", locales.TuiHelpBack},
+	{"R", locales.TuiHelpRetry},
+	{"?", locales.TuiHelpHelp},
+	{"q", locales.TuiHelpQuit},
 }
 
 // keyHint shows a key and what it does.
@@ -229,17 +254,17 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 	case remote.Connected:
 		return "", false
 	case remote.Connecting:
-		text = m.words.connecting
+		text = locales.TuiConnecting()
 	case remote.Reconnecting:
-		text = m.words.reconnecting
+		text = locales.TuiReconnecting()
 	case remote.Unresponsive:
-		text, hasKey = m.words.unresponsive+"  "+keyHint("R", m.words.restart), true
+		text, hasKey = locales.TuiUnresponsive()+"  "+keyHint("R", locales.TuiRestart()), true
 	case remote.Unavailable:
-		text, hasKey = m.words.unavailable+"  "+keyHint("R", m.words.retry)+"  "+locales.TuiLog(m.daemonLog), true
+		text, hasKey = locales.TuiUnavailable()+"  "+keyHint("R", locales.Retry())+"  "+locales.TuiLog(m.daemonLog), true
 	case remote.DaemonOutdated:
 		text = locales.TuiDaemonOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
 		if !l.Daemon.IsCompatible {
-			text, hasKey = text+"  "+keyHint("R", m.words.retry), true
+			text, hasKey = text+"  "+keyHint("R", locales.Retry()), true
 		}
 	case remote.FrontendOutdated:
 		text = locales.TuiFrontendOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
@@ -254,7 +279,7 @@ func (m *model) appendBar(lines []string, w int) []string {
 	lines = append(lines, styleMuted.Render(strings.Repeat("─", w)))
 	song, ok := m.mirror.Song(st.Current)
 	if !ok || st.Current == "" {
-		lines = append(lines, " "+styleMuted.Render(fit(m.words.nothingPlaying, w-2)), "")
+		lines = append(lines, " "+styleMuted.Render(fit(locales.TuiNothingPlaying(), w-2)), "")
 	} else {
 		icon := "❙❙"
 		switch {
@@ -274,7 +299,7 @@ func (m *model) appendBar(lines []string, w int) []string {
 		lines = append(lines, spread(title, heart, w))
 		lines = append(lines, m.progress(st, w, len(lines)))
 	}
-	right := keyHint("?", m.words.help) + " "
+	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
 		right = styleAccent.Render(fit(m.notice, max(w*2/3, 1))) + " "
 	} else {
@@ -313,15 +338,15 @@ func (m *model) status(st api.State) string {
 	var parts [3]string
 	n := 0
 	if st.Shuffled {
-		parts[n] = m.words.shuffleOn
+		parts[n] = locales.CliShuffleOn()
 		n++
 	}
 	switch st.Repeat {
 	case api.RepeatAll:
-		parts[n] = m.words.repeatAll
+		parts[n] = locales.RepeatAll()
 		n++
 	case api.RepeatOne:
-		parts[n] = m.words.rOne
+		parts[n] = locales.RepeatOne()
 		n++
 	}
 	parts[n] = m.volumeText(st)

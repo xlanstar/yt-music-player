@@ -78,7 +78,7 @@ func (m *model) page() page {
 func (m *model) queuePage() page {
 	queue := m.mirror.Queue()
 	if len(queue) == 0 {
-		return page{title: m.words.queueEmpty, detail: m.words.queueEmptyHint}
+		return page{title: locales.TuiQueueEmpty(), detail: locales.TuiQueueEmptyHint()}
 	}
 	st := m.mirror.State()
 	if m.queueFollows {
@@ -101,11 +101,11 @@ func (m *model) searchPage() page {
 	results := found.Results
 	switch {
 	case query == "":
-		p.title, p.detail = m.words.searchTitle, m.words.searchHint
+		p.title, p.detail = locales.NavSearch(), locales.TuiSearchHint()
 		return p
 	case query == found.FailedQuery:
 		p.title, p.detail = locales.SearchFailed(query), m.why(found.Err)
-		p.hint = keyHint("enter", m.words.retry)
+		p.hint = keyHint("enter", locales.Retry())
 		p.retry = func() { m.loader.RetrySearch(query) }
 		return p
 	case query != found.Query:
@@ -115,10 +115,10 @@ func (m *model) searchPage() page {
 		}
 		// The last results stay while new ones come, so the page does
 		// not blink empty at every key.
-		p.header[1] = styleMuted.Render(" " + m.words.searching)
+		p.header[1] = styleMuted.Render(" " + locales.Searching())
 	}
 	if results.IsEmpty() {
-		p.title, p.detail = locales.SearchNone(query), m.words.searchNoneHint
+		p.title, p.detail = locales.SearchNone(query), locales.SearchNoneHint()
 		return p
 	}
 	songs, albums := results.Songs, results.Albums
@@ -136,11 +136,11 @@ func (m *model) searchPage() page {
 	p.at = func(i int) item {
 		switch {
 		case i == albumsAt:
-			return item{kind: itemHeading, text: m.words.albums}
+			return item{kind: itemHeading, text: locales.Albums()}
 		case albumsAt >= 0 && i > albumsAt:
 			return item{kind: itemAlbum, album: albums[i-albumsAt-1]}
 		case i == 0:
-			return item{kind: itemHeading, text: m.words.songs}
+			return item{kind: itemHeading, text: locales.Songs()}
 		default:
 			return item{kind: itemSong, song: songs[i-1]}
 		}
@@ -155,13 +155,13 @@ func (m *model) searchInput() string {
 	case m.isTyping:
 		return prompt + m.query + styleAccent.Render("█")
 	case m.query == "":
-		return prompt + styleMuted.Render(m.words.searchPlaceholder)
+		return prompt + styleMuted.Render(locales.SearchPlaceholder())
 	}
 	return prompt + m.query
 }
 
 func (m *model) libraryPage() page {
-	if p, ok := m.accountPage(session.LibraryRes, m.words.libraryFailed); !ok {
+	if p, ok := m.accountPage(session.LibraryRes, locales.LibraryFailed()); !ok {
 		return p
 	}
 	playlists := m.cat.LibraryPlaylists()
@@ -182,9 +182,9 @@ func (m *model) libraryPage() page {
 		case i == 0:
 			return item{kind: itemLiked, text: liked}
 		case i == playlistsAt:
-			return item{kind: itemHeading, text: m.words.playlists}
+			return item{kind: itemHeading, text: locales.SidebarPlaylists()}
 		case i == albumsAt:
-			return item{kind: itemHeading, text: m.words.albums}
+			return item{kind: itemHeading, text: locales.Albums()}
 		case albumsAt >= 0 && i > albumsAt:
 			return item{kind: itemAlbum, album: albums[i-albumsAt-1]}
 		default:
@@ -204,18 +204,18 @@ func (m *model) accountPage(res fetchstate.Resource, failed string) (page, bool)
 		return m.signedOutPage(), false
 	case fetchstate.Failed:
 		return page{
-			title: failed, detail: m.why(f.Err), hint: keyHint("enter", m.words.retry),
+			title: failed, detail: m.why(f.Err), hint: keyHint("enter", locales.Retry()),
 			retry: func() { m.session.Retry(res) },
 		}, false
 	}
-	return page{title: m.words.loading}, false
+	return page{title: locales.Loading()}, false
 }
 
 func (m *model) signedOutPage() page {
 	return page{
-		title:  m.words.signedOutTitle,
-		detail: m.words.signedOutDetail,
-		hint:   keyHint("o", m.words.openDesktop),
+		title:  locales.TuiSignedOutTitle(),
+		detail: locales.TuiSignedOutDetail(),
+		hint:   keyHint("o", locales.TuiOpenDesktop()),
 	}
 }
 
@@ -225,27 +225,27 @@ func (m *model) collectionPage(o opened) page {
 	var title, subtitle string
 	switch o.kind {
 	case itemLiked:
-		if p, ok := m.accountPage(session.LikedRes, m.words.likesFailed); !ok {
+		if p, ok := m.accountPage(session.LikedRes, locales.LikesFailed()); !ok {
 			return p
 		}
-		title = m.words.likedMusic
+		title = locales.LikedMusic()
 	default:
-		kind, failed := fetchstate.Album, m.words.albumFailed
+		kind, failed := fetchstate.Album, locales.AlbumFailed()
 		if o.kind == itemPlaylist {
-			kind, failed = fetchstate.Playlist, m.words.playlistFailed
+			kind, failed = fetchstate.Playlist, locales.PlaylistFailed()
 		}
 		res := fetchstate.Resource{Kind: kind, ID: o.id}
 		switch f := m.states.State(res); f.State {
 		case fetchstate.Loaded:
 		case fetchstate.Missing:
-			return page{title: m.words.notFoundTitle, detail: m.words.notFoundDetail}
+			return page{title: locales.NotFoundTitle(), detail: locales.NotFoundDetail()}
 		case fetchstate.Failed:
 			return page{
-				title: failed, detail: m.why(f.Err), hint: keyHint("enter", m.words.retry),
+				title: failed, detail: m.why(f.Err), hint: keyHint("enter", locales.Retry()),
 				retry: func() { m.loader.Retry(res) },
 			}
 		default:
-			return page{title: m.words.loading}
+			return page{title: locales.Loading()}
 		}
 	}
 	songs := m.collectionSongs(o)
@@ -261,10 +261,10 @@ func (m *model) collectionPage(o opened) page {
 	}
 	header := []string{" " + styleBold.Render(title), " " + styleMuted.Render(subtitle), ""}
 	if len(songs) == 0 {
-		empty := m.words.nothingHereYet
+		empty := locales.NothingHereYet()
 		detail := ""
 		if o.kind == itemLiked {
-			detail = m.words.likedEmpty
+			detail = locales.LikedEmpty()
 		}
 		return page{header: header, title: empty, detail: detail}
 	}

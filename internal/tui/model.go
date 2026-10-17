@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"math"
 	"slices"
 	"strings"
@@ -90,7 +92,6 @@ type opened struct {
 // message that changed anything; View returns it.
 type model struct {
 	deps
-	words words
 
 	width, height int
 	tab           tab
@@ -144,7 +145,7 @@ type clearNoticeMsg struct{ seq uint64 }
 type openedDesktopMsg struct{ err error }
 
 func newModel(d deps) *model {
-	return &model{deps: d, words: newWords(), queueFollows: true}
+	return &model{deps: d, queueFollows: true}
 }
 
 // Init implements tea.Model.
@@ -185,7 +186,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			return m, nil
 		}
-		m.say(locales.CliFailed(m.words.openDesktopFailed, m.why(msg.err)))
+		m.say(locales.CliFailed(locales.TuiOpenDesktopFailed(), m.why(msg.err)))
 	case tea.PasteMsg:
 		if !m.isTyping {
 			return m, nil
@@ -618,4 +619,24 @@ func songIDs(songs []catalog.Song) []string {
 		ids[i] = s.ID
 	}
 	return ids
+}
+
+// why says err in the user's words. Only an unforeseen error is said as
+// it is.
+func (m *model) why(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, api.ErrDisconnected):
+		return locales.CliWhyDisconnected()
+	case errors.Is(err, context.DeadlineExceeded):
+		return locales.CliWhyTimeout()
+	case errors.Is(err, context.Canceled):
+		return locales.CliWhyCanceled()
+	case errors.Is(err, catalog.ErrSignedOut):
+		return locales.CliWhySignedOut()
+	case errors.Is(err, api.ErrInternal):
+		return locales.CliWhyDaemonFailed(m.daemonLog)
+	}
+	return err.Error()
 }

@@ -3,6 +3,7 @@ package tui
 import (
 	"strconv"
 	"strings"
+	"yt-music-player/locales"
 )
 
 // segment is a cell of a row: text in its style, fitted to width cells
@@ -73,9 +74,9 @@ func (m *model) row(it item, w int, isSelected bool) string {
 		parts = m.songSegments(segs[:0], &it, inner)
 	case itemPlayAll:
 		parts = append(segs[:0], segment{text: "▶ ", style: styleAccent},
-			segment{text: m.words.playAll, width: max(inner-markWidth, 1), style: styleAccent})
+			segment{text: locales.PlayAll(), width: max(inner-markWidth, 1), style: styleAccent})
 	case itemLiked:
-		parts = columns(append(segs[:0], segment{text: "♥ ", style: styleAccent}), m.words.likedMusic, it.text, inner-markWidth)
+		parts = columns(append(segs[:0], segment{text: "♥ ", style: styleAccent}), locales.LikedMusic(), it.text, inner-markWidth)
 	case itemAlbum:
 		detail := it.album.Artist
 		if it.album.Year > 0 {
