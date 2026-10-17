@@ -5,9 +5,9 @@
 # which needs the focus (click it if it stays behind: macOS lets no app
 # take it from the one in front), and later gives it to Finder: about 70
 # seconds, hands off the keyboard and mouse after that click. The app plays
-# through a development ytmd built beside it (YTMD_PATH), whose memory is
-# its own process's: one already running serves instead; one started here
-# is stopped at the end.
+# through a development ytmd built beside it, whose memory is its own
+# process's: one already running serves instead; one started here is
+# stopped at the end.
 #
 #   scripts/footprint.sh           the placeholder catalog, offline, silent
 #   scripts/footprint.sh -live     the signed-in account, as thumbnails cost;
@@ -16,35 +16,29 @@
 #                                  home of its own: its memory and wake-ups
 #                                  paused, playing, and after a Desktop toured
 #                                  every page through it (skipped without a
-#                                  window server, or with -headless); about
-#                                  90 seconds, into perf/footprint-daemon-latest.txt
+#                                  window server); about 90 seconds, into
+#                                  perf/footprint-daemon-latest.txt, against
+#                                  perf/footprint-daemon-baseline.txt
 #   scripts/footprint.sh [-daemon] -update
-#                                  make the latest run the baseline's (window
-#                                  or daemon) section, after a placeholder run
-#                                  of a deliberate change
+#                                  make the latest run the baseline, after a
+#                                  placeholder run of a deliberate change
 set -eu
 
 cd "$(dirname "$0")/.."
 
-baseline=perf/footprint-baseline.txt
-# The baseline holds the window's run, then the daemon's from this line on.
-daemon_section='^# ytmd footprint'
-
 usage() {
-	sed -n '2,24s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,23s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
 live=
 update=
 daemon=
-headless=
 while [ $# -gt 0 ]; do
 	case $1 in
 	-live) live=1 ;;
 	-update) update=1 ;;
 	-daemon) daemon=1 ;;
-	-headless) headless=1 ;;
 	*) usage ;;
 	esac
 	shift
@@ -53,14 +47,13 @@ done
 # no account, and a real one would sign in from the Keychain, which a home
 # of its own has not.
 [ -z "$daemon" ] || [ -z "$live" ] || usage
-[ -n "$daemon" ] || [ -z "$headless" ] || usage
 
 latest=perf/footprint-latest.txt
-[ -z "$daemon" ] || latest=perf/footprint-daemon-latest.txt
-
-# window_part and daemon_part print the baseline's two sections.
-window_part() { [ ! -f "$baseline" ] || sed "/$daemon_section/,\$d" "$baseline"; }
-daemon_part() { [ ! -f "$baseline" ] || sed -n "/$daemon_section/,\$p" "$baseline"; }
+baseline=perf/footprint-baseline.txt
+if [ -n "$daemon" ]; then
+	latest=perf/footprint-daemon-latest.txt
+	baseline=perf/footprint-daemon-baseline.txt
+fi
 
 if [ -n "$update" ]; then
 	# The account's catalog changes with the account: only the
@@ -73,20 +66,8 @@ if [ -n "$update" ]; then
 		echo "footprint.sh: $latest has invalid or failed phases: run it again" >&2
 		exit 1
 	}
-	next=$(mktemp)
-	if [ -n "$daemon" ]; then
-		{
-			window_part
-			cat "$latest"
-		} >"$next"
-	else
-		{
-			cat "$latest"
-			daemon_part
-		} >"$next"
-	fi
-	mv "$next" "$baseline"
-	echo "footprint.sh: $latest is the baseline's now; commit it with the change it measures" >&2
+	cp "$latest" "$baseline"
+	echo "footprint.sh: $latest is $baseline now; commit it with the change it measures" >&2
 	exit 0
 fi
 
@@ -123,11 +104,8 @@ build_app() {
 EOF
 }
 
-# compare <baseline section> <latest> <keys…>: each phase's keys,
-# baseline then latest.
+# compare <keys…>: each phase's keys, baseline then latest.
 compare() {
-	base=$1
-	shift
 	echo
 	awk -v keys="$*" '
 		BEGIN { n = split(keys, key, " ") }
@@ -154,17 +132,17 @@ compare() {
 			for (i = 1; i <= n; i++) printf " %7s → %7s", b[i], l[i]
 			printf "\n"
 		}
-	' "$base" "$latest"
+	' "$baseline" "$latest"
 }
 
-# A placeholder run compares with the baseline's section of the same
-# source; it returns 1 when there is none.
+# A run compares with a baseline of the same source; it returns 1 when
+# there is none.
 check_baseline() {
-	if [ ! -s "$1" ]; then
-		echo "footprint.sh: no section in $baseline to compare with: scripts/footprint.sh${daemon:+ -daemon} -update makes one" >&2
+	if [ ! -s "$baseline" ]; then
+		echo "footprint.sh: no $baseline to compare with: scripts/footprint.sh${daemon:+ -daemon} -update makes one" >&2
 		return 1
 	fi
-	if ! grep -q "^# source: $source\$" "$1"; then
+	if ! grep -q "^# source: $source\$" "$baseline"; then
 		echo "footprint.sh: $baseline measured another source; not compared" >&2
 		return 1
 	fi
@@ -176,27 +154,29 @@ source=placeholder
 tags=placeholder
 [ -z "$live" ] || { source=live; tags=; }
 
-if [ -n "$daemon" ]; then
-	# In /tmp, short: the socket's path, under the home below, must fit
-	# in 103 bytes.
-	tmp=$(mktemp -d /tmp/ytmd-footprint.XXXXXX)
-	ytm=$tmp/ytm
-	app=$tmp/YT\ Music\ Footprint.app
-	cleanup() {
-		pkill -f "$app/Contents/MacOS/" 2>/dev/null || :
-		[ ! -d "$tmp/home" ] || HOME=$tmp/home TMPDIR=$tmp "$ytm" daemon stop >/dev/null 2>&1 || :
-		rm -rf "$tmp"
-	}
-	trap cleanup EXIT
-	trap 'exit 1' INT TERM
+# In /tmp, short: -daemon's socket, under a home in it, must fit in 103
+# bytes.
+tmp=$(mktemp -d /tmp/ytmd-footprint.XXXXXX)
+ytm=$tmp/ytm
+app=$tmp/YT\ Music\ Footprint.app
+# spawned: this run started ytmd, and stops it.
+spawned=
+cleanup() {
+	pkill -f "$app/Contents/MacOS/" 2>/dev/null || :
+	[ -z "$spawned" ] || "$ytm" daemon stop >/dev/null 2>&1 || :
+	rm -rf "$tmp"
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
+go build -tags "$tags" -o "$tmp/ytmd" ./cmd/ytmd
+go build -tags "$tags" -o "$ytm" ./cmd/ytm
+YTMD_PATH=$tmp/ytmd
+export YTMD_PATH
 
+if [ -n "$daemon" ]; then
 	# A window server: a GUI login's (Aqua), not an ssh one's.
 	desktop=
-	if [ -z "$headless" ] && [ "$(launchctl managername 2>/dev/null)" = Aqua ]; then
-		desktop=1
-	fi
-	go build -tags "$tags" -o "$tmp/ytmd" ./cmd/ytmd
-	go build -tags "$tags" -o "$ytm" ./cmd/ytm
+	[ "$(launchctl managername 2>/dev/null)" != Aqua ] || desktop=1
 	[ -z "$desktop" ] || build_app "$app"
 	{
 		echo "# ytmd footprint, scripts/footprint.sh -daemon"
@@ -207,8 +187,9 @@ if [ -n "$daemon" ]; then
 	# A home of its own: a fresh state (the placeholder's queue, paused),
 	# and no other development ytmd's socket, lock or log.
 	mkdir "$tmp/home"
-	HOME=$tmp/home TMPDIR=$tmp YTMD_PATH=$tmp/ytmd
-	export HOME TMPDIR YTMD_PATH
+	HOME=$tmp/home TMPDIR=$tmp
+	export HOME TMPDIR
+	spawned=1
 	"$ytm" daemon start >/dev/null
 	pid=$(pgrep -f "^$tmp/ytmd\$")
 	secs=10
@@ -295,7 +276,7 @@ if [ -n "$daemon" ]; then
 		measure ytmd-after-desktop no
 		echo "# desktop: toured every page three times in ${toured} s, then quit" >>"$tmp/out.txt"
 	else
-		echo "# desktop: skipped (no window server, or -headless)" >>"$tmp/out.txt"
+		echo "# desktop: skipped (no window server)" >>"$tmp/out.txt"
 	fi
 	echo "# end" >>"$tmp/out.txt"
 
@@ -311,30 +292,13 @@ if [ -n "$daemon" ]; then
 		status=1
 		echo "footprint.sh: ytmd woke while paused (see '# failed'): idle must wake nothing" >&2
 	fi
-	daemon_part >"$tmp/base.txt"
-	check_baseline "$tmp/base.txt" || exit "$status"
-	compare "$tmp/base.txt" MB-mean RSS-MB-mean idle-wakeups
+	! check_baseline || compare MB-mean RSS-MB-mean idle-wakeups
 	exit "$status"
 fi
 
-tmp=$(mktemp -d)
-ytm=$tmp/ytm
-started=
-cleanup() {
-	[ -z "$started" ] || "$ytm" daemon stop >/dev/null 2>&1 || :
-	rm -rf "$tmp"
-}
-trap cleanup EXIT
-trap 'exit 1' INT TERM
-
-go build -tags "$tags" -o "$tmp/ytmd" ./cmd/ytmd
-go build -tags "$tags" -o "$ytm" ./cmd/ytm
-YTMD_PATH=$tmp/ytmd
-export YTMD_PATH
 # Exit code 3: none running, so the app starts this one.
-"$ytm" daemon status >/dev/null 2>&1 || [ $? != 3 ] || started=1
+"$ytm" daemon status >/dev/null 2>&1 || [ $? != 3 ] || spawned=1
 
-app=$tmp/YT\ Music\ Footprint.app
 build_app "$app"
 echo "footprint.sh: measuring ($source), about 70 seconds: click the window if it stays behind, then hands off" >&2
 {
@@ -377,7 +341,5 @@ if grep -q '^# invalid:' "$latest"; then
 	echo "footprint.sh: invalid phases (see '# invalid'): run again, hands off" >&2
 fi
 
-window_part >"$tmp/base.txt"
-check_baseline "$tmp/base.txt" || exit "${invalid:-0}"
-compare "$tmp/base.txt" frames/min MB-mean gfx-MB-mean
-exit "${invalid:-0}"
+! check_baseline || compare frames/min MB-mean gfx-MB-mean
+[ -z "$invalid" ]
