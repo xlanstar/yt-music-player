@@ -361,7 +361,7 @@ func (pb *Playback) playFailed(err error) {
 		return
 	}
 	pb.notice = failure(heading, notice.Skipped, title)
-	p.Next()
+	p.Skip()
 }
 
 func failure(title, detail notice.Code, args ...string) notice.Notice {

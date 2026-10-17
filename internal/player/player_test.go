@@ -49,18 +49,61 @@ func TestPlayOutsideQueueQueuesNext(t *testing.T) {
 	}
 }
 
-func TestNextWrapsAndStopsUnlessRepeating(t *testing.T) {
+func TestNextWrapsAndPlaysOn(t *testing.T) {
 	p := New(abcd)
 	p.Play("d")
 	p.Next()
+	if p.Current() != "a" || !p.Playing {
+		t.Errorf("past the end without repeat: at %q playing %v", p.Current(), p.Playing)
+	}
+	one := New([]string{"a"})
+	one.Play("a")
+	one.Position = 42
+	one.Next()
+	if one.Current() != "a" || !one.Playing || one.Position != 0 {
+		t.Errorf("one song: at %q playing %v position %v", one.Current(), one.Playing, one.Position)
+	}
+}
+
+func TestNextAndPrevKeepPaused(t *testing.T) {
+	p := New(abcd)
+	p.Play("b")
+	p.Pause()
+	for _, step := range []struct {
+		name string
+		do   func()
+		want string
+	}{
+		{"next", p.Next, "c"},
+		{"prev", p.Prev, "b"},
+		{"next past the end", func() { p.Play("d"); p.Pause(); p.Next() }, "a"},
+		{"prev restarting", func() { p.Position = restartAfter + 1; p.Prev() }, "a"},
+	} {
+		step.do()
+		if p.Current() != step.want || p.Playing {
+			t.Errorf("%s: at %q playing %v, want %q paused", step.name, p.Current(), p.Playing, step.want)
+		}
+	}
+}
+
+func TestSkipWrapsAndStopsUnlessRepeating(t *testing.T) {
+	p := New(abcd)
+	p.Play("d")
+	p.Skip()
 	if p.Current() != "a" || p.Playing {
 		t.Errorf("past the end without repeat: at %q playing %v", p.Current(), p.Playing)
 	}
 	p.Repeat = RepeatAll
 	p.Play("d")
-	p.Next()
+	p.Skip()
 	if p.Current() != "a" || !p.Playing {
 		t.Errorf("past the end repeating: at %q playing %v", p.Current(), p.Playing)
+	}
+	p.Repeat = RepeatOff
+	p.Play("d")
+	p.Finished()
+	if p.Current() != "a" || p.Playing {
+		t.Errorf("finished past the end: at %q playing %v", p.Current(), p.Playing)
 	}
 }
 

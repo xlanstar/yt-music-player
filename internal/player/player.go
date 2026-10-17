@@ -333,21 +333,32 @@ func (p *Player) SetVolume(v float64) {
 	}
 }
 
-// Next skips to the next song. Past the end it wraps, and stops unless
-// repeating.
-func (p *Player) Next() {
+// Next skips to the next song, wrapping past the end. Asked for, it plays
+// on even without repeat, as Prev does: only a queue running out by
+// itself stops (Finished, Skip).
+func (p *Player) Next() { p.advance() }
+
+// Skip moves past a song that cannot play: as Next, but past the end it
+// stops unless repeating.
+func (p *Player) Skip() {
+	if p.advance() && p.Repeat == RepeatOff {
+		p.Playing = false
+	}
+}
+
+// advance moves to the next song and reports whether it wrapped past the
+// end.
+func (p *Player) advance() (wrapped bool) {
 	if len(p.order) == 0 {
-		return
+		return false
 	}
 	p.Position = 0
 	if p.at+1 < len(p.order) {
 		p.at++
-		return
+		return false
 	}
 	p.at = 0
-	if p.Repeat == RepeatOff {
-		p.Playing = false
-	}
+	return true
 }
 
 // Prev restarts a song under way, else goes back one song; from the first
@@ -367,13 +378,14 @@ func (p *Player) Prev() {
 }
 
 // Finished moves on when the current song ends by itself. Unlike Next, it
-// replays the song under RepeatOne.
+// replays the song under RepeatOne and stops past the end unless
+// repeating.
 func (p *Player) Finished() {
 	if p.Repeat == RepeatOne {
 		p.Position = 0
 		return
 	}
-	p.Next()
+	p.Skip()
 }
 
 // AppendUpNext appends to dst up to n songs Next would go through, in
