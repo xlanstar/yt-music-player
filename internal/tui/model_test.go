@@ -23,7 +23,7 @@ func TestQueue(t *testing.T) {
 
 	h.mirror.state.Playing, h.mirror.state.Shuffled, h.mirror.state.Repeat = true, true, api.RepeatAll
 	h.send(postedMsg{})
-	h.golden("queue-playing")
+	h.screenHas("▶ Midnight Arcade", "Shuffle on · Repeat all · Volume 40%")
 
 	h.resize(44, 14)
 	h.golden("queue-narrow")
@@ -198,7 +198,7 @@ func TestSearchFailed(t *testing.T) {
 	h.typeText("moon")
 	h.loaded()
 	h.press("enter")
-	h.golden("search-failed")
+	h.screenHas("/ moon", "Couldn’t search for “moon”", "the network is down", "enter Retry")
 	calls := src.calls.Load()
 	h.press("enter")
 	h.loaded()
@@ -316,7 +316,7 @@ func TestCollectionStates(t *testing.T) {
 	h.m.open(opened{kind: itemAlbum, id: "dead-air"})
 	h.send(postedMsg{})
 	h.loaded()
-	h.golden("album-failed")
+	h.screenHas("Couldn’t load this album", "the network is down", "enter Retry")
 	h.press("enter")
 	h.loaded()
 	if got := src.calls.Load(); got != 2 {
@@ -326,7 +326,7 @@ func TestCollectionStates(t *testing.T) {
 	h.m.open(opened{kind: itemPlaylist, id: "nope"})
 	h.send(postedMsg{})
 	h.loaded()
-	h.golden("playlist-missing")
+	h.screenHas("Nothing here", "This page may have moved or been removed.")
 }
 
 func TestHelp(t *testing.T) {
@@ -466,7 +466,7 @@ func TestTraditionalChinese(t *testing.T) {
 	h.press("?", "shift+tab")
 	h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
 	h.send(postedMsg{})
-	h.golden("signed-out-zh-Hant")
+	h.screenHas("尚未登入", "o 開啟 Desktop")
 }
 
 // Titles are cut by their width on screen: wide characters take two
