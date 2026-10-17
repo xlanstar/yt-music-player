@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"yt-music-player/internal/daemon"
 	"yt-music-player/internal/ipc"
@@ -59,7 +57,7 @@ func main() {
 // startLog sends the global logger to the log file: started by a
 // front-end, ytmd has no terminal.
 func startLog(paths ipc.Paths) *logfile.Writer {
-	logs := logfile.New(paths.Logs, strings.TrimSuffix(filepath.Base(paths.Log("ytmd")), ".log"))
+	logs := logfile.New(paths.Log("ytmd"))
 	log.Logger = zerolog.New(logs).With().Timestamp().Logger() //nolint:forbidigo // the one place the global logger is pointed at the daemon's file
 	level, err := logfile.Level(os.Getenv("YT_LOG"))
 	zerolog.SetGlobalLevel(level)

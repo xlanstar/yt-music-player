@@ -23,8 +23,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 	"yt-music-player/internal/api"
@@ -129,8 +127,7 @@ func processEnv(paths ipc.Paths) *env {
 func startLog(paths ipc.Paths) func() {
 	level, levelErr := logfile.Level(os.Getenv("YT_LOG"))
 	zerolog.SetGlobalLevel(level)
-	path := paths.Log("ytm")
-	w := logfile.New(filepath.Dir(path), strings.TrimSuffix(filepath.Base(path), ".log"))
+	w := logfile.New(paths.Log("ytm"))
 	logTo(w)
 	if levelErr != nil {
 		log.Warn().Err(levelErr).Msg("YT_LOG")

@@ -1,6 +1,9 @@
 package logfile
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 // Sinks keep the compiler from optimizing measured calls away.
 var (
@@ -18,11 +21,11 @@ func BenchmarkWrite(b *testing.B) {
 		name  string
 		limit int64
 	}{
-		{"append", MaxSize},
+		{"append", maxSize},
 		{"rotate-every-64", int64(64 * len(event))},
 	} {
 		b.Run(tc.name, func(b *testing.B) {
-			w := New(b.TempDir(), "ytmd")
+			w := New(filepath.Join(b.TempDir(), "ytmd.log"))
 			w.limit = tc.limit
 			b.Cleanup(func() { _ = w.Close() })
 			b.SetBytes(int64(len(event)))

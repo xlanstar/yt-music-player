@@ -1,19 +1,10 @@
-// Package logfile writes a process's log to a file of bounded size, for the
-// daemon and the TUI, which have no terminal to log to. When the file would
-// pass MaxSize it becomes <name>.1.log, replacing the one before, so the
-// two files never hold much more than twice MaxSize.
+// Package logfile writes ytmd's and ytm's logs, which have no terminal, to
+// a file of bounded size: past maxSize it becomes <name>.1.log, replacing
+// the one before. The file opens at the first write, so a run that logs
+// nothing leaves no file, and a failed open is tried again at the next.
 //
-// The file opens at the first write, not in New: at the default level most
-// runs log nothing and leave no empty file, and a directory that cannot be
-// made fails that write (zerolog reports it on stderr), not the start of the
-// process, which runs on without its log. A failed open is tried again at
-// the next write, so a log that comes back is written again.
-//
-// Level reads YT_LOG's level, the same for every binary.
-//
-// One process writes a file: a second one (two ytm at once) counts the size
-// on its own and may rotate the file under the first, which then fills the
-// .1 file for a while; lines are lost at worst, never mixed within a line.
+// One process writes a file: a second one (two ytm at once) may rotate it
+// under the first, losing lines at worst, never mixing them.
 package logfile
 
 import (
@@ -21,18 +12,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
-// MaxSize is the most a log file holds before it rotates, unless one write
+// maxSize is the most a log file holds before it rotates, unless one write
 // alone is larger.
-const MaxSize = 1 << 20
+const maxSize = 1 << 20
 
 // Writer is an io.Writer of whole lines for zerolog, safe for concurrent
 // use: each Write lands in one file, uninterleaved.
 type Writer struct {
-	dir, path, prev string
-	limit           int64
+	path, prev string
+	limit      int64
 
 	mu       sync.Mutex
 	f        *os.File
@@ -40,19 +32,18 @@ type Writer struct {
 	isClosed bool
 }
 
-// New returns a Writer that appends to <dir>/<name>.log, rotating it to
-// <dir>/<name>.1.log. It creates nothing until the first write.
-func New(dir, name string) *Writer {
+// New returns a Writer that appends to path, <name>.log, rotating it to
+// <name>.1.log. It creates nothing until the first write.
+func New(path string) *Writer {
 	return &Writer{
-		dir:   dir,
-		path:  filepath.Join(dir, name+".log"),
-		prev:  filepath.Join(dir, name+".1.log"),
-		limit: MaxSize,
+		path:  path,
+		prev:  strings.TrimSuffix(path, ".log") + ".1.log",
+		limit: maxSize,
 	}
 }
 
 // Write appends p, first rotating the file if p would take it past
-// MaxSize.
+// maxSize.
 func (w *Writer) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -86,7 +77,7 @@ func (w *Writer) Close() error {
 }
 
 func (w *Writer) open() error {
-	if err := os.MkdirAll(w.dir, 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(w.path), 0o700); err != nil {
 		return fmt.Errorf("logfile: %w", err)
 	}
 	f, err := os.OpenFile(w.path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
