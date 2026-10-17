@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"net"
 	"strconv"
 	"yt-music-player/internal/api"
@@ -24,16 +23,9 @@ type conn struct {
 	compatible bool
 	// subscribed: it asked for events and got its snapshot.
 	subscribed bool
-	// calls are its catalog requests and SignIn in flight, by ID, which a
-	// Cancel or the connection's end cancels.
-	calls map[uint32]call
-}
-
-// call is a request in flight: a catalog request, which ctx tells from a
-// later one of the same ID, or a SignIn, without ctx.
-type call struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	// calls cancel its catalog requests and SignIn in flight, by ID, as a
+	// Cancel or the connection's end does.
+	calls map[uint32]func()
 }
 
 func (c *conn) send(f api.Frame) {
@@ -47,8 +39,8 @@ func (c *conn) reply(id uint32, r *api.Reply) { c.send(api.Frame{ID: id, Reply: 
 func (c *conn) fail(id uint32, err error) { c.reply(id, &api.Reply{Err: api.Encode(err)}) }
 
 func (c *conn) cancelAll() {
-	for id, call := range c.calls {
-		call.cancel()
+	for id, cancel := range c.calls {
+		cancel()
 		delete(c.calls, id)
 	}
 }
@@ -82,7 +74,7 @@ func (s *Service) Serve(nc net.Conn) {
 		out:        ic,
 		hello:      *f.Hello,
 		compatible: f.Hello.Proto == api.Proto,
-		calls:      map[uint32]call{},
+		calls:      map[uint32]func(){},
 	}
 	s.post(func() { s.register(c) })
 	defer s.post(func() { s.unregister(c) })
@@ -141,8 +133,8 @@ func (s *Service) unregister(c *conn) {
 }
 
 func (s *Service) cancelCall(c *conn, id uint32) {
-	if call, ok := c.calls[id]; ok {
-		call.cancel()
+	if cancel, ok := c.calls[id]; ok {
+		cancel()
 		delete(c.calls, id)
 	}
 }

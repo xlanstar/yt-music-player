@@ -162,7 +162,7 @@ func (s *Service) control(cl *api.Call) error {
 func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 	s.cancelCall(c, id)
 	ctx, cancel := context.WithCancel(s.ctx)
-	c.calls[id] = call{ctx: ctx, cancel: cancel}
+	c.calls[id] = cancel
 	src := s.src
 	go func() {
 		r := ask(ctx, src, cl)
@@ -170,7 +170,7 @@ func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 			return
 		}
 		s.post(func() {
-			if c.calls[id].ctx != ctx {
+			if ctx.Err() != nil {
 				return
 			}
 			delete(c.calls, id)
@@ -275,7 +275,7 @@ func (s *Service) signInFor(c *conn, id uint32, credentials string) {
 	s.cancelCall(c, id)
 	p := &pendingSignIn{pendingReply: pendingReply{c, id}}
 	s.signIn = p
-	c.calls[id] = call{cancel: func() { s.cancelSignIn(p) }}
+	c.calls[id] = func() { s.cancelSignIn(p) }
 	s.acct.SignIn(credentials, func(user catalog.Account, err error) {
 		if s.signIn == p {
 			s.signIn = nil
