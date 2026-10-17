@@ -12,9 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ytmd is how the app reaches the daemon, which plays and owns the
-// account (docs/daemon.md): its socket in the app, an in-process
-// Service over a pipe in tests.
+// ytmd is how the app reaches the daemon: its socket, or in tests an
+// in-process Service over a pipe.
 type ytmd struct {
 	dialer remote.Dialer
 	// spawn starts the app's own ytmd after a hand-off; nil is
@@ -96,10 +95,9 @@ func (a *app) disconnect() {
 	}
 }
 
-// quitAndStop stops ytmd, and the music with it, then quits
-// (docs/daemon.md, Starting and stopping). The Supervisor goes first, or it would
-// start ytmd again; a connection of its own then asks ytmd to stop, and
-// waits until it closed. A ytmd not running needs no stopping.
+// quitAndStop stops ytmd, and the music with it, then quits. The
+// Supervisor goes first, or it would start ytmd again; a ytmd not running
+// needs no stopping.
 func (a *app) quitAndStop() {
 	if a.daemon.stopping.IsRunning() {
 		return

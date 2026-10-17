@@ -9,10 +9,9 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// ytmd plays (docs/daemon.md): the views read its Mirror and drive
-// it through the client, the Controller. The position moves on in the
-// app, from the State's position and when it came, so ytmd sends nothing
-// while a song plays; progress schedules the frames that show it.
+// ytmd plays: views read its Mirror and drive it through the client. The
+// position moves on in the app, as ytmd sends nothing while a song plays;
+// progress schedules the frames that show it.
 
 const (
 	// focusedStep is the shown position's step, in seconds, while the
@@ -28,13 +27,10 @@ const (
 )
 
 // progress decides when the shown position next needs a frame: as its
-// step turns, every second while the window has the focus, on multiples of
-// blurredStep while not (so the clock moves in whole steps), never while
-// hidden, paused or waiting for the song. Song changes and seeks come as
-// the daemon's States, each a build of its own.
+// step turns, never while hidden, paused or waiting for the song. Song
+// changes and seeks come as States, each a build of its own.
 type progress struct {
-	// isBlurred: the window lost keyboard focus; isHidden: it is
-	// minimized or hidden.
+	// isHidden: minimized or hidden.
 	isBlurred, isHidden bool
 }
 
@@ -162,24 +158,22 @@ func (a *app) playAll(ids []string) {
 	a.client.PlayAll(ids, songs)
 }
 
-// held is a slider's value: the Mirror's, but while the user moves it
-// (remote.Mirror). A State that comes meanwhile does not pull
-// it from under the pointer, and once let go it waits for the State that
-// answers the last change before following the Mirror again.
+// held is a slider's value: the Mirror's, but while the user moves it. A
+// State that comes meanwhile does not pull it from under the pointer, and
+// once let go it waits for the State answering the last change.
 type held struct {
 	// v is bound to the slider; shown is what the last build put there,
 	// so a difference is the user's.
 	v, shown  float64
 	isPressed bool
-	// isSent: the user's value went to the daemon while the Mirror's
-	// StateGen was sentGen.
+	// isSent: the user's value went to the daemon at StateGen sentGen.
 	isSent  bool
 	sentGen uint64
 }
 
-// sync readies h for a build: it returns whether the user moved the
-// slider since the last, to the value to send (h.v); otherwise h shows
-// mirrored, the Mirror's value of StateGen gen, unless held.
+// sync readies h for a build: it reports whether the user moved the
+// slider to h.v, to send; otherwise h shows mirrored, of StateGen gen,
+// unless held.
 func (h *held) sync(mirrored float64, gen uint64) (moved bool) {
 	switch {
 	case h.v != h.shown:

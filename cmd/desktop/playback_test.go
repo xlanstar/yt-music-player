@@ -52,16 +52,7 @@ func startPlaying(tb testing.TB, a *app, q posts, e *testEngine) {
 	tb.Helper()
 	a.client.Seek(0)
 	a.client.Resume()
-	timeout := time.After(wait)
-	for e.loads() == 0 {
-		select {
-		case fn := <-q.client:
-			fn()
-		case <-time.After(time.Millisecond):
-		case <-timeout:
-			tb.Fatal("nothing loaded")
-		}
-	}
+	q.ytmd.until(tb, "loaded", func() bool { return e.loads() > 0 })
 	e.do(func(f *audio.Fake) { f.Dur = 200 })
 	e.emit(audio.Ready)
 	syncDaemon(tb, q)
