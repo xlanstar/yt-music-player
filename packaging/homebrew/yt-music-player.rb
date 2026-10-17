@@ -14,18 +14,16 @@ cask "yt-music-player" do
     strategy :github_latest
   end
 
-  # The app installs its updates itself; brew upgrades only an app that
-  # did not.
+  # The app updates itself; brew upgrades only an app that did not.
   auto_updates true
   depends_on macos: :monterey
 
   app "YT Music Player.app"
   binary "#{appdir}/YT Music Player.app/Contents/Resources/ytm"
 
-  # early_script stops the background player with the app's ytm before the
-  # app goes. Homebrew runs these on upgrades too, so starting the player
-  # at login (its LaunchAgent) is undone only by zap, not on every upgrade;
-  # once the app is gone, the LaunchAgent removes itself at the next login.
+  # Stops the background player before the app goes, on upgrades too. Its
+  # LaunchAgent stays for upgrades: without the app, it removes itself at
+  # the next login; zap removes it at once.
   uninstall early_script: {
               executable:   "#{appdir}/YT Music Player.app/Contents/Resources/ytm",
               args:         ["daemon", "stop"],
@@ -33,9 +31,7 @@ cask "yt-music-player" do
             },
             quit:         "dev.lanstar.ytmusicplayer"
 
-  # launchctl removes the background player's LaunchAgent and its plist;
-  # the script forgets the sign-in, a Keychain item of service
-  # yt-music-player.
+  # The script forgets the sign-in, a Keychain item.
   zap launchctl: "dev.lanstar.ytmusicplayer.daemon",
       script:    {
         executable:   "/usr/bin/security",

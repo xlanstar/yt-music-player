@@ -6,22 +6,21 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ### Added
 
-- Traditional Chinese: the app, its menus and the update window follow the system's language (or the app's, in System Settings on macOS). Names from YouTube Music stay as YouTube sends them.
-- Linux and Windows downloads, amd64 and arm64: `install.sh` or a Debian package on Linux, a setup on Windows (not code-signed yet, so SmartScreen warns). They update themselves, but for the Debian package, which `apt` updates.
-- Background playback: music plays on when the window closes or the app quits, in a small background player that the app starts and that sleeps while paused. Quit and Stop Playback, in the app menu, stops the music with the app.
-- `ytm`, the player in a terminal (queue, search, your library; no images) and a command line: `ytm status`, `ytm play`, `ytm next`, `ytm volume 50`, `ytm login` to sign in by pasting the cookie, `ytm help` for the rest. Homebrew and the Linux packages put it on the `PATH`; on Windows, turn on Use ytm in a terminal in the settings.
-- Mouse in `ytm`: click a song or row to select it, click it again (or double-click) to play or open it; click or drag the progress to seek; click the tabs; the wheel scrolls. Hold Shift (Option in iTerm2, Fn in Terminal) while dragging to select text.
-- Start background player at login, in the settings (off by default; `ytm autostart on` too): the media keys and `ytm` work from login, before the app is opened. Deleting the app on macOS or Linux turns it off at the next login; on Windows, turn it off before uninstalling.
+- Traditional Chinese: the app, its menus and the update window follow the system's language (or the app's, in System Settings on macOS).
+- Linux and Windows downloads, amd64 and arm64: `install.sh` or a Debian package on Linux, a setup on Windows (not code-signed yet, so SmartScreen warns). They update themselves; the Debian package updates through `apt`.
+- Background playback: music plays on when the window closes or the app quits, in a small background player that sleeps while paused. Quit and Stop Playback, in the app menu, stops it.
+- `ytm`, the player in a terminal (queue, search, your library, the mouse; no images) and a command line: `ytm status`, `ytm play`, `ytm next`, `ytm volume 50`, `ytm login`, `ytm help` for the rest. Homebrew and the Linux packages put it on the `PATH`; on Windows, turn on Use ytm in a terminal in Settings. To select text in it, hold Shift (Option in iTerm2, Fn in Terminal) while dragging.
+- Start background player at login, in Settings (off by default; or `ytm autostart on`): the media keys and `ytm` work before the app is opened. Deleting the app on macOS or Linux turns it off at the next login; on Windows, turn it off before uninstalling.
 
 ### Changed
 
-- After upgrading on macOS, sign in again once: the background player, which now signs in, can't read the sign-in the app kept in the Keychain.
-- Songs play through the app's own audio engine instead of AVPlayer: YouTube's Opus streams (about 130 kbit/s, 256 where YouTube Music has them) rather than AAC 128k, decoded in Go. It plays on Linux and Windows too, with media keys and the desktop's player controls on Linux (MPRIS).
+- After upgrading on macOS, sign in once more: the background player can't read the sign-in the app kept in the Keychain.
+- Songs play through the app's own audio engine instead of AVPlayer: YouTube's Opus streams (about 130 kbit/s, 256 where YouTube Music has them) rather than AAC at 128. It plays on Linux and Windows too, with media keys and the desktop's player controls on Linux (MPRIS).
 
 ### Fixed
 
-- Pages, search and your library that failed to load while offline load again by themselves once the computer is back online, without a click on Retry.
-- A song is queued only once: adding a song already queued adds nothing (`ytm` says so), playing it next moves it after the current song, and a playlist that lists a song twice plays it once.
+- Pages, search and your library that failed to load while offline load again by themselves once the computer is back online.
+- A song is queued only once: adding one already queued adds nothing, playing it next moves it after the current song, and a playlist that lists a song twice plays it once.
 
 ## [0.1.0] - 2026-10-16
 

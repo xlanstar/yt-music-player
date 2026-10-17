@@ -37,26 +37,28 @@ If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is on your `PATH`, it's used for s
 
 ## Background player and `ytm`
 
-Songs play in a small background player, `ytmd`, which the app starts as it opens and leaves playing when its window closes; paused, it wakes nothing. *Quit and Stop Playback* in the app menu, or `ytm daemon stop`, stops it. To have it ready for the media keys from login, turn on *Start background player at login* in Settings (or `ytm autostart on`); deleting the app turns it off at the next login (on Windows, turn it off before uninstalling).
+Songs play in a small background player, `ytmd`, which the app starts and which plays on when the window closes or the app quits; paused, it wakes nothing. *Quit and Stop Playback* in the app menu, or `ytm daemon stop`, stops it. *Start background player at login* in Settings (or `ytm autostart on`) has it ready for the media keys from login; deleting the app turns that off at the next login (on Windows, turn it off before uninstalling).
 
-`ytm` is the player in a terminal, and a command line for scripts: `ytm status [--json]`, `ytm play|pause|next|prev`, `ytm volume 50`, `ytm help` for the rest. Homebrew and the Linux packages put it on your `PATH`; on Windows, turn on *Use ytm in a terminal* in Settings. The macOS app has it at `/Applications/YT Music Player.app/Contents/Resources/ytm`.
+`ytm` is the player in a terminal, and a command line for scripts: `ytm status [--json]`, `ytm play|pause|next|prev`, `ytm volume 50`, `ytm help` for the rest. Homebrew and the Linux packages put it on your `PATH`; on Windows, turn on *Use ytm in a terminal* in Settings. The macOS app has it at `/Applications/YT Music Player.app/Contents/Resources/ytm`. How it works: [docs/daemon.md](docs/daemon.md).
 
 ## Build from source
 
-Requires Go 1.27+.
+Requires Go 1.27+ and jq.
 
 ```sh
-scripts/dev.sh                 # run the app, with the background player (ytmd) it starts
-go tool mygo build             # build for this system into build/
+scripts/dev.sh                             # run the app, with the background player (ytmd) it starts
+scripts/build-helpers.sh darwin-arm64      # ytmd and ytm for the app to ship (your platform)
+go tool mygo build                         # build for this system into build/
 ```
 
 ## Development
 
 ```sh
-scripts/dev.sh -placeholder              # offline fake catalog, no audio
-YT_SOURCE_DELAY=800ms scripts/dev.sh -placeholder   # with loading states
-YT_LOG=debug scripts/dev.sh              # why fetches, sign-ins or streams failed
-prek run --all-files                     # every check; must pass
+scripts/dev.sh -placeholder                       # offline fake catalog, no audio
+YT_SOURCE_DELAY=800ms scripts/dev.sh -placeholder # with loading states
+YT_LOG=debug scripts/dev.sh                       # why fetches, sign-ins or streams failed
+scripts/dev.sh ytm                                # the terminal player
+prek run --all-files                              # every check; must pass
 ```
 
 Tools are pinned in `.tool-versions`; `prek install` adds the checks as a pre-commit hook. Project rules and layout: [AGENTS.md](AGENTS.md). Releasing: [docs/release.md](docs/release.md). Performance: [docs/performance.md](docs/performance.md).

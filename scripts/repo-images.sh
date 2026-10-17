@@ -49,13 +49,17 @@ chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 }
 
 out=build/repo-images
-tmp=$(mktemp -d)
+# In /tmp, short: the placeholder ytmd's socket, under a home in it, must
+# fit in 103 bytes.
+tmp=$(mktemp -d /tmp/repo-images.XXXXXX)
 pid=
-ytm=
 cleanup() {
-	[ -z "$pid" ] || kill "$pid" 2>/dev/null || true
+	if [ -n "$pid" ]; then
+		kill "$pid" 2>/dev/null || true
+		wait "$pid" 2>/dev/null || true
+	fi
 	# The app leaves ytmd playing: stop the one it started.
-	[ -z "$ytm" ] || isolated "$ytm" daemon stop >/dev/null 2>&1 || true
+	pkill -f "^$tmp/ytmd\$" || true
 	rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -63,7 +67,7 @@ trap 'exit 1' INT TERM
 
 # isolated runs a command in the capture's own home, with its ytmd.
 isolated() {
-	env HOME="$tmp/home" TMPDIR="$tmp/tmp" YTMD_PATH="$tmp/ytmd" "$@"
+	env HOME="$tmp/home" TMPDIR="$tmp" YTMD_PATH="$tmp/ytmd" "$@"
 }
 
 # windowOf prints the ID of pid's normal window, if it has one on screen.
@@ -78,15 +82,14 @@ windowOf() {
 if [ -z "$window" ]; then
 	go build -tags placeholder -o "$tmp/yt-music-player" ./cmd/desktop
 	# The app plays through ytmd, which it starts: a placeholder one, found
-	# through YTMD_PATH, and ytm to move it and stop it.
+	# through YTMD_PATH, and ytm to seek.
 	go build -tags placeholder -o "$tmp/ytmd" ./cmd/ytmd
 	go build -tags placeholder -o "$tmp/ytm" ./cmd/ytm
 	# A home of its own: the user's theme, window size, caches and ytmd
-	# stay out; TMPDIR too, where a long socket path falls back to.
-	mkdir "$tmp/home" "$tmp/tmp"
+	# stay out.
+	mkdir "$tmp/home"
 	isolated "$tmp/yt-music-player" >/dev/null 2>&1 &
 	pid=$!
-	ytm=$tmp/ytm
 	id=
 	for _ in $(seq 60); do
 		id=$(windowOf "$pid")
@@ -98,7 +101,7 @@ if [ -z "$window" ]; then
 		exit 1
 	}
 	# Part-way into the song, so the window shows progress.
-	isolated "$ytm" seek 84 >/dev/null
+	isolated "$tmp/ytm" seek 84 >/dev/null
 	# Let the first frames and the covers draw.
 	sleep 2
 	window=$tmp/app-window.png
