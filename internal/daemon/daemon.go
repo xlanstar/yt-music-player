@@ -188,14 +188,13 @@ func (s *Service) start() {
 	for p := range account.Liked + 1 {
 		s.acct.Fetch(p)
 	}
-	s.pb.Follow()
 }
 
 func (s *Service) accept(lis net.Listener) {
 	for {
 		nc, err := lis.Accept()
 		if err != nil {
-			if s.isClosed() || errors.Is(err, net.ErrClosed) {
+			if errors.Is(err, net.ErrClosed) {
 				return
 			}
 			log.Debug().Err(err).Msg("accept")
@@ -205,12 +204,6 @@ func (s *Service) accept(lis net.Listener) {
 		}
 		go s.Serve(nc)
 	}
-}
-
-func (s *Service) isClosed() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.closed
 }
 
 // Shutdown pauses, saves and stops the Service, and returns once it is
