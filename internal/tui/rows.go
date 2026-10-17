@@ -140,7 +140,7 @@ func (m *model) songSegments(segs []segment, it *item, w int) []segment {
 	}
 	dur := ""
 	if s.Seconds > 0 {
-		dur = clock(float64(s.Seconds))
+		dur = Clock(float64(s.Seconds))
 	}
 	heart := "  "
 	if m.session.Liked(s.ID) {

@@ -19,7 +19,7 @@ var statusCases = []struct {
 	status           api.Status
 	jsonLimit, limit float64
 }{
-	{"playing", playingStatus(), 6, 79},                      // 5 and 68 allocs today.
+	{"playing", playingStatus(), 6, 77},                      // 5 and 67 allocs today.
 	{"idle", api.Status{State: api.State{Volume: 1}}, 4, 15}, // 3 and 13 allocs today.
 }
 

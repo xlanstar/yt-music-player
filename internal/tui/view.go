@@ -309,11 +309,11 @@ func (m *model) appendBar(lines []string, w int) []string {
 // elapsed and whole length, a space before the end.
 func (m *model) progress(st api.State, w, y int) string {
 	pos := m.position(st)
-	elapsed := clock(pos)
+	elapsed := Clock(pos)
 	if st.Duration <= 0 {
 		return " " + elapsed
 	}
-	total := clock(st.Duration)
+	total := Clock(st.Duration)
 	start := 1 + width(elapsed) + 1
 	bar := w - start - 1 - width(total) - 1
 	if bar < 4 {

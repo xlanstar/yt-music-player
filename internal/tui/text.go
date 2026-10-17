@@ -41,11 +41,12 @@ func spread(left, right string, w int) string {
 	return left + strings.Repeat(" ", w-lw-rw) + right
 }
 
-// clock says seconds as m:ss, or h:mm:ss from an hour.
-func clock(seconds float64) string {
+// Clock says seconds as m:ss, or h:mm:ss from an hour; ytm status says
+// times as the TUI does.
+func Clock(seconds float64) string {
 	s := max(int(seconds), 0)
 	h, m := s/3600, s/60
-	var b []byte
+	b := make([]byte, 0, len("100:00:00"))
 	if h > 0 {
 		m %= 60
 		b = strconv.AppendInt(b, int64(h), 10)

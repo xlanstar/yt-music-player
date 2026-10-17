@@ -15,23 +15,23 @@ var viewCases = []struct {
 	prepare func(h *harness)
 	allocs  float64
 }{
-	// 95 allocs today.
+	// 75 allocs today.
 	{"queue-5000", func(h *harness) {
 		songs := longQueue(5000)
 		h.mirror.setQueue(songs)
 		h.mirror.state.Playing, h.mirror.state.Index, h.mirror.state.Current = true, 2500, songs[2500].ID
 		h.mirror.state.Shuffled, h.mirror.state.Repeat = true, api.RepeatAll
-	}, 110},
-	// 74 allocs today.
-	{"library", func(h *harness) { h.press("shift+tab") }, 86},
-	// 88 allocs today.
+	}, 86},
+	// 72 allocs today.
+	{"library", func(h *harness) { h.press("shift+tab") }, 83},
+	// 71 allocs today.
 	{"search", func(h *harness) {
 		h.press("/")
 		h.typeText("o")
 		h.loaded()
 		h.press("esc")
-	}, 102},
-	// 100 allocs today.
+	}, 82},
+	// 98 allocs today.
 	{"help", func(h *harness) { h.press("?") }, 113},
 }
 

@@ -6,9 +6,9 @@ import (
 	"errors"
 	"io"
 	"math"
-	"strconv"
 	"strings"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/tui"
 	"yt-music-player/locales"
 )
 
@@ -192,9 +192,9 @@ func statusText(s *api.Status) string {
 			b.WriteString(locales.CliPausedSong(song))
 		}
 		b.WriteString("\n  ")
-		position := clock(st.Position)
+		position := tui.Clock(st.Position)
 		if st.Duration > 0 {
-			position = locales.SeekValue(position, clock(st.Duration))
+			position = locales.SeekValue(position, tui.Clock(st.Duration))
 		}
 		b.WriteString(position)
 		b.WriteString(" · ")
@@ -241,20 +241,4 @@ func accountName(name, handle string) string {
 		return handle
 	}
 	return name
-}
-
-// clock writes seconds as m:ss, or h:mm:ss from an hour.
-func clock(seconds float64) string {
-	s := int(max(seconds, 0))
-	h, m, sec := s/3600, s/60%60, s%60
-	pad := func(n int) string {
-		if n < 10 {
-			return "0" + strconv.Itoa(n)
-		}
-		return strconv.Itoa(n)
-	}
-	if h > 0 {
-		return strconv.Itoa(h) + ":" + pad(m) + ":" + pad(sec)
-	}
-	return strconv.Itoa(m) + ":" + pad(sec)
 }
