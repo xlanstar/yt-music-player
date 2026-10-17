@@ -50,7 +50,7 @@ The Desktop and the TUI:
 
 - **Daemon older:** hand off to the front-end's own ytmd, once per daemon version. Still older (an old `YTMD_PATH`, two installs): the health is *DaemonOutdated*; calls go on if the protocol matches, else stop.
 - **Daemon newer:** nothing if the protocol matches; else *FrontendOutdated*, and calls stop.
-- **Hand-off:** the front-end asks for one with a 5 s wait. ytmd tells its other connections, which then only redial, never start a daemon, for that wait; replies; saves, noting whether it was playing, until now + wait + 30 s; and exits. The front-end waits for it to go, starts its own ytmd and dials it. That ytmd plays on if it was playing and the note has not expired; any other start is paused. `ytm daemon restart` hands off the same way.
+- **Hand-off:** the front-end asks for one with a 5 s wait. ytmd tells its other connections, which then only redial, never start a daemon, for that wait; replies; saves, with a note that it was playing, valid until now + wait + 30 s; and exits. The front-end waits for it to go, starts its own ytmd and dials it. That ytmd plays on if it was playing and the note has not expired; any other start is paused. `ytm daemon restart` hands off the same way.
 - **Updates** need nothing more: a running ytmd keeps its files, and the relaunched Desktop hands off.
 
 The CLI connects once, never subscribes to events and never hands off: an older daemon gets a warning on stderr. Controls, `login`, `logout`, `daemon start` and `daemon restart` start ytmd; `status`, `daemon status`, `daemon stop`, `version`, `logs` and `autostart` never do. Exit codes: 0, 1 failed, 2 usage, 3 not running (`status`, `daemon status`). `cmd/ytm/testdata/status.json` holds `ytm status --json`'s fields.
