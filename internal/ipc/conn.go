@@ -165,13 +165,13 @@ func (c *Conn) Receive(f *api.Frame) error {
 	*f = api.Frame{}
 	if err := c.dec.Decode(f); err != nil {
 		c.close(err)
-		return c.Err()
+		return c.cause()
 	}
 	return nil
 }
 
-// Err returns why the Conn closed, nil while it is open.
-func (c *Conn) Err() error {
+// cause returns why the Conn closed, nil while it is open.
+func (c *Conn) cause() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.err
@@ -203,7 +203,7 @@ func (c *Conn) Shutdown(ctx context.Context) error {
 		_ = c.Close()
 		return ctx.Err()
 	}
-	if err := c.Err(); !errors.Is(err, ErrClosed) {
+	if err := c.cause(); !errors.Is(err, ErrClosed) {
 		return err
 	}
 	return nil
