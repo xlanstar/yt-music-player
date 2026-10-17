@@ -40,6 +40,7 @@ const (
 // playback is the daemon's playback as the TUI reads it: remote.Mirror.
 type playback interface {
 	State() api.State
+	StateGen() uint64
 	Position(now time.Time) float64
 	Queue() []string
 	Song(id string) (catalog.Song, bool)
@@ -109,6 +110,11 @@ type model struct {
 	query    string
 	isTyping bool
 
+	// lastClick is the last left click, to tell a double click.
+	lastClick click
+	// seek is the progress dragged, or let go and not yet answered.
+	seek seeking
+
 	// shown and searched are what the loader was last told.
 	shown    fetchstate.Resource
 	searched string
@@ -145,6 +151,9 @@ func (m *model) View() tea.View {
 	v := tea.NewView(m.content)
 	v.AltScreen = true
 	v.ReportFocus = true
+	// Cell motion reports motion only while a button is held: a drag of
+	// the progress, not every move of the pointer.
+	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
 
@@ -181,6 +190,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		var ok bool
 		if ok, cmd = m.key(msg); !ok {
+			return m, nil
+		}
+	case tea.MouseClickMsg:
+		var ok bool
+		if ok, cmd = m.click(tea.Mouse(msg)); !ok {
+			return m, nil
+		}
+	case tea.MouseMotionMsg:
+		if msg.Button != tea.MouseLeft || !m.drag(msg.X) {
+			return m, nil
+		}
+	case tea.MouseReleaseMsg:
+		if !m.release() {
+			return m, nil
+		}
+	case tea.MouseWheelMsg:
+		if !m.wheel(msg.Button) {
 			return m, nil
 		}
 	default:
@@ -336,8 +362,7 @@ func (m *model) playbackKey(s string) (ok bool, cmd tea.Cmd) {
 		if !m.isSignedOut() {
 			return false, nil
 		}
-		open := m.openDesktop
-		return true, func() tea.Msg { return openedDesktopMsg{err: open()} }
+		return true, m.openDesktopCmd()
 	default:
 		return false, nil
 	}
@@ -422,7 +447,7 @@ func (m *model) seekBy(seconds float64) {
 	if st.Current == "" {
 		return
 	}
-	pos := m.mirror.Position(m.now()) + seconds
+	pos := m.position(st) + seconds
 	if st.Duration > 0 {
 		pos = min(pos, st.Duration)
 	}
@@ -447,6 +472,12 @@ func (m *model) retryDaemon() bool {
 		m.sup.Retry()
 	}
 	return true
+}
+
+// openDesktopCmd opens the Desktop app, off the UI thread.
+func (m *model) openDesktopCmd() tea.Cmd {
+	open := m.openDesktop
+	return func() tea.Msg { return openedDesktopMsg{err: open()} }
 }
 
 // isSignedOut reports that the daemon says no one is signed in.

@@ -78,11 +78,14 @@ func (c *fakeCtl) take() []string {
 // fakeMirror is playback as a test sets it; its state arrived at epoch.
 type fakeMirror struct {
 	state api.State
+	// gen is StateGen: a test that sets a new State moves it on.
+	gen   uint64
 	queue []string
 	songs map[string]catalog.Song
 }
 
 func (f *fakeMirror) State() api.State { return f.state }
+func (f *fakeMirror) StateGen() uint64 { return f.gen }
 func (f *fakeMirror) Position(now time.Time) float64 {
 	return remote.Position(f.state, epoch, now)
 }
@@ -144,6 +147,8 @@ type harness struct {
 	sup    *fakeSup
 	daemon *fakeDaemon
 	opened int
+	// clock is the model's now: epoch, unless a test moves it on.
+	clock time.Time
 }
 
 // newHarness shows the placeholder's queue, paused, on an 80×24
@@ -155,7 +160,7 @@ func newHarness(t testing.TB, src catalog.Source) *harness {
 	cat := catalog.New(nil, nil, nil)
 	load := loader.New(src, states, cat, posts.post)
 	load.Debounce = 0
-	h := &harness{t: t, ctl: &fakeCtl{}, mirror: &fakeMirror{}, sup: &fakeSup{}, daemon: &fakeDaemon{}}
+	h := &harness{t: t, ctl: &fakeCtl{}, mirror: &fakeMirror{}, sup: &fakeSup{}, daemon: &fakeDaemon{}, clock: epoch}
 	h.mirror.setQueue(catalog.Placeholder().Songs)
 	h.m = newModel(deps{
 		ctl:     h.ctl,
@@ -166,7 +171,7 @@ func newHarness(t testing.TB, src catalog.Source) *harness {
 		cat:     cat,
 		states:  states,
 		posts:   posts,
-		now:     func() time.Time { return epoch },
+		now:     func() time.Time { return h.clock },
 		openDesktop: func() error {
 			h.opened++
 			return nil

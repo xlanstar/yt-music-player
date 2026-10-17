@@ -5,6 +5,11 @@
 // sit over the player bar, under which a line tells the daemon's health
 // when it is not connected; there are no images.
 //
+// The mouse (cell motion, so no message per move): a click selects a row,
+// a second click or a double click plays or opens it; the progress seeks
+// where it is let go; the wheel moves the cursor. Hits are worked out
+// from the layout on each click (mouse.go), so frames record nothing.
+//
 // Threading: Bubble Tea's Update goroutine is the UI thread. The session,
 // the loader, the catalog and the Mirror are touched there only. Their
 // goroutines, and remote's, post funcs, which queue (post must not block,

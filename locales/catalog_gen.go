@@ -3000,6 +3000,26 @@ func (msgs Messages) TuiHelpTitle() string {
 	return Catalog.Format(msgs.locale, "tuiHelpTitle", nil)
 }
 
+// TuiHelpMouse says "Click selects, again plays; Shift-, Option- or Fn-drag selects text"
+// in the language the app shows.
+//
+// Beside the title of the terminal player's help: a click selects a row, a
+// second click plays or opens it, a click on the progress seeks. The player
+// takes the mouse, so the terminal selects text only with Shift (Option in
+// iTerm2, Fn in macOS Terminal) held while dragging.
+func TuiHelpMouse() string { return In(i18n.Locale()).TuiHelpMouse() }
+
+// TuiHelpMouse says "Click selects, again plays; Shift-, Option- or Fn-drag selects text"
+// in the language of msgs.
+//
+// Beside the title of the terminal player's help: a click selects a row, a
+// second click plays or opens it, a click on the progress seeks. The player
+// takes the mouse, so the terminal selects text only with Shift (Option in
+// iTerm2, Fn in macOS Terminal) held while dragging.
+func (msgs Messages) TuiHelpMouse() string {
+	return Catalog.Format(msgs.locale, "tuiHelpMouse", nil)
+}
+
 // TuiHelpToggle says "Play or pause"
 // in the language the app shows.
 func TuiHelpToggle() string { return In(i18n.Locale()).TuiHelpToggle() }

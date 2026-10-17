@@ -278,6 +278,7 @@
   "tuiDaemonOutdated": "背景播放器（{daemon}）比 ytm（{ours}）舊。請更新 YT Music Player。",
   "tuiFrontendOutdated": "背景播放器（{daemon}）比 ytm（{ours}）新，無法與它溝通。請更新 YT Music Player。",
   "tuiHelpTitle": "按鍵",
+  "tuiHelpMouse": "點一下選取，再點一下播放；按住 Shift、Option 或 Fn 拖曳可選取文字",
   "tuiHelpToggle": "播放或暫停",
   "tuiHelpNext": "下一首或上一首",
   "tuiHelpSeek": "倒退或快轉 5 秒",

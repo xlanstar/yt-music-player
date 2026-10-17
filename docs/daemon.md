@@ -157,6 +157,7 @@ Off by default; Desktop's settings (*Start background player at login*) or `ytm 
 - On macOS, the sign-in must be made again once after upgrading: the Keychain item is the Desktop's, which ytmd, signed as another program, cannot read. Linux and Windows keep credentials in a file under `<cfg>`.
 - A sign-in that switches accounts clears the queue.
 - No images in the TUI; no remote or network control.
+- The TUI takes the mouse (click to select, again to play; click or drag the progress to seek; the wheel scrolls), so the terminal selects text only with a modifier held while dragging: Shift in most, Option in iTerm2, Fn in Terminal.app.
 
 Still to check on real installs:
 

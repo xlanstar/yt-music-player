@@ -65,7 +65,7 @@ type words struct {
 	help, restart               string
 	connecting, reconnecting    string
 	unresponsive, unavailable   string
-	helpTitle                   string
+	helpTitle, helpMouse        string
 	helpKeys                    []helpKey
 	whyDisconnected, whyTimeout string
 	whySignedOut, whyCanceled   string
@@ -117,6 +117,7 @@ func newWords() words {
 		unresponsive:      locales.TuiUnresponsive(),
 		unavailable:       locales.TuiUnavailable(),
 		helpTitle:         locales.TuiHelpTitle(),
+		helpMouse:         locales.TuiHelpMouse(),
 		helpKeys: []helpKey{
 			{"space", locales.TuiHelpToggle()},
 			{"n / p", locales.TuiHelpNext()},
