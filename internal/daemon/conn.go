@@ -6,16 +6,14 @@ import (
 	"strconv"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/ipc"
+	"yt-music-player/internal/version"
 
 	"github.com/rs/zerolog/log"
 )
 
 // sender is where a connection's frames go: an ipc.Conn, or a sink in
 // budgets, which hold no socket.
-type sender interface {
-	Send(api.Frame) error
-	Shutdown(ctx context.Context) error
-}
+type sender interface{ Send(api.Frame) error }
 
 // conn is a front-end's connection, as the loop knows it.
 type conn struct {
@@ -127,7 +125,7 @@ func (s *Service) register(c *conn) {
 	}
 	s.conns[c] = struct{}{}
 	c.send(api.Frame{Hello: &api.Hello{
-		Proto: api.Proto, Version: s.version, Role: api.RoleDaemon, PID: s.pid,
+		Proto: api.Proto, Version: version.Version, Role: api.RoleDaemon, PID: s.pid,
 	}})
 	if c.hello.Subscribe && c.compatible {
 		c.subscribed = true

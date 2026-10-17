@@ -15,13 +15,14 @@ import (
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/stream"
+	"yt-music-player/internal/version"
 )
 
 func TestHelloAndSnapshot(t *testing.T) {
 	seed := songs(3)
 	h := newHarness(t, Options{Seed: seed})
 	c := h.connect(true)
-	want := api.Hello{Proto: api.Proto, Version: "1.2.3", Role: api.RoleDaemon, PID: os.Getpid()}
+	want := api.Hello{Proto: api.Proto, Version: version.Version, Role: api.RoleDaemon, PID: os.Getpid()}
 	if c.hello != want {
 		t.Errorf("hello %+v, want %+v", c.hello, want)
 	}
@@ -275,7 +276,7 @@ func TestStatus(t *testing.T) {
 	c := h.connect(false)
 	r := c.call(api.Call{Method: api.MethodStatus})
 	want := api.Status{
-		Version: "1.2.3", Proto: api.Proto, Song: seed[0], Length: 3,
+		Version: version.Version, Proto: api.Proto, Song: seed[0], Length: 3,
 		State: api.State{Volume: 0.7, Repeat: api.RepeatOff, Current: "s0", Duration: 200},
 	}
 	if r.Status == nil || !reflect.DeepEqual(*r.Status, want) {
@@ -653,11 +654,7 @@ func TestCancelSignIn(t *testing.T) {
 }
 
 func TestSignInWithoutAccounts(t *testing.T) {
-	svc, err := New(Options{Source: catalogtest.New()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	h := &harness{t: t, svc: svc}
+	h := &harness{t: t, svc: New(Options{Source: catalogtest.New()})}
 	t.Cleanup(h.close)
 	c := h.connect(false)
 	for _, cl := range []api.Call{

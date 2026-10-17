@@ -8,6 +8,7 @@ import (
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/notice"
+	"yt-music-player/internal/version"
 )
 
 // jumpSlack is how far, in seconds, the position may stray from where the
@@ -224,7 +225,7 @@ func (s *Service) accountChanged(c account.Change) {
 func (s *Service) status() api.Status {
 	st := s.state()
 	song, _ := s.cat.Song(st.Current)
-	out := api.Status{Version: s.version, Proto: api.Proto, State: st, Song: song, Length: s.player.Len()}
+	out := api.Status{Version: version.Version, Proto: api.Proto, State: st, Song: song, Length: s.player.Len()}
 	if latest := s.acct.Latest(); latest.Status != nil {
 		out.SignedIn, out.Account = latest.Status.SignedIn, latest.Status.Account
 	}

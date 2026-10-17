@@ -92,10 +92,7 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 		dopts.Resolver = opts.resolver
 		dopts.NewEngine = y.engine.start
 	}
-	svc, err := daemon.New(dopts)
-	if err != nil {
-		tb.Fatal(err)
-	}
+	svc := daemon.New(dopts)
 	svc.Start()
 	y.svc = svc
 	// Large: the Client must never wait on its post. The app's funcs post

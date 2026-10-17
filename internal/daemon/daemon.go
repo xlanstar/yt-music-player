@@ -50,7 +50,6 @@ import (
 	"yt-music-player/internal/playback"
 	"yt-music-player/internal/player"
 	"yt-music-player/internal/stream"
-	"yt-music-player/internal/version"
 
 	"github.com/rs/zerolog/log"
 )
@@ -82,9 +81,6 @@ type Options struct {
 	// Seed is the queue without saved state, such as the placeholder's
 	// songs.
 	Seed []catalog.Song
-	// Version is the daemon's, told in its Hello; empty is
-	// version.Version.
-	Version string
 	// Now is the clock; nil is time.Now.
 	Now func() time.Time
 	// SaveDelay is how long after a change the state is saved; 0 is 2 s.
@@ -95,10 +91,9 @@ type Options struct {
 type Service struct {
 	loop *loop.Loop
 	// post is loop.Post, made once: a method value allocates.
-	post    func(func())
-	version string
-	pid     int
-	now     func() time.Time
+	post func(func())
+	pid  int
+	now  func() time.Time
 
 	// The rest but lis, lock, mu's and done are the loop's.
 	src    catalog.Source
@@ -136,32 +131,22 @@ type Service struct {
 // loop. Nothing plays, fetches or makes an engine until Start: on macOS,
 // the engine may only be made once the main thread runs its run loop
 // (RunMain).
-func New(opts Options) (*Service, error) {
-	s, err := newService(opts)
-	if err != nil {
-		return nil, err
-	}
+func New(opts Options) *Service {
+	s := newService(opts)
 	go s.loop.Run()
-	return s, nil
+	return s
 }
 
 // newService is New without its loop running: benchmarks run the loop's
 // work on their own goroutine.
-func newService(opts Options) (*Service, error) {
-	if opts.Source == nil {
-		return nil, errors.New("daemon: no source")
-	}
+func newService(opts Options) *Service {
 	s := &Service{
-		version: opts.Version,
-		pid:     os.Getpid(),
-		now:     opts.Now,
-		src:     opts.Source,
-		conns:   map[*conn]struct{}{},
-		live:    map[*ipc.Conn]struct{}{},
-		done:    make(chan struct{}),
-	}
-	if s.version == "" {
-		s.version = version.Version
+		pid:   os.Getpid(),
+		now:   opts.Now,
+		src:   opts.Source,
+		conns: map[*conn]struct{}{},
+		live:  map[*ipc.Conn]struct{}{},
+		done:  make(chan struct{}),
 	}
 	if s.now == nil {
 		s.now = time.Now
@@ -184,7 +169,7 @@ func newService(opts Options) (*Service, error) {
 	s.pb.Resolver, s.pb.NewEngine = opts.Resolver, opts.NewEngine
 	s.acct = account.New(s.src, s.post, s.accountChanged)
 	s.sent.reset(s)
-	return s, nil
+	return s
 }
 
 // Open starts ytmd's way (ipc): it prepares the directories of paths,
@@ -201,11 +186,7 @@ func Open(paths ipc.Paths, opts Options) (*Service, error) {
 		return nil, err
 	}
 	opts.State = paths.State
-	s, err := New(opts)
-	if err != nil {
-		_ = lock.Unlock()
-		return nil, err
-	}
+	s := New(opts)
 	lis, err := ipc.Listen(paths.Socket)
 	if err != nil {
 		s.Shutdown()

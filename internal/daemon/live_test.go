@@ -25,15 +25,11 @@ import (
 )
 
 func TestLiveDaemonPlays(t *testing.T) {
-	svc, err := New(Options{
+	svc := New(Options{
 		Source:    ytmusic.New(nil, &auth.MemoryStore{}),
 		Resolver:  stream.New(stream.Options{YTDLP: stream.LookYTDLP()}),
 		NewEngine: audio.New,
-		Version:   "dev",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	h := &harness{t: t, svc: svc}
 	t.Cleanup(h.close)
 	svc.Start()

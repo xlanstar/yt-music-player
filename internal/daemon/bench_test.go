@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"context"
 	"strconv"
 	"testing"
 	"yt-music-player/internal/account"
@@ -14,11 +13,9 @@ const bigQueue = 2000
 
 // sink is a subscriber that drops what it is sent: no socket, so only the
 // daemon's own cost is measured.
-type sink struct{ frames int }
+type sink struct{}
 
-func (s *sink) Send(api.Frame) error { s.frames++; return nil }
-
-func (*sink) Shutdown(context.Context) error { return nil }
+func (sink) Send(api.Frame) error { return nil }
 
 // benchService is a Service whose loop does not run: the benchmark runs
 // its work instead, with one subscriber. Without a Resolver nothing plays,
@@ -30,12 +27,9 @@ func benchService(tb testing.TB, queue int) (*Service, *conn) {
 		id := "song-" + strconv.Itoa(i)
 		seed[i] = catalog.Song{ID: id, Title: id, Artist: "Artist", Seconds: 200}
 	}
-	s, err := newService(Options{Source: catalog.NewPlaceholderSource(0), Seed: seed})
-	if err != nil {
-		tb.Fatal(err)
-	}
+	s := newService(Options{Source: catalog.NewPlaceholderSource(0), Seed: seed})
 	tb.Cleanup(s.quiet.stop)
-	c := &conn{out: &sink{}, compatible: true, subscribed: true, calls: map[uint32]call{}}
+	c := &conn{out: sink{}, compatible: true, subscribed: true, calls: map[uint32]call{}}
 	s.conns[c] = struct{}{}
 	return s, c
 }
