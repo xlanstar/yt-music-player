@@ -17,8 +17,6 @@ type postedMsg struct{}
 type poster struct {
 	mu    sync.Mutex
 	queue []func()
-	// spare is the batch run last, for the funcs after the next one.
-	spare []func()
 	// wake holds one signal: a post while one waits adds nothing.
 	wake chan struct{}
 }
@@ -41,13 +39,11 @@ func (p *poster) post(fn func()) {
 func (p *poster) run() {
 	p.mu.Lock()
 	batch := p.queue
-	p.queue, p.spare = p.spare[:0], nil
+	p.queue = nil
 	p.mu.Unlock()
 	for _, fn := range batch {
 		fn()
 	}
-	clear(batch)
-	p.spare = batch[:0]
 }
 
 // pump sends a postedMsg through send whenever funcs were posted, until
