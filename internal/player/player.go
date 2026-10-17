@@ -524,7 +524,7 @@ func (p *Player) insert(id string) int {
 	return queueIndex
 }
 
-// TogglePlay pauses or resumes.
+// TogglePlay pauses, or resumes the current song, if any.
 func (p *Player) TogglePlay() { p.Playing = !p.Playing && p.Current() != "" }
 
 // Pause pauses.
