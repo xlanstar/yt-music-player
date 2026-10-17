@@ -24,18 +24,18 @@ func checkQueue(t *testing.T, p *Player, want []string, current string) {
 	}
 }
 
-func TestPlayFrom(t *testing.T) {
+func TestPlayAllFrom(t *testing.T) {
 	p := New(nil)
-	p.PlayFrom(abcd, 2)
+	p.PlayAll(abcd, 2)
 	checkQueue(t, p, abcd, "c")
 	if !p.Playing || p.Position != 0 {
 		t.Errorf("playing %v at %v", p.Playing, p.Position)
 	}
-	p.PlayFrom(abcd, 9)
+	p.PlayAll(abcd, 9)
 	checkQueue(t, p, abcd, "d")
 
 	p.ToggleShuffle()
-	p.PlayFrom(abcd, 1)
+	p.PlayAll(abcd, 1)
 	if got := playOrder(p); got[0] != "b" || p.Index() != 0 {
 		t.Errorf("shuffled from b: %q at %d", got, p.Index())
 	}
@@ -189,6 +189,7 @@ func TestRestore(t *testing.T) {
 func TestPauseResumeSeekVolume(t *testing.T) {
 	p := New(nil)
 	p.Resume()
+	p.TogglePlay()
 	p.Seek(30)
 	if p.Playing || p.Position != 0 {
 		t.Errorf("empty queue: playing %v at %v", p.Playing, p.Position)
@@ -239,7 +240,7 @@ func TestQueueGen(t *testing.T) {
 	}{
 		{"shuffle", p.ToggleShuffle},
 		{"play new", func() { p.Play("x") }},
-		{"play all", func() { p.PlayAll(abcd) }},
+		{"play all", func() { p.PlayAll(abcd, 0) }},
 		{"enqueue", func() { p.Enqueue([]string{"y"}, true) }},
 		{"remove", func() { p.Remove(0) }},
 		{"move", func() { p.Move(0, 1) }},
@@ -355,20 +356,20 @@ func TestEnqueueNextMovesQueuedShuffled(t *testing.T) {
 	}
 }
 
-func TestPlayFromRepeats(t *testing.T) {
+func TestPlayAllFromRepeats(t *testing.T) {
 	ids := []string{"a", "b", "a", "c", "b", "d"}
 	p := New(nil)
-	p.PlayFrom(ids, 4)
+	p.PlayAll(ids, 4)
 	checkQueue(t, p, abcd, "b")
 	checkOnce(t, p)
-	p.PlayFrom(ids, 2)
+	p.PlayAll(ids, 2)
 	checkQueue(t, p, abcd, "a")
 	if ids[1] != "b" || len(ids) != 6 {
-		t.Errorf("PlayFrom changed its argument: %q", ids)
+		t.Errorf("PlayAll changed its argument: %q", ids)
 	}
 
 	p.ToggleShuffle()
-	p.PlayFrom(ids, 4)
+	p.PlayAll(ids, 4)
 	checkOnce(t, p)
 	if got := playOrder(p); got[0] != "b" || p.Index() != 0 || len(got) != 4 {
 		t.Errorf("shuffled from b: %q at %d", got, p.Index())
@@ -434,12 +435,12 @@ func TestQueueOnce(t *testing.T) {
 		case 2:
 			if ids := pick(); len(ids) > 0 {
 				start := r.IntN(len(ids))
-				p.PlayFrom(ids, start)
+				p.PlayAll(ids, start)
 				if p.Current() != ids[start] {
-					t.Fatalf("PlayFrom(%q, %d) plays %q", ids, start, p.Current())
+					t.Fatalf("PlayAll(%q, %d) plays %q", ids, start, p.Current())
 				}
 				if got := p.Queued(); !slices.Equal(got, firsts(ids)) {
-					t.Fatalf("PlayFrom(%q, %d) queued %q", ids, start, got)
+					t.Fatalf("PlayAll(%q, %d) queued %q", ids, start, got)
 				}
 			}
 		case 3:

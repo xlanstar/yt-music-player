@@ -123,16 +123,12 @@ func (s *Service) control(cl *api.Call) error {
 		case api.MethodPlay:
 			p.Play(ids[start])
 		case api.MethodPlayAll:
-			p.PlayFrom(ids, start)
+			p.PlayAll(ids, start)
 		default:
 			p.Enqueue(ids, cl.IDs.Next)
 		}
 	case api.MethodToggle:
-		if p.Playing {
-			p.Pause()
-		} else {
-			p.Resume()
-		}
+		p.TogglePlay()
 	case api.MethodPause:
 		p.Pause()
 	case api.MethodResume:

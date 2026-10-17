@@ -1,7 +1,7 @@
 // Package loop runs funcs one at a time on one goroutine, in the order they
 // were posted: the daemon's thread, which owns the player, the playback,
 // the account and the engine as the window's main thread owns them in
-// Desktop. Post is its post and its playback's Wake.
+// Desktop.
 //
 // Post never waits on the loop: it appends to a queue under a mutex held
 // for the append alone. The loop sleeps on a channel while the queue is

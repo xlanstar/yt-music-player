@@ -164,7 +164,7 @@ func BenchmarkPlayAll(b *testing.B) {
 			p.isShuffled = tc.shuffle
 			b.ReportAllocs()
 			for b.Loop() {
-				p.PlayAll(tc.ids)
+				p.PlayAll(tc.ids, 0)
 			}
 		})
 	}

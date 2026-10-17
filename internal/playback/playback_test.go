@@ -260,7 +260,7 @@ func TestEndedMovesOnOrRepeats(t *testing.T) {
 
 func TestEndOfQueueStops(t *testing.T) {
 	x := newFixture(&instantResolver{})
-	x.player.PlayAll([]string{x.cat.SongIDs()[0]})
+	x.player.PlayAll([]string{x.cat.SongIDs()[0]}, 0)
 	x.startPlaying(t)
 	x.f.Emit(audio.Ended)
 	x.run(t)
@@ -345,7 +345,7 @@ func TestFailuresStopWithinTheQueue(t *testing.T) {
 	res := &instantResolver{err: stream.ErrUnplayable}
 	x := newFixture(res)
 	ids := x.cat.SongIDs()[:3]
-	x.player.PlayAll(ids)
+	x.player.PlayAll(ids, 0)
 	x.player.Repeat = player.RepeatAll
 	x.player.Playing = true
 	x.pb.Follow()
@@ -575,16 +575,16 @@ func TestStop(t *testing.T) {
 func TestPrefetchesOnItsTimer(t *testing.T) {
 	res := &instantResolver{}
 	x := newFixture(res)
-	woken := make(posts, 4)
-	x.pb.Wake = func(fn func()) { woken <- fn }
 	x.startPlaying(t)
 	next := x.player.AppendUpNext(nil, 1)[0]
 	// 100 ms before the prefetch is due.
 	x.turn(200 - prefetchLead - 0.1)
 	x.f.Pos = 200 - prefetchLead + 1
-	// The timer wakes the UI thread without a frame.
+	if len(x.q) != 0 {
+		t.Fatalf("%d posts before the timer's", len(x.q))
+	}
 	select {
-	case fn := <-woken:
+	case fn := <-x.q:
 		fn()
 	case <-time.After(2 * time.Second):
 		t.Fatal("the prefetch timer never woke")

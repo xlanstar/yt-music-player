@@ -200,7 +200,7 @@ func TestHandoffTooLate(t *testing.T) {
 	h := newHarness(t, Options{State: path})
 	saved := h.clock.Now()
 	h.do(func() {
-		h.svc.player.PlayAll([]string{"a"})
+		h.svc.player.PlayAll([]string{"a"}, 0)
 		st := h.svc.saved()
 		st.ResumePlaying, st.ResumeBefore = true, saved.Add(time.Minute)
 		h.svc.store.flush(st)

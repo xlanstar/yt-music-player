@@ -181,7 +181,7 @@ func newService(opts Options) (*Service, error) {
 	}
 
 	s.pb = playback.New(s.cat, s.player, s.post)
-	s.pb.Resolver, s.pb.NewEngine, s.pb.Wake = opts.Resolver, opts.NewEngine, s.post
+	s.pb.Resolver, s.pb.NewEngine = opts.Resolver, opts.NewEngine
 	s.acct = account.New(s.src, s.post, s.accountChanged)
 	s.sent.reset(s)
 	return s, nil

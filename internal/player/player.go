@@ -216,14 +216,10 @@ func (p *Player) Play(id string) {
 	p.Position, p.Playing = 0, true
 }
 
-// PlayAll makes ids the queue and plays it from the first song; while
-// shuffling, the rest follow in random order.
-func (p *Player) PlayAll(ids []string) { p.PlayFrom(ids, 0) }
-
-// PlayFrom makes ids the queue and plays it from ids[start]; while
+// PlayAll makes ids the queue and plays it from ids[start]; while
 // shuffling, that song comes first and the others follow in random order.
 // A song in ids more than once is queued at its first place.
-func (p *Player) PlayFrom(ids []string, start int) {
+func (p *Player) PlayAll(ids []string, start int) {
 	if len(ids) == 0 {
 		return
 	}
@@ -529,7 +525,7 @@ func (p *Player) insert(id string) int {
 }
 
 // TogglePlay pauses or resumes.
-func (p *Player) TogglePlay() { p.Playing = !p.Playing }
+func (p *Player) TogglePlay() { p.Playing = !p.Playing && p.Current() != "" }
 
 // Pause pauses.
 func (p *Player) Pause() { p.Playing = false }
