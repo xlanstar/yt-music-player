@@ -27,8 +27,8 @@ func TestAutostart(t *testing.T) {
 		if !strings.Contains(w.stdout.String(), s.want) {
 			t.Errorf("autostart %s: stdout %q", s.arg, w.stdout)
 		}
-		if enabled, ytmd, _ := w.env.autostart.status(); enabled != s.enabled || (enabled && ytmd != daemonPath) {
-			t.Errorf("autostart %s: enabled %v (%q)", s.arg, enabled, ytmd)
+		if ytmd := w.autostart.enabled(); (ytmd != "") != s.enabled || (s.enabled && ytmd != daemonPath) {
+			t.Errorf("autostart %s: enabled with %q", s.arg, ytmd)
 		}
 	}
 	if got := w.autostart.repaired(); len(got) > 0 {

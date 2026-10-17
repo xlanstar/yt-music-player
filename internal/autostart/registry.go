@@ -37,35 +37,32 @@ type runKey struct {
 // enable quotes the path, or Windows would read a path with spaces as a
 // program and its arguments.
 func (r runKey) enable(ytmd string) error {
-	if err := r.reg.setString(runKeyPath, RunValue, `"`+ytmd+`"`, kindString); err != nil {
+	if err := r.reg.setString(runKeyPath, runValue, `"`+ytmd+`"`, kindString); err != nil {
 		return fmt.Errorf("autostart: %w", err)
 	}
 	return nil
 }
 
 func (r runKey) disable() error {
-	if err := r.reg.deleteValue(runKeyPath, RunValue); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := r.reg.deleteValue(runKeyPath, runValue); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("autostart: %w", err)
 	}
 	return nil
 }
 
-func (r runKey) status() (bool, string, error) {
-	v, _, err := r.reg.getString(runKeyPath, RunValue)
+func (r runKey) status() (bool, error) {
+	_, _, err := r.reg.getString(runKeyPath, runValue)
 	if errors.Is(err, fs.ErrNotExist) {
-		return false, "", nil
+		return false, nil
 	}
 	if err != nil {
-		return false, "", fmt.Errorf("autostart: %w", err)
+		return false, fmt.Errorf("autostart: %w", err)
 	}
-	if unquoted, ok := strings.CutPrefix(v, `"`); ok {
-		v, _, _ = strings.Cut(unquoted, `"`)
-	}
-	return true, v, nil
+	return true, nil
 }
 
 func (r runKey) repair(ytmd string) error {
-	v, _, err := r.reg.getString(runKeyPath, RunValue)
+	v, _, err := r.reg.getString(runKeyPath, runValue)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil
 	}
@@ -108,18 +105,6 @@ func RepairPath(old, dir string) error {
 	return editPath(dir, func(list string) string { return replacePathEntry(list, old, dir) })
 }
 
-// PathEnabled reports whether dir is on the user's Path. Windows only.
-func PathEnabled(dir string) (bool, error) {
-	if err := checkPathEntry(dir); err != nil {
-		return false, err
-	}
-	p, err := currentPath()
-	if err != nil {
-		return false, err
-	}
-	return p.has(dir)
-}
-
 func editPath(dir string, edit func(list string) string) error {
 	if err := checkPathEntry(dir); err != nil {
 		return err
@@ -140,14 +125,6 @@ func checkPathEntry(dir string) error {
 		return fmt.Errorf("autostart: %q has a ; or \" a Path cannot hold", dir)
 	}
 	return nil
-}
-
-func (p userPath) has(dir string) (bool, error) {
-	list, _, err := p.read()
-	if err != nil {
-		return false, err
-	}
-	return hasPathEntry(list, dir), nil
 }
 
 // read returns the Path and its type; an absent one is empty, of the type

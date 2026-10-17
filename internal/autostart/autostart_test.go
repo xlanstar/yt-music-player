@@ -79,17 +79,19 @@ WantedBy=default.target
 // fileCase is a platform whose entry is a file, over a temporary home.
 type fileCase struct {
 	name    string
-	make    func(home string, run runner) item
+	make    func(home string, run runner) fileEntry
 	file    string // under home
 	ytmd    string
 	want    string // the file Enable writes for ytmd, @HOME@ the home
 	on, off []string
 }
 
+// fileCases' on and off are the only commands switching runs: none starts
+// or stops the daemon now.
 var fileCases = []fileCase{
 	{
 		name: "launch agent",
-		make: func(home string, run runner) item { return newLaunchAgent(home, 501, run) },
+		make: func(home string, run runner) fileEntry { return newLaunchAgent(home, 501, run) },
 		file: "Library/LaunchAgents/dev.lanstar.ytmusicplayer.daemon.plist",
 		ytmd: appYtmd,
 		want: wantPlist,
@@ -98,7 +100,7 @@ var fileCases = []fileCase{
 	},
 	{
 		name: "systemd unit",
-		make: func(home string, run runner) item { return newSystemdUnit(filepath.Join(home, ".config"), run) },
+		make: func(home string, run runner) fileEntry { return newSystemdUnit(filepath.Join(home, ".config"), run) },
 		file: ".config/systemd/user/ytmd.service",
 		ytmd: "/opt/yt-music-player/ytmd",
 		want: wantUnit,
@@ -116,11 +118,10 @@ func readFile(t *testing.T, path string) string {
 	return string(data)
 }
 
-func wantStatus(t *testing.T, it item, enabled bool, ytmd string) {
+func wantStatus(t *testing.T, it item, enabled bool) {
 	t.Helper()
-	gotOn, gotPath, err := it.status()
-	if err != nil || gotOn != enabled || gotPath != ytmd {
-		t.Fatalf("status = %v, %q, %v; want %v, %q, nil", gotOn, gotPath, err, enabled, ytmd)
+	if got, err := it.status(); err != nil || got != enabled {
+		t.Fatalf("status = %v, %v; want %v, nil", got, err, enabled)
 	}
 }
 
@@ -139,7 +140,7 @@ func TestFileEntries(t *testing.T) {
 			var c commands
 			it := tc.make(home, c.run)
 			path := filepath.Join(home, filepath.FromSlash(tc.file))
-			wantStatus(t, it, false, "")
+			wantStatus(t, it, false)
 
 			if err := it.enable(tc.ytmd); err != nil {
 				t.Fatal(err)
@@ -151,7 +152,7 @@ func TestFileEntries(t *testing.T) {
 			if info, err := os.Stat(path); err == nil && runtime.GOOS != "windows" && info.Mode().Perm() != 0o644 {
 				t.Errorf("entry has mode %v, want 0644", info.Mode().Perm())
 			}
-			wantStatus(t, it, true, tc.ytmd)
+			wantStatus(t, it, true)
 
 			// Repair leaves an entry that is current alone, and points one
 			// at a moved app, without telling the service manager.
@@ -163,7 +164,9 @@ func TestFileEntries(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantCommands(t, &c)
-			wantStatus(t, it, true, moved)
+			if got, want := readFile(t, path), string(it.render(moved)); got != want {
+				t.Errorf("Repair wrote\n%s\nwant\n%s", got, want)
+			}
 
 			if err := it.disable(); err != nil {
 				t.Fatal(err)
@@ -172,7 +175,7 @@ func TestFileEntries(t *testing.T) {
 			if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
 				t.Errorf("Disable left the entry: %v", err)
 			}
-			wantStatus(t, it, false, "")
+			wantStatus(t, it, false)
 
 			// Off stays off: neither call does anything.
 			if err := it.disable(); err != nil {
@@ -182,7 +185,7 @@ func TestFileEntries(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantCommands(t, &c)
-			wantStatus(t, it, false, "")
+			wantStatus(t, it, false)
 		})
 	}
 }
@@ -198,7 +201,7 @@ func TestFileEntryFailures(t *testing.T) {
 			if err := it.enable(tc.ytmd); !errors.Is(err, errCommand) {
 				t.Fatalf("enable = %v, want the command's error", err)
 			}
-			wantStatus(t, it, false, "")
+			wantStatus(t, it, false)
 
 			// Off removes the file even when the command fails: without it
 			// nothing starts.
@@ -210,34 +213,7 @@ func TestFileEntryFailures(t *testing.T) {
 			if err := it.disable(); !errors.Is(err, errCommand) {
 				t.Fatalf("disable = %v, want the command's error", err)
 			}
-			wantStatus(t, it, false, "")
-		})
-	}
-}
-
-// TestSwitchingStopsNothing holds that switching decides the next login
-// only, so turning it off does not stop the music.
-func TestSwitchingStopsNothing(t *testing.T) {
-	for _, tc := range fileCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var c commands
-			it := tc.make(t.TempDir(), c.run)
-			for range 2 {
-				if err := it.enable(tc.ytmd); err != nil {
-					t.Fatal(err)
-				}
-				if err := it.repair("/elsewhere/ytmd"); err != nil {
-					t.Fatal(err)
-				}
-				if err := it.disable(); err != nil {
-					t.Fatal(err)
-				}
-			}
-			for _, argv := range c.argv {
-				if stopsDaemon(argv) {
-					t.Errorf("ran %q", argv)
-				}
-			}
+			wantStatus(t, it, false)
 		})
 	}
 }
@@ -260,35 +236,21 @@ func TestUnitExecStart(t *testing.T) {
 		if line := "\nConditionPathExists=" + condition + "\n"; !bytes.Contains(data, []byte(line)) {
 			t.Errorf("unit for %q lacks ConditionPathExists=%s:\n%s", tc.ytmd, condition, data)
 		}
-		if got := unitProgram(data); got != tc.ytmd {
-			t.Errorf("unitProgram = %q, want %q", got, tc.ytmd)
-		}
 	}
 }
 
-func TestUnit(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("units name Unix paths")
-	}
-	got, err := Unit("/opt/yt-music-player/ytmd")
-	if err != nil || string(got) != wantUnit {
-		t.Errorf("Unit = %q, %v; want %q", got, err, wantUnit)
-	}
-	// The template Linux packages ship (scripts/build.sh), for the
-	// Debian package's ytmd.
-	if shipped := readFile(t, "../../packaging/linux/ytmd.service"); shipped != string(got) {
-		t.Errorf("packaging/linux/ytmd.service = %q; want Unit's %q", shipped, got)
-	}
-	for _, bad := range []string{"", "ytmd", "./ytmd", "/opt/a\nb/ytmd", "/opt/\xff/ytmd"} {
-		if _, err := Unit(bad); err == nil {
-			t.Errorf("Unit(%q) succeeded", bad)
-		}
+// TestShippedUnit holds the template Linux packages ship
+// (scripts/build.sh), for the Debian package's ytmd, to what Enable
+// writes.
+func TestShippedUnit(t *testing.T) {
+	if shipped := readFile(t, "../../packaging/linux/ytmd.service"); shipped != wantUnit {
+		t.Errorf("packaging/linux/ytmd.service = %q; want %q", shipped, wantUnit)
 	}
 }
 
 // TestRefusesBadPaths checks before touching the system.
 func TestRefusesBadPaths(t *testing.T) {
-	for _, bad := range []string{"", "ytmd", "bin/ytmd", "/opt/a\nb/ytmd"} {
+	for _, bad := range []string{"", "ytmd", "bin/ytmd", "/opt/a\nb/ytmd", "/opt/\xff/ytmd"} {
 		if Enable(bad) == nil {
 			t.Errorf("Enable(%q) succeeded", bad)
 		}
@@ -302,15 +264,15 @@ func TestRunKey(t *testing.T) {
 	h := newFakeHive()
 	it := runKey{reg: h}
 	ytmd := `C:\Users\me\AppData\Local\Programs\YT Music Player\ytmd.exe`
-	wantStatus(t, it, false, "")
+	wantStatus(t, it, false)
 
 	if err := it.enable(ytmd); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := h.values[runKeyPath+`\`+RunValue], (fakeValue{data: `"` + ytmd + `"`, kind: kindString}); got != want {
+	if got, want := h.values[runKeyPath+`\`+runValue], (fakeValue{data: `"` + ytmd + `"`, kind: kindString}); got != want {
 		t.Errorf("Run value = %+v, want %+v", got, want)
 	}
-	wantStatus(t, it, true, ytmd)
+	wantStatus(t, it, true)
 
 	writes := h.writes
 	if err := it.repair(ytmd); err != nil {
@@ -323,25 +285,21 @@ func TestRunKey(t *testing.T) {
 	if err := it.repair(moved); err != nil {
 		t.Fatal(err)
 	}
-	wantStatus(t, it, true, moved)
+	if got := h.values[runKeyPath+`\`+runValue].data; got != `"`+moved+`"` {
+		t.Errorf("Run value after Repair = %q, want %q quoted", got, moved)
+	}
 
 	if err := it.disable(); err != nil {
 		t.Fatal(err)
 	}
-	wantStatus(t, it, false, "")
+	wantStatus(t, it, false)
 	if err := it.disable(); err != nil {
 		t.Errorf("Disable when off = %v", err)
 	}
 	if err := it.repair(ytmd); err != nil {
 		t.Fatal(err)
 	}
-	wantStatus(t, it, false, "")
-}
-
-func TestRunKeyUnquoted(t *testing.T) {
-	h := newFakeHive()
-	h.values[runKeyPath+`\`+RunValue] = fakeValue{data: `C:\ytmd.exe`, kind: kindString}
-	wantStatus(t, runKey{reg: h}, true, `C:\ytmd.exe`)
+	wantStatus(t, it, false)
 }
 
 func TestPathOnlyOnWindows(t *testing.T) {
@@ -357,8 +315,5 @@ func TestPathOnlyOnWindows(t *testing.T) {
 		if !errors.Is(err, errors.ErrUnsupported) {
 			t.Errorf("%s = %v, want errors.ErrUnsupported", name, err)
 		}
-	}
-	if _, err := PathEnabled(dir); !errors.Is(err, errors.ErrUnsupported) {
-		t.Errorf("PathEnabled = %v, want errors.ErrUnsupported", err)
 	}
 }

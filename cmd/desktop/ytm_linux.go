@@ -18,8 +18,8 @@ func runYtm() {
 	if err != nil {
 		return
 	}
-	path, ok := ytmTarget(os.Args[0], exe)
-	if !ok {
+	path := ytmTarget(os.Args[0], exe)
+	if path == "" {
 		return
 	}
 	err = syscall.Exec(path, os.Args, os.Environ()) //nolint:gosec // G204: the ytm installed beside this app

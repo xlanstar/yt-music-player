@@ -54,10 +54,9 @@ func (a *app) announceLink(c *ui.Context) {
 	}
 }
 
-// banner shows, over the top of the window, how the connection to ytmd
-// is when it is not as it should be (docs/daemon.md, Health): a state
-// that lasts until the connection mends, not a notice, so tell never
-// says it. Its actions are what may mend it.
+// banner shows over the window how the connection to ytmd is while it is
+// not as it should be: a state lasting until it mends, not a notice, so
+// tell never says it.
 func (a *app) banner(c *ui.Context) {
 	l := a.daemon.link
 	b := a.bannerOf(l)

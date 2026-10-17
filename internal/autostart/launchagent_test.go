@@ -23,7 +23,7 @@ const (
 )
 
 func TestPlistEscapes(t *testing.T) {
-	path := filepath.Join(oddHome, "Library", "LaunchAgents", Label+".plist")
+	path := filepath.Join(oddHome, "Library", "LaunchAgents", label+".plist")
 	data := renderPlist(path, oddYtmd)
 	d := xml.NewDecoder(bytes.NewReader(data))
 	for {
@@ -39,14 +39,11 @@ func TestPlistEscapes(t *testing.T) {
 		"/bin/sh",
 		"-c",
 		`[ -x "$0" ] && exec "$0"; rm -f '/Users/a & b/<YT> "it'\''s" $HOME 音樂/Library/LaunchAgents/` +
-			Label + `.plist'; launchctl disable gui/$(id -u)/` + Label,
+			label + `.plist'; launchctl disable gui/$(id -u)/` + label,
 		oddYtmd,
 	}
-	if got := plistArgs(data); !slices.Equal(got, want) {
+	if got := plistArgs(t, data); !slices.Equal(got, want) {
 		t.Errorf("ProgramArguments = %q, want %q", got, want)
-	}
-	if got := plistProgram(data); got != oddYtmd {
-		t.Errorf("plistProgram = %q, want %q", got, oddYtmd)
 	}
 }
 
@@ -57,28 +54,11 @@ func TestPlistLints(t *testing.T) {
 		t.Skip("no plutil")
 	}
 	file := filepath.Join(t.TempDir(), "agent.plist")
-	if err := os.WriteFile(file, renderPlist(filepath.Join(oddHome, Label+".plist"), oddYtmd), 0o600); err != nil {
+	if err := os.WriteFile(file, renderPlist(filepath.Join(oddHome, label+".plist"), oddYtmd), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if out, err := exec.CommandContext(t.Context(), plutil, "-lint", file).CombinedOutput(); err != nil {
 		t.Errorf("plutil -lint: %v\n%s", err, out)
-	}
-}
-
-func TestPlistProgram(t *testing.T) {
-	for data, want := range map[string]string{
-		oldPlist:  appYtmd,
-		"":        "",
-		"<plist>": "",
-		"<plist><dict><key>Label</key><string>x</string></dict></plist>": "",
-		// Strings of other keys are not the program.
-		"<plist><dict><key>AssociatedBundleIdentifiers</key><array><string>x</string></array></dict></plist>": "",
-		// sh without the arguments renderPlist gives it starts no ytmd.
-		"<plist><dict><key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string></array></dict></plist>": "",
-	} {
-		if got := plistProgram([]byte(data)); got != want {
-			t.Errorf("plistProgram(%q) = %q, want %q", data, got, want)
-		}
 	}
 }
 
@@ -92,14 +72,14 @@ func TestPlistUpgrades(t *testing.T) {
 	if err := writeFile(a.path, []byte(oldPlist)); err != nil {
 		t.Fatal(err)
 	}
-	wantStatus(t, a, true, appYtmd)
+	wantStatus(t, a, true)
 	if err := a.repair(appYtmd); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := readFile(t, a.path), strings.ReplaceAll(wantPlist, "@HOME@", home); got != want {
 		t.Errorf("Repair wrote\n%s\nwant\n%s", got, want)
 	}
-	wantStatus(t, a, true, appYtmd)
+	wantStatus(t, a, true)
 	wantCommands(t, &c)
 }
 
@@ -122,7 +102,7 @@ func TestPlistScript(t *testing.T) {
 	if err := a.enable(ytmd); err != nil {
 		t.Fatal(err)
 	}
-	args := plistArgs([]byte(readFile(t, a.path)))
+	args := plistArgs(t, []byte(readFile(t, a.path)))
 	login := func() {
 		t.Helper()
 		cmd := exec.CommandContext(t.Context(), args[0], args[1:]...)
@@ -158,10 +138,10 @@ func TestPlistScript(t *testing.T) {
 	if _, err := os.Stat(a.path); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("plist left without ytmd: %v", err)
 	}
-	if got, want := readFile(t, launchctlLog), "disable\ngui/"+strconv.Itoa(os.Getuid())+"/"+Label+"\n"; got != want {
+	if got, want := readFile(t, launchctlLog), "disable\ngui/"+strconv.Itoa(os.Getuid())+"/"+label+"\n"; got != want {
 		t.Errorf("launchctl ran with %q, want %q", got, want)
 	}
-	wantStatus(t, a, false, "")
+	wantStatus(t, a, false)
 }
 
 func writeScript(t *testing.T, path, body string) {
@@ -172,4 +152,19 @@ func writeScript(t *testing.T, path, body string) {
 	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// plistArgs returns a plist's ProgramArguments: the last array renderPlist
+// writes.
+func plistArgs(t *testing.T, data []byte) []string {
+	t.Helper()
+	var plist struct {
+		Arrays []struct {
+			Strings []string `xml:"string"`
+		} `xml:"dict>array"`
+	}
+	if err := xml.Unmarshal(data, &plist); err != nil || len(plist.Arrays) == 0 {
+		t.Fatalf("plist without arrays (%v):\n%s", err, data)
+	}
+	return plist.Arrays[len(plist.Arrays)-1].Strings
 }

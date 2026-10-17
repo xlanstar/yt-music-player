@@ -14,32 +14,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// startupState is the settings' Background player: whether ytmd starts at
-// login (docs/daemon.md, Start at login), and on Windows whether
-// terminals find ytm. Each switch shows what was last read or set; switching
-// runs package autostart, which may take seconds, off the UI thread, and
-// a failure turns the switch back.
+// startupState is the settings' Background player: ytmd at login and, on
+// Windows, ytm on the Path. Switching runs package autostart, which may take
+// seconds, off the UI thread; a failure turns the switch back.
 type startupState struct {
-	// atLogin is the switch's: ytmd starts at login. isKnown: Status
-	// answered.
+	// isKnown: Status answered.
 	atLogin, isKnown bool
 	login            job.Job
-	// inTerminal is the switch's: the app's folder is on the Path, as
-	// settings.TerminalPath says.
-	inTerminal bool
-	terminal   job.Job
-	// hasTerminal offers the switch: Windows only, set before
+	inTerminal       bool
+	terminal         job.Job
+	// hasTerminal offers the Path's switch (Windows); set before
 	// startStartup.
 	hasTerminal bool
 	sys         startupSystem
 }
 
-// startupSystem is package autostart and where the helpers are, a fake's
-// in tests.
+// startupSystem is package autostart and where the helpers are; tests fake
+// it.
 type startupSystem struct {
 	enable      func(ytmd string) error
 	disable     func() error
-	status      func() (enabled bool, ytmd string, err error)
+	status      func() (enabled bool, err error)
 	repair      func(ytmd string) error
 	enablePath  func(dir string) error
 	disablePath func(dir string) error
@@ -49,7 +44,6 @@ type startupSystem struct {
 	ytmDir func() (string, error)
 }
 
-// systemStartup is this system's.
 func systemStartup() startupSystem {
 	return startupSystem{
 		enable:      autostart.Enable,
@@ -86,10 +80,9 @@ func ytmDir() (string, error) {
 	return dir, nil
 }
 
-// startStartup reads whether ytmd starts at login and, unless dev, points
-// what is on at this app's helpers, as after the app moved or updated: a
-// development build would point the user's login at itself. Call it once
-// the settings are loaded.
+// startStartup reads whether ytmd starts at login and, unless dev (which
+// would point the user's login at itself), points what is on at this app's
+// helpers, as after the app moved. Call it once the settings are loaded.
 func (a *app) startStartup(sys startupSystem, dev bool) {
 	st := &a.startup
 	st.sys = sys
@@ -97,14 +90,15 @@ func (a *app) startStartup(sys startupSystem, dev bool) {
 	oldPath, hasTerminal := a.look.set.TerminalPath, st.hasTerminal
 	type found struct {
 		atLogin bool
-		path    string
+		// movedPath is the Path's new folder, "" when unchanged.
+		movedPath string
 	}
 	job.Run(&st.login, a.post, func(context.Context) (found, error) {
-		enabled, _, err := sys.status()
+		enabled, err := sys.status()
+		f := found{atLogin: enabled}
 		if err != nil || dev {
-			return found{atLogin: enabled}, err
+			return f, err
 		}
-		f := found{atLogin: enabled, path: oldPath}
 		if enabled {
 			if err := repairLogin(sys); err != nil {
 				log.Debug().Err(err).Msg("repairing the login item")
@@ -115,7 +109,7 @@ func (a *app) startStartup(sys startupSystem, dev bool) {
 				if err := sys.repairPath(oldPath, dir); err != nil {
 					log.Debug().Err(err).Msg("repairing the Path")
 				} else {
-					f.path = dir
+					f.movedPath = dir
 				}
 			}
 		}
@@ -126,8 +120,8 @@ func (a *app) startStartup(sys startupSystem, dev bool) {
 		}
 		// Unread, the switch shows off: turning it on says what fails.
 		st.atLogin, st.isKnown = f.atLogin, true
-		if f.path != "" && f.path != a.look.set.TerminalPath {
-			a.look.set.TerminalPath = f.path
+		if f.movedPath != "" {
+			a.look.set.TerminalPath = f.movedPath
 			a.look.saver.Save(a.look.set)
 		}
 	})
