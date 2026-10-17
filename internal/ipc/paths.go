@@ -16,8 +16,7 @@ const appName = "yt-music-player"
 // longer than the OS allows.
 var ErrPathTooLong = errors.New("ipc: socket path too long")
 
-// Roots are the OS directories the paths derive from; tests make their own
-// under t.TempDir.
+// Roots are the OS directories the paths derive from.
 type Roots struct {
 	Config string // os.UserConfigDir
 	Cache  string // os.UserCacheDir: %LOCALAPPDATA% on Windows
@@ -46,8 +45,8 @@ type Paths struct {
 	shared bool
 }
 
-// Default returns the paths in the OS's directories. dev reports a
-// development build: Desktop's mygo.IsDev, version.IsDev for ytmd and ytm.
+// Default returns the paths in the OS's directories; dev reports a
+// development build.
 func Default(dev bool) (Paths, error) {
 	config, err := os.UserConfigDir()
 	if err != nil {

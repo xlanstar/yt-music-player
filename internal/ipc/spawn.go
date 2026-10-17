@@ -16,10 +16,9 @@ import (
 )
 
 // daemonBundle is the macOS bundle ytmd runs in (scripts/build-helpers.sh),
-// whose folder name Control Center shows. Not the app's own name:
-// LaunchServices registers apps nested in installed apps too, and a second
-// "YT Music Player", showing no window, would answer open -a, AppleScript
-// and launchers that look apps up by name.
+// whose name Now Playing shows. Not the app's: LaunchServices registers
+// nested apps too, and a second, windowless "YT Music Player" would answer
+// open -a and launchers.
 const daemonBundle = "YT Music Player Helper.app"
 
 // FindDaemon returns the path of ytmd: $YTMD_PATH, else the one shipped

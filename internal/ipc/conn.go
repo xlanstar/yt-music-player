@@ -25,15 +25,11 @@ var (
 
 // Conn carries frames over a connection, one gob stream each way.
 //
-// Send never blocks: it queues the frame for the Conn's writer goroutine,
-// which encodes the frames queued since its last write and flushes them at
-// once. The daemon's loop thus never waits on a socket; it must not modify
-// a frame, or what it points to, once sent. Frames go out in order, so a
-// reply precedes the events that follow it; only a State event still
-// queued is replaced, by a newer one.
-//
-// Receive reads on the caller's goroutine, one at a time. Close stops the
-// writer; a failed Receive closes the Conn too.
+// Send never blocks, so the daemon's loop never waits on a socket: a
+// writer goroutine encodes what was queued since its last write and
+// flushes it at once. A frame, and what it points to, must not change once
+// sent. Frames go out in order; only a State event still queued is
+// replaced, by a newer one. Receive reads on the caller's goroutine.
 type Conn struct {
 	nc  net.Conn
 	dec *gob.Decoder
@@ -155,12 +151,10 @@ func (c *Conn) write() {
 	}
 }
 
-// Receive reads the next frame into f, which it zeroes first: gob sends no
-// zero values, so a field of the previous frame would otherwise remain.
-// Pointers in f stay valid after the next Receive, which allocates anew,
-// so their data may be handed to another goroutine. Call it from one
-// goroutine at a time. After an error, the Conn is closed and every call
-// fails; the error is why the Conn closed (io.EOF when the peer did).
+// Receive reads the next frame into f, zeroed first, as gob sends no zero
+// values. What f points to is new memory, which the caller may hand to
+// another goroutine. Call it from one goroutine at a time. An error closes
+// the Conn; it is why the Conn closed (io.EOF when the peer did).
 func (c *Conn) Receive(f *api.Frame) error {
 	*f = api.Frame{}
 	if err := c.dec.Decode(f); err != nil {
@@ -185,10 +179,10 @@ func (c *Conn) Close() error {
 	return nil
 }
 
-// Shutdown writes the frames queued, then closes the Conn: a daemon that
-// exits tells its peers first (a hand-off). Send fails meanwhile. When ctx
-// ends first, it closes the Conn at once and returns ctx's error; it
-// returns the error that closed the Conn otherwise, nil for none.
+// Shutdown writes the frames queued, then closes the Conn, so that an
+// exiting daemon's last words arrive; Send fails meanwhile. When ctx ends
+// first, it closes the Conn at once and returns ctx's error; otherwise
+// what closed the Conn before it drained, nil for nothing.
 func (c *Conn) Shutdown(ctx context.Context) error {
 	c.mu.Lock()
 	c.draining = true
