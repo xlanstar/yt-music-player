@@ -23,7 +23,6 @@ type Loop struct {
 	stopped bool
 
 	wake chan struct{} // the queue has funcs or Stop was called; buffered 1
-	done chan struct{} // closed when Run returns
 }
 
 // New returns a Loop. after, if not nil, runs on the loop after each batch
@@ -34,7 +33,6 @@ func New(after func()) *Loop {
 		after: after,
 		queue: make([]func(), 0, initialCap),
 		wake:  make(chan struct{}, 1),
-		done:  make(chan struct{}),
 	}
 }
 
@@ -58,7 +56,6 @@ func (l *Loop) Post(fn func()) {
 // returns once the func running when Stop is called returns, dropping the
 // funcs still queued. Call it once.
 func (l *Loop) Run() {
-	defer close(l.done)
 	batch := make([]func(), 0, initialCap)
 	for {
 		l.mu.Lock()
@@ -94,7 +91,7 @@ func (l *Loop) isStopped() bool {
 }
 
 // Stop has Run return and Post drop its funcs from now on. It returns at
-// once, from the loop too: Done tells when Run returned.
+// once, so the loop may call it too.
 func (l *Loop) Stop() {
 	l.mu.Lock()
 	l.stopped = true
@@ -106,6 +103,3 @@ func (l *Loop) Stop() {
 	default:
 	}
 }
-
-// Done is closed once Run returned.
-func (l *Loop) Done() <-chan struct{} { return l.done }
