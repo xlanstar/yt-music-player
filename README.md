@@ -46,7 +46,6 @@ Songs play in a small background player, `ytmd`, which the app starts as it open
 Requires Go 1.27+.
 
 ```sh
-scripts/dev.sh                 # run the app, with the background player (ytmd) it starts
 scripts/build.sh               # build for this system into build/
 scripts/install.sh             # macOS: build and install with Homebrew, as the cask does
 ```
@@ -54,9 +53,11 @@ scripts/install.sh             # macOS: build and install with Homebrew, as the 
 ## Development
 
 ```sh
-scripts/dev.sh -placeholder              # offline fake catalog, no audio
-YT_SOURCE_DELAY=800ms scripts/dev.sh -placeholder   # with loading states
-YT_LOG=debug scripts/dev.sh              # why fetches, sign-ins or streams failed
+go run ./cmd/ytmd                        # the background player; Ctrl+C stops it
+go run ./cmd/desktop                     # the app, in another terminal
+go run -tags placeholder ./cmd/ytmd      # offline fake catalog, no audio (both with the tag)
+YT_SOURCE_DELAY=800ms go run -tags placeholder ./cmd/ytmd      # with loading states
+YT_LOG=debug go run ./cmd/ytmd           # why fetches, sign-ins or streams failed; ytm logs shows where
 prek run --all-files                     # every check; must pass
 ```
 

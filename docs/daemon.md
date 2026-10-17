@@ -40,7 +40,7 @@ All three share `api`, `ipc`, `catalog`, `job`, `notice`, `loop`, `version`, `lo
 
 **On demand.** A front-end dials the socket; on any failure it starts ytmd (`ipc.Dialer.DialOrSpawn`), then dials every 50 ms for up to 5 s (`api.ErrDaemonUnavailable`). ytmd is looked for (`ipc.FindDaemon`) at:
 
-1. `$YTMD_PATH` (`scripts/dev.sh` sets it);
+1. `$YTMD_PATH`;
 2. beside the program, symlinks resolved: `ytmd` (`ytmd.exe`) for Linux and Windows; on macOS `YT Music Player Helper.app/Contents/MacOS/ytmd` (ytm, in `Contents/Resources`), then `../Resources/YT Music Player Helper.app/Contents/MacOS/ytmd` (Desktop, in `Contents/MacOS`);
 3. else `api.ErrDaemonNotFound`, which names `YTMD_PATH`.
 
