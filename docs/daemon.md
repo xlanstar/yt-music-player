@@ -1,171 +1,120 @@
 # The background player
 
-`ytmd` plays; the Desktop (MyGo) and `ytm` (TUI and CLI) browse and control it over a local socket. Closing a front-end never stops the music. Package docs hold the details: `go doc ./internal/<api|ipc|daemon|remote|…>`.
+`ytmd` plays; the Desktop and `ytm` (TUI and CLI) browse and control it over a local socket, so closing a front-end never stops the music. This page is the design; package docs hold the details (`go doc ./internal/api`, `ipc`, `daemon`, `remote`, `autostart`).
 
 ## Programs
 
-| Binary | Links | Never links (`TestDeps`) |
+| Binary | Links | Never links |
 |---|---|---|
-| `ytmd` (`cmd/ytmd`) | `daemon`: `player`, `playback`, `account`, `audio`, `stream`, `auth`, `ytmusic`, `innertube`, MyGo `audio` | MyGo App, `ui`, `i18n`; `locales`, `session`, `loader` |
-| `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea v2, Lip Gloss v2), `locales`, `x/term` | MyGo App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic` |
+| `ytmd` (`cmd/ytmd`) | `daemon`, and what plays and signs in: `player`, `playback`, `account`, `audio`, `stream`, `auth`, `ytmusic`, MyGo's `audio` | MyGo's App, `ui`, `i18n`; `locales`, `session`, `loader` |
+| `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea, Lip Gloss), `locales` | MyGo's App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic` |
 | Desktop (`cmd/desktop`) | MyGo, `remote`, `session`, `loader`, `artwork`, `theme`, `settings` | `audio`, `auth`, `account`, `stream`, `innertube`, `ytmusic` |
 
-All three share `api`, `ipc`, `catalog`, `job`, `notice`, `loop`, `version`, `logfile`. `session` has its own `TestDeps`. The test binaries are exempt: Desktop's tests run a `daemon.Service` in process over `net.Pipe`, on `audio.Fake`.
+Each binary's `TestDeps` (and `session`'s) holds the last column; the test binaries are exempt, as Desktop's tests run a daemon in process. All three share `api`, `ipc`, `catalog`, `job`, `notice`, `version` and `logfile`.
 
 ## Threading
 
-- **ytmd:** one `loop.Loop` goroutine owns the player, playback, account, engine and saved state; it is `playback`'s `post` and `Wake`. Each connection has a reader goroutine, which posts requests to the loop, and a writer goroutine (`ipc.Conn`), which gob-encodes what the loop queued: the loop never waits on a socket and never changes a frame once sent. Catalog requests run on goroutines of their own; their replies come back through the loop.
-- **macOS:** `cmd/ytmd` locks `main` to the main thread, which runs `CFRunLoopRun` (`daemon.RunMain`, purego) so the main dispatch queue serves Now Playing; no NSApplication, no window. The engine is made on the loop only once the run loop runs (`go doc ./internal/audio`).
-- **Front-ends:** `remote.Client`'s reader hands replies to callers and posts each burst of events once to the front-end's thread (`a.post`; in the TUI a message run in `Update`). The Mirror, `session` and `loader` stay on that thread.
+- **ytmd:** one loop goroutine (package `loop`) owns the player, playback, account, engine and saved state. Each connection has a reader goroutine, which posts requests to the loop, and a writer goroutine, which encodes what the loop queued: the loop never waits on a socket. Catalog requests run on goroutines of their own; their replies come back through the loop.
+- **macOS:** ytmd's main thread runs the Core Foundation run loop (no NSApplication, no window), so the main dispatch queue serves Now Playing; the engine is made only once it runs.
+- **Front-ends:** the client's reader hands replies to callers and posts each burst of events once to the front-end's thread (the TUI's `Update`), where the playback mirror, `session` and `loader` live.
 
 ## Paths
 
-`<cfg>` is `os.UserConfigDir()/yt-music-player`, `<cache>` is `os.UserCacheDir()/yt-music-player` (`ipc.Paths`).
+`<cfg>` is `os.UserConfigDir()/yt-music-player`, `<cache>` is `os.UserCacheDir()/yt-music-player`.
 
 | | macOS | Linux | Windows |
 |---|---|---|---|
-| socket | `<cfg>/ytmd.sock` | `$XDG_RUNTIME_DIR/yt-music-player/ytmd.sock` | `%LOCALAPPDATA%\yt-music-player\ytmd.sock` |
+| socket, and `ytmd.lock` beside it | `<cfg>/ytmd.sock` | `$XDG_RUNTIME_DIR/yt-music-player/ytmd.sock` | `%LOCALAPPDATA%\yt-music-player\ytmd.sock` |
 | fallback socket dir | `$TMPDIR/yt-music-player-<uid>/` | `/tmp/yt-music-player-<uid>/` | `%TEMP%\yt-music-player\` |
-| lock | `ytmd.lock` beside the socket | same | same |
 | state | `<cfg>/daemon.json` | same | same |
-| logs | `<cache>/logs/ytmd.log`, `ytmd.1.log`; `ytm.log`, `ytm.1.log` | same | same |
+| logs | `<cache>/logs/ytmd.log`, `ytm.log` | same | same |
 | start at login | `~/Library/LaunchAgents/dev.lanstar.ytmusicplayer.daemon.plist` | `~/.config/systemd/user/ytmd.service` | `HKCU\…\CurrentVersion\Run\YTMusicPlayerDaemon` |
 
-- The fallback holds the socket when Linux has no `$XDG_RUNTIME_DIR`, or when the usual path is longer than `sun_path` (103 bytes on macOS, 107 elsewhere). A socket directory another user owns is refused, in the fallback a symlink too.
-- The socket's directory is 0700 and the socket 0600 (chmod, as macOS makes it 0755); only they keep other users out. Windows relies on `%LOCALAPPDATA%`'s ACL.
-- **Suffixes:** a placeholder build (`-tags placeholder`) adds `-placeholder` to the socket, lock, state and log names, a development build (`version.Version` is `dev`; Desktop's `mygo.IsDev()`) then `-dev`: `ytmd-dev.sock`, `daemon-placeholder-dev.json`, `ytmd-placeholder-dev.log`. Development front-ends never reach an installed daemon or its files.
-- `ytm logs` prints the log paths.
+- The fallback holds the socket when Linux has no `$XDG_RUNTIME_DIR` or the usual path is too long for `sun_path` (103 bytes on macOS, 107 elsewhere).
+- Only the socket's directory (0700, refused when another user owns it) and the socket (0600) keep other users out; Windows relies on `%LOCALAPPDATA%`'s ACL.
+- A placeholder build adds `-placeholder` to the socket, lock, state and log names, a development build (version `dev`) then `-dev` (`daemon-placeholder-dev.json`), so development front-ends never reach an installed daemon or its files. `ytm logs` prints the log paths.
 
 ## Starting and stopping
 
-**On demand.** A front-end dials the socket; on any failure it starts ytmd (`ipc.Dialer.DialOrSpawn`), then dials every 50 ms for up to 5 s (`api.ErrDaemonUnavailable`). ytmd is looked for (`ipc.FindDaemon`) at:
+**On demand.** A front-end that cannot connect starts ytmd, whatever the failure, then dials every 50 ms for up to 5 s. It looks for ytmd at `$YTMD_PATH` (`scripts/dev.sh` sets it), else beside itself, symlinks resolved: `ytmd` (`ytmd.exe`), and on macOS inside `YT Music Player Helper.app` (in `Contents/Resources`). ytmd starts detached (its own session or process group), with the null device for its streams, the front-end's environment (`YT_LOG` too) and its own directory as working directory.
 
-1. `$YTMD_PATH` (`scripts/dev.sh` sets it);
-2. beside the program, symlinks resolved: `ytmd` (`ytmd.exe`) for Linux and Windows; on macOS `YT Music Player Helper.app/Contents/MacOS/ytmd` (ytm, in `Contents/Resources`), then `../Resources/YT Music Player Helper.app/Contents/MacOS/ytmd` (Desktop, in `Contents/MacOS`);
-3. else `api.ErrDaemonNotFound`, which names `YTMD_PATH`.
+**Single instance.** ytmd takes the lock without waiting, or exits 0 when another holds it; loads `daemon.json`; listens, removing a stale socket; resumes after a hand-off; fetches the account, library and likes. The OS releases the lock with the process.
 
-It starts detached (`Setsid` on Unix; `CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS` on Windows, where ytmd is built `-H=windowsgui`), with `/dev/null` for its streams, the front-end's environment (`YT_LOG` too) and ytmd's directory as its working directory.
-
-**Single instance.** ytmd makes its directories, takes the lock (`flock`, `LockFileEx`; never waiting) or exits 0 when another holds it, loads `daemon.json`, then listens, removing a stale socket first, so the first snapshot is whole. Then it resumes after a hand-off, fetches the account, library and likes, and accepts connections. The lock file stays; the OS releases the lock with the process.
-
-**Stopping.** Only `ytm daemon stop`, Desktop's *Quit and Stop Playback* (app menu), a `Shutdown` request, SIGTERM or SIGINT stop ytmd: it pauses, saves, closes the engine and media controls, stops listening (removing the socket), flushes its connections for up to 1 s and releases the lock. It never exits for being idle. Windows has no SIGTERM, and a `windowsgui` process is killed at logout: the queue and settings were saved within 2 s, the position at the last pause, seek or new song.
+**Stopping.** Only `ytm daemon stop`, Desktop's *Quit and Stop Playback* (app menu), a `Shutdown` request, SIGTERM or SIGINT stop ytmd, never idleness: it pauses, saves, closes the engine and media controls, removes the socket and flushes its connections for up to 1 s. Windows has no SIGTERM and kills a windowless process at logout: the queue and settings were saved within 2 s, the position at the last pause, seek or new song.
 
 ## Versions and hand-off
 
-Each side's first frame is a `Hello{Proto, Version, Role, Subscribe, PID}`; ytmd answers with its own (`RoleDaemon`). Versions are semver (`version.Version`, set by `-ldflags -X` from `mygo.json`; Desktop's `App.Version()`); `dev` is never compared. Peers of another `Proto` may only `Ping`, `Handoff` and `Shutdown` (others get `Internal`) and get no events but `HandoffEvent`.
+Each side's first frame is a Hello with its protocol number (`api.Proto`), version and PID. Versions are semver from `mygo.json` (`-ldflags -X`); `dev` is never compared. Peers of another protocol may only ping, hand off and shut down, and get no events but the hand-off's.
 
-The Desktop and the TUI run a `remote.Supervisor`:
+The Desktop and the TUI:
 
-- **Daemon older:** hand off to the front-end's own ytmd, once per daemon version per front-end; still older (an old `YTMD_PATH`, two installs), the health is `DaemonOutdated`: calls go on if the Proto matches, else stop.
-- **Daemon newer:** nothing, if the Proto matches; else `FrontendOutdated`, and calls stop.
-- **Hand-off:** the front-end calls `Handoff{Wait: 5s}`. ytmd tells its other connections `HandoffEvent{By: <pid>, Wait}`, so they only redial, never start a daemon, for `Wait`; replies; saves with `resumePlaying` (it was playing) and `resumeBefore` (now + `Wait` + 30 s); and stops, answering nothing more. The front-end waits for it to go, starts its own ytmd, and dials it for `Wait`. That ytmd plays on if `resumePlaying` is set and not expired, and clears it; any other start is paused. `ytm daemon restart` hands off the same way.
-- Updates need nothing more: the updater renames or replaces files, and a running ytmd keeps its own; the relaunched Desktop hands off.
+- **Daemon older:** hand off to the front-end's own ytmd, once per daemon version. Still older (an old `YTMD_PATH`, two installs): the health is *DaemonOutdated*; calls go on if the protocol matches, else stop.
+- **Daemon newer:** nothing if the protocol matches; else *FrontendOutdated*, and calls stop.
+- **Hand-off:** the front-end asks for one with a 5 s wait. ytmd tells its other connections, which then only redial, never start a daemon, for that wait; replies; saves, noting whether it was playing, until now + wait + 30 s; and exits. The front-end waits for it to go, starts its own ytmd and dials it. That ytmd plays on if it was playing and the note has not expired; any other start is paused. `ytm daemon restart` hands off the same way.
+- **Updates** need nothing more: a running ytmd keeps its files, and the relaunched Desktop hands off.
 
-The CLI connects once (`remote.Connect`), never subscribes and never hands off: an older daemon gets a warning on stderr. Controls, `seek`, `volume`, `login`, `logout`, `daemon start` and `daemon restart` start ytmd; `status`, `daemon status`, `daemon stop`, `version`, `logs` and `autostart` never do. Exit codes: 0, 1 failed, 2 usage, 3 not running (`status`, `daemon status`). `ytm status --json`'s fields are held by `cmd/ytm/testdata/status.json`.
+The CLI connects once, never subscribes to events and never hands off: an older daemon gets a warning on stderr. Controls, `login`, `logout`, `daemon start` and `daemon restart` start ytmd; `status`, `daemon status`, `daemon stop`, `version`, `logs` and `autostart` never do. Exit codes: 0, 1 failed, 2 usage, 3 not running (`status`, `daemon status`). `cmd/ytm/testdata/status.json` holds `ytm status --json`'s fields.
 
 ## Health
 
-`remote.Link.Health`, shown as Desktop's banner and the TUI's status line (words from `locales`, never a notice): `Connecting`, `Connected`, `Reconnecting`, `Unresponsive`, `Unavailable`, `DaemonOutdated`, `FrontendOutdated`. Nothing runs on a timer while connected; the daemon is checked only:
+Shown as Desktop's banner and the TUI's status line (words from `locales`, never a notice): *Connecting*, *Connected*, *Reconnecting*, *Unresponsive*, *Unavailable*, *DaemonOutdated*, *FrontendOutdated*. Nothing runs on a timer while connected; the daemon is checked only:
 
 - on connecting (Hello, versions);
-- when the connection ends: calls waiting fail with `api.ErrDisconnected`, and the Supervisor redials, starting ytmd, after 0.25 s doubling up to 30 s, for as long as the front-end runs; 3 failures in a row show `Unavailable` (Retry, View Log). Retry or coming to the foreground redials now from 0.25 s;
-- with a `Ping` when the front-end comes to the foreground or a control gets no reply within 2 s (the control is told as `ControlFailed`): no reply in 2 s is `Unresponsive` (Restart: `Shutdown`, then kill the Hello's PID after 3 s); any frame makes it `Connected` again.
+- when the connection ends: waiting calls fail, and the front-end redials, starting ytmd, after 0.25 s doubling up to 30 s, for as long as it runs; 3 failures in a row are *Unavailable* (Retry, View Log). Retry or coming to the foreground redials at once;
+- with a ping when the front-end comes to the foreground or a control gets no reply within 2 s: no reply in 2 s is *Unresponsive* (Restart: ask to shut down, kill after 3 s, start another); any frame makes it *Connected* again.
 
-The first events after reconnecting are a full snapshot, which replaces the front-end's Mirror.
+After reconnecting, the first events are a full snapshot, which replaces the front-end's mirror.
 
 ## Protocol
 
-AF_UNIX stream sockets on every OS (Windows 10 1803+), one long-lived gob encoder and decoder per direction, no length prefix; the writer flushes once per batch. The receiver zeroes its `Frame` before each decode, as gob omits zero values.
+AF_UNIX stream sockets on every OS (Windows 10 1803+), one gob stream per direction. `go doc ./internal/api` has the frames, methods, events and the rules for changing them (only append enum values; never change a field's type; the bootstrap messages, which let any front-end hand off to or stop any daemon, never change).
 
-```go
-const Proto uint16 = 1
-type Frame struct { ID uint32; Hello *Hello; Call *Call; Reply *Reply; Cancel bool; Event *Event }
-```
-
-- **Requests:** a `Call{Method, <one args pointer>}` with `ID` from 1; its `Reply{Err | one result}` carries the same `ID`. `Frame{ID, Cancel: true}` cancels a catalog request or the `SignIn` in flight, as a front-end's context ends; a closed connection cancels all of its requests. The front-end returns `ctx.Err()` without waiting for a reply.
-- **Methods** (`api.Method`, numbered from 1, only appended):
-  - bootstrap: `Ping`, `Handoff(Wait)`, `Shutdown`; `Status` (`ytm status`'s snapshot);
-  - playback: `Play(IDs, Start)` (as Desktop's rows: resume or pause the current song, jump to a queued one, else queue it next), `PlayAll(IDs, Start)` (the IDs become the queue), `Toggle`, `Pause`, `Resume`, `Next`, `Prev`, `Seek(Seconds)`, `SetVolume(0–1)`, `ToggleMute`, `CycleRepeat`, `ToggleShuffle`;
-  - queue: `Enqueue(IDs, Next)`, `Remove(Index)`, `Move(From, To)`, `ClearUpNext`. `IDsArgs.Songs` carry the songs' data: ytmd keeps no catalog but its queue's songs. The queue holds each ID once (package `player`): `Enqueue` skips IDs queued, or with `Next` moves them after the current song; `PlayAll` keeps an ID's first place, `Start` naming the same song;
-  - catalog (`catalog.Source`): `Search`, `Album`, `Playlist`, `Home`, `Explore`, `Account`, `Library`; ytmd caches no pages;
-  - account (`catalog.Accounts`): `Like(ID, Liked, Song)`, where the optional `Song` lets ytmd add a song it never sent to the likes' data; `SignIn(Credentials)` (never logged; a newer sign-in replaces one in flight); `SignOut`; `Refresh(Part)` fetches the profile, library or likes anew.
-- **Events** go to connections whose Hello subscribed (Desktop, TUI); several fields may be set:
-  - first a snapshot: the `State`, the `Queue` and all its `Songs`, then the account, library and likes as far as fetched, then one `Failed` per part whose last fetch failed;
-  - `State{Playing, Waiting, Position, Duration, Volume, Muted, Repeat, Shuffled, Current, Index}`, whole, on play, pause, a new song, a stall's start or end, volume, mute, repeat, shuffle, or a jump of the position by more than 1 s from where the last State put it (a seek); never on a timer. Receivers move `Position` on with their own monotonic clock while playing and not waiting; no `time.Time` crosses the socket;
-  - `Queue{IDs}` in play order (shuffled when shuffling), whole, with the `Songs` new to it;
-  - `Likes{Full, IDs, Songs, Added, Removed}`: `Full` with every liked song's data at first, then deltas, whose `Songs` are the added songs' data; never coalesced;
-  - `Account{Account, SignedIn, Switched}`: `Switched` is a sign-in, after which what was fetched is stale, and ytmd empties the queue (the previous account's); `Library`; `Failed{Part, Err}` (Retry sends `Refresh`); `Notice`; `Handoff`.
-- **Order:** a request's reply precedes the events it causes (a `Like`'s `SignedOut` before the sign-out's `Account`), but for `SignIn` and `SignOut`, whose `Account` event comes first, as package `account` orders them.
-- **Backpressure:** each connection queues up to 64 frames for its writer; a newer `State` replaces one still queued, going last; anything else is kept. A full queue closes the connection, and the front-end reconnects to a snapshot.
-- **Errors:** `api.Encode` sends a code, `remote.Decode` makes it an error whose `errors.Is` finds the sentinel and whose text is the sentinel's, then `Detail`:
-
-  | Code | Sentinel | Detail |
-  |---|---|---|
-  | `NotFound` | `catalog.ErrNotFound` | none |
-  | `SignedOut` | `catalog.ErrSignedOut` | none |
-  | `InvalidCredentials` | `catalog.ErrInvalidCredentials` | the reason, which the sign-in form shows |
-  | `Internal` | `api.ErrInternal`: anything else, or a code unknown to the receiver | none; ytmd logs the error at debug |
-
-  Only front-ends make `ErrDaemonNotFound`, `ErrDaemonUnavailable`, `ErrDisconnected` and `ErrProtoMismatch`. A new `errors.Is` on a daemon error in a front-end needs a code (`TestErrorCodes`); `Detail` never holds cookies, headers, visitorData or stream URLs.
-- **Notices** are `notice.Notice{Kind, Title, Detail Code, Args, N, Topic}`, coded, never worded: front-ends say them through `tell` (`noticetext`), so ytmd links no `locales`. Their `Kind`s and `Code`s travel as numbers: only append them (before `NumCodes`).
-
-### Rules for the wire
-
-- Every wire enum (`Method`, `Role`, `Part`, `Repeat`, `ErrorCode`) starts at 1: a 0 is a missing field, rejected (`Validate`).
-- No `interface{}`, func or chan fields, no `gob.Register`; `catalog`'s plain structs travel as they are (`TestWireTypes`).
-- Adding a field needs no new Proto: gob skips what the receiver lacks. Changing a field's meaning needs one. **Never change a field's type**, which makes gob refuse every frame, the bootstrap ones too: give the new type a new name.
-- **Frozen bootstrap:** `Frame.ID`, `Hello`, `Reply.Err`, `Error`, `HandoffArgs`, `HandoffEvent`, and the numbers of `Ping` (1), `Handoff` (2) and `Shutdown` (3) never change in any Proto (`TestBootstrapFrozen` reads a Proto 1 stream), so a front-end can always hand off to, or stop, any daemon.
+- **Requests** carry an ID; the reply carries it back. A front-end whose context ends sends a cancel (catalog requests, sign-in) and returns at once; a closed connection cancels all its requests.
+- **Data:** ytmd keeps no catalog and caches no pages, only its queue's and the likes' songs, which front-ends send with the IDs they play, queue or like. The queue holds each song once (package `player`).
+- **Events** go to the Desktop and TUI: first a snapshot (state, queue and its songs, account, library and likes as fetched, a failure per part whose last fetch failed), then changes. The playback state goes out whole on each change (play, pause, song, stall, volume, mute, repeat, shuffle, or a jump of the position by over 1 s), never on a timer: receivers move the position on with their own clock. A sign-in that switches accounts empties the queue.
+- **Order:** a reply precedes the events its request causes, but for sign-in and sign-out, whose account event comes first.
+- **Backpressure:** each connection queues up to 64 frames; a newer playback state replaces a queued one. A full queue closes the connection, and the front-end reconnects to a snapshot.
+- **Errors** travel as codes: not found, signed out, invalid credentials (with the reason, which the sign-in form shows) and internal (anything else, logged by ytmd at debug). A front-end that needs `errors.Is` on a new daemon error adds a code (`TestErrorCodes`). Nothing on the wire holds cookies, headers, visitorData or stream URLs.
+- **Notices** travel as codes and arguments; front-ends word them (`noticetext`), so ytmd links no `locales`.
 
 ## Saved state
 
-`<cfg>/daemon.json`, encoding/json/v2 defaults, written to a temporary file renamed over it:
+`<cfg>/daemon.json`: the queue and its songs, play order, index, position, volume, mute, repeat, shuffle, and a hand-off's resume note (package `daemon`). Written to a temporary file renamed over it.
 
-```json
-{"v":1,"queue":["id",…],"index":3,"order":[…],"position":81.5,"volume":0.7,"muted":false,"repeat":0,"shuffled":false,
- "songs":[{"id":"…","title":"…","artist":"…","album":"…","albumId":"…","seconds":213,"art":"…"}],
- "resumePlaying":true,"resumeBefore":"…"}
-```
-
-- `order` is the play order (shuffled) as indexes into `queue`; `index` is in play order; `repeat` is 0 off, 1 all, 2 one; `songs` are the queue's songs, zero fields left out, as ytmd has no catalog to describe them otherwise. The `resume…` fields come only from a hand-off.
-- The queue and settings save 2 s after a change (a burst saves once); the position only on a pause, seek, new song, stop or hand-off, never on a timer while playing.
-- A file that fails to read, or of another `v`, is renamed `daemon.json.bad`, and ytmd starts empty; with none, it starts from the build's seed (the placeholder's queue), paused.
+- The queue and settings save 2 s after a change (a burst saves once); the position only on a pause, seek, new song, stop or hand-off.
+- A file that fails to read, or of another version, becomes `daemon.json.bad`, and ytmd starts empty; with none, from the build's seed (the placeholder's queue), paused.
 
 ## Logs
 
-ytmd and ytm log through `logfile.Writer` to `<cache>/logs/` (ytm owns the terminal): 1 MiB a file, then it becomes `<name>.1.log`, replacing the one before. `YT_LOG` sets the level (default `warn`); a front-end passes its own to the ytmd it starts, while one started at login logs at `warn`: `YT_LOG=debug ytm daemon restart` changes it. `AGENTS.md`'s logging rules hold.
+ytmd and ytm log to `<cache>/logs/` (ytm's TUI owns the terminal): 1 MiB a file, then it becomes `<name>.1.log`, replacing the one before. `YT_LOG` sets the level (default `warn`); a front-end passes its own to the ytmd it starts, while one started at login logs at `warn`: `YT_LOG=debug ytm daemon restart` changes it.
 
 ## Start at login
 
-Off by default; Desktop's settings (*Start background player at login*) or `ytm autostart on|off|status` (package `autostart`). Switching decides only the next login, never starts or stops ytmd now. Desktop and ytm repair the entry's path at start, as the app may move.
+Off by default; Desktop's settings (*Start background player at login*) or `ytm autostart on|off|status`. Switching decides only the next login, never starts or stops ytmd now. Desktop and ytm repair the entry's path at start, as the app may move.
 
-- **macOS:** the LaunchAgent above (`RunAtLoad`, `LimitLoadToSessionType=Aqua`, `ProcessType=Interactive`, no `KeepAlive`, which would restart a stopped ytmd), `launchctl enable|disable gui/<uid>/<label>`, never `bootstrap` or `bootout`. Its `ProgramArguments` are `/bin/sh`, `-c`, `[ -x "$0" ] && exec "$0"; rm -f '<plist>'; launchctl disable gui/$(id -u)/<label>` and `<ytmd>`: ytmd as before while it exists, else the agent removes its plist and disables its label, so deleting the app (brew, the Trash, anything) turns starting at login off at the next login. ytmd is `$0`, never parsed as shell; the plist is its absolute path, single-quoted. `AssociatedBundleIdentifiers` (the app's) has Login Items show *YT Music Player*, not `sh` (macOS 13+). Repair rewrites a plist of the older format, which ran ytmd directly.
-- **Linux:** the user unit (`ConditionPathExists=<ytmd>`, `Restart=no`, `WantedBy=default.target`), `systemctl --user enable|disable` without `--now`. With ytmd gone, systemd skips the unit (no failure); the file stays.
-- **Windows:** the Run value, `"<ytmd.exe>"`, which cannot clean itself up: turn it off before uninstalling. Desktop's *Use ytm in a terminal* (Windows only, off by default) adds the app's folder to `HKCU\Environment`'s `Path`, keeping its type, and broadcasts `WM_SETTINGCHANGE`.
+- **macOS:** a LaunchAgent without `KeepAlive` (which would restart a stopped ytmd), switched with `launchctl enable|disable`. It runs ytmd through `/bin/sh`, which, once ytmd is gone, removes the plist and disables the label: deleting the app turns starting at login off at the next login. Login Items shows *YT Music Player* (macOS 13+).
+- **Linux:** a systemd user unit (`Restart=no`), `systemctl --user enable|disable` without `--now`; with ytmd gone, systemd skips it.
+- **Windows:** a Run value, which cannot clean itself up: turn it off before uninstalling. Desktop's *Use ytm in a terminal* (Windows only, off by default) adds the app's folder to the user's `Path`.
 
-Accepted trade-off: an app on a disk not mounted at login (an external drive) reads as deleted, and macOS turns starting at login off; turn it on again.
+An app on a disk not mounted at login reads as deleted, and macOS turns starting at login off: turn it on again.
 
 ## Packaging
 
-`scripts/build-helpers.sh <platform>…` builds ytmd and ytm into `resources/<platform>/` before `mygo build`, which ships, signs and (universal) merges them (`docs/release.md`):
-
-- **macOS:** `Contents/Resources/YT Music Player Helper.app` (`ytmd`, `dev.lanstar.ytmusicplayer.daemon`, `LSUIElement`, the app's icon; Now Playing shows the folder's name, which is not the app's so that nothing finds two *YT Music Player*s) and `Contents/Resources/ytm`, which the cask links into Homebrew's `bin`; `brew uninstall` runs `ytm daemon stop` first and leaves the LaunchAgent, so that upgrades keep it: without the app, it removes itself at the next login (`--zap` removes it at once).
-- **Linux:** `ytmd`, `ytm` and the `ytmd.service` template beside the app; `linux.command` puts `ytm` on the `PATH` as a link to the app, which runs the `ytm` beside it under that name.
-- **Windows:** `ytmd.exe` (no console) and `ytm.exe` beside the app. The installer cannot stop ytmd or remove the Run value and `Path` entry: before uninstalling, choose *Quit and Stop Playback* and turn both switches off.
+`scripts/build-helpers.sh` builds ytmd and ytm for `mygo build` to ship beside the app; where each lands, and what the installers do with them: [docs/release.md](release.md#the-helpers).
 
 ## Known limitations
 
 - Windows has no media keys (SMTC).
-- The TUI is not free of wake-ups: Bubble Tea v2.1's renderer runs a 30 fps frame timer while it is open (it writes nothing when frames match). On Windows its input loop also polls every 10 ms while idle ([ultraviolet #216](https://github.com/charmbracelet/ultraviolet/issues/216)). ytmd and Desktop wake nothing while paused (`scripts/footprint.sh -daemon`).
-- On macOS, the sign-in must be made again once after upgrading: the Keychain item is the Desktop's, which ytmd, signed as another program, cannot read. Linux and Windows keep credentials in a file under `<cfg>`.
-- A sign-in that switches accounts clears the queue.
+- The TUI wakes while open: Bubble Tea v2.1's renderer runs a 30 fps frame timer (writing nothing when frames match), and on Windows its input loop polls every 10 ms ([ultraviolet #216](https://github.com/charmbracelet/ultraviolet/issues/216)). A paused ytmd and the Desktop wake nothing (`scripts/footprint.sh -daemon`).
+- On macOS, sign in once more after upgrading from 0.1: ytmd, signed as another program, cannot read the Desktop's Keychain item. Linux and Windows keep credentials in a file under `<cfg>`.
 - No images in the TUI; no remote or network control.
-- The TUI takes the mouse (click to select, again to play; click or drag the progress to seek; the wheel scrolls), so the terminal selects text only with a modifier held while dragging: Shift in most, Option in iTerm2, Fn in Terminal.app.
+- The TUI takes the mouse, so terminals select text only with a modifier held while dragging: Shift in most, Option in iTerm2, Fn in Terminal.app.
 
 Still to check on real installs:
 
 - headphone and Bluetooth media buttons (keyboard media keys work);
-- Linux playback on real PulseAudio or PipeWire; the whole Windows path, `-H=windowsgui` and windowless WASAPI included;
-- AF_UNIX on Windows 10 and 11, with a user name in Chinese in the path;
-- updating Windows while `ytmd.exe` plays and `ytm.exe` runs, and running the NSIS installer again then;
+- Linux playback on real PulseAudio or PipeWire; the whole Windows path, windowless ytmd and WASAPI included;
+- AF_UNIX on Windows 10 and 11, with a Chinese user name in the path;
+- updating Windows while `ytmd.exe` plays and `ytm.exe` runs, and running the installer again then;
 - `YT Music Player Helper.app` absent from Spotlight and Launchpad, its name and icon in Now Playing; App Nap of a paused ytmd started by launchd;
 - focus, Ctrl+C, arrow keys, leaving the alt screen and the cursor in Windows Terminal and conhost.
