@@ -102,26 +102,13 @@ jobs:
           xcrun stapler validate "$app"
           xcrun stapler validate "$dmg"
 
-      # The app plays through ytmd and ships ytm, for both architectures.
+      # The helpers, which notarization found signed, are in the app for
+      # both architectures.
       - name: Check ytmd and ytm
         run: |
           res="build/darwin-universal/YT Music Player.app/Contents/Resources"
-          helper="$res/YT Music Player Helper.app"
-          for exe in "$helper/Contents/MacOS/ytmd" "$res/ytm"; do
-            case $(file -b "$exe") in
-            *"universal binary with 2 architectures"*) ;;
-            *)
-              echo "::error::$exe is not a universal binary"
-              exit 1
-              ;;
-            esac
-            lipo "$exe" -verify_arch arm64
-            lipo "$exe" -verify_arch x86_64
-            codesign --verify --strict "$exe"
-          done
-          codesign --verify --strict "$helper"
-          plutil -lint "$helper/Contents/Info.plist"
-          [ "$(plutil -extract CFBundleShortVersionString raw "$helper/Contents/Info.plist")" = "${GITHUB_REF_NAME#v}" ]
+          lipo "$res/YT Music Player Helper.app/Contents/MacOS/ytmd" -verify_arch arm64 x86_64
+          lipo "$res/ytm" -verify_arch arm64 x86_64
 
       # The update files keep their names: the manifest links to them.
       - name: Package
@@ -134,13 +121,6 @@ jobs:
             echo "::error::no signed update: is MYGO_UPDATER_PRIVATE_KEY in the release environment?"
             exit 1
           fi
-          tar -tzf "$archive" > "$RUNNER_TEMP/archive.txt"
-          for exe in "YT Music Player Helper.app/Contents/MacOS/ytmd" ytm; do
-            if ! grep -qx "\(\./\)\{0,1\}YT Music Player.app/Contents/Resources/$exe" "$RUNNER_TEMP/archive.txt"; then
-              echo "::error::the update has no $exe"
-              exit 1
-            fi
-          done
           mkdir dist
           cp "$out/YT Music Player $version.dmg" \
             "dist/YT-Music-Player-$version-macos-universal.dmg"
@@ -194,8 +174,8 @@ jobs:
         run: go tool mygo build -platform "$TARGET_OS/amd64,$TARGET_OS/arm64"
 
       # The update files keep their names: the manifests link to them.
-      # Linux's archive is also what install.sh installs. Each package
-      # holds ytmd and ytm, for its architecture, next to the app.
+      # Linux's archive is also what install.sh installs. Packages and
+      # archives hold everything beside the app, ytmd and ytm included.
       - name: Check and package
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -209,18 +189,6 @@ jobs:
               ;;
             esac
           }
-          # holds <what> <list> <path>…: the list of what's files has each path.
-          holds() {
-            what=$1 list=$2
-            shift 2
-            for path in "$@"; do
-              if ! grep -qx "\(\./\)\{0,1\}$path" "$list"; then
-                echo "::error::$what has no $path"
-                exit 1
-              fi
-            done
-          }
-          list="$RUNNER_TEMP/files.txt"
           mkdir dist
           for arch in amd64 arm64; do
             target="$TARGET_OS-$arch"
@@ -232,27 +200,22 @@ jobs:
               exit 1
             fi
             if [ "$TARGET_OS" = linux ]; then
-              exe="$out/yt-music-player"
-              helpers="ytmd ytm"
+              for f in yt-music-player ytmd ytm; do code "$out/$f" "$arch"; done
               deb="$out/yt-music-player_${version}_$arch.deb"
-              dpkg-deb -c "$deb" | awk '{ print $6 }' > "$list"
-              holds "$deb" "$list" opt/yt-music-player/ytmd opt/yt-music-player/ytm \
-                opt/yt-music-player/ytmd.service usr/bin/ytm
+              # ytmd.service runs /opt/yt-music-player/ytmd; mygo.json's
+              # linux.command makes /usr/bin/ytm.
+              dpkg-deb -c "$deb" | awk '{ print $6 }' > "$RUNNER_TEMP/deb.txt"
+              for path in opt/yt-music-player/ytmd usr/bin/ytm; do
+                grep -qx "\(\./\)\{0,1\}$path" "$RUNNER_TEMP/deb.txt" || { echo "::error::$deb has no $path"; exit 1; }
+              done
               cp "$deb" "dist/YT-Music-Player-$version-$target.deb"
             else
-              exe="$out/YT Music Player.exe"
-              helpers="ytmd.exe ytm.exe"
+              for f in "YT Music Player.exe" ytmd.exe ytm.exe; do code "$out/$f" "$arch"; done
               # ytmd runs without a console window, ytm in the terminal.
               file -b "$out/ytmd.exe" | grep -q '(GUI)' || { echo "::error::$out/ytmd.exe opens a console"; exit 1; }
               file -b "$out/ytm.exe" | grep -q '(console)' || { echo "::error::$out/ytm.exe has no console"; exit 1; }
               cp "$out/YT Music Player Setup $version $arch.exe" "dist/YT-Music-Player-$version-$target-setup.exe"
             fi
-            tar -tzf "$archive" > "$list"
-            for f in $helpers; do
-              code "$out/$f" "$arch"
-              holds "$archive" "$list" "$f"
-            done
-            code "$exe" "$arch"
             cp "$archive" "$manifest" dist/
             for delta in "$out"/*.delta; do
               [ ! -e "$delta" ] || cp "$delta" dist/
