@@ -1,33 +1,15 @@
-// Package tui is YT Music Player in the terminal, `ytm` without arguments
-// (docs/daemon.md): a Bubble Tea program over ytmd, through
-// a remote.Client that a Supervisor keeps connected. Three tabs (the
-// queue, search, the library with its albums, playlists and liked songs)
-// sit over the player bar, under which a line tells the daemon's health
-// when it is not connected; there are no images.
+// Package tui is YT Music Player in the terminal, `ytm` without arguments:
+// a Bubble Tea program over ytmd (docs/daemon.md), through a
+// remote.Client that a Supervisor keeps connected. Three tabs (the queue,
+// search, the library) sit over the player bar; there are no images.
 //
-// The mouse (cell motion, so no message per move): a click selects a row,
-// a second click or a double click plays or opens it; the progress seeks
-// where it is let go; the wheel moves the cursor. Render notes what it
-// draws that a click acts on; a click looks it up (mouse.go).
+// Update is the UI thread: the session, the loader, the catalog and the
+// Mirror are touched there only. Other goroutines post funcs, which queue
+// until one message runs them all, as tea.Program.Send blocks and post
+// must not.
 //
-// Threading: Bubble Tea's Update goroutine is the UI thread. The session,
-// the loader, the catalog and the Mirror are touched there only. Their
-// goroutines, and remote's, post funcs, which queue (post must not block,
-// and tea.Program.Send does) until one message runs them all in Update.
-//
-// Redraws: the screen is rendered in Update, once per message that
-// changed something, and View returns it. While a song plays in a
-// focused terminal (one that never reports focus counts as focused), a
-// tick a second moves the progress on; paused or blurred, nothing wakes.
-// Bubble Tea's renderer still wakes at its frame rate to compare frames,
-// writing nothing when they match: the TUI asks for few frames (fps).
-//
-// The session's fetches are not started here: ytmd sends the account,
-// library and likes it has as soon as the TUI connects, and fetches them
-// itself; a fetch that failed shows Retry.
-//
-// Every word comes from locales; every notice, the session's and remote's,
-// goes through tell to the status line, said by noticetext.
+// Update renders once per message that changed something; View returns
+// it. Only a song playing in a focused terminal ticks, once a second.
 package tui
 
 import (

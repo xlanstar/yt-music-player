@@ -84,10 +84,9 @@ func (e *env) daemonStop(ctx context.Context) int {
 	return exitOK
 }
 
-// daemonRestart hands the daemon off (docs/daemon.md, Versions and hand-off): it
-// saves and exits, telling the other front-ends to wait, and this ytm
-// starts its own ytmd, which plays on if the old one played. A daemon of
-// any protocol hands off. With none running, it starts one.
+// daemonRestart hands the daemon off (docs/daemon.md) to this ytm's own
+// ytmd, which plays on if the old one played. A daemon of any protocol
+// hands off; with none running, it starts one.
 func (e *env) daemonRestart(ctx context.Context) int {
 	what := locales.CliRestartFailed()
 	c, peer, err := e.connect(ctx, false)

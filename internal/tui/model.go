@@ -86,10 +86,7 @@ type opened struct {
 	id   string
 }
 
-// model is the TUI's state. Bubble Tea calls Update and View on one
-// goroutine, the UI thread: the session, the loader, the catalog and the
-// Mirror are touched there only. Update renders the screen once per
-// message that changed anything; View returns it.
+// model is the TUI's state, on the UI thread.
 type model struct {
 	deps
 

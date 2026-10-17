@@ -1,21 +1,13 @@
 // Command ytm is YT Music Player in the terminal: without arguments the
-// player (runTUI), otherwise one command to the background player, ytmd
-// (docs/daemon.md).
+// player (package tui), otherwise one command to ytmd (docs/daemon.md).
 //
-// A command connects once (remote.Connect) and compares versions only
-// then: an older daemon gets a warning, never a restart, so that a
-// script's `ytm next` never interrupts the music. Controls, seek, volume,
-// login, logout, `daemon start` and `daemon restart` start ytmd when none
-// answers; status, `daemon status`, `daemon stop`, version, logs and
-// autostart never do.
+// A command connects once and never restarts an older daemon, so that a
+// script's `ytm next` never interrupts the music. People read words from
+// locales; scripts read status --json, versions and paths, untranslated.
+// ytm logs to its own file, never to the terminal, which the TUI owns.
 //
-// Words people read come from locales, in the language language.go picks;
-// what scripts read (status --json, versions, paths) stays untranslated.
-// ytm logs to its own file (ytm.log), never to the terminal, which the TUI
-// owns; YT_LOG sets the level.
-//
-// run takes everything outside the process through an env, so tests run
-// commands against a fake daemon over net.Pipe.
+// run reaches outside the process only through an env, so tests run
+// commands against a fake daemon.
 package main
 
 import (

@@ -48,10 +48,9 @@ func (e *env) connect(ctx context.Context, spawn bool) (*remote.Client, remote.P
 	return c, peer, err
 }
 
-// open connects for a command that works the daemon, not just greets
-// it, starting ytmd if need be: it warns of an older daemon and refuses
-// one of another protocol, telling the user why under what. ok is false
-// after a failure told.
+// open connects, starting ytmd if need be, for a command that works the
+// daemon: it refuses one of another protocol (checkPeer). ok is false once
+// a failure under what was told.
 func (e *env) open(ctx context.Context, what string) (c *remote.Client, ok bool) {
 	c, peer, err := e.connect(ctx, true)
 	if err != nil {

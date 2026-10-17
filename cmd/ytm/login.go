@@ -36,11 +36,10 @@ var devtoolsKeys = func() string {
 	return "Ctrl+Shift+I"
 }()
 
-// login is `ytm login`: it reads a Cookie header from stdin, hidden on a
-// terminal, and has the daemon sign in with it. The daemon cleans and
-// checks it, as for Desktop's sign-in. There is no flag nor variable for
-// it, which shell history, ps or the environment would keep; and the
-// credentials go into no error and no log.
+// login is `ytm login`: the daemon signs in with a Cookie header read
+// from stdin, hidden on a terminal. No flag or variable takes it, which
+// shell history, ps or the environment would keep; no error or log holds
+// it.
 func (e *env) login(ctx context.Context) int {
 	what := locales.NoticeSignInFailed()
 	credentials, err := e.readCredentials()
