@@ -39,7 +39,7 @@ type startupState struct {
 type startupSystem struct {
 	enable      func(ytmd string) error
 	disable     func() error
-	status      func() (enabled bool, ytmd string, err error)
+	status      func() (enabled bool, err error)
 	repair      func(ytmd string) error
 	enablePath  func(dir string) error
 	disablePath func(dir string) error
@@ -100,7 +100,7 @@ func (a *app) startStartup(sys startupSystem, dev bool) {
 		path    string
 	}
 	job.Run(&st.login, a.post, func(context.Context) (found, error) {
-		enabled, _, err := sys.status()
+		enabled, err := sys.status()
 		if err != nil || dev {
 			return found{atLogin: enabled}, err
 		}

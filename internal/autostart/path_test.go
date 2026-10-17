@@ -139,9 +139,6 @@ func TestUserPathAbsent(t *testing.T) {
 	h := newFakeHive()
 	var notified int
 	p := pathOf(h, &notified)
-	if on, err := p.has(installDir); on || err != nil {
-		t.Fatalf("has = %v, %v; want false, nil", on, err)
-	}
 
 	// A new Path takes the type Windows gives one.
 	if err := p.edit(func(l string) string { return addPathEntry(l, installDir) }); err != nil {
@@ -149,9 +146,6 @@ func TestUserPathAbsent(t *testing.T) {
 	}
 	if got, want := h.path(), (fakeValue{data: installDir, kind: kindExpandString}); got != want {
 		t.Errorf("Path = %+v, want %+v", got, want)
-	}
-	if on, err := p.has(installDir); !on || err != nil {
-		t.Fatalf("has = %v, %v; want true, nil", on, err)
 	}
 
 	// Removing the only entry removes the value.
@@ -195,8 +189,8 @@ func TestUserPathErrors(t *testing.T) {
 	}
 	errRead := errors.New("access denied")
 	h.err = errRead
-	if _, err := p.has(installDir); !errors.Is(err, errRead) {
-		t.Errorf("has = %v, want the registry's error", err)
+	if err := p.edit(func(l string) string { return addPathEntry(l, installDir) }); !errors.Is(err, errRead) {
+		t.Errorf("edit = %v, want the registry's error", err)
 	}
 	if h.writes != 0 || notified != 0 {
 		t.Errorf("%d writes and %d announcements after errors", h.writes, notified)

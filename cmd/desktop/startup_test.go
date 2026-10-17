@@ -57,10 +57,10 @@ func (f *fakeStartup) system() startupSystem {
 	return startupSystem{
 		enable:  func(ytmd string) error { f.note("enable " + ytmd); return f.failure() },
 		disable: func() error { f.note("disable"); return f.failure() },
-		status: func() (bool, string, error) {
+		status: func() (bool, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
-			return f.enabled, "", nil
+			return f.enabled, nil
 		},
 		repair:      func(ytmd string) error { f.note("repair " + ytmd); return nil },
 		enablePath:  func(dir string) error { f.note("enablePath " + dir); return f.failure() },

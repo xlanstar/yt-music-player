@@ -1,19 +1,15 @@
 // Package autostart starts the daemon at login, or stops doing so: a
 // LaunchAgent on macOS, a systemd user unit on Linux, a value of HKCU's Run
-// key on Windows. Switching decides only the next login: it never starts or
-// stops a daemon now (no launchctl bootstrap or bootout, no systemctl
-// --now), so turning it off does not stop the music. The app may move or be
-// updated to another path, so frontends call Repair at start. Deleting the
-// app turns the LaunchAgent off by itself at the next login, and has
-// systemd skip the unit; the Run value stays.
+// key on Windows. Switching decides only the next login, never starts or
+// stops a daemon now, so turning it off does not stop the music. The app
+// may move, so front-ends call Repair at start; deleting it turns the
+// LaunchAgent off and has systemd skip the unit (the Run value stays).
 //
 // On Windows it also puts the install directory on the user's Path
-// (EnablePath), so terminals find ytm: the installer MyGo makes cannot.
+// (EnablePath), so terminals find ytm: MyGo's installer cannot.
 //
-// Every call runs a command or touches the registry and may take a while:
-// call it off the UI thread. The logic over files, commands and the registry
-// builds and is tested on every OS through fakes; only picking this
-// system's parts (system_*.go) and the real registry are per OS.
+// Calls run commands or touch the registry: make them off the UI thread.
+// The logic runs on every OS over fakes; system_*.go picks this OS's parts.
 package autostart
 
 import (
@@ -29,19 +25,18 @@ import (
 )
 
 const (
-	// Label names the LaunchAgent, and the daemon's bundle identifier.
-	Label = "dev.lanstar.ytmusicplayer.daemon"
-	// UnitName names the systemd user unit.
-	UnitName = "ytmd.service"
-	// RunValue names the value under HKCU's Run key.
-	RunValue = "YTMusicPlayerDaemon"
+	// label names the LaunchAgent, and the daemon's bundle identifier.
+	label    = "dev.lanstar.ytmusicplayer.daemon"
+	unitName = "ytmd.service"
+	// runValue names the value under HKCU's Run key.
+	runValue = "YTMusicPlayerDaemon"
 )
 
 // item is one platform's way to start the daemon at login.
 type item interface {
 	enable(ytmd string) error
 	disable() error
-	status() (enabled bool, ytmd string, err error)
+	status() (enabled bool, err error)
 	// repair rewrites the entry when it is on and differs from what enable
 	// would write now.
 	repair(ytmd string) error
@@ -69,12 +64,11 @@ func Disable() error {
 	return it.disable()
 }
 
-// Status reports whether the daemon starts at login, and the ytmd it starts
-// (empty when the entry names none this package can read).
-func Status() (enabled bool, ytmd string, err error) {
+// Status reports whether the daemon starts at login.
+func Status() (enabled bool, err error) {
 	it, err := current()
 	if err != nil {
-		return false, "", err
+		return false, err
 	}
 	return it.status()
 }
@@ -143,8 +137,8 @@ func removeFile(path string) error {
 	return nil
 }
 
-// fileEntry is enable, disable and repair for a platform whose entry is a
-// file the service manager is then told about.
+// fileEntry is the entry of a platform whose entry is a file the service
+// manager is then told about.
 type fileEntry struct {
 	path   string
 	render func(ytmd string) []byte
@@ -174,6 +168,12 @@ func (e fileEntry) disable() error {
 	}
 	err := e.run(e.off[0], e.off[1:]...)
 	return errors.Join(err, removeFile(e.path))
+}
+
+// status reads the file, as the service manager reads it at login.
+func (e fileEntry) status() (bool, error) {
+	data, err := e.read()
+	return data != nil, err
 }
 
 // read returns the entry's file, or nil when the entry is off.

@@ -31,7 +31,7 @@ func (e *env) autostartCommand(args []string) int {
 		}
 		writeLine(e.stdout, locales.CliAutostartOff())
 	case "status":
-		enabled, _, err := e.autostart.status()
+		enabled, err := e.autostart.status()
 		switch {
 		case err != nil:
 			return e.fail(what, err)

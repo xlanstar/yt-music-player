@@ -73,7 +73,7 @@ type env struct {
 type autostarter struct {
 	enable  func(ytmd string) error
 	disable func() error
-	status  func() (enabled bool, ytmd string, err error)
+	status  func() (enabled bool, err error)
 	repair  func(ytmd string) error
 }
 

@@ -254,10 +254,10 @@ func (f *fakeAutostart) starter() autostarter {
 			f.isEnabled, f.ytmd = false, ""
 			return nil
 		},
-		status: func() (bool, string, error) {
+		status: func() (bool, error) {
 			f.mu.Lock()
 			defer f.mu.Unlock()
-			return f.isEnabled, f.ytmd, nil
+			return f.isEnabled, nil
 		},
 		repair: func(ytmd string) error {
 			f.mu.Lock()
@@ -266,6 +266,13 @@ func (f *fakeAutostart) starter() autostarter {
 			return f.repairErr
 		},
 	}
+}
+
+// enabled returns the ytmd enable was last given, or "" when off.
+func (f *fakeAutostart) enabled() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ytmd
 }
 
 func (f *fakeAutostart) repaired() []string {

@@ -38,7 +38,7 @@ var renderCases = []struct {
 
 // agentPlist renders the LaunchAgent of a typical home.
 func agentPlist(ytmd string) []byte {
-	return renderPlist("/Users/me/Library/LaunchAgents/"+Label+".plist", ytmd)
+	return renderPlist("/Users/me/Library/LaunchAgents/"+label+".plist", ytmd)
 }
 
 func BenchmarkRender(b *testing.B) {
