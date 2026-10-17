@@ -44,7 +44,7 @@ Each binary's `TestDeps` (and `session`'s) holds the last column; the test binar
 
 ## Versions and hand-off
 
-Each side's first frame is a Hello with its protocol number (`api.Proto`), version and PID. Versions are semver from `mygo.json` (`-ldflags -X`); `dev` is never compared. Peers of another protocol may only ping, hand off and shut down, and get no events but the hand-off's.
+Each side's first frame is a Hello with its protocol number (`api.Proto`), version and PID. Versions are MAJOR.MINOR.PATCH from `mygo.json` (`-ldflags -X`); `dev` is never compared. Peers of another protocol may only ping, hand off and shut down, and get no events but the hand-off's.
 
 The Desktop and the TUI:
 
