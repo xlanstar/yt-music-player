@@ -247,7 +247,7 @@ func (s *Service) isClosed() bool {
 // connections and releases the lock, then returns. It returns at once
 // once the Service stopped.
 func (s *Service) Shutdown() {
-	s.post(func() { s.stop(nil) })
+	s.post(func() { s.stop(time.Time{}) })
 	<-s.done
 }
 
@@ -255,9 +255,10 @@ func (s *Service) Shutdown() {
 // request or a hand-off.
 func (s *Service) Done() <-chan struct{} { return s.done }
 
-// stop pauses, saves (with resume after a hand-off), closes everything
-// and stops the loop. The connections are flushed and closed off the loop.
-func (s *Service) stop(resume *resumeState) {
+// stop pauses, saves, closes everything and stops the loop; a hand-off
+// has the next daemon resume until resumeBefore. The connections are
+// flushed and closed off the loop.
+func (s *Service) stop(resumeBefore time.Time) {
 	if s.stopping {
 		return
 	}
@@ -267,10 +268,11 @@ func (s *Service) stop(resume *resumeState) {
 	s.pb.Follow()
 	if s.store != nil {
 		st := s.saved()
-		if resume != nil {
-			st.ResumePlaying, st.ResumeBefore = wasPlaying, resume.before
+		if !resumeBefore.IsZero() {
+			st.ResumePlaying, st.ResumeBefore = wasPlaying, resumeBefore
 		}
-		s.store.flush(st)
+		s.store.save(st)
+		s.store.wait()
 	}
 	s.pb.Stop()
 	s.acct.Stop()
@@ -304,9 +306,6 @@ func (s *Service) finish() {
 	}
 	wg.Wait()
 	cancel()
-	if s.store != nil {
-		s.store.wait()
-	}
 	if s.lock != nil {
 		if err := s.lock.Unlock(); err != nil {
 			log.Debug().Err(err).Msg("unlock")
@@ -314,6 +313,3 @@ func (s *Service) finish() {
 	}
 	close(s.done)
 }
-
-// resumeState is what a hand-off saves for the next daemon.
-type resumeState struct{ before time.Time }

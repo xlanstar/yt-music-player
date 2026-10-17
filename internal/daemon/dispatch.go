@@ -78,7 +78,7 @@ func (s *Service) bootstrap(c *conn, id uint32, cl *api.Call) {
 		c.reply(id, &api.Reply{})
 	case api.MethodShutdown:
 		c.reply(id, &api.Reply{})
-		s.stop(nil)
+		s.stop(time.Time{})
 	case api.MethodHandoff:
 		if cl.Hand == nil {
 			c.fail(id, errNoArguments)
@@ -100,10 +100,10 @@ func (s *Service) handoff(c *conn, id uint32, wait time.Duration) {
 		}
 	}
 	c.reply(id, &api.Reply{})
-	s.stop(&resumeState{before: s.now().Add(wait + resumeSlack)})
+	s.stop(s.now().Add(wait + resumeSlack))
 }
 
-// control changes the player, then has the engine follow.
+// control changes the player; the engine follows as the batch settles.
 func (s *Service) control(cl *api.Call) error {
 	p := s.player
 	// Prev and the rest act on where the song is now.
@@ -154,7 +154,6 @@ func (s *Service) control(cl *api.Call) error {
 	case api.MethodClearUpNext:
 		p.ClearUpNext()
 	}
-	s.pb.Follow()
 	return nil
 }
 

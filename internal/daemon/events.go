@@ -27,13 +27,9 @@ type sentState struct {
 	queued, spare map[string]struct{}
 	// catGen is the catalog's Gen once it held only the queue's songs.
 	catGen uint64
-	// isPlaying, current and seen are the latest seen, to save the
-	// position on a pause or a new song, and the rest after a change;
-	// mark is what the state file holds.
-	isPlaying bool
-	current   string
-	seen      saveMark
-	mark      saveMark
+	// seen is the latest seen, to save after a change; mark is what the
+	// state file holds.
+	seen, mark saveMark
 }
 
 // reset takes the Service's state as told and saved: at start, nothing
@@ -46,7 +42,6 @@ func (t *sentState) reset(s *Service) {
 		t.queued[id] = struct{}{}
 	}
 	t.catGen = s.cat.Gen()
-	t.isPlaying, t.current = s.player.Playing, s.player.Current()
 	t.seen = s.mark()
 	t.mark = t.seen
 }
@@ -81,6 +76,7 @@ func (s *Service) settle() {
 		return
 	}
 	s.pb.Follow()
+	last := s.sent.state
 	queueChanged := s.player.QueueGen() != s.sent.queueGen
 	st, now := s.state(), s.now()
 	changed, jumped := s.compare(st, now)
@@ -92,7 +88,7 @@ func (s *Service) settle() {
 		// Songs sent with a song played that was queued already.
 		s.keepQueued()
 	}
-	s.persist(st, jumped)
+	s.persist(st, last, jumped)
 	s.quiet.active()
 }
 
@@ -208,7 +204,6 @@ func (s *Service) accountChanged(c account.Change) {
 		if c.Status.Switched {
 			// The queue was the previous account's.
 			s.player.Clear()
-			s.pb.Follow()
 		}
 		ev.Account = &api.AccountEvent{Account: c.Status.Account, SignedIn: c.Status.SignedIn, Switched: c.Status.Switched}
 	case c.Library != nil:

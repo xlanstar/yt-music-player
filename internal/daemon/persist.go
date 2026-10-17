@@ -38,9 +38,6 @@ type savedState struct {
 	// it starts before ResumeBefore; read once.
 	ResumePlaying bool      `json:"resumePlaying,omitzero"`
 	ResumeBefore  time.Time `json:"resumeBefore,omitzero"`
-
-	// seq orders the saves, so an older one never overwrites a newer.
-	seq uint64
 }
 
 // savedSong is a catalog.Song in daemon.json.
@@ -149,16 +146,16 @@ func (s *Service) saved() *savedState {
 	}
 }
 
-// persist saves the position at once on a pause, a seek or a new song,
-// and the rest a while after it changes. Nothing waits while idle.
-func (s *Service) persist(st api.State, jumped bool) {
+// persist saves the position at once on a pause, a seek or a new song
+// since last, the State told before, and the rest a while after it
+// changes. Nothing waits while idle.
+func (s *Service) persist(st, last api.State, jumped bool) {
 	if s.store == nil {
 		return
 	}
 	t := &s.sent
-	paused := t.isPlaying && !st.Playing
-	newSong := st.Current != t.current
-	t.isPlaying, t.current = st.Playing, st.Current
+	paused := last.Playing && !st.Playing
+	newSong := st.Current != last.Current
 	mark := s.mark()
 	changed := mark != t.seen
 	t.seen = mark
@@ -197,11 +194,7 @@ type store struct {
 	mu        sync.Mutex
 	pending   *savedState
 	isRunning bool
-	seq       uint64
 	idle      *sync.Cond // signaled when the writer returns
-
-	writeMu sync.Mutex
-	written uint64 // the seq last written
 }
 
 func newStore(path string, delay time.Duration) *store {
@@ -226,8 +219,6 @@ func (w *store) save(st *savedState) {
 		w.timer.Stop()
 	}
 	w.mu.Lock()
-	w.seq++
-	st.seq = w.seq
 	w.pending = st
 	if w.isRunning {
 		w.mu.Unlock()
@@ -254,19 +245,6 @@ func (w *store) drain() {
 	}
 }
 
-// flush writes st now, on the caller's goroutine, as the daemon stops.
-func (w *store) flush(st *savedState) {
-	if w.timer != nil {
-		w.timer.Stop()
-	}
-	w.mu.Lock()
-	w.seq++
-	st.seq = w.seq
-	w.pending = nil
-	w.mu.Unlock()
-	w.write(st)
-}
-
 // wait returns once no write is under way.
 func (w *store) wait() {
 	w.mu.Lock()
@@ -277,12 +255,6 @@ func (w *store) wait() {
 }
 
 func (w *store) write(st *savedState) {
-	w.writeMu.Lock()
-	defer w.writeMu.Unlock()
-	if st.seq <= w.written {
-		return
-	}
-	w.written = st.seq
 	data, err := json.Marshal(st)
 	if err == nil {
 		err = replaceFile(w.path, data)
