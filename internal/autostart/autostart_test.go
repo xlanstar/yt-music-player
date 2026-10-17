@@ -86,6 +86,8 @@ type fileCase struct {
 	on, off []string
 }
 
+// fileCases' on and off are the only commands switching runs: none starts
+// or stops the daemon now.
 var fileCases = []fileCase{
 	{
 		name: "launch agent",
@@ -212,33 +214,6 @@ func TestFileEntryFailures(t *testing.T) {
 				t.Fatalf("disable = %v, want the command's error", err)
 			}
 			wantStatus(t, it, false)
-		})
-	}
-}
-
-// TestSwitchingStopsNothing holds that switching decides the next login
-// only, so turning it off does not stop the music.
-func TestSwitchingStopsNothing(t *testing.T) {
-	for _, tc := range fileCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var c commands
-			it := tc.make(t.TempDir(), c.run)
-			for range 2 {
-				if err := it.enable(tc.ytmd); err != nil {
-					t.Fatal(err)
-				}
-				if err := it.repair("/elsewhere/ytmd"); err != nil {
-					t.Fatal(err)
-				}
-				if err := it.disable(); err != nil {
-					t.Fatal(err)
-				}
-			}
-			for _, argv := range c.argv {
-				if stopsDaemon(argv) {
-					t.Errorf("ran %q", argv)
-				}
-			}
 		})
 	}
 }

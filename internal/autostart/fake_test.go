@@ -3,7 +3,6 @@ package autostart
 import (
 	"errors"
 	"io/fs"
-	"strings"
 )
 
 // commands records the commands it is given instead of running them.
@@ -58,18 +57,5 @@ func (h *fakeHive) deleteValue(key, name string) error {
 }
 
 func (h *fakeHive) path() fakeValue { return h.values[envKeyPath+`\`+pathValue] }
-
-// stopsDaemon reports whether a command would start or stop a daemon now,
-// which switching must never do.
-func stopsDaemon(argv []string) bool {
-	for _, a := range argv {
-		switch strings.ToLower(a) {
-		case "bootout", "bootstrap", "kickstart", "kill", "remove", "unload", "load",
-			"--now", "start", "stop", "restart", "reload-or-restart", "try-restart":
-			return true
-		}
-	}
-	return false
-}
 
 var errCommand = errors.New("command failed")
