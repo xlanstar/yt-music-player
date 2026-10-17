@@ -3,7 +3,9 @@
 // key on Windows. Switching decides only the next login: it never starts or
 // stops a daemon now (no launchctl bootstrap or bootout, no systemctl
 // --now), so turning it off does not stop the music. The app may move or be
-// updated to another path, so frontends call Repair at start.
+// updated to another path, so frontends call Repair at start. Deleting the
+// app turns the LaunchAgent off by itself at the next login, and has
+// systemd skip the unit; the Run value stays.
 //
 // On Windows it also puts the install directory on the user's Path
 // (EnablePath), so terminals find ytm: the installer MyGo makes cannot.

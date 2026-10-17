@@ -37,7 +37,7 @@ If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is on your `PATH`, it's used for s
 
 ## Background player and `ytm`
 
-Songs play in a small background player, `ytmd`, which the app starts as it opens and leaves playing when its window closes; paused, it wakes nothing. *Quit and Stop Playback* in the app menu, or `ytm daemon stop`, stops it. To have it ready for the media keys from login, turn on *Start background player at login* in Settings (or `ytm autostart on`).
+Songs play in a small background player, `ytmd`, which the app starts as it opens and leaves playing when its window closes; paused, it wakes nothing. *Quit and Stop Playback* in the app menu, or `ytm daemon stop`, stops it. To have it ready for the media keys from login, turn on *Start background player at login* in Settings (or `ytm autostart on`); deleting the app turns it off at the next login (on Windows, turn it off before uninstalling).
 
 `ytm` is the player in a terminal, and a command line for scripts: `ytm status [--json]`, `ytm play|pause|next|prev`, `ytm volume 50`, `ytm help` for the rest. Homebrew and the Linux packages put it on your `PATH`; on Windows, turn on *Use ytm in a terminal* in Settings. The macOS app has it at `/Applications/YT Music Player.app/Contents/Resources/ytm`.
 

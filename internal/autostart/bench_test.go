@@ -23,15 +23,22 @@ var renderCases = []struct {
 	ytmd   string
 	allocs float64
 }{
-	// 3 allocs today: the buffer, sized up front, the path as bytes for
-	// xml.EscapeText, and the buffer's header, which escapes into it.
-	{"plist", renderPlist, appYtmd, 3},
-	// 3 allocs today.
-	{"plist-escaped", renderPlist, "/Users/a & b/<YT>/ytmd", 3},
+	// 4 allocs today: the buffer, sized up front, the buffer's header,
+	// which escapes into it, and as bytes for xml.EscapeText ytmd's path and
+	// the plist's, which the self-removing script names (3 before it). A
+	// home with a single quote quotes it in one more.
+	{"plist", agentPlist, appYtmd, 5},
+	// 4 allocs today.
+	{"plist-escaped", agentPlist, "/Users/a & b/<YT>/ytmd", 5},
 	// 1 alloc today.
 	{"unit", renderUnit, "/opt/yt-music-player/ytmd", 1},
 	// 1 alloc today; quoting fits the room left for it.
 	{"unit-quoted", renderUnit, "/home/me/My Apps/yt-music-player.app/ytmd", 1},
+}
+
+// agentPlist renders the LaunchAgent of a typical home.
+func agentPlist(ytmd string) []byte {
+	return renderPlist("/Users/me/Library/LaunchAgents/"+Label+".plist", ytmd)
 }
 
 func BenchmarkRender(b *testing.B) {

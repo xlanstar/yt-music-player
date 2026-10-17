@@ -10,7 +10,8 @@ import (
 // systemdUnit is Linux's entry: a user unit in <config>/systemd/user that
 // default.target wants, so the user's manager starts it at the next login.
 // Restart=no, or systemd would start the daemon again after `ytm daemon
-// stop`.
+// stop`. ConditionPathExists has systemd skip the unit, which is no
+// failure, once ytmd is gone with the app.
 type systemdUnit struct {
 	fileEntry
 }
@@ -48,6 +49,8 @@ func Unit(ytmd string) ([]byte, error) {
 const (
 	unitHead = `[Unit]
 Description=YT Music Player background player
+ConditionPathExists=`
+	unitMid = `
 
 [Service]
 ExecStart=`
@@ -61,11 +64,26 @@ WantedBy=default.target
 
 func renderUnit(ytmd string) []byte {
 	var b bytes.Buffer
-	b.Grow(len(unitHead) + len(ytmd) + 2 + len(unitTail))
+	b.Grow(len(unitHead) + len(ytmd) + len(unitMid) + len(ytmd) + 2 + len(unitTail))
 	b.WriteString(unitHead)
+	writeConditionPath(&b, ytmd)
+	b.WriteString(unitMid)
 	writeExecPath(&b, ytmd)
 	b.WriteString(unitTail)
 	return b.Bytes()
+}
+
+// writeConditionPath writes p as ConditionPathExists' path, which systemd
+// takes as it is but for %-specifiers: no quotes, escapes or $VARIABLES, so
+// only % is doubled. p is absolute, so never starts with the ! or | that
+// negate or trigger.
+func writeConditionPath(b *bytes.Buffer, p string) {
+	for _, r := range p {
+		if r == '%' {
+			b.WriteByte('%')
+		}
+		b.WriteRune(r)
+	}
 }
 
 // writeExecPath writes p as ExecStart's program. systemd splits the line at
