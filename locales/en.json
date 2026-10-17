@@ -386,6 +386,13 @@
   "@tuiQueued": { "placeholders": { "title": { "type": "String" } } },
   "tuiQueuedSongs": "Added {count, plural, one {# song} other {# songs}} to the queue",
   "@tuiQueuedSongs": { "placeholders": { "count": { "type": "int" } } },
+  "tuiAlreadyQueued": "“{title}” is already in the queue",
+  "@tuiAlreadyQueued": {
+    "description": "The terminal player after a: the song was queued already, so nothing was added.",
+    "placeholders": { "title": { "type": "String" } }
+  },
+  "tuiAllQueued": "These songs are already in the queue",
+  "@tuiAllQueued": { "description": "The terminal player after a on a collection whose songs were all queued already, so nothing was added." },
   "tuiSignedOutTitle": "You’re not signed in",
   "tuiSignedOutDetail": "Sign in from the Desktop app, or run “ytm login” in a terminal.",
   "@tuiSignedOutDetail": { "description": "The terminal player without an account. “ytm login” is a command, untranslated." },

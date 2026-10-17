@@ -2824,6 +2824,38 @@ func (msgs Messages) TuiQueuedSongs(count int) string {
 	return Catalog.Format(msgs.locale, "tuiQueuedSongs", map[string]any{"count": count})
 }
 
+// TuiAlreadyQueued says "“{title}” is already in the queue"
+// in the language the app shows.
+//
+// The terminal player after a: the song was queued already, so nothing was
+// added.
+func TuiAlreadyQueued(title string) string { return In(i18n.Locale()).TuiAlreadyQueued(title) }
+
+// TuiAlreadyQueued says "“{title}” is already in the queue"
+// in the language of msgs.
+//
+// The terminal player after a: the song was queued already, so nothing was
+// added.
+func (msgs Messages) TuiAlreadyQueued(title string) string {
+	return Catalog.Format(msgs.locale, "tuiAlreadyQueued", map[string]any{"title": title})
+}
+
+// TuiAllQueued says "These songs are already in the queue"
+// in the language the app shows.
+//
+// The terminal player after a on a collection whose songs were all queued
+// already, so nothing was added.
+func TuiAllQueued() string { return In(i18n.Locale()).TuiAllQueued() }
+
+// TuiAllQueued says "These songs are already in the queue"
+// in the language of msgs.
+//
+// The terminal player after a on a collection whose songs were all queued
+// already, so nothing was added.
+func (msgs Messages) TuiAllQueued() string {
+	return Catalog.Format(msgs.locale, "tuiAllQueued", nil)
+}
+
 // TuiSignedOutTitle says "You’re not signed in"
 // in the language the app shows.
 func TuiSignedOutTitle() string { return In(i18n.Locale()).TuiSignedOutTitle() }

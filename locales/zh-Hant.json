@@ -264,6 +264,8 @@
   "tuiSearchHint": "按 / 後輸入歌曲、專輯或藝人。",
   "tuiQueued": "已將〈{title}〉加入待播清單",
   "tuiQueuedSongs": "已將 {count, plural, other {# 首歌曲}}加入待播清單",
+  "tuiAlreadyQueued": "〈{title}〉已在待播清單中",
+  "tuiAllQueued": "這些歌曲都已在待播清單中",
   "tuiSignedOutTitle": "尚未登入",
   "tuiSignedOutDetail": "請在 Desktop 登入，或在終端機執行「ytm login」。",
   "tuiOpenDesktop": "開啟 Desktop",
