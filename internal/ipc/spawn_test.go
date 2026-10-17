@@ -21,12 +21,11 @@ func touch(t *testing.T, path string) {
 	}
 }
 
-func noEnv(string) string { return "" }
-
 // The lookup goes $YTMD_PATH, then beside the program, then inside the
 // bundle beside it (ytm in Contents/Resources), then the bundle in
 // Resources (Desktop in Contents/MacOS).
 func TestFindDaemonOrder(t *testing.T) {
+	t.Setenv("YTMD_PATH", "")
 	app := filepath.Join(t.TempDir(), "YT Music Player.app", "Contents")
 	desktop := filepath.Join(app, "MacOS", "yt-music-player")
 	ytm := filepath.Join(app, "Resources", "ytm")
@@ -34,49 +33,45 @@ func TestFindDaemonOrder(t *testing.T) {
 	touch(t, bundled)
 
 	for _, exe := range []string{desktop, ytm} {
-		if got, err := findDaemon(exe, noEnv, "darwin"); err != nil || filepath.Clean(got) != bundled {
+		if got, err := findDaemon(exe, "darwin"); err != nil || filepath.Clean(got) != bundled {
 			t.Errorf("from %s: %q, %v; want %q", exe, got, err, bundled)
 		}
 	}
 	// Linux and Windows have no bundle.
-	if _, err := findDaemon(ytm, noEnv, "linux"); !errors.Is(err, api.ErrDaemonNotFound) {
+	if _, err := findDaemon(ytm, "linux"); !errors.Is(err, api.ErrDaemonNotFound) {
 		t.Errorf("linux found a bundle: %v", err)
 	}
 
 	beside := filepath.Join(app, "Resources", "ytmd")
 	touch(t, beside)
-	if got, err := findDaemon(ytm, noEnv, "darwin"); err != nil || got != beside {
+	if got, err := findDaemon(ytm, "darwin"); err != nil || got != beside {
 		t.Errorf("beside: %q, %v; want %q", got, err, beside)
 	}
-	if got, err := findDaemon(ytm, noEnv, "linux"); err != nil || got != beside {
+	if got, err := findDaemon(ytm, "linux"); err != nil || got != beside {
 		t.Errorf("linux beside: %q, %v; want %q", got, err, beside)
 	}
 	exe := filepath.Join(app, "Resources", "ytmd.exe")
 	touch(t, exe)
-	if got, err := findDaemon(ytm, noEnv, "windows"); err != nil || got != exe {
+	if got, err := findDaemon(ytm, "windows"); err != nil || got != exe {
 		t.Errorf("windows: %q, %v; want %q", got, err, exe)
 	}
 
 	override := filepath.Join(t.TempDir(), "build", "ytmd")
 	touch(t, override)
-	env := func(key string) string {
-		if key == "YTMD_PATH" {
-			return override
-		}
-		return ""
-	}
-	if got, err := findDaemon(ytm, env, "darwin"); err != nil || got != override {
+	t.Setenv("YTMD_PATH", override)
+	if got, err := findDaemon(ytm, "darwin"); err != nil || got != override {
 		t.Errorf("YTMD_PATH: %q, %v; want %q", got, err, override)
 	}
 }
 
 func TestFindDaemonMissing(t *testing.T) {
-	_, err := findDaemon(filepath.Join(t.TempDir(), "ytm"), noEnv, "darwin")
+	t.Setenv("YTMD_PATH", "")
+	_, err := findDaemon(filepath.Join(t.TempDir(), "ytm"), "darwin")
 	if !errors.Is(err, api.ErrDaemonNotFound) || !strings.Contains(err.Error(), "YTMD_PATH") {
 		t.Errorf("err %v, want ErrDaemonNotFound naming YTMD_PATH", err)
 	}
-	missing := func(string) string { return filepath.Join(t.TempDir(), "nothing") }
-	if _, err := findDaemon("/x/ytm", missing, "linux"); !errors.Is(err, api.ErrDaemonNotFound) {
+	t.Setenv("YTMD_PATH", filepath.Join(t.TempDir(), "nothing"))
+	if _, err := findDaemon("/x/ytm", "linux"); !errors.Is(err, api.ErrDaemonNotFound) {
 		t.Errorf("YTMD_PATH to nothing: err %v", err)
 	}
 }
@@ -94,7 +89,7 @@ func TestDialOrSpawnDialsFirst(t *testing.T) {
 func TestDialOrSpawnWaits(t *testing.T) {
 	path := filepath.Join(shortDir(t), "s.sock")
 	spawned := 0
-	d := Dialer{Socket: path, Every: time.Millisecond, Spawn: func() error {
+	d := Dialer{Socket: path, every: time.Millisecond, Spawn: func() error {
 		spawned++
 		go func() {
 			time.Sleep(20 * time.Millisecond)
@@ -124,7 +119,7 @@ func TestDialOrSpawnFails(t *testing.T) {
 		t.Errorf("not found: err %v", err)
 	}
 	// Started, but never listening.
-	d = Dialer{Socket: path, Every: time.Millisecond, Timeout: 20 * time.Millisecond, Spawn: func() error { return nil }}
+	d = Dialer{Socket: path, every: time.Millisecond, timeout: 20 * time.Millisecond, Spawn: func() error { return nil }}
 	if _, err := d.DialOrSpawn(t.Context()); !errors.Is(err, api.ErrDaemonUnavailable) {
 		t.Errorf("never listening: err %v, want ErrDaemonUnavailable", err)
 	}

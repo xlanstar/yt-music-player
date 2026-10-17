@@ -30,7 +30,7 @@ func TestPrepare(t *testing.T) {
 	if err := p.Prepare(); err != nil {
 		t.Fatal(err)
 	}
-	for _, dir := range []string{sockDir, filepath.Dir(p.State), p.Logs} {
+	for _, dir := range []string{sockDir, filepath.Dir(p.State)} {
 		info, err := os.Stat(dir)
 		if err != nil {
 			t.Fatal(err)

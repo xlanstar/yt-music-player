@@ -2,6 +2,5 @@
 
 package ipc
 
-// isPlaceholder reports a placeholder build, whose files get their own
-// suffix.
+// isPlaceholder reports a placeholder build, whose files get a suffix.
 const isPlaceholder = true

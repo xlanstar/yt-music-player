@@ -24,25 +24,15 @@ func TestOlder(t *testing.T) {
 		{"0.9.9", "0.10.0", true}, // by number, not text
 		{"1.2.3", "1.2.10", true},
 		{"0.10.0", "1.0.0", true},
-		{"v0.1.0", "0.1.1", true},
-		{"1.0.0+build.5", "1.0.0+build.1", false}, // build metadata is ignored
-		// Pre-releases precede their release, by identifier.
-		{"1.0.0-rc.1", "1.0.0", true},
-		{"1.0.0", "1.0.0-rc.1", false},
-		{"1.0.0-alpha", "1.0.0-alpha.1", true},
-		{"1.0.0-alpha.1", "1.0.0-alpha.beta", true},
-		{"1.0.0-alpha.beta", "1.0.0-beta", true},
-		{"1.0.0-beta.2", "1.0.0-beta.11", true},
-		{"1.0.0-rc.1", "1.0.0-beta.11", false},
-		// Development builds and garbage never compare.
+		// Development builds, pre-releases and garbage never compare.
 		{"dev", "0.1.0", false},
 		{"0.1.0", "dev", false},
 		{"", "0.1.0", false},
 		{"0.1", "0.2.0", false},
 		{"0.1.0", "1.x.0", false},
-		{"01.0.0", "2.0.0", false},
-		{"1.0.0-", "2.0.0", false},
-		{"1.0.0-a..b", "2.0.0", false},
+		{"1.0.0-rc.1", "2.0.0", false},
+		{"v0.1.0", "0.2.0", false},
+		{"1..0", "2.0.0", false},
 		{"1.0.0.0", "2.0.0", false},
 		{"-1.0.0", "2.0.0", false},
 		{"99999999999999999999.0.0", "2.0.0", false},

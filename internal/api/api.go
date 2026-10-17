@@ -1,22 +1,17 @@
-// Package api is the protocol between ytmd and its front-ends (Desktop, the
-// TUI, the CLI): the Frame each side sends over the socket, the methods,
-// events and error codes. It holds only types and pure functions; package
-// ipc carries the frames.
+// Package api is the protocol between ytmd and its front-ends: the Frame
+// each side sends, its methods, events and error codes; types and pure
+// functions only (package ipc carries the frames).
 //
-// Frames travel as one gob stream per direction. Gob matches struct fields
-// by name and skips what the receiver lacks, so adding a field needs no new
-// Proto; changing what a field means does. Never change a field's type:
-// gob then refuses every Frame, the bootstrap ones too, so the peers could
-// no longer even hand off. Give the new type a new field name instead.
+// Frames are one gob stream per direction. Gob skips fields the receiver
+// lacks, so adding a field needs no new Proto, changing its meaning does.
+// Never change a field's type, which makes gob refuse every Frame: give the
+// new type a new name. Gob omits zero values, so a receiver zeroes each
+// Frame before decoding, and every enum starts at 1: a 0 is a missing
+// field. No field is an interface, a func or a chan.
 //
-// Gob omits zero values, so a receiver zeroes its Frame before each decode,
-// and every enum starts at 1: a 0 is a missing field, rejected. No field is
-// an interface (nothing is gob.Register'ed), a func or a chan.
-//
-// The bootstrap messages never change, in any Proto: Frame.ID, Hello,
-// Reply.Err, Error, HandoffArgs, HandoffEvent and the numbers of
-// MethodPing, MethodHandoff and MethodShutdown. With them a front-end hands
-// off to, or stops, a daemon of any Proto (TestBootstrapFrozen).
+// Frame.ID, Hello, Reply.Err, Error, HandoffArgs, HandoffEvent and the
+// numbers of Ping, Handoff and Shutdown never change, in any Proto, so a
+// front-end can hand off to, or stop, any daemon (TestBootstrapFrozen).
 package api
 
 import (
@@ -45,7 +40,7 @@ type Frame struct {
 // Hello is each side's first frame.
 type Hello struct {
 	Proto   uint16
-	Version string // semver, or "dev"
+	Version string // MAJOR.MINOR.PATCH, or "dev"
 	Role    Role
 	// Subscribe asks for events: Desktop and the TUI do, the CLI not.
 	Subscribe bool
@@ -182,9 +177,8 @@ type Status struct {
 	Account  catalog.Account
 }
 
-// State is the playback state, sent whole on every change: play, pause,
-// seek, a new song, a stall starting or ending, volume, mute, repeat,
-// shuffle; never on a timer while playing.
+// State is the playback state, sent whole on each change, never on a
+// timer.
 type State struct {
 	Playing bool
 	// Waiting reports a song loading or stalled: Position stands still,

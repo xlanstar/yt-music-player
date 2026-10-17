@@ -10,12 +10,23 @@ import (
 // started runs l on a goroutine until the test ends.
 func started(t *testing.T, l *Loop) *Loop {
 	t.Helper()
-	go l.Run()
+	done := run(l)
 	t.Cleanup(func() {
 		l.Stop()
-		<-l.Done()
+		<-done
 	})
 	return l
+}
+
+// run runs l on a goroutine, closing the channel it returns once Run
+// returned.
+func run(l *Loop) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		l.Run()
+		close(done)
+	}()
+	return done
 }
 
 // flush waits until every func posted so far ran.
@@ -89,9 +100,9 @@ func TestStop(t *testing.T) {
 		l.Stop()
 	})
 	l.Post(func() { ran = append(ran, "dropped") })
-	go l.Run()
+	done := run(l)
 	select {
-	case <-l.Done():
+	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after Stop")
 	}
@@ -105,10 +116,10 @@ func TestStop(t *testing.T) {
 
 func TestStopFromOutside(t *testing.T) {
 	l := New(nil)
-	go l.Run()
+	done := run(l)
 	l.Stop()
 	select {
-	case <-l.Done():
+	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("Run did not return after Stop")
 	}

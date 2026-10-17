@@ -16,8 +16,7 @@ const appName = "yt-music-player"
 // longer than the OS allows.
 var ErrPathTooLong = errors.New("ipc: socket path too long")
 
-// Roots are the OS directories the paths derive from; tests make their own
-// under t.TempDir.
+// Roots are the OS directories the paths derive from.
 type Roots struct {
 	Config string // os.UserConfigDir
 	Cache  string // os.UserCacheDir: %LOCALAPPDATA% on Windows
@@ -28,24 +27,6 @@ type Roots struct {
 	// $TMPDIR; os.TempDir elsewhere ($TMPDIR, per user on macOS).
 	Temp string
 	UID  int // os.Getuid; -1 on Windows
-}
-
-// DefaultRoots returns the OS's directories for this user.
-func DefaultRoots() (Roots, error) {
-	config, err := os.UserConfigDir()
-	if err != nil {
-		return Roots{}, fmt.Errorf("ipc: %w", err)
-	}
-	cache, err := os.UserCacheDir()
-	if err != nil {
-		return Roots{}, fmt.Errorf("ipc: %w", err)
-	}
-	r := Roots{Config: config, Cache: cache, Temp: os.TempDir(), UID: os.Getuid()}
-	if isXDG(runtime.GOOS) {
-		r.Runtime = os.Getenv("XDG_RUNTIME_DIR")
-		r.Temp = "/tmp"
-	}
-	return r, nil
 }
 
 // Paths are where ytmd keeps its files. Each name carries the build's
@@ -64,12 +45,21 @@ type Paths struct {
 	shared bool
 }
 
-// Default returns the paths in the OS's directories. dev reports a
-// development build: Desktop's mygo.IsDev, version.IsDev for ytmd and ytm.
+// Default returns the paths in the OS's directories; dev reports a
+// development build.
 func Default(dev bool) (Paths, error) {
-	r, err := DefaultRoots()
+	config, err := os.UserConfigDir()
 	if err != nil {
-		return Paths{}, err
+		return Paths{}, fmt.Errorf("ipc: %w", err)
+	}
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return Paths{}, fmt.Errorf("ipc: %w", err)
+	}
+	r := Roots{Config: config, Cache: cache, Temp: os.TempDir(), UID: os.Getuid()}
+	if runtime.GOOS != "darwin" && runtime.GOOS != "windows" {
+		r.Runtime = os.Getenv("XDG_RUNTIME_DIR")
+		r.Temp = "/tmp"
 	}
 	return Resolve(r, dev)
 }
@@ -130,24 +120,20 @@ func maxSocketPath(goos string) int {
 	return 107
 }
 
-// isXDG reports whether goos keeps sockets in $XDG_RUNTIME_DIR.
-func isXDG(goos string) bool { return goos != "darwin" && goos != "windows" }
-
 // Log returns the path of name's log, e.g. Log("ytmd") or Log("ytm").
 func (p Paths) Log(name string) string {
 	return filepath.Join(p.Logs, name+p.suffix+".log")
 }
 
-// Prepare makes the directories of the paths, the socket's private (0700,
-// the user's own; in /tmp, one someone else made is refused).
+// Prepare makes the socket's and the state's directories, the socket's
+// private (0700, the user's own; in /tmp, one someone else made is
+// refused). The log's makes its Writer (package logfile).
 func (p Paths) Prepare() error {
 	if err := privateDir(filepath.Dir(p.Socket), p.uid, p.shared); err != nil {
 		return err
 	}
-	for _, dir := range []string{filepath.Dir(p.State), p.Logs} {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return fmt.Errorf("ipc: %w", err)
-		}
+	if err := os.MkdirAll(filepath.Dir(p.State), 0o700); err != nil {
+		return fmt.Errorf("ipc: %w", err)
 	}
 	return nil
 }

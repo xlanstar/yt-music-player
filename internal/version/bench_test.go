@@ -22,6 +22,5 @@ var olderCases = []struct {
 	name, a, b string
 	limit      float64
 }{
-	{"release", "0.9.12", "0.10.0", 2},             // 2 allocs today: each version's Split.
-	{"pre-release", "1.0.0-rc.1", "1.0.0-rc.2", 5}, // 4 allocs today: each version's two Splits.
+	{"release", "0.9.12", "0.10.0", 0}, // 0 allocs today.
 }

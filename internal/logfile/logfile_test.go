@@ -41,18 +41,18 @@ func closeWriter(t *testing.T, w *Writer) {
 	}
 }
 
-func TestRotatesAtMaxSize(t *testing.T) {
+func TestRotatesAtmaxSize(t *testing.T) {
 	dir := t.TempDir()
-	w := New(dir, "ytmd")
+	w := New(filepath.Join(dir, "ytmd.log"))
 	defer closeWriter(t, w)
 	cur, prev := filepath.Join(dir, "ytmd.log"), filepath.Join(dir, "ytmd.1.log")
 
 	// Filling the file exactly keeps it.
-	for range MaxSize / 1024 {
+	for range maxSize / 1024 {
 		write(t, w, line(1024))
 	}
-	if got := size(t, cur); got != MaxSize {
-		t.Fatalf("log holds %d bytes, want %d", got, MaxSize)
+	if got := size(t, cur); got != maxSize {
+		t.Fatalf("log holds %d bytes, want %d", got, maxSize)
 	}
 	if _, err := os.Stat(prev); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("rotated before the file was full: %v", err)
@@ -60,8 +60,8 @@ func TestRotatesAtMaxSize(t *testing.T) {
 
 	// One byte more starts a new file.
 	write(t, w, line(10))
-	if got := size(t, prev); got != MaxSize {
-		t.Errorf("%s holds %d bytes, want %d", prev, got, MaxSize)
+	if got := size(t, prev); got != maxSize {
+		t.Errorf("%s holds %d bytes, want %d", prev, got, maxSize)
 	}
 	if got := size(t, cur); got != 10 {
 		t.Errorf("%s holds %d bytes, want 10", cur, got)
@@ -70,7 +70,7 @@ func TestRotatesAtMaxSize(t *testing.T) {
 
 func TestKeepsTwoFiles(t *testing.T) {
 	dir := t.TempDir()
-	w := New(dir, "ytm")
+	w := New(filepath.Join(dir, "ytm.log"))
 	w.limit = 100
 	defer closeWriter(t, w)
 	for i := range 5 {
@@ -96,7 +96,7 @@ func TestKeepsTwoFiles(t *testing.T) {
 
 func TestLargeWriteFillsAFileAlone(t *testing.T) {
 	dir := t.TempDir()
-	w := New(dir, "ytmd")
+	w := New(filepath.Join(dir, "ytmd.log"))
 	w.limit = 100
 	defer closeWriter(t, w)
 	write(t, w, line(10))
@@ -112,11 +112,11 @@ func TestLargeWriteFillsAFileAlone(t *testing.T) {
 
 func TestReopenAppends(t *testing.T) {
 	dir := t.TempDir()
-	w := New(dir, "ytmd")
+	w := New(filepath.Join(dir, "ytmd.log"))
 	write(t, w, []byte("first\n"))
 	closeWriter(t, w)
 
-	w = New(dir, "ytmd")
+	w = New(filepath.Join(dir, "ytmd.log"))
 	w.limit = 20
 	write(t, w, []byte("second\n"))
 	got, err := os.ReadFile(filepath.Join(dir, "ytmd.log"))
@@ -140,7 +140,7 @@ func TestCreatesPrivately(t *testing.T) {
 		t.Skip("Windows keeps no Unix modes")
 	}
 	dir := filepath.Join(t.TempDir(), "cache", "logs")
-	w := New(dir, "ytmd")
+	w := New(filepath.Join(dir, "ytmd.log"))
 	defer closeWriter(t, w)
 	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("New made the directory before any write: %v", err)
@@ -163,7 +163,7 @@ func TestRetriesAFailedOpen(t *testing.T) {
 	if err := os.WriteFile(dir, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	w := New(dir, "ytmd")
+	w := New(filepath.Join(dir, "ytmd.log"))
 	defer closeWriter(t, w)
 	if _, err := w.Write(line(5)); err == nil {
 		t.Fatal("Write succeeded where its directory is a file")
@@ -175,7 +175,7 @@ func TestRetriesAFailedOpen(t *testing.T) {
 }
 
 func TestWriteAfterClose(t *testing.T) {
-	w := New(t.TempDir(), "ytmd")
+	w := New(filepath.Join(t.TempDir(), "ytmd.log"))
 	write(t, w, line(5))
 	closeWriter(t, w)
 	if _, err := w.Write(line(5)); !errors.Is(err, os.ErrClosed) {
@@ -188,7 +188,7 @@ func TestWriteAfterClose(t *testing.T) {
 
 func TestConcurrentWrites(t *testing.T) {
 	dir := t.TempDir()
-	w := New(dir, "ytmd")
+	w := New(filepath.Join(dir, "ytmd.log"))
 	w.limit = 4096
 	const writers, lines = 8, 200
 	var wg sync.WaitGroup

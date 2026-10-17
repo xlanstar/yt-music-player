@@ -12,7 +12,6 @@ import (
 	"unicode/utf8"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
-	"yt-music-player/internal/remote"
 	"yt-music-player/locales"
 
 	"github.com/rs/zerolog/log"
@@ -69,8 +68,8 @@ func (e *env) login(ctx context.Context) int {
 	switch {
 	case errors.Is(err, catalog.ErrInvalidCredentials):
 		log.Debug().Err(err).Msg("ytm: sign-in refused")
-		if re, ok := errors.AsType[*remote.Error](err); ok && re.Detail != "" {
-			// Detail is the daemon's, safe to show (api.Error).
+		if re, ok := errors.AsType[*api.Error](err); ok && re.Detail != "" {
+			// Detail is the daemon's, safe to show.
 			writeLine(e.stderr, locales.SignInFailedReason(re.Detail))
 		}
 		writeLine(e.stderr, locales.CliLoginInvalid())

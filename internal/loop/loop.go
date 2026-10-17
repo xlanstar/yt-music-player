@@ -1,11 +1,6 @@
-// Package loop runs funcs one at a time on one goroutine, in the order they
-// were posted: the daemon's thread, which owns the player, the playback,
-// the account and the engine as the window's main thread owns them in
-// Desktop. Post is its post and its playback's Wake.
-//
-// Post never waits on the loop: it appends to a queue under a mutex held
-// for the append alone. The loop sleeps on a channel while the queue is
-// empty, so an idle loop wakes nothing.
+// Package loop runs funcs one at a time on one goroutine, in the order
+// they were posted: ytmd's thread, which owns the player, playback, account
+// and engine. Post never waits on the loop, and an idle loop wakes nothing.
 package loop
 
 import "sync"
@@ -23,18 +18,16 @@ type Loop struct {
 	stopped bool
 
 	wake chan struct{} // the queue has funcs or Stop was called; buffered 1
-	done chan struct{} // closed when Run returns
 }
 
-// New returns a Loop. after, if not nil, runs on the loop after each batch
-// of funcs, those posted while the previous batch ran: the daemon there
-// sends what they changed, once per batch rather than per func.
+// New returns a Loop. after, if not nil, runs after each batch of funcs
+// (those posted while the previous batch ran), so the daemon sends what
+// they changed once per batch.
 func New(after func()) *Loop {
 	return &Loop{
 		after: after,
 		queue: make([]func(), 0, initialCap),
 		wake:  make(chan struct{}, 1),
-		done:  make(chan struct{}),
 	}
 }
 
@@ -58,7 +51,6 @@ func (l *Loop) Post(fn func()) {
 // returns once the func running when Stop is called returns, dropping the
 // funcs still queued. Call it once.
 func (l *Loop) Run() {
-	defer close(l.done)
 	batch := make([]func(), 0, initialCap)
 	for {
 		l.mu.Lock()
@@ -94,7 +86,7 @@ func (l *Loop) isStopped() bool {
 }
 
 // Stop has Run return and Post drop its funcs from now on. It returns at
-// once, from the loop too: Done tells when Run returned.
+// once, so the loop may call it too.
 func (l *Loop) Stop() {
 	l.mu.Lock()
 	l.stopped = true
@@ -106,6 +98,3 @@ func (l *Loop) Stop() {
 	default:
 	}
 }
-
-// Done is closed once Run returned.
-func (l *Loop) Done() <-chan struct{} { return l.done }
