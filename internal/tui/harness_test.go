@@ -122,7 +122,6 @@ type fakeDaemon struct{ calls []string }
 
 var _ session.Daemon = (*fakeDaemon)(nil)
 
-func (d *fakeDaemon) CanSignIn() bool { return true }
 func (d *fakeDaemon) Refresh(part api.Part, _ func(error)) {
 	d.calls = append(d.calls, "Refresh "+strconv.Itoa(int(part)))
 }

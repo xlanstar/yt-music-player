@@ -27,14 +27,11 @@ type request struct {
 
 // fakeDaemon records the requests a Session makes.
 type fakeDaemon struct {
-	noAccounts bool
-	requests   []request
-	canceled   int
+	requests []request
+	canceled int
 }
 
 var partNames = map[api.Part]string{api.PartProfile: "profile", api.PartLibrary: "library", api.PartLiked: "liked"}
-
-func (d *fakeDaemon) CanSignIn() bool { return !d.noAccounts }
 
 func (d *fakeDaemon) Refresh(p api.Part, done func(error)) {
 	d.requests = append(d.requests, request{what: "refresh " + partNames[p], done: done})
@@ -80,7 +77,8 @@ func (d *fakeDaemon) next(t *testing.T, want string) request {
 	return d.take(t, want)[0]
 }
 
-// fixture is a Session over a fakeDaemon.
+// fixture is a Session over a fakeDaemon, as the app starts: ytmd fetches
+// the account's resources and sends them.
 type fixture struct {
 	d      *fakeDaemon
 	s      *Session
@@ -95,6 +93,9 @@ func newFixture() *fixture {
 	f.s = New(f.d, &f.states, load, f.cat)
 	// Loaded so changed can see an account change forget it.
 	f.states.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	for _, res := range Resources {
+		f.states.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
+	}
 	return f
 }
 
@@ -141,17 +142,9 @@ func fetched(s *Session) {
 	s.ApplyLikes(adaLikes)
 }
 
-func started(t *testing.T) *fixture {
-	t.Helper()
-	f := newFixture()
-	f.s.Start()
-	f.d.take(t, "refresh profile", "refresh library", "refresh liked")
-	return f
-}
-
 func signedIn(t *testing.T) *fixture {
 	t.Helper()
-	f := started(t)
+	f := newFixture()
 	fetched(f.s)
 	if f.s.IsBusy() {
 		t.Fatal("busy once fetched")
@@ -161,16 +154,13 @@ func signedIn(t *testing.T) *fixture {
 
 func signedOut(t *testing.T) *fixture {
 	t.Helper()
-	f := started(t)
+	f := newFixture()
 	f.s.ApplyAccount(api.AccountEvent{})
 	return f
 }
 
-func TestStartFetchesOnce(t *testing.T) {
-	f := started(t)
-	for _, res := range Resources {
-		wantState(t, f, res, fetchstate.Loading)
-	}
+func TestFetched(t *testing.T) {
+	f := newFixture()
 	if !f.s.IsBusy() {
 		t.Error("not busy while fetching")
 	}
@@ -197,7 +187,6 @@ func TestStartFetchesOnce(t *testing.T) {
 	if f.changed() {
 		t.Error("fetching the account changed it")
 	}
-	f.s.Start()
 	f.d.take(t)
 }
 
@@ -247,7 +236,6 @@ func TestSignedOutEverywhere(t *testing.T) {
 		t.Error("liked while signed out")
 	}
 	wantNotices(t, f, signInToLikeNotice)
-	f.s.Start()
 	f.d.take(t)
 }
 
@@ -272,7 +260,7 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 }
 
 func TestLibraryFailsAndRetries(t *testing.T) {
-	f := started(t)
+	f := newFixture()
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartProfile, Err: &api.Error{Code: api.CodeInternal}})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal, Detail: "network is down"}})
 	f.s.ApplyLikes(adaLikes)
@@ -284,8 +272,6 @@ func TestLibraryFailsAndRetries(t *testing.T) {
 	if f.s.IsBusy() {
 		t.Error("busy once every fetch ended")
 	}
-	// Failures are retried only by the user.
-	f.s.Start()
 	f.d.take(t)
 	// Retrying retries the failed account too.
 	f.s.Retry(LibraryRes)
@@ -429,7 +415,7 @@ func TestLikesReported(t *testing.T) {
 }
 
 func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
-	f := started(t)
+	f := newFixture()
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	// A like sent meanwhile is newer than the list.
 	f.s.SetLiked("midnight-arcade", true)
@@ -449,9 +435,6 @@ func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
 
 func TestSignIn(t *testing.T) {
 	f := signedOut(t)
-	if !f.s.CanSignIn() {
-		t.Fatal("the daemon cannot sign in")
-	}
 	// Nothing pasted sends nothing.
 	f.s.SignIn(" \n\t")
 	f.d.take(t)
@@ -522,17 +505,6 @@ func TestCancelSignIn(t *testing.T) {
 	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
 }
 
-func TestNoAccounts(t *testing.T) {
-	f := signedOut(t)
-	f.d.noAccounts = true
-	f.s.SignIn("SID=good")
-	f.s.SignOut()
-	f.d.take(t)
-	if f.s.IsBusy() || f.s.CanSignIn() {
-		t.Error("signing in where the daemon cannot")
-	}
-}
-
 func TestSignOut(t *testing.T) {
 	f := signedIn(t)
 	f.s.SignIn("SID=grace")
@@ -599,7 +571,7 @@ func TestStaleLikeRejected(t *testing.T) {
 }
 
 func TestRetryFailed(t *testing.T) {
-	f := started(t)
+	f := newFixture()
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal}})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLiked, Err: &api.Error{Code: api.CodeInternal}})

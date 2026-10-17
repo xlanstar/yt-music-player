@@ -8,35 +8,20 @@ import (
 	"yt-music-player/internal/remote"
 )
 
-// errNoAccount is a sign-in's reply without its account.
 var errNoAccount = fmt.Errorf("%w: a sign-in's reply without its account", api.ErrInvalid)
 
 var _ Daemon = (*Remote)(nil)
 
-// Remote is the Daemon over a remote.Client: every request goes with
-// Client.Go, so its answer keeps its place among the events. Use it on the
-// thread the Client posts to.
+// Remote is the Daemon over a remote.Client, whose Go keeps each answer
+// in its place among the events. Use it on the thread the Client posts to.
 type Remote struct {
-	c *remote.Client
-	// cancelSignIn cancels the latest sign-in (nothing once it ended),
-	// nil before the first.
-	cancelSignIn context.CancelFunc
+	c            *remote.Client
+	cancelSignIn context.CancelFunc // the latest sign-in's
 }
 
-// NewRemote returns the Daemon over c. c's Handler must give the account's
-// events to the Session's Apply methods:
-//
-//	remote.Handler{
-//		Account: func(e api.AccountEvent) { s.ApplyAccount(e) },
-//		Library: func(l catalog.Library) { s.ApplyLibrary(l) },
-//		Likes:   func(l api.Likes) { s.ApplyLikes(l) },
-//		Failed:  func(e api.FailedEvent) { s.ApplyFailed(e) },
-//	}
+// NewRemote returns the Daemon over c, whose Handler must give the
+// account's events to the Session's Apply methods.
 func NewRemote(c *remote.Client) *Remote { return &Remote{c: c} }
-
-// CanSignIn reports true: the Client is catalog.Accounts, and a daemon
-// whose source signs in no one answers SignIn with an error.
-func (*Remote) CanSignIn() bool { return true }
 
 // Refresh implements Daemon.
 func (r *Remote) Refresh(part api.Part, done func(error)) {
@@ -50,8 +35,8 @@ func (r *Remote) Like(id string, liked bool, song *catalog.Song, done func(error
 		func(_ *api.Reply, err error) { done(err) })
 }
 
-// SignIn implements Daemon. A sign-in canceled or replaced answers
-// ctx.Err() at once; the daemon is told to drop it.
+// SignIn implements Daemon; the daemon drops a sign-in canceled or
+// replaced.
 func (r *Remote) SignIn(credentials string, done func(catalog.Account, error)) {
 	r.CancelSignIn()
 	ctx, cancel := context.WithCancel(context.Background())

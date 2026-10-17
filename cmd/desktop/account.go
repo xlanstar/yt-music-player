@@ -53,9 +53,7 @@ func (a *app) tell(c *ui.Context, n notice.Notice) {
 	case notice.Failure:
 		t.Type = "error"
 	case notice.NeedsAccount:
-		if a.session.CanSignIn() {
-			t.Action, t.OnAction = locales.SignIn(), a.openSignIn
-		}
+		t.Action, t.OnAction = locales.SignIn(), a.openSignIn
 	case notice.SignedIn:
 		a.sheet.isOpen = false
 	case notice.SignInError:
@@ -75,9 +73,7 @@ func (a *app) likedCount() int {
 }
 
 func (a *app) openSignIn() {
-	if a.session.CanSignIn() {
-		a.sheet.isOpen, a.sheet.failure = true, ""
-	}
+	a.sheet.isOpen, a.sheet.failure = true, ""
 }
 
 // signIn sends the pasted credentials and forgets them, undo history
@@ -86,7 +82,7 @@ func (a *app) signIn() {
 	credentials := a.sheet.credentials
 	a.sheet.credentials = ""
 	a.sheet.attempt++
-	if a.session.CanSignIn() && api.CleanCredentials(credentials) != "" {
+	if api.CleanCredentials(credentials) != "" {
 		a.sheet.failure = ""
 		a.session.SignIn(credentials)
 	}

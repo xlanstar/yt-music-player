@@ -26,7 +26,6 @@ const bigLikes = 2000
 // cost is measured.
 type instantDaemon struct{}
 
-func (instantDaemon) CanSignIn() bool                      { return true }
 func (instantDaemon) Refresh(_ api.Part, done func(error)) { done(nil) }
 func (instantDaemon) Like(_ string, _ bool, _ *catalog.Song, done func(error)) {
 	done(nil)
@@ -57,7 +56,6 @@ func idleSession(tb testing.TB, likeCount int) *Session {
 	cat, src := catalog.Placeholder(), catalog.NewPlaceholderSource(0)
 	var states fetchstate.Registry
 	s := New(instantDaemon{}, &states, loader.New(src, &states, cat, func(func()) {}), cat)
-	s.Start()
 	user, err := src.Account(context.Background())
 	if err != nil {
 		tb.Fatal(err)
@@ -103,12 +101,10 @@ type idleCase struct {
 
 func idleCases(s *Session) []idleCase {
 	return []idleCase{
-		{"Start", s.Start},
 		{"TakeNotices", func() { sinkNotices = s.TakeNotices() }},
 		{"CancelSignIn", s.CancelSignIn},
 		{"SignedIn", func() { sinkBool = s.IsSignedIn() }},
 		{"DisplayName", func() { sinkString = s.DisplayName() }},
-		{"CanSignIn", func() { sinkBool = s.CanSignIn() }},
 		{"Busy", func() { sinkBool = s.IsBusy() }},
 		{"LikesGen", func() { sinkInt = int(s.LikesGen()) }},
 		{"Liked", func() { sinkBool = s.Liked("liked-1234") }},

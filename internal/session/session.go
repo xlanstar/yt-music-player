@@ -1,18 +1,12 @@
-// Package session keeps what ytmd's account reports (who is signed in,
-// their library and likes, as api events) as the pages read it: fetch
-// states and music in the catalog. Every like goes through SetLiked, which
-// shows it at once and undoes it if the daemon says it failed. Results for
-// the user come out as notices, coded rather than worded.
+// Package session keeps what ytmd's account reports (api events) as the
+// pages read it: fetch states and music in the catalog. SetLiked shows a
+// like at once and undoes it if the daemon says it failed; results come
+// out as notices.
 //
-// A Session asks the account's owner through a Daemon (Remote, over a
-// remote.Client) and tracks what it asked and is not answered yet: the
-// sign-in, the sign-out, the likes, and the fetches as Loading states. It
-// relies on a request's answer coming before the events it caused (a
-// Like's ErrSignedOut before the Account event of the sign-out).
-//
-// A Session belongs to the UI thread, as do the Daemon's answers and the
-// events given to its Apply methods; it calls no Source and starts no
-// goroutine.
+// A Session asks ytmd through a Daemon (Remote) and tracks what is not
+// answered yet, relying on an answer coming before the events its request
+// caused. It belongs to the UI thread, as do the Daemon's answers and the
+// Apply methods' events.
 package session
 
 import (
@@ -26,16 +20,14 @@ import (
 	"yt-music-player/internal/remote"
 )
 
-// Unlike pages' resources, these are fetched at start whatever page shows,
-// and again on sign-in.
+// The account's resources, fetched by ytmd whatever page shows.
 var (
 	AccountRes = fetchstate.Resource{Kind: fetchstate.Account}
 	LibraryRes = fetchstate.Resource{Kind: fetchstate.Library}
 	LikedRes   = fetchstate.Resource{Kind: fetchstate.Liked}
 )
 
-// Resources are the account's resources, in the order Start fetches them:
-// Resources[p-1] is the one api.Part p fills.
+// Resources are the account's resources: Resources[p-1] is api.Part p's.
 var Resources = [...]fetchstate.Resource{
 	api.PartProfile - 1: AccountRes,
 	api.PartLibrary - 1: LibraryRes,
@@ -45,30 +37,23 @@ var Resources = [...]fetchstate.Resource{
 // parts are the api.Parts, in Resources' order.
 var parts = [...]api.Part{api.PartProfile, api.PartLibrary, api.PartLiked}
 
-// Daemon is what a Session asks of the account's owner: ytmd's, through
-// Remote. Its done funcs run on the Session's thread, each before the
-// events its request caused.
+// Daemon is what a Session asks of ytmd; tests fake it. Its done funcs
+// run on the Session's thread, each before the events its request caused.
 type Daemon interface {
-	// CanSignIn reports whether the daemon signs in and out at all.
-	CanSignIn() bool
 	// Refresh has part fetched anew, whose result comes as an event; done
-	// gets why the request failed, or nil. It may never be called when
-	// the request went.
+	// gets why the request failed, or nil.
 	Refresh(part api.Part, done func(error))
-	// Like likes or unlikes song id; done gets the answer. song, when
-	// liked, is what the Session knows of it, or nil: the daemon tells the
-	// other front-ends, whose Liked music shows it.
+	// Like likes or unlikes song id. song, when liked, is what the Session
+	// knows of it, or nil, for the other front-ends' Liked music.
 	Like(id string, liked bool, song *catalog.Song, done func(error))
-	// SignIn sends credentials as pasted, canceling a sign-in in flight;
-	// done gets the account signed in, or why not. A canceled sign-in's
-	// failure may never come.
+	// SignIn sends credentials as pasted, canceling a sign-in in flight,
+	// whose failure may never come.
 	SignIn(credentials string, done func(catalog.Account, error))
-	// CancelSignIn gives up the sign-in in flight, which the daemon
-	// cancels; credentials it stored anyway still sign in, which only the
-	// Account event tells.
+	// CancelSignIn gives up the sign-in in flight; credentials stored
+	// anyway still sign in, which only the Account event tells.
 	CancelSignIn()
-	// SignOut clears the stored credentials; done gets why it failed, or
-	// nil after the Account event that no one is signed in.
+	// SignOut clears the stored credentials; done comes after the Account
+	// event that no one is signed in.
 	SignOut(done func(error))
 }
 
@@ -83,8 +68,7 @@ type Session struct {
 	account    catalog.Account
 	// displayName is made once rather than every build.
 	displayName string
-	// library lacks its playlists, which the catalog keeps (see
-	// Catalog.SetLibrary).
+	// library lacks its playlists, which the catalog keeps.
 	library catalog.Library
 	// likeOrder is Liked music's order, newest first, including songs
 	// unliked since; liked says which are liked, so a reverted unlike
@@ -94,7 +78,7 @@ type Session struct {
 	likesGen  uint64
 	// pending holds unanswered likes by song, so they survive a Liked
 	// music fetch that crossed them; seq picks a song's latest. An account
-	// change clears them so one account's likes never change the next's.
+	// change clears them.
 	pending map[string]pendingLike
 	likeSeq uint64
 
@@ -112,10 +96,9 @@ type pendingLike struct {
 	seq   uint64
 }
 
-// New returns a Session that asks d for the account's data and records
-// its fetches in states, has load refetch Home when the account changes,
-// and adds music to cat. The account's events must go to the Apply
-// methods (see Remote).
+// New returns a Session that records fetches in states, has load refetch
+// Home when the account changes, and adds music to cat. The account's
+// events must go to its Apply methods.
 func New(d Daemon, states *fetchstate.Registry, load *loader.Loader, cat *catalog.Catalog) *Session {
 	return &Session{
 		daemon:  d,
@@ -124,16 +107,6 @@ func New(d Daemon, states *fetchstate.Registry, load *loader.Loader, cat *catalo
 		cat:     cat,
 		liked:   map[string]bool{},
 		pending: map[string]pendingLike{},
-	}
-}
-
-// Start fetches the Resources never fetched yet, once the app can take
-// results. Later calls cost nothing.
-func (s *Session) Start() {
-	for i, res := range Resources {
-		if s.states.State(res).State == fetchstate.Idle {
-			s.fetch(parts[i])
-		}
 	}
 }
 
@@ -150,8 +123,7 @@ func (s *Session) Retry(res fetchstate.Resource) {
 	}
 }
 
-// RetryFailed fetches again the Resources that failed, as when the
-// computer is back online.
+// RetryFailed fetches again the Resources that failed.
 func (s *Session) RetryFailed() {
 	for i, res := range Resources {
 		if s.states.State(res).State == fetchstate.Failed {
@@ -234,8 +206,8 @@ func (s *Session) ApplyLikes(likes api.Likes) {
 	}
 }
 
-// keepLike applies a like that went through, unless the user's own like
-// of the song is pending: it is newer.
+// keepLike applies a like that went through, unless the user's own,
+// newer, is pending.
 func (s *Session) keepLike(id string, liked bool) {
 	if _, ok := s.pending[id]; ok || s.Liked(id) == liked {
 		return
@@ -265,9 +237,8 @@ func (s *Session) setAccount(user catalog.Account) {
 	}
 }
 
-// setLibrary adds lib's music to the catalog, so it plays and opens like
-// the rest, and makes its playlists the catalog's library. Duplicates are
-// dropped because the UI keys entries by ID.
+// setLibrary adds lib's music to the catalog and makes its playlists the
+// catalog's library. Duplicates are dropped as the UI keys entries by ID.
 func (s *Session) setLibrary(lib catalog.Library) {
 	lib.Playlists = loader.Unique(lib.Playlists, func(pl catalog.Playlist) string { return pl.ID })
 	lib.Albums = loader.Unique(lib.Albums, func(al catalog.Album) string { return al.ID })
@@ -445,15 +416,11 @@ func (s *Session) clearLibrary() {
 	s.seedLikes(nil)
 }
 
-// CanSignIn reports whether the daemon signs in and out at all.
-func (s *Session) CanSignIn() bool { return s.daemon.CanSignIn() }
-
 // SignIn has the daemon sign in with credentials, as pasted, canceling a
 // sign-in in flight; the caller should forget them. The result comes as a
-// SignedIn or SignInError notice. Credentials of nothing but space send
-// nothing.
+// SignedIn or SignInError notice.
 func (s *Session) SignIn(credentials string) {
-	if !s.CanSignIn() || api.CleanCredentials(credentials) == "" {
+	if api.CleanCredentials(credentials) == "" {
 		return
 	}
 	s.signInSeq++
@@ -462,9 +429,8 @@ func (s *Session) SignIn(credentials string) {
 	s.daemon.SignIn(credentials, func(user catalog.Account, err error) { s.finishSignIn(seq, user, err) })
 }
 
-// finishSignIn tells a sign-in's result, though only the latest's
-// failure: one canceled or replaced says nothing more. Its success is
-// told, as its account is the one signed in.
+// finishSignIn tells a sign-in's success, as its account is the one
+// signed in, but only the latest one's failure.
 func (s *Session) finishSignIn(seq uint64, user catalog.Account, err error) {
 	isLatest := s.isSigningIn && seq == s.signInSeq
 	if isLatest {
@@ -493,7 +459,7 @@ func (s *Session) CancelSignIn() {
 // SignOut has the daemon clear the stored credentials, unless a sign-out
 // is in flight; the Account event that follows forgets the account.
 func (s *Session) SignOut() {
-	if !s.CanSignIn() || s.isSigningOut {
+	if s.isSigningOut {
 		return
 	}
 	s.isSigningOut = true
