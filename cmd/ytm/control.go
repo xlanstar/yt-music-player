@@ -9,12 +9,6 @@ import (
 	"yt-music-player/locales"
 )
 
-// control sends a control without arguments: play, pause, toggle, next,
-// prev.
-func (e *env) control(ctx context.Context, m api.Method) int {
-	return e.call(ctx, api.Call{Method: m})
-}
-
 // seekCommand is `ytm seek <sec|+sec|-sec>`: a signed amount moves from
 // where the song is.
 func (e *env) seekCommand(ctx context.Context, args []string) int {

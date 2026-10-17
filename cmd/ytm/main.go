@@ -172,7 +172,7 @@ func run(ctx context.Context, args []string, e *env) int {
 		if len(rest) > 0 {
 			return e.usage(name)
 		}
-		return e.control(ctx, controls[name])
+		return e.call(ctx, api.Call{Method: controls[name]})
 	case "seek":
 		return e.seekCommand(ctx, rest)
 	case "volume":
