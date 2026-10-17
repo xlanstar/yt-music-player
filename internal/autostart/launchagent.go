@@ -53,7 +53,7 @@ const (
 	</array>
 	<key>ProgramArguments</key>
 	<array>
-		<string>` + plistShell + `</string>
+		<string>/bin/sh</string>
 		<string>-c</string>
 		<string>[ -x "$0" ] &amp;&amp; exec "$0"; rm -f '`
 	plistScriptTail = `'; launchctl disable gui/$(id -u)/` + label + `</string>
@@ -69,7 +69,6 @@ const (
 </dict>
 </plist>
 `
-	plistShell = "/bin/sh"
 )
 
 // renderPlist is the LaunchAgent at path that starts ytmd.
