@@ -334,6 +334,25 @@ func BenchmarkPlaceholderSource(b *testing.B) {
 	}
 }
 
+// BenchmarkShareStrings is an album's tracks as decoded, and a large
+// library's songs.
+func BenchmarkShareStrings(b *testing.B) {
+	for _, tc := range []struct {
+		name  string
+		songs []Song
+	}{
+		{"album", decodedTracks()},
+		{strconv.Itoa(bigSongs), scaledSongs(bigSongs)},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				ShareStrings(tc.songs)
+			}
+		})
+	}
+}
+
 // BenchmarkKeepSongs is a daemon's queue catalog after a song left the
 // queue: all songs scanned, one dropped, the index made again.
 func BenchmarkKeepSongs(b *testing.B) {

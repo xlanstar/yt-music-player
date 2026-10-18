@@ -162,44 +162,15 @@ func fetch(ctx context.Context, src catalog.Source, p Part) (Change, error) {
 	}
 }
 
-// shareStrings returns songs holding one copy of each artist, album and
-// cover they repeat. Sources decode them page by page, a copy per song,
-// and the account keeps them as long as ytmd runs: 5000 liked songs,
-// albums of about three, took 1.85 MB, now 1.38 (TestBudgetLiveLikes).
-// The slice is new: what a Source returned may be read elsewhere.
+// shareStrings returns a copy of songs that holds one copy of each
+// artist, album and cover they repeat (catalog.ShareStrings): the account
+// keeps them as long as ytmd runs. 5000 liked songs, albums of about
+// three, took 1.85 MB, now 1.38 (TestBudgetLiveLikes). A copy, as what a
+// Source returned may be read elsewhere.
 func shareStrings(songs []catalog.Song) []catalog.Song {
-	if len(songs) == 0 {
-		return songs
-	}
-	out := make([]catalog.Song, len(songs))
-	shared := sharedStrings{size: len(songs)}
-	for i, song := range songs {
-		song.Artist, song.Album, song.AlbumID = shared.of(song.Artist), shared.of(song.Album), shared.of(song.AlbumID)
-		song.Art = catalog.Art(shared.of(string(song.Art)))
-		out[i] = song
-	}
-	return out
-}
-
-// sharedStrings hands out the first copy it was given of each string.
-type sharedStrings struct {
-	first map[string]string
-	// size is about how many distinct strings to expect.
-	size int
-}
-
-func (s *sharedStrings) of(v string) string {
-	if v == "" {
-		return v
-	}
-	if s.first == nil {
-		s.first = make(map[string]string, s.size)
-	}
-	if first, ok := s.first[v]; ok {
-		return first
-	}
-	s.first[v] = v
-	return v
+	songs = slices.Clone(songs)
+	catalog.ShareStrings(songs)
+	return songs
 }
 
 func fetchLikes(ctx context.Context, src catalog.Source) (Likes, error) {

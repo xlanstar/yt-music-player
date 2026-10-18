@@ -2,10 +2,10 @@ package account
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"testing"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/catalog/catalogtest"
 )
 
 // likedSource answers Liked music with songs alone, so the account makes
@@ -35,42 +35,14 @@ func bigLikes() catalog.Source {
 }
 
 // decodedLikes answers Liked music as a Source decoding YouTube's pages
-// does, every string a copy of its own: n songs, seven in ten from
-// albums of about three liked songs, with their album's cover, the rest
-// videos with covers of their own; artists of about four.
+// does (catalogtest.Decoded).
 type decodedLikes struct {
 	catalog.Source
 	n int
 }
 
 func (s decodedLikes) Playlist(context.Context, string) (catalog.Playlist, []catalog.Song, error) {
-	songs := make([]catalog.Song, s.n)
-	for i := range songs {
-		songs[i] = decodedSong(i)
-	}
-	return catalog.Playlist{ID: catalog.LikedID}, songs, nil
-}
-
-// decodedSong is shaped like a real one: an 11-character ID, a 17-character
-// album ID and covers of about 130 bytes.
-func decodedSong(i int) catalog.Song {
-	id := fmt.Sprintf("v%010d", i)
-	song := catalog.Song{
-		ID:      id,
-		Title:   "Song title number " + strconv.Itoa(i) + " (Remastered)",
-		Artist:  "Artist " + strconv.Itoa(i*7919%1250),
-		Seconds: 221,
-	}
-	if i%10 >= 7 {
-		song.Art = catalog.Art("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg" +
-			fmt.Sprintf("&rs=AMzJL3%026d", i))
-		return song
-	}
-	album := i * 104729 % 1750
-	song.Album = "Album name " + strconv.Itoa(album)
-	song.AlbumID = fmt.Sprintf("MPREb_%011d", album)
-	song.Art = catalog.Art(fmt.Sprintf("https://lh3.googleusercontent.com/%080d=w120-h120-l90-rj", album))
-	return song
+	return catalog.Playlist{ID: catalog.LikedID}, catalogtest.Decoded(s.n), nil
 }
 
 func decoded5000() catalog.Source { return decodedLikes{catalog.NewPlaceholderSource(0), 5000} }

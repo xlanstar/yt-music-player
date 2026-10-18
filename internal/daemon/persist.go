@@ -108,6 +108,7 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	for i, song := range saved.Songs {
 		songs[i] = catalog.Song(song)
 	}
+	catalog.ShareStrings(songs)
 	s.cat = catalog.New(songs, nil, nil)
 	p := player.Restore(saved.Queue, saved.Order, saved.Index, saved.Shuffled)
 	if p.Current() != "" {

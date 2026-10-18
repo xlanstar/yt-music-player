@@ -4,8 +4,10 @@ package catalogtest
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -186,4 +188,35 @@ func (s Source) None(t testing.TB, idle func(), wait time.Duration) {
 		t.Fatalf("unexpected request for %s %q", call.Kind, call.ID)
 		return true
 	})
+}
+
+// Decoded returns n songs shaped as a Source decoding YouTube Music's
+// pages gives them, every string a copy of its own: 11-character IDs and
+// covers of about 130 bytes; seven in ten from albums of about three of
+// the songs, with their album's cover, the rest videos with covers of
+// their own; artists of about four.
+func Decoded(n int) []catalog.Song {
+	artists, albums := max(n/4, 1), max(n*35/100, 1)
+	songs := make([]catalog.Song, n)
+	for i := range songs {
+		id := fmt.Sprintf("v%010d", i)
+		song := catalog.Song{
+			ID:      id,
+			Title:   "Song title number " + strconv.Itoa(i) + " (Remastered)",
+			Artist:  "Artist " + strconv.Itoa(i*7919%artists),
+			Seconds: 221,
+		}
+		if i%10 < 7 {
+			// Primes spread an album's songs over the list.
+			album := i * 104729 % albums
+			song.Album = "Album name " + strconv.Itoa(album)
+			song.AlbumID = fmt.Sprintf("MPREb_%011d", album)
+			song.Art = catalog.Art(fmt.Sprintf("https://lh3.googleusercontent.com/%080d=w120-h120-l90-rj", album))
+		} else {
+			song.Art = catalog.Art("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg" +
+				fmt.Sprintf("&rs=AMzJL3%026d", i))
+		}
+		songs[i] = song
+	}
+	return songs
 }

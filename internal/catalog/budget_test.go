@@ -126,3 +126,13 @@ func TestBudgetKeepSongs(t *testing.T) {
 		c.Add([]Song{songs[bigSongs/2]}, nil, nil)
 	})
 }
+
+func TestBudgetShareStrings(t *testing.T) {
+	album := decodedTracks()
+	// 4 allocs today: the map of its few strings.
+	budget.Allocs(t, 5, 100, func() { ShareStrings(album) })
+	songs := scaledSongs(bigSongs)
+	// 18 allocs today, 328 KB: the map, sized for as many strings as
+	// songs.
+	budget.Within(t, budget.Cost{Allocs: 21, Bytes: 378e3}, 10, func() { ShareStrings(songs) })
+}
