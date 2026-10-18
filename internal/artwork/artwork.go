@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"yt-music-player/internal/httpclient"
 )
 
 const (
@@ -49,7 +50,7 @@ type Options struct {
 	MemoryBytes int
 	Workers     int
 	FailFor     time.Duration
-	// Client defaults to one with a timeout.
+	// Client defaults to httpclient's, with a timeout.
 	Client *http.Client
 }
 
@@ -115,7 +116,7 @@ func New(opts Options) *Loader {
 		opts.FailFor = defaultFailFor
 	}
 	if opts.Client == nil {
-		opts.Client = &http.Client{Timeout: 30 * time.Second}
+		opts.Client = httpclient.New(30 * time.Second)
 	}
 	l := &Loader{
 		opts:      opts,

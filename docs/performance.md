@@ -37,6 +37,16 @@ One engine on every system (`internal/audio`): YouTube's Opus in WebM, fetched i
 - The source asks for ranges of up to 2 MiB, the next once the reader used half: a few requests a song, and none while paused. It keeps 128 KiB chunks, up to 8 MiB: a song of up to about eight minutes stays whole, so seeking back costs no request. A 4 MB song allocates about 4.3 MB, once (`BenchmarkSourceRead`); the heap in use while playing is 3–4 MB (`TestLiveStream`).
 - No polling while a song plays: MyGo tells no one when a player ends or runs dry, so a timer fires at the computed end, and another, once the source has waited 200 ms for the network, when what was decoded ahead runs out (MyGo decodes about a second ahead). Only a stall is polled, every 100 ms, until half a second is decoded ahead: a seek's refill, or each piece of a slow response, would otherwise report a stall and its end.
 
+## Network
+
+One `httpclient` client per process; YouTube's hosts speak HTTP/2, one connection each. Measured on an M4 Max, ~15 ms from Google:
+
+- A kept connection answers in ~16 ms, a new one in 50–75 ms.
+- `MaxConnsPerHost` 1: the artwork's 4 workers on a cold host made 4 TLS handshakes, now 1, in no more time.
+- YouTube keeps idle connections 1.5–5 minutes; Go's 90 s is now 2 minutes.
+- Resuming a TLS session saves a reconnect 3–6 ms.
+- Prefetching the next song probes its URL, so its stream starts on an open connection.
+
 ## Messages
 
 - A message without arguments is a map lookup once said (MyGo keeps it by language): no allocation, so pages say theirs every build. Reading the language is one atomic load once the app knows it; tests set it the same way (`TestMain`), as MyGo's own path before `App.Run` allocates on each call.

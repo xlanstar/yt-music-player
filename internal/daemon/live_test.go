@@ -28,7 +28,7 @@ func TestLiveDaemonPlays(t *testing.T) {
 	svc := New(Options{
 		Source:    ytmusic.New(nil, &auth.MemoryStore{}),
 		Resolver:  stream.New(stream.Options{YTDLP: "yt-dlp"}),
-		NewEngine: audio.New,
+		NewEngine: func(events func(audio.Event)) (audio.Engine, error) { return audio.New(events, nil) },
 	})
 	h := &harness{t: t, svc: svc}
 	t.Cleanup(h.close)

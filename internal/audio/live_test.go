@@ -32,7 +32,7 @@ type liveEngine struct {
 func newLive(t *testing.T) *liveEngine {
 	t.Helper()
 	events := make(chan Event, 64)
-	e, err := New(func(e Event) { events <- e })
+	e, err := New(func(e Event) { events <- e }, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

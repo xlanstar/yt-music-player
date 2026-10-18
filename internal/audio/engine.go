@@ -80,10 +80,14 @@ type load struct {
 	endTimer, stallTimer                  *time.Timer
 }
 
-// New returns the engine. events is called from other goroutines and must
+// New returns the engine, fetching through client (nil: http.DefaultClient),
+// which needs no Timeout. events is called from other goroutines and must
 // not call the engine: route them to the UI thread.
-func New(events func(Event)) (Engine, error) {
-	e := newEngine(events, http.DefaultClient, newMyGoOutput)
+func New(events func(Event), client *http.Client) (Engine, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	e := newEngine(events, client, newMyGoOutput)
 	e.controls = newControls(e.command)
 	return e, nil
 }

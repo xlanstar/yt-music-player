@@ -6,6 +6,8 @@ import (
 	"yt-music-player/internal/audio"
 	"yt-music-player/internal/auth"
 	"yt-music-player/internal/daemon"
+	"yt-music-player/internal/httpclient"
+	"yt-music-player/internal/innertube"
 	"yt-music-player/internal/stream"
 	"yt-music-player/internal/ytmusic"
 
@@ -20,11 +22,17 @@ func options() daemon.Options {
 		log.Warn().Err(err).Msg("credentials store")
 		store = &auth.MemoryStore{}
 	}
+	// Shared, so they share connections; no timeout, for streams.
+	hc := httpclient.New(0)
+	api := innertube.New()
+	api.HTTP = hc
 	return daemon.Options{
-		Source: ytmusic.New(nil, store),
+		Source: ytmusic.New(api, store),
 		// yt-dlp is only a fallback: it tracks YouTube's changes within
 		// days but takes seconds per song.
-		Resolver:  stream.New(stream.Options{YTDLP: "yt-dlp"}),
-		NewEngine: audio.New,
+		Resolver: stream.New(stream.Options{HTTP: hc, YTDLP: "yt-dlp"}),
+		NewEngine: func(events func(audio.Event)) (audio.Engine, error) {
+			return audio.New(events, hc)
+		},
 	}
 }
