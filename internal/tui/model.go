@@ -412,7 +412,12 @@ func (m *model) browseKey(s string) (ok bool, cmd tea.Cmd) {
 		return m.enqueue(), nil
 	case "l":
 		return m.like(), nil
-	case "esc", "backspace":
+	case "backspace":
+		if m.tab == tabQueue && m.opened[tabQueue].kind == 0 {
+			return m.remove(), nil
+		}
+		return m.back(), nil
+	case "esc":
 		return m.back(), nil
 	default:
 		return false, nil
@@ -576,6 +581,19 @@ func (m *model) enqueue() bool {
 	default:
 		return false
 	}
+	return true
+}
+
+// remove takes the queue's selected song out of the queue; the cursor
+// stays, on the song after it.
+func (m *model) remove() bool {
+	p := m.page()
+	it, ok := p.selected()
+	if !ok || p.list != &m.queue || it.kind != itemSong {
+		return false
+	}
+	m.ctl.Remove(min(max(p.list.cursor, 0), p.n-1))
+	m.say(locales.TuiRemoved(it.song.Title))
 	return true
 }
 

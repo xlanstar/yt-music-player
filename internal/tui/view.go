@@ -233,7 +233,7 @@ var helpKeys = []helpKey{
 	{"r", locales.TuiHelpRepeat},
 	{"↑ / ↓", locales.TuiHelpSelect},
 	{"enter", locales.TuiHelpPlay},
-	{"a", locales.TuiHelpAdd},
+	{"a / ⌫", locales.TuiHelpAdd},
 	{"l", locales.TuiHelpLike},
 	{"/", locales.TuiHelpSearch},
 	{"tab", locales.TuiHelpTab},

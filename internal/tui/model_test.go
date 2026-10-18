@@ -46,6 +46,31 @@ func TestQueueScrolls(t *testing.T) {
 	}
 }
 
+func TestQueueRemove(t *testing.T) {
+	h := placeholderHarness(t)
+	songs := catalog.Placeholder().Songs
+	h.press("down", "backspace")
+	if got := h.ctl.take(); !reflect.DeepEqual(got, []string{"Remove 1"}) {
+		t.Errorf("backspace sent %q", got)
+	}
+	h.screenHas("Removed “" + songs[1].Title + "” from the queue")
+
+	// Elsewhere backspace goes back, removing nothing.
+	h.press("tab", "tab", "enter", "backspace")
+	if got := h.ctl.take(); len(got) > 0 {
+		t.Errorf("backspace in the library sent %q", got)
+	}
+	if h.m.opened[tabLibrary].kind != 0 {
+		t.Error("backspace did not close Liked music")
+	}
+
+	h.mirror.setQueue(nil)
+	h.press("tab", "backspace")
+	if got := h.ctl.take(); len(got) > 0 {
+		t.Errorf("backspace on an empty queue sent %q", got)
+	}
+}
+
 func TestEmptyQueue(t *testing.T) {
 	h := newHarness(t, catalog.NewPlaceholderSource(0))
 	h.mirror.setQueue(nil)

@@ -391,6 +391,11 @@
     "description": "The terminal player after a: the song was queued already, so nothing was added.",
     "placeholders": { "title": { "type": "String" } }
   },
+  "tuiRemoved": "Removed “{title}” from the queue",
+  "@tuiRemoved": {
+    "description": "The terminal player after backspace on the queue: the selected song was taken out of it.",
+    "placeholders": { "title": { "type": "String" } }
+  },
   "tuiAllQueued": "These songs are already in the queue",
   "@tuiAllQueued": { "description": "The terminal player after a on a collection whose songs were all queued already, so nothing was added." },
   "tuiSignedOutTitle": "You’re not signed in",
@@ -428,7 +433,8 @@
   "tuiHelpRepeat": "Repeat off, all or one",
   "tuiHelpSelect": "Select",
   "tuiHelpPlay": "Play, open or retry",
-  "tuiHelpAdd": "Add to the queue",
+  "tuiHelpAdd": "Add to or remove from the queue",
+  "@tuiHelpAdd": { "description": "What a (add the selected song or collection) and backspace (on the queue: take the selected song out) do in the terminal player." },
   "tuiHelpLike": "Like or unlike",
   "tuiHelpSearch": "Search",
   "tuiHelpTab": "Queue, Search, Library",

@@ -10,7 +10,7 @@
    r      Repeat off, all or one
    ↑ / ↓  Select
    enter  Play, open or retry
-   a      Add to the queue
+   a / ⌫  Add to or remove from the queue
    l      Like or unlike
    /      Search
    tab    Queue, Search, Library

@@ -2840,6 +2840,22 @@ func (msgs Messages) TuiAlreadyQueued(title string) string {
 	return Catalog.Format(msgs.locale, "tuiAlreadyQueued", map[string]any{"title": title})
 }
 
+// TuiRemoved says "Removed “{title}” from the queue"
+// in the language the app shows.
+//
+// The terminal player after backspace on the queue: the selected song was
+// taken out of it.
+func TuiRemoved(title string) string { return In(i18n.Locale()).TuiRemoved(title) }
+
+// TuiRemoved says "Removed “{title}” from the queue"
+// in the language of msgs.
+//
+// The terminal player after backspace on the queue: the selected song was
+// taken out of it.
+func (msgs Messages) TuiRemoved(title string) string {
+	return Catalog.Format(msgs.locale, "tuiRemoved", map[string]any{"title": title})
+}
+
 // TuiAllQueued says "These songs are already in the queue"
 // in the language the app shows.
 //
@@ -3132,12 +3148,18 @@ func (msgs Messages) TuiHelpPlay() string {
 	return Catalog.Format(msgs.locale, "tuiHelpPlay", nil)
 }
 
-// TuiHelpAdd says "Add to the queue"
+// TuiHelpAdd says "Add to or remove from the queue"
 // in the language the app shows.
+//
+// What a (add the selected song or collection) and backspace (on the queue:
+// take the selected song out) do in the terminal player.
 func TuiHelpAdd() string { return In(i18n.Locale()).TuiHelpAdd() }
 
-// TuiHelpAdd says "Add to the queue"
+// TuiHelpAdd says "Add to or remove from the queue"
 // in the language of msgs.
+//
+// What a (add the selected song or collection) and backspace (on the queue:
+// take the selected song out) do in the terminal player.
 func (msgs Messages) TuiHelpAdd() string {
 	return Catalog.Format(msgs.locale, "tuiHelpAdd", nil)
 }
