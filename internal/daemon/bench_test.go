@@ -7,6 +7,7 @@ import (
 	"yt-music-player/internal/account"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/catalog/catalogtest"
 )
 
 // bigQueue is a large library played in full.
@@ -23,11 +24,21 @@ func (sink) Send(api.Frame) error { return nil }
 // so nothing comes back through the loop.
 func benchService(tb testing.TB, queue int) (*Service, *conn) {
 	tb.Helper()
-	seed := make([]catalog.Song, queue)
-	for i := range seed {
+	return seededService(benchSongs(queue))
+}
+
+// benchSongs are n songs of short strings.
+func benchSongs(n int) []catalog.Song {
+	songs := make([]catalog.Song, n)
+	for i := range songs {
 		id := "song-" + strconv.Itoa(i)
-		seed[i] = catalog.Song{ID: id, Title: id, Artist: "Artist", Seconds: 200}
+		songs[i] = catalog.Song{ID: id, Title: id, Artist: "Artist", Seconds: 200}
 	}
+	return songs
+}
+
+// seededService is benchService over seed, the queue it starts with.
+func seededService(seed []catalog.Song) (*Service, *conn) {
 	s := newService(Options{Source: catalog.NewPlaceholderSource(0), Seed: seed})
 	c := &conn{out: sink{}, compatible: true, subscribed: true, calls: map[uint32]func(){}}
 	s.conns[c] = struct{}{}
@@ -122,15 +133,30 @@ func BenchmarkSnapshot(b *testing.B) {
 	}
 }
 
+// writeCases are large queues' daemon.json: bigQueue's short strings
+// (172 KB), and a library of 5000 songs shaped as YouTube's (1.5 MB), the
+// size where writing it through bytes first cost MBs a save.
+var writeCases = []struct {
+	name string
+	seed func() []catalog.Song
+}{
+	{strconv.Itoa(bigQueue), func() []catalog.Song { return benchSongs(bigQueue) }},
+	{"decoded-5000", func() []catalog.Song { return catalogtest.Decoded(5000) }},
+}
+
 // BenchmarkWrite saves a large queue's daemon.json, as the store's
 // goroutine does after a pause or a new song.
 func BenchmarkWrite(b *testing.B) {
-	s, _ := benchService(b, bigQueue)
-	st := s.saved()
-	w := newStore(filepath.Join(b.TempDir(), "daemon.json"), 0)
-	b.ReportAllocs()
-	for b.Loop() {
-		w.write(st)
+	for _, tc := range writeCases {
+		b.Run(tc.name, func(b *testing.B) {
+			s, _ := seededService(tc.seed())
+			st := s.saved()
+			w := newStore(filepath.Join(b.TempDir(), "daemon.json"), 0)
+			b.ReportAllocs()
+			for b.Loop() {
+				w.write(st)
+			}
+		})
 	}
 }
 
