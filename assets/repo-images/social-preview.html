@@ -1,6 +1,6 @@
 <!doctype html>
-<!-- GitHub's social preview (the link card, 1280×640): a headline and the
-     window. Uploaded in the repository's settings, never committed. -->
+<!-- GitHub's social preview (the link card, 1280×640): a headline, the
+     window and ytm in a terminal. Uploaded in the repository's settings, never committed. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -22,6 +22,7 @@
   /* Wider than what is left: the window runs off the right edge, the
      sidebar and the home page in view. */
   .app-window { left: 660px; top: 92px; width: 860px; }
+  .app-terminal { left: 720px; bottom: 36px; width: 460px; }
   .repo-url { position: absolute; left: 88px; bottom: 40px; font-size: 16px; color: var(--faint);
     font-weight: 500; letter-spacing: .3px; }
 </style>
@@ -39,6 +40,7 @@
     </ul>
   </div>
   <img class="app-window" src="app-window.png" alt="">
+  <img class="app-terminal" src="app-terminal.png" alt="">
   <div class="repo-url">github.com/xlanstar/yt-music-player</div>
 </body>
 </html>

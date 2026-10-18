@@ -1,4 +1,4 @@
-/* Shared by the repo images: the icon's colors, type and the window's
+/* Shared by the repo images: the icon's colors, type and the windows'
    shadow. scripts/repo-images.sh copies it beside the pages it renders. */
 :root {
   --bg: #f6eee2;
@@ -27,4 +27,4 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 .glow { position: absolute; background: radial-gradient(closest-side, var(--glow), transparent); }
-.app-window { position: absolute; filter: var(--window-shadow); }
+.app-window, .app-terminal { position: absolute; filter: var(--window-shadow); }

@@ -1,6 +1,7 @@
 <!doctype html>
-<!-- README's top image (1280×640): only the window, no text (the README's
-     title says it). ?theme=dark renders the one for GitHub's dark mode. -->
+<!-- README's top image (1280×640): the window and ytm in a terminal over
+     its right side, no text (the README's title says it). ?theme=dark
+     renders the one for GitHub's dark mode. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -13,11 +14,14 @@
 <style>
   html, body { width: 1280px; height: 640px; }
   .glow { left: 50%; top: 50%; width: 1300px; height: 1100px; transform: translate(-50%, -45%); }
-  .app-window { left: 50%; top: 44px; width: 960px; transform: translateX(-50%); }
+  .app-window { left: 64px; top: 36px; width: 900px; }
+  /* Over the window's queue, which it shows too. */
+  .app-terminal { right: 56px; bottom: 32px; width: 560px; }
 </style>
 </head>
 <body>
   <div class="glow"></div>
   <img class="app-window" src="app-window.png" alt="">
+  <img class="app-terminal" src="app-terminal.png" alt="">
 </body>
 </html>

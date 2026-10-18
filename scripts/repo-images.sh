@@ -7,7 +7,7 @@
 #   readme-hero-light.jpg   README's top image, GitHub's light mode
 #   readme-hero-dark.jpg    README's top image, GitHub's dark mode
 #
-#   scripts/repo-images.sh [-readme] [window.png]
+#   scripts/repo-images.sh [-readme] [-terminal terminal.png] [window.png]
 #
 #   -readme      copy readme-hero-*.jpg to docs/images/, which README shows
 #   window.png   the window to show; without it, the placeholder build is
@@ -15,23 +15,33 @@
 #                over a placeholder ytmd of its own 84 s into a song, and its
 #                window captured. A shot of your own: ⌘⇧4, Space,
 #                Option-click the window (no macOS shadow: the pages add one).
+#   -terminal terminal.png
+#                the terminal to show beside it; without it, the placeholder
+#                ytm is opened in kitty (assets/repo-images/kitty.conf), over
+#                the same ytmd, and its window captured.
 #
-# macOS only (screencapture, sips), with Google Chrome. Capture on a Retina
-# display: the pages draw at twice their size.
+# macOS only (screencapture, sips), with Google Chrome, and kitty unless
+# -terminal. Capture on a Retina display: the pages draw at twice their size.
 set -eu
 
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,20s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,24s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
 readme=
 window=
+terminal=
 while [ $# -gt 0 ]; do
 	case $1 in
 	-readme) readme=1 ;;
+	-terminal)
+		[ $# -gt 1 ] || usage
+		terminal=$2
+		shift
+		;;
 	-*) usage ;;
 	*) [ -z "$window" ] || usage; window=$1 ;;
 	esac
@@ -43,8 +53,15 @@ chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 	echo "repo-images.sh: needs Google Chrome in /Applications" >&2
 	exit 1
 }
-[ -z "$window" ] || [ -f "$window" ] || {
-	echo "repo-images.sh: no such file: $window" >&2
+for f in "$window" "$terminal"; do
+	[ -z "$f" ] || [ -f "$f" ] || {
+		echo "repo-images.sh: no such file: $f" >&2
+		exit 1
+	}
+done
+kitty=/Applications/kitty.app/Contents/MacOS/kitty
+[ -n "$terminal" ] || [ -x "$kitty" ] || {
+	echo "repo-images.sh: needs kitty in /Applications, or -terminal" >&2
 	exit 1
 }
 
@@ -70,50 +87,76 @@ isolated() {
 	env HOME="$tmp/home" TMPDIR="$tmp" YTMD_PATH="$tmp/ytmd" "$@"
 }
 
-# windowOf prints the ID of pid's normal window, if it has one on screen.
+# launch runs a command as isolated does, in the background, its pid in $!:
+# backgrounding isolated would give a subshell's pid, which owns no window.
+launch() {
+	env HOME="$tmp/home" TMPDIR="$tmp" YTMD_PATH="$tmp/ytmd" "$@" >/dev/null 2>&1 &
+}
+
+# windowOf prints the ID of pid's normal window, if it has one on screen,
+# and brings pid to the front: the windows show focused.
 windowOf() {
-	osascript -l JavaScript -e "ObjC.import('CoreGraphics');
+	osascript -l JavaScript -e "ObjC.import('AppKit'); ObjC.import('CoreGraphics');
 		const ws = ObjC.deepUnwrap(ObjC.castRefToObject(
 			\$.CGWindowListCopyWindowInfo(\$.kCGWindowListOptionOnScreenOnly, 0)));
 		const w = ws.find(w => w.kCGWindowOwnerPID === $1 && w.kCGWindowLayer === 0);
+		if (w) \$.NSRunningApplication.runningApplicationWithProcessIdentifier($1)
+			.activateWithOptions(\$.NSApplicationActivateIgnoringOtherApps);
 		w ? String(w.kCGWindowNumber) : ''"
 }
 
-if [ -z "$window" ]; then
-	go build -tags placeholder -o "$tmp/yt-music-player" ./cmd/desktop
-	# The app plays through ytmd, which it starts: a placeholder one, found
-	# through YTMD_PATH, and ytm to seek.
-	go build -tags placeholder -o "$tmp/ytmd" ./cmd/ytmd
-	go build -tags placeholder -o "$tmp/ytm" ./cmd/ytm
-	# A home of its own: the user's theme, window size, caches and ytmd
-	# stay out.
-	mkdir "$tmp/home"
-	isolated "$tmp/yt-music-player" >/dev/null 2>&1 &
-	pid=$!
+# capture pid file name: saves pid's window to file, part-way into the
+# song, then quits pid; name is what errors call it.
+capture() {
 	id=
 	for _ in $(seq 60); do
-		id=$(windowOf "$pid")
+		id=$(windowOf "$1")
 		[ -z "$id" ] || break
 		sleep 0.5
 	done
 	[ -n "$id" ] || {
-		echo "repo-images.sh: the placeholder build showed no window" >&2
+		echo "repo-images.sh: $3 showed no window" >&2
 		exit 1
 	}
 	# Part-way into the song, so the window shows progress.
 	isolated "$tmp/ytm" seek 84 >/dev/null
 	# Let the first frames and the covers draw.
 	sleep 2
-	window=$tmp/app-window.png
-	# -o: no shadow, the pages add their own.
-	screencapture -o -x -l"$id" "$window"
-	kill "$pid" 2>/dev/null || true
+	# -o: no shadow, the pages add their own. -a: without attached windows,
+	# such as the Caps Lock badge macOS shows by a terminal's cursor.
+	screencapture -o -a -x -l"$id" "$2"
+	kill "$1" 2>/dev/null || true
+	wait "$1" 2>/dev/null || true
 	pid=
+}
+
+if [ -z "$window" ] || [ -z "$terminal" ]; then
+	# The captures play through ytmd, which the app or ytm starts: a
+	# placeholder one, found through YTMD_PATH, and ytm to seek.
+	go build -tags placeholder -o "$tmp/ytmd" ./cmd/ytmd
+	go build -tags placeholder -o "$tmp/ytm" ./cmd/ytm
+	# A home of its own: the user's theme, window size, caches and ytmd
+	# stay out.
+	mkdir "$tmp/home"
+fi
+if [ -z "$window" ]; then
+	go build -tags placeholder -o "$tmp/yt-music-player" ./cmd/desktop
+	launch "$tmp/yt-music-player"
+	pid=$!
+	window=$tmp/app-window.png
+	capture "$pid" "$window" "the placeholder build"
+fi
+if [ -z "$terminal" ]; then
+	launch "$kitty" --config assets/repo-images/kitty.conf --title ytm "$tmp/ytm"
+	pid=$!
+	terminal=$tmp/app-terminal.png
+	capture "$pid" "$terminal" "kitty"
 fi
 
 mkdir -p "$out"
 cp assets/repo-images/* assets/icon/icon.svg "$tmp/"
 [ "$window" = "$tmp/app-window.png" ] || cp "$window" "$tmp/app-window.png"
+[ "$terminal" = "$tmp/app-terminal.png" ] || cp "$terminal" "$tmp/app-terminal.png"
 
 # render renders page (with its query) at 1280×640 and twice the scale, as
 # a JPEG: GitHub takes images up to 1 MB.

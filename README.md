@@ -2,7 +2,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/readme-hero-dark.jpg">
-  <img src="docs/images/readme-hero-light.jpg" alt="YT Music Player's home page, a song playing and its queue beside it">
+  <img src="docs/images/readme-hero-light.jpg" alt="YT Music Player's home page, and ytm in a terminal beside it showing the same song and queue">
 </picture>
 
 A lightweight YouTube Music desktop player for macOS, Linux and Windows. Native, GPU-drawn UI in Go with [MyGo](https://mygo.egoist.dev): no webview, no Electron, about 60 MB of memory, no frames drawn when idle.
