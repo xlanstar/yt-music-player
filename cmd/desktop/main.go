@@ -55,7 +55,7 @@ func main() {
 	}
 	a.startup.hasTerminal = runtime.GOOS == "windows"
 	a.startStartup(systemStartup(), mygo.IsDev())
-	a.quiet.start()
+	a.quiet.Start()
 	// In the app's language. Builds that cannot update themselves (go run,
 	// the placeholder) never check; Check for Updates… says why.
 	mygo.Use(native.New(updater.Options{}))

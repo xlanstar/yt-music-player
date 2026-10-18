@@ -87,7 +87,7 @@ func (s *Service) settle() {
 		s.keepQueued()
 	}
 	s.persist(st, last, jumped)
-	s.quiet.active()
+	s.quiet.Note()
 }
 
 // tell sends the State, with the queue if it changed and the notice.

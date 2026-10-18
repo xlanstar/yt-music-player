@@ -40,6 +40,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `api`: the protocol between ytmd and its front-ends (frames, methods, events, error codes), types and pure functions only; `ipc`: ytmd's paths, single-instance lock, listening, dialing and starting ytmd, and the frame stream whose sends never block.
 - `remote`: a front-end's side of ytmd: `Client` (the front-end's `catalog.Source`, controls, the mirror of playback) and `Supervisor` (reconnects, versions, hand-off, the daemon's health).
 - `version`: ytmd's and ytm's version (`-ldflags -X`, else `dev`); `logfile`: ytmd's and ytm's size-bounded log files; `autostart`: ytmd at login (LaunchAgent, systemd user unit, HKCU Run) and, on Windows, the app's folder on the Path.
+- `quiet`: the heap back to the OS once builds (Desktop) or the loop (ytmd) stop.
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's service (player, playback, account, engine and `daemon.json` on the loop; serves `api` over `ipc`).
 - `tui`: `ytm`'s player in the terminal (Bubble Tea, Lip Gloss); `Update` is the UI thread, where posted funcs run as one message; screens are golden files in `testdata/` (`-update` rewrites them).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
@@ -48,7 +49,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 `cmd/desktop` (`package main`, the MyGo app; `mygo.json`, `resources/` and `locales/` stay at the root, `mygo.json`'s `main` names this package):
 
-- `main.go` (the window, the menu bar, the updater plugin), `demo.go` (`demo_placeholder.go` under the `placeholder` tag starts with the placeholder's music), `post.go` (`a.post`, buffered until the window attaches), `quiet.go` (heap back to the OS once builds stop), `network.go` (back online: ytmd and what failed are retried), `ytm_linux.go` (started as `ytm`, runs the `ytm` beside it).
+- `main.go` (the window, the menu bar, the updater plugin), `demo.go` (`demo_placeholder.go` under the `placeholder` tag starts with the placeholder's music), `post.go` (`a.post`, buffered until the window attaches), `network.go` (back online: ytmd and what failed are retried), `ytm_linux.go` (started as `ytm`, runs the `ytm` beside it).
 - `daemon.go`: the remote client and its supervisor; routes the account's events to the session, notices to `tell`, the daemon's health to `banner.go` (Retry, Restart, View Log); Quit and Stop Playback. `startup.go`: starting ytmd at login and, on Windows, ytm on the Path (package `autostart`, through `job.Run`).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
 - `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (the session over ytmd, `tell`: the one path for every notice), `playback.go` (what plays, from the mirror: the position's frames, the current song and those up next, controls, sliders held while dragged), `appearance.go` (the settings sheet).

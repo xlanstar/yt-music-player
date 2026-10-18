@@ -18,14 +18,14 @@ Numbers from `scripts/footprint.sh` (`perf/footprint-baseline.txt`: M4 Max, 1280
 - Any frame makes Metal hold ~270 MB for ~1 s ("Owned physical footprint (unmapped) (graphics)", ~250 MB of it): the same in a minimal MyGo app and at any window size; MyGo's own textures are ~5 MB. So idle means no frames.
 - Playing draws one frame per shown step: ~330 MB focused (1 s), ~125–135 MB on average unfocused (5 s; the driver's memory goes about 1 s after a frame), ~70 MB minimized or hidden, none while paused; idle ~60 MB. Steps longer than the hold cost more CPU than 1 s: a frame after the release takes ~8–16 ms against ~1.5–3 ms.
 - Thumbnails cost about +14 MB idle footprint per page of real results, mostly decoded pixels in the Go heap. `internal/artwork` keeps a 32 MB memory LRU (images shown in the last two frames stay) and a 128 MB disk cache; MyGo keeps the pixels of about one page's images (~20) after the page is left, until it shows again.
-- The Go heap grows to twice what is live before a GC, and the scavenger returns free pages over minutes: `quiet.go` runs `debug.FreeOSMemory` (0.6–5 ms, off the UI thread) after 3 s without a build, if the heap allocated 1 MB since. With thumbnails: idle ~96 → 77 MB, after every page ~121 → 96 MB, playing minimized ~119 → 93 MB; frames unchanged.
+- The Go heap grows to twice what is live before a GC, and the scavenger returns free pages over minutes: `internal/quiet` runs `debug.FreeOSMemory` (0.6–5 ms, off the UI thread) after 3 s without a build, if the heap allocated 1 MB since. With thumbnails: idle ~96 → 77 MB, after every page ~121 → 96 MB, playing minimized ~119 → 93 MB; frames unchanged.
 
 ## The background player
 
 Numbers from `scripts/footprint.sh -daemon` (`perf/footprint-daemon-baseline.txt`: M4 Max, a placeholder ytmd, whose engine is a fake on a clock).
 
 - ytmd's footprint: ~6 MB fresh and paused (RSS ~13 MB), ~6.4 MB playing, ~8.5 MB after a Desktop toured every page through it (RSS ~16 MB). A real engine adds its stream's buffers and decoder while playing (3–4 MB of heap, below) and MyGo's audio output. The window's numbers above hold no player.
-- Paused, ytmd wakes nothing: top counts 0 idle wake-ups and 0 context switches over 10 s, also with a TUI connected (measured by hand), and none while the placeholder plays. No ticker or heartbeat: state goes out on changes only, and the save 2 s after a change and the heap's release 3 s after the last request (as `quiet.go`) are one-shot timers. Go's runtime alone wakes it, about once a minute (sysmon, for the forced GC).
+- Paused, ytmd wakes nothing: top counts 0 idle wake-ups and 0 context switches over 10 s, also with a TUI connected (measured by hand), and none while the placeholder plays. No ticker or heartbeat: state goes out on changes only, and the save 2 s after a change and the heap's release 3 s after the last request (`internal/quiet`, as the Desktop) are one-shot timers. Go's runtime alone wakes it, about once a minute (sysmon, for the forced GC).
 - Front-ends never poll ytmd ([docs/daemon.md](daemon.md#health)); the TUI itself is not idle (Bubble Tea's renderer ticks at 30 fps while it runs).
 
 ## Audio

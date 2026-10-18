@@ -9,6 +9,7 @@ import (
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/notice"
+	"yt-music-player/internal/quiet"
 	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
 	"yt-music-player/internal/settings"
@@ -69,7 +70,7 @@ type app struct {
 	theme, contrast theme.Theme
 	look            lookState
 
-	quiet quietGC
+	quiet quiet.GC
 
 	paints paints
 }
@@ -176,7 +177,7 @@ func appWith(cat *catalog.Catalog, clientPost func(func())) *app {
 }
 
 func (a *app) view(c *ui.Context) {
-	a.quiet.built()
+	a.quiet.Note()
 	a.applyTheme(c)
 	a.useArt()
 	c.Root().Background(th.Color.Base)

@@ -28,7 +28,6 @@ func benchService(tb testing.TB, queue int) (*Service, *conn) {
 		seed[i] = catalog.Song{ID: id, Title: id, Artist: "Artist", Seconds: 200}
 	}
 	s := newService(Options{Source: catalog.NewPlaceholderSource(0), Seed: seed})
-	tb.Cleanup(s.quiet.stop)
 	c := &conn{out: sink{}, compatible: true, subscribed: true, calls: map[uint32]func(){}}
 	s.conns[c] = struct{}{}
 	return s, c

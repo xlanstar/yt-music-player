@@ -23,6 +23,7 @@ import (
 	"yt-music-player/internal/loop"
 	"yt-music-player/internal/playback"
 	"yt-music-player/internal/player"
+	"yt-music-player/internal/quiet"
 	"yt-music-player/internal/stream"
 
 	"github.com/rs/zerolog/log"
@@ -87,7 +88,7 @@ type Service struct {
 	signOuts []pendingReply
 
 	store *store // nil keeps nothing
-	quiet quietGC
+	quiet quiet.GC
 	// resume plays at Start: a hand-off's resumePlaying.
 	resume   bool
 	stopping bool
@@ -179,6 +180,7 @@ func (s *Service) Start() {
 }
 
 func (s *Service) start() {
+	s.quiet.Start()
 	if s.resume {
 		s.resume = false
 		s.player.Resume()
@@ -241,7 +243,7 @@ func (s *Service) stop(resumeBefore time.Time) {
 	for c := range s.conns {
 		c.cancelAll()
 	}
-	s.quiet.stop()
+	s.quiet.Stop()
 	if s.lis != nil {
 		_ = s.lis.Close() // removes the socket
 	}
