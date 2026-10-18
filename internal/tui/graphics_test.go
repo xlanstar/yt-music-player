@@ -327,7 +327,7 @@ func TestCoverEvicts(t *testing.T) {
 	g.detect()
 	for i := range numCovers + 2 {
 		g.beginFrame()
-		g.place(slotBar, 1, 0, catalog.Art(fmt.Sprintf("https://x/%d", i)))
+		g.show(slotBar, 80, 0, catalog.Art(fmt.Sprintf("https://x/%d", i)))
 	}
 	seen := map[string]bool{}
 	for _, c := range g.covers {

@@ -21,6 +21,8 @@ const (
 	// coverRows is a cover's height: the player bar's song and progress,
 	// a collection's title and subtitle.
 	coverRows = 2
+	// coverX is the cell covers show from, after a space.
+	coverX = 1
 	// coverMinWidth is the narrowest terminal that shows covers.
 	coverMinWidth = 40
 	// probeWait is how long a terminal has to answer the probe.
@@ -55,10 +57,10 @@ type coverKey struct {
 	caps termimage.Caps
 }
 
-// placement is a cover a render placed at cell x, y; its zero value is none.
+// placement is a cover a render placed on line y; its zero value is none.
 type placement struct {
-	key  coverKey
-	x, y int
+	key coverKey
+	y   int
 }
 
 // cover is a cover encoded for the terminal, or being encoded; its
@@ -86,7 +88,9 @@ type gfx struct {
 	replies termimage.Replies
 	caps    termimage.Caps
 	// cols is a cover's width, caps.Fit(coverRows).
-	cols    int
+	cols int
+	// blank is a cover's lines while it loads.
+	blank   []string
 	isReady bool
 
 	post   func(func())
@@ -103,7 +107,6 @@ type gfx struct {
 	// while they differ, an overlayMsg of gen will draw them.
 	drawn, want [numSlots]placement
 	gen         uint64
-	blank       []string
 }
 
 // start asks the terminal what it shows, unless YTM_IMAGES says; then
@@ -156,7 +159,7 @@ func (g *gfx) detect() bool {
 	was := g.caps
 	g.caps = termimage.Detect(g.env, g.replies)
 	g.cols = g.caps.Fit(coverRows)
-	g.blank = slices.Repeat([]string{strings.Repeat(" ", g.cols)}, coverRows)
+	g.blank = slices.Repeat([]string{strings.Repeat(" ", coverX+g.cols)}, coverRows)
 	if g.caps.Protocol != termimage.None && g.art == nil && g.newArt != nil {
 		g.art = g.newArt()
 	}
@@ -173,11 +176,6 @@ func (g *gfx) resized() tea.Cmd {
 	return tea.Raw(termimage.CellSizeQuery)
 }
 
-// isOn reports covers showing in w cells.
-func (g *gfx) isOn(w int) bool {
-	return g.caps.Protocol != termimage.None && w >= g.cols+coverMinWidth
-}
-
 // beginFrame starts a render's placements.
 func (g *gfx) beginFrame() {
 	g.frame++
@@ -187,17 +185,18 @@ func (g *gfx) beginFrame() {
 	}
 }
 
-// place puts art's cover at cell x, y and returns its lines, blank
-// until it is ready; nil shows none (no protocol, no image).
-func (g *gfx) place(s slot, x, y int, art catalog.Art) []string {
-	if g.caps.Protocol == termimage.None || !art.IsURL() {
-		return nil
+// show places art's cover in slot s from line y of a screen w cells wide,
+// and returns its lines, blank until it is ready, each after a space, and
+// the cells they take; without a cover, empty lines and 0.
+func (g *gfx) show(s slot, w, y int, art catalog.Art) (lines [coverRows]string, x int) {
+	if g.caps.Protocol == termimage.None || w < g.cols+coverMinWidth || !art.IsURL() {
+		return lines, 0
 	}
 	key := coverKey{url: string(art), caps: g.caps}
 	i := g.claim(key)
 	c := &g.covers[i]
 	c.frame = g.frame
-	g.placed[s] = placement{key: key, x: x, y: y}
+	g.placed[s] = placement{key: key, y: y}
 	// Get may give another size while this one loads: a larger one, once
 	// it came, encodes again.
 	if px := max(g.caps.Pixels(g.cols, coverRows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
@@ -207,9 +206,9 @@ func (g *gfx) place(s slot, x, y int, art catalog.Art) []string {
 		}
 	}
 	if c.isReady {
-		return c.Lines
+		return [coverRows]string(c.Lines), coverX + g.cols
 	}
-	return g.blank
+	return [coverRows]string(g.blank), coverX + g.cols
 }
 
 // claim returns key's cover, or the one placed longest ago, taken for it.
@@ -234,7 +233,11 @@ func (g *gfx) claim(key coverKey) int {
 func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
 	key, cols, tmux := c.key, g.cols, g.env.Tmux
 	job.Run(&c.job, g.post, func(context.Context) (termimage.Encoded, error) {
-		return termimage.Encode(img, key.caps, cols, coverRows, id, tmux)
+		e, err := termimage.Encode(img, key.caps, cols, coverRows, id, tmux)
+		for i, line := range e.Lines {
+			e.Lines[i] = " " + line
+		}
+		return e, err
 	}, func(e termimage.Encoded, err error) {
 		if err != nil {
 			log.Debug().Err(err).Stringer("protocol", key.caps.Protocol).Msg("tui: cover not encoded")
@@ -337,7 +340,7 @@ func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
 	b.Grow(size)
 	for s, c := range draw {
 		if c != nil {
-			termimage.Overlay(&b, c.Overlay, g.want[s].x, g.want[s].y)
+			termimage.Overlay(&b, c.Overlay, coverX, g.want[s].y)
 		}
 	}
 	g.drawn = g.want

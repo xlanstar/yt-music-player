@@ -37,7 +37,7 @@ Numbers from `scripts/footprint.sh -daemon` (`perf/footprint-daemon-baseline.txt
 ## The TUI's covers
 
 - Detected off, nothing is made: no `artwork` loader, no HTTP client. The covers link `net/http`, TLS and the decoders into ytm (6.4 → 9.9 MB stripped); fetching them in ytmd instead would save ytm 2 MB of binary but keep connections and a cache in the process that never quits.
-- Covers are fetched at 64 or 128 pixels, at most 256 KB of decoded pixels kept (`artMemory`), 2 workers; encoding runs off the UI thread, once per cover and size, then renders join its lines: a frame costs 1 alloc more (`TestBudgetView`).
+- Covers are fetched at 64 or 128 pixels, at most 256 KB of decoded pixels kept (`artMemory`), 2 workers; encoding runs off the UI thread, once per cover and size, its lines made each after a space, which renders pass as a prefix: a frame with a cover allocates as one without (`TestBudgetView`).
 - Each protocol keeps only what it needs again: Kitty's upload goes once and is dropped, the terminal holding the pixels under 8 recycled ids (176–183); an overlay keeps its Sixel or JPEG to draw after a repaint, 256 KB at most off screen; half blocks keep their lines.
 - The encoders are `termimage`'s, not x/ansi's, which box every pixel through `At` and, for Sixel, quantize with maps and pull in a bitset module: an 80-pixel Sixel is 3 allocs, a Kitty upload 3, without zlib, whose state outweighs a cover.
 - `internal/quiet` frees the heap 3 s after Update last ran, as it does after the Desktop's last build.

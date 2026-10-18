@@ -99,7 +99,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 	case m.isSignedOut():
 		account = locales.CliSignedOut()
 	}
-	line := spread(top.String(), styleMuted.Render(fit(account, max(w-at-2, 0))+" "), w)
+	line := spread("", top.String(), styleMuted.Render(fit(account, max(w-at-2, 0))+" "), w)
 	if at < w {
 		rule.WriteString(strings.Repeat("─", w-at))
 	}
@@ -116,16 +116,14 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
-		header := p.header
-		if p.art != "" && h >= coverRows && len(header) >= coverRows && m.gfx.isOn(w) {
-			if cover := m.gfx.place(slotHeader, 1, start, p.art); cover != nil {
-				for i := range coverRows {
-					lines = append(lines, fit(" "+cover[i]+header[i], w))
-				}
-				header = header[coverRows:]
-			}
+		var cover [coverRows]string
+		if h >= coverRows && len(p.header) >= coverRows {
+			cover, _ = m.gfx.show(slotHeader, w, start, p.art)
 		}
-		for _, line := range header {
+		for i, line := range p.header {
+			if i < coverRows {
+				line = cover[i] + line
+			}
 			lines = append(lines, fit(line, w))
 		}
 		rows := h - len(p.header)
@@ -299,19 +297,10 @@ func (m *model) appendBar(lines []string, w int) []string {
 		if song.Artist != "" {
 			title += styleMuted.Render(" · " + song.Artist)
 		}
-		var cover []string
-		if m.gfx.isOn(w) {
-			cover = m.gfx.place(slotBar, 1, len(lines), song.Art)
-		}
-		if cover == nil {
-			lines = append(lines, spread(title, heart, w))
-			lines = append(lines, m.progress(st, w, len(lines), 0))
-		} else {
-			// The cover spans the song and its progress, a space each side.
-			x := 1 + m.gfx.cols
-			lines = append(lines, " "+cover[0]+spread(title, heart, w-x))
-			lines = append(lines, " "+cover[1]+m.progress(st, w, len(lines), x))
-		}
+		// The cover spans the song and its progress.
+		cover, x := m.gfx.show(slotBar, w, len(lines), song.Art)
+		lines = append(lines, spread(cover[0], title, heart, w-x))
+		lines = append(lines, m.progress(st, cover[1], x, len(lines), w))
 	}
 	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
@@ -324,26 +313,27 @@ func (m *model) appendBar(lines []string, w int) []string {
 		// Before any daemon spoke, its volume is no one's.
 		status = m.status(st)
 	}
-	return append(lines, spread(" "+styleMuted.Render(status), right, w))
+	return append(lines, spread("", " "+styleMuted.Render(status), right, w))
 }
 
-// progress is the current song's time on line y from cell x, as a bar
-// between its elapsed and whole length, a space before the end.
-func (m *model) progress(st api.State, w, y, x int) string {
+// progress is the current song's time on line y of w cells, after cover,
+// x cells wide, as a bar between its elapsed and whole length, a space
+// before the end.
+func (m *model) progress(st api.State, cover string, x, y, w int) string {
 	pos := m.position(st)
 	elapsed := Clock(pos)
 	if st.Duration <= 0 {
-		return " " + elapsed
+		return cover + " " + elapsed
 	}
 	total := Clock(st.Duration)
 	start := x + 1 + width(elapsed) + 1
 	bar := w - start - 1 - width(total) - 1
 	if bar < 4 {
-		return " " + elapsed + " / " + total
+		return cover + " " + elapsed + " / " + total
 	}
 	m.mark(hit{y: y, x0: start, x1: start + bar, kind: hitProgress})
 	done := min(int(pos/st.Duration*float64(bar)), bar)
-	return " " + elapsed + " " + styleAccent.Render(strings.Repeat("━", done)) +
+	return cover + " " + elapsed + " " + styleAccent.Render(strings.Repeat("━", done)) +
 		styleMuted.Render(strings.Repeat("─", bar-done)) + " " + total
 }
 

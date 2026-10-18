@@ -34,17 +34,17 @@ var viewCases = []struct {
 	}, 82},
 	// 98 allocs today.
 	{"help", func(h *harness) { h.press("?") }, 113},
-	// 76 allocs today: a cover, encoded once, costs a render its lines'
-	// joins.
+	// 74 allocs today, as without covers: one, encoded once, costs a
+	// render nothing.
 	{"queue-cover-kitty", func(h *harness) {
 		h.withCovers(termimage.Kitty, newCoverHost(h.t))
 		h.covered()
-	}, 88},
-	// 76 allocs today.
+	}, 86},
+	// 74 allocs today.
 	{"queue-cover-sixel", func(h *harness) {
 		h.withCovers(termimage.Sixel, newCoverHost(h.t))
 		h.covered()
-	}, 88},
+	}, 86},
 }
 
 // viewing is a screen of tc, rendered once.

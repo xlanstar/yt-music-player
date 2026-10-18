@@ -26,19 +26,19 @@ func pad(s string, w int) string {
 // width is s's display width; s may hold styles.
 func width(s string) int { return ansi.StringWidth(s) }
 
-// spread puts left and right on one line of w cells, right flush to the
-// end; left is cut first, then right.
-func spread(left, right string, w int) string {
+// spread puts left and right on one line of w cells after prefix, right
+// flush to the end; left is cut first, then right.
+func spread(prefix, left, right string, w int) string {
 	rw := width(right)
 	if rw >= w {
-		return fit(right, w)
+		return prefix + fit(right, w)
 	}
 	lw := width(left)
 	if lw > w-rw-1 {
 		left = fit(left, max(w-rw-1, 0))
 		lw = width(left)
 	}
-	return left + strings.Repeat(" ", w-lw-rw) + right
+	return prefix + left + strings.Repeat(" ", w-lw-rw) + right
 }
 
 // Clock says seconds as m:ss, or h:mm:ss from an hour; ytm status says
