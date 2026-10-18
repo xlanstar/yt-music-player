@@ -8,8 +8,8 @@ import (
 )
 
 // forbidden are the packages ytm must not link (docs/daemon.md, Programs):
-// the window, MyGo's App and audio, and everything that plays or signs in,
-// which only ytmd does.
+// the window, MyGo's App and audio, everything that plays or signs in,
+// which only ytmd does, and the decoders artwork leaves out of it.
 var forbidden = []string{
 	"github.com/egoist/mygo",
 	"github.com/egoist/mygo/ui",
@@ -19,6 +19,8 @@ var forbidden = []string{
 	"yt-music-player/internal/account",
 	"yt-music-player/internal/innertube",
 	"yt-music-player/internal/ytmusic",
+	"golang.org/x/image/webp",
+	"golang.org/x/image/draw",
 }
 
 // TestDeps checks what the ytm binary links, not its tests, on every OS
