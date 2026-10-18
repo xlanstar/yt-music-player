@@ -1,6 +1,7 @@
 package termimage
 
 import (
+	"bytes"
 	"image"
 	"strconv"
 	"strings"
@@ -95,32 +96,23 @@ func level(v, t uint8) uint8 {
 // writeSixelRow writes a color's sixels of a band, run-length encoded,
 // without the empty run that ends it.
 func writeSixelRow(s *strings.Builder, sixels []byte) {
-	var n int
-	var last byte
-	flush := func() {
-		switch {
-		case n == 0:
-		case n > 3:
+	sixels = bytes.TrimRight(sixels, "\x00")
+	for i := 0; i < len(sixels); {
+		j := i + 1
+		for j < len(sixels) && sixels[j] == sixels[i] {
+			j++
+		}
+		ch := '?' + sixels[i]
+		if n := j - i; n > 3 {
 			s.WriteByte('!')
 			writeInt(s, n)
-			s.WriteByte(last)
-		default:
+			s.WriteByte(ch)
+		} else {
 			for range n {
-				s.WriteByte(last)
+				s.WriteByte(ch)
 			}
 		}
-	}
-	for _, bits := range sixels {
-		ch := '?' + bits
-		if ch == last && n > 0 {
-			n++
-			continue
-		}
-		flush()
-		last, n = ch, 1
-	}
-	if last != '?' {
-		flush()
+		i = j
 	}
 }
 
