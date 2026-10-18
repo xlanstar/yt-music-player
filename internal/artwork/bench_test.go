@@ -169,15 +169,15 @@ var decodeCases = []struct {
 	px    int
 	limit budget.Cost
 }{
-	{"jpeg/544", coverPx, budget.Cost{Allocs: 20, Bytes: 2.5e6}},   // 17 allocs, 2.17 MB today.
-	{"jpeg/1200", coverPx, budget.Cost{Allocs: 23, Bytes: 11.4e6}}, // 20 allocs, 9.91 MB today.
-	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 27, Bytes: 820e3}},  // 23 allocs, 711 KB today.
-	{"jpeg/hq720", 64, budget.Cost{Allocs: 28, Bytes: 4.84e6}},     // 24 allocs, 4.21 MB today.
-	// 192 allocs, 2.96 MB today; most allocs are the PNG decoder's.
-	{"png/544", coverPx, budget.Cost{Allocs: 221, Bytes: 3.4e6}},
-	{"png/1200", coverPx, budget.Cost{Allocs: 674, Bytes: 15.7e6}}, // 586 allocs, 13.6 MB today.
-	{"webp/544", coverPx, budget.Cost{Allocs: 33, Bytes: 2.55e6}},  // 28 allocs, 2.21 MB today.
-	{"webp/1200", coverPx, budget.Cost{Allocs: 35, Bytes: 11.7e6}}, // 30 allocs, 10.1 MB today.
+	{"jpeg/544", coverPx, budget.Cost{Allocs: 14, Bytes: 2.5e6}},   // 12 allocs, 2.17 MB today.
+	{"jpeg/1200", coverPx, budget.Cost{Allocs: 18, Bytes: 11.4e6}}, // 15 allocs, 9.9 MB today.
+	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 21, Bytes: 810e3}},  // 18 allocs, 702 KB today.
+	{"jpeg/hq720", 64, budget.Cost{Allocs: 22, Bytes: 4.83e6}},     // 19 allocs, 4.2 MB today.
+	// 187 allocs, 2.95 MB today; most allocs are the PNG decoder's.
+	{"png/544", coverPx, budget.Cost{Allocs: 216, Bytes: 3.4e6}},
+	{"png/1200", coverPx, budget.Cost{Allocs: 669, Bytes: 15.7e6}}, // 581 allocs, 13.6 MB today.
+	{"webp/544", coverPx, budget.Cost{Allocs: 27, Bytes: 2.54e6}},  // 23 allocs, 2.2 MB today.
+	{"webp/1200", coverPx, budget.Cost{Allocs: 29, Bytes: 11.7e6}}, // 25 allocs, 10.1 MB today.
 }
 
 func BenchmarkDecode(b *testing.B) {

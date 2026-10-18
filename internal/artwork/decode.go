@@ -1,7 +1,6 @@
 package artwork
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"image"
@@ -9,6 +8,7 @@ import (
 	"image/draw"
 	_ "image/jpeg" // Decode
 	_ "image/png"  // Decode
+	"io"
 
 	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp" // Decode
@@ -38,7 +38,8 @@ func Decode(data []byte, px int) (*Image, error) {
 	if px <= 0 {
 		return nil, errors.New("artwork: no size")
 	}
-	cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+	r := &peekReader{data}
+	cfg, _, err := image.DecodeConfig(r)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,8 @@ func Decode(data []byte, px int) (*Image, error) {
 	if isEmpty || cfg.Width*cfg.Height > maxPixels {
 		return nil, fmt.Errorf("artwork: image of %d×%d pixels", cfg.Width, cfg.Height)
 	}
-	src, _, err := image.Decode(bytes.NewReader(data))
+	r.data = data
+	src, _, err := image.Decode(r)
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +57,27 @@ func Decode(data []byte, px int) (*Image, error) {
 	draw.Draw(m, m.Bounds(), src, crop.Min, draw.Src)
 	m = shrink(m, px)
 	return &Image{RGBA: m, Average: average(m)}, nil
+}
+
+// peekReader reads bytes with the Peek image.Decode looks for: without it,
+// DecodeConfig and Decode each wrap the reader in a 4 KB bufio.Reader.
+type peekReader struct{ data []byte }
+
+func (r *peekReader) Read(p []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data)
+	r.data = r.data[n:]
+	return n, nil
+}
+
+// Peek returns the next n bytes, fewer and io.EOF at the end.
+func (r *peekReader) Peek(n int) ([]byte, error) {
+	if n > len(r.data) {
+		return r.data, io.EOF
+	}
+	return r.data[:n], nil
 }
 
 // shrink scales a square image down to n pixels as MyGo draws a smaller

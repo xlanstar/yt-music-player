@@ -108,7 +108,7 @@ func TestBudgetLoad(t *testing.T) {
 	l := New(Options{Client: &http.Client{Transport: memoryTransport(data)}})
 	t.Cleanup(l.Close)
 	k := key{coverURL(0), coverPx}
-	// 35 allocs, 2.27 MB today, most of them the decoder's: the body is
+	// 30 allocs, 2.26 MB today, most of them the decoder's: the body is
 	// read into one buffer of its Content-Length.
-	budget.Within(t, budget.Cost{Allocs: 40, Bytes: 2.61e6}, 5, func() { sinkImage, sinkErr = l.load(k) })
+	budget.Within(t, budget.Cost{Allocs: 35, Bytes: 2.6e6}, 5, func() { sinkImage, sinkErr = l.load(k) })
 }

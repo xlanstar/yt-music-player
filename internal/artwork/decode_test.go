@@ -3,12 +3,15 @@ package artwork
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -159,6 +162,23 @@ func TestAverageWeighsByAlpha(t *testing.T) {
 	m.SetRGBA(1, 0, color.RGBA{}) // transparent: shows nothing
 	if got := average(m); got != (color.RGBA{100, 0, 0, 255}) {
 		t.Errorf("average %v", got)
+	}
+}
+
+func TestPeekReaderDecodesAsBytesReader(t *testing.T) {
+	for _, name := range []string{"jpeg/544", "png/544", "webp/544"} {
+		data := benchFile()[name]
+		want, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, _, err := image.Decode(&peekReader{data})
+		if err != nil || !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: decoded otherwise through Peek: %v", name, err)
+		}
+	}
+	if b, err := (&peekReader{[]byte("ab")}).Peek(3); string(b) != "ab" || !errors.Is(err, io.EOF) {
+		t.Errorf("Peek past the end: %q, %v", b, err)
 	}
 }
 
