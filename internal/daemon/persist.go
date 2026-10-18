@@ -5,6 +5,7 @@ import (
 	"encoding/json/v2"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -249,18 +250,17 @@ func (w *store) wait() {
 }
 
 func (w *store) write(st *savedState) {
-	data, err := json.Marshal(st)
-	if err == nil {
-		err = replaceFile(w.path, data)
-	}
+	// Encoded into the file, not to bytes first: a long queue's state runs
+	// to hundreds of KB (BenchmarkWrite).
+	err := replaceFile(w.path, func(f io.Writer) error { return json.MarshalWrite(f, st) })
 	if err != nil {
 		log.Warn().Err(err).Msg("save state")
 	}
 }
 
-// replaceFile renames a temporary file over path, which a crash midway
-// leaves as it was. CreateTemp makes it 0600.
-func replaceFile(path string, data []byte) error {
+// replaceFile renames a temporary file, filled by write, over path, which
+// a failure or crash midway leaves as it was. CreateTemp makes it 0600.
+func replaceFile(path string, write func(io.Writer) error) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
@@ -269,7 +269,7 @@ func replaceFile(path string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	_, err = tmp.Write(data)
+	err = write(tmp)
 	if err == nil {
 		err = tmp.Sync()
 	}

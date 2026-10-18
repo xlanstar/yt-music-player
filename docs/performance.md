@@ -49,6 +49,7 @@ One engine on every system (`internal/audio`): YouTube's Opus in WebM, fetched i
 - InnerTube responses decode into structs naming only what the parsers read (`ytmusic/response.go`), the rest skipped: against `map[string]any`, a tenth of the bytes and an eighth of the allocations, about a third less time. `lenient` costs ~20%; a jsontext walk was no faster, and harder to read.
 - Parsing a decoded page allocates little beside its results: `ytmusic`'s `meta` joins artist names as it reads them, so a song of one artist costs none (a playlist page: 101 allocations → 1, the slice).
 - Responses decode as they are read (`innertube.Client.Call`'s decode, `stream.parsePlayer`): read whole first, they allocated another 2–2.5× their size.
+- ytmd encodes `daemon.json` into its file: through bytes, a 2000-song queue's (172 KB) allocated 173 KB a save, now 1.2 KB.
 - Request bodies we build are structs (`stream.playerRequest`, `innertube.requestContext`): maps took 31 of a player body's allocations and 8 of a call's context.
 - No sonic: measured at about 2.5× v1's speed on arm64, but a 2 MB parser per decode once a GC empties its pools, more allocations on structs and small bodies, +1.25 MB of binary, and native only up to the Go its build tags name.
 

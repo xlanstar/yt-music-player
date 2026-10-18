@@ -47,6 +47,7 @@ func TestBudgetWrite(t *testing.T) {
 	s, _ := benchService(t, bigQueue)
 	st := s.saved()
 	w := newStore(filepath.Join(t.TempDir(), "daemon.json"), 0)
-	// 15.1 allocs, 173 KB today: a 172 KB file, encoded to bytes first.
-	budget.Within(t, budget.Cost{Allocs: 18, Bytes: 2e5}, 20, func() { w.write(st) })
+	// 14 allocs, 1.2 KB today: the temporary file's; encoding the 172 KB
+	// to bytes first made 15.1 and 173 KB.
+	budget.Within(t, budget.Cost{Allocs: 17, Bytes: 1.5e3}, 20, func() { w.write(st) })
 }
