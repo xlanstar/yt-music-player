@@ -108,9 +108,8 @@ func TestBudgetPrune(t *testing.T) {
 		t.Skip("budgets skip under -race")
 	}
 	d := fullDisk(t, cachedFiles)
-	// 10832 allocs, 1.66 MB today: ReadDir's entries, each file's info and
-	// path, and the list of them.
-	budget.Within(t, budget.Cost{Allocs: 12460, Bytes: 1.91e6}, 3, d.prune)
+	// 9019 allocs, 1.11 MB today: ReadDir's entries and each file's info.
+	budget.Within(t, budget.Cost{Allocs: 10380, Bytes: 1.28e6}, 3, d.prune)
 }
 
 func TestBudgetLoad(t *testing.T) {

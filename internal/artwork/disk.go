@@ -99,45 +99,54 @@ func (d *disk) put(u string, data []byte) {
 // prune removes the least recently used files down to three quarters of
 // the budget, leaving room for many writes before the next prune. Needs d.mu.
 func (d *disk) prune() {
-	type file struct {
-		path string
-		size int64
-		used time.Time
-	}
 	entries, err := os.ReadDir(d.dir)
 	if err != nil {
 		return
 	}
-	var (
-		files []file
-		total int64
-	)
-	for _, e := range entries {
-		info, err := e.Info()
-		if err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		p := filepath.Join(d.dir, e.Name())
-		// A temporary file older than any write is left from a crash.
-		if strings.HasPrefix(e.Name(), "tmp-") && time.Since(info.ModTime()) > time.Hour {
-			_ = os.Remove(p)
-			continue
-		}
-		files = append(files, file{path: p, size: info.Size(), used: info.ModTime()})
-		total += info.Size()
-	}
 	d.isScanned = true
-	d.size = total
-	if total <= d.maxBytes {
+	d.size = 0
+	// Sizes first: under budget, as at a run's first write, that is all.
+	for _, e := range entries {
+		if info := d.info(e); info != nil {
+			d.size += info.Size()
+		}
+	}
+	if d.size <= d.maxBytes {
 		return
+	}
+	type file struct {
+		name string
+		size int64
+		used time.Time
+	}
+	files := make([]file, 0, len(entries))
+	for _, e := range entries {
+		if info := d.info(e); info != nil {
+			files = append(files, file{name: e.Name(), size: info.Size(), used: info.ModTime()})
+		}
 	}
 	slices.SortFunc(files, func(a, b file) int { return a.used.Compare(b.used) })
 	for _, f := range files {
 		if d.size <= d.maxBytes*3/4 {
 			break
 		}
-		if err := os.Remove(f.path); err == nil || errors.Is(err, fs.ErrNotExist) {
+		err := os.Remove(filepath.Join(d.dir, f.name))
+		if err == nil || errors.Is(err, fs.ErrNotExist) {
 			d.size -= f.size
 		}
 	}
+}
+
+// info returns e's info if it is a cached file, else nil. A temporary file
+// older than any write is left from a crash: info removes it.
+func (d *disk) info(e fs.DirEntry) fs.FileInfo {
+	info, err := e.Info()
+	if err != nil || !info.Mode().IsRegular() {
+		return nil
+	}
+	if strings.HasPrefix(e.Name(), "tmp-") && time.Since(info.ModTime()) > time.Hour {
+		_ = os.Remove(filepath.Join(d.dir, e.Name()))
+		return nil
+	}
+	return info
 }
