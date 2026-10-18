@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +20,7 @@ func testdata(t *testing.T, name string) []byte {
 
 func okPlayer(t *testing.T) *playerResponse {
 	t.Helper()
-	pr, err := parsePlayer(testdata(t, "player_ok.json"))
+	pr, err := parsePlayer(bytes.NewReader(testdata(t, "player_ok.json")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,8 +29,12 @@ func okPlayer(t *testing.T) *playerResponse {
 
 func TestBudgetParsePlayer(t *testing.T) {
 	data := testdata(t, "player_ok.json")
-	// 19 allocs today.
-	budget.Allocs(t, 22, 100, func() { sinkPlayer, sinkErr = parsePlayer(data) })
+	var r bytes.Reader
+	// 19 allocs, 4.1 KB today; reading it all first made 28 and 15.4 KB.
+	budget.Within(t, budget.Cost{Allocs: 22, Bytes: 4.8e3}, 100, func() {
+		r.Reset(data)
+		sinkPlayer, sinkErr = parsePlayer(&r)
+	})
 }
 
 func TestBudgetPlayerBody(t *testing.T) {
@@ -60,7 +65,7 @@ func TestBudgetStream(t *testing.T) {
 }
 
 func TestBudgetPlayability(t *testing.T) {
-	pr, err := parsePlayer(testdata(t, "player_unplayable.json"))
+	pr, err := parsePlayer(bytes.NewReader(testdata(t, "player_unplayable.json")))
 	if err != nil {
 		t.Fatal(err)
 	}

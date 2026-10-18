@@ -151,14 +151,12 @@ func (y *YouTube) player(ctx context.Context, c client, videoID, visitorData str
 	}
 	// Read in full, so a Close error loses nothing.
 	defer func() { _ = resp.Body.Close() }()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxPlayerResponse))
-	if err != nil {
-		return nil, err
-	}
+	respBody := io.LimitReader(resp.Body, maxPlayerResponse)
 	if resp.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, respBody)
 		return nil, fmt.Errorf("player: HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
-	pr, err := parsePlayer(data)
+	pr, err := parsePlayer(respBody)
 	if err != nil {
 		return nil, fmt.Errorf("player: %w", err)
 	}
@@ -192,9 +190,11 @@ func playerBody(c client, videoID, visitorData string) ([]byte, error) {
 	return json.Marshal(&req)
 }
 
-func parsePlayer(data []byte) (*playerResponse, error) {
+// parsePlayer decodes as it reads: io.ReadAll's growing copies were 4/5
+// of a real response's allocated bytes (BenchmarkParsePlayer).
+func parsePlayer(r io.Reader) (*playerResponse, error) {
 	var pr playerResponse
-	if err := json.Unmarshal(data, &pr); err != nil {
+	if err := json.UnmarshalRead(r, &pr); err != nil {
 		return nil, err
 	}
 	return &pr, nil

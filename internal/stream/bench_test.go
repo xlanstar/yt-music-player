@@ -79,7 +79,7 @@ func benchPlayers(b *testing.B) []struct {
 
 func mustParsePlayer(b *testing.B, data []byte) *playerResponse {
 	b.Helper()
-	pr, err := parsePlayer(data)
+	pr, err := parsePlayer(bytes.NewReader(data))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -90,9 +90,11 @@ func BenchmarkParsePlayer(b *testing.B) {
 	for _, tc := range benchPlayers(b) {
 		b.Run(tc.name, func(b *testing.B) {
 			b.SetBytes(int64(len(tc.data)))
+			var r bytes.Reader
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkPlayer, sinkErr = parsePlayer(tc.data)
+				r.Reset(tc.data)
+				sinkPlayer, sinkErr = parsePlayer(&r)
 			}
 		})
 	}
