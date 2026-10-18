@@ -295,7 +295,9 @@ func TestLevel(t *testing.T) {
 }
 
 func TestOverlay(t *testing.T) {
-	if got, want := Overlay("IMG", 1, 20), "\x1b7\x1b[21;2HIMG\x1b8"; got != want {
+	var b strings.Builder
+	Overlay(&b, "IMG", 1, 20)
+	if got, want := b.String(), "\x1b7\x1b[21;2HIMG\x1b8"; got != want || len(got)-3 > OverlayFrame {
 		t.Errorf("Overlay = %q, want %q", got, want)
 	}
 	cells := OverlayCells(3, 2)
@@ -311,7 +313,9 @@ func TestPassthrough(t *testing.T) {
 }
 
 func TestProtocolString(t *testing.T) {
-	if Kitty.String() != "kitty" || Protocol(9).String() != "Protocol(9)" {
-		t.Errorf("String = %q, %q", Kitty.String(), Protocol(9).String())
+	for p := range Kitty + 1 {
+		if q, ok := ParseOverride(p.String()); !ok || q != p {
+			t.Errorf("%v names %v", p, q)
+		}
 	}
 }

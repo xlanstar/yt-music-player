@@ -2,7 +2,6 @@ package termimage
 
 import (
 	"image"
-	"strconv"
 	"strings"
 )
 
@@ -18,10 +17,10 @@ func BlockLines(img *image.RGBA) []string {
 		for x := range cols {
 			r, g, bl := rgb(img, x, 2*y)
 			b.WriteString("\x1b[38;2;")
-			writeRGB(&b, r, g, bl)
+			writeRGB(&b, int(r), int(g), int(bl))
 			b.WriteString(";48;2;")
 			r, g, bl = rgb(img, x, 2*y+1)
-			writeRGB(&b, r, g, bl)
+			writeRGB(&b, int(r), int(g), int(bl))
 			b.WriteString("m▀")
 		}
 		b.WriteString("\x1b[m")
@@ -31,11 +30,11 @@ func BlockLines(img *image.RGBA) []string {
 	return lines
 }
 
-func writeRGB(b *strings.Builder, r, g, bl uint8) {
-	var num [3]byte
-	b.Write(strconv.AppendUint(num[:0], uint64(r), 10))
+// writeRGB writes r;g;b, as an SGR color or a Sixel palette's.
+func writeRGB(b *strings.Builder, r, g, bl int) {
+	writeInt(b, r)
 	b.WriteByte(';')
-	b.Write(strconv.AppendUint(num[:0], uint64(g), 10))
+	writeInt(b, g)
 	b.WriteByte(';')
-	b.Write(strconv.AppendUint(num[:0], uint64(bl), 10))
+	writeInt(b, bl)
 }

@@ -167,41 +167,37 @@ func TestCoverKitty(t *testing.T) {
 	}
 }
 
-func TestCoverSixel(t *testing.T) {
-	h := placeholderHarness(t)
-	h.withCovers(termimage.Sixel, newCoverHost(t))
-	raws := h.covered()
-	// The song's line, 22, from cell 2: after the frame that blanked them.
-	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[22;2H\x1bP0;1;0q\"1;1;40;40#") {
-		t.Fatalf("overlays = %.40q, want the cover drawn once", raws)
-	}
-	if !strings.Contains(h.screen(), " \u2800\u2800\u2800\u2800 ") {
-		t.Error("the cover's cells are not left blank")
-	}
-	if raws := h.run(h.press("tab")); len(raws) != 0 {
-		t.Errorf("a render that leaves the cover drew %q", raws)
-	}
-	// A resize repaints every cell, the cover's too.
-	raws = h.run(h.send(tea.WindowSizeMsg{Width: 90, Height: 24}))
-	if len(raws) != 2 || raws[0] != "\x1b[16t" || !strings.HasPrefix(raws[1], "\x1b7\x1b[22;2H") {
-		t.Errorf("after a resize, wrote %.40q", raws)
-	}
-	// Without the cover, its cells are painted over: nothing to draw.
-	h.mirror.setQueue(nil)
-	if raws := h.run(h.send(postedMsg{})); len(raws) != 0 {
-		t.Errorf("without a cover, drew %q", raws)
-	}
-	if h.m.gfx.drawn != ([numSlots]placement{}) {
-		t.Errorf("drawn = %+v, want none", h.m.gfx.drawn)
-	}
-}
-
-func TestCoverITerm2(t *testing.T) {
-	h := placeholderHarness(t)
-	h.withCovers(termimage.ITerm2, newCoverHost(t))
-	raws := h.covered()
-	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[22;2H\x1b]1337;File=inline=1;") {
-		t.Fatalf("overlays = %.60q, want the cover drawn once", raws)
+// TestCoverOverlays draws Sixel's and iTerm2's images over blank cells.
+func TestCoverOverlays(t *testing.T) {
+	for p, seq := range map[termimage.Protocol]string{
+		termimage.Sixel:  "\x1bP0;1;0q\"1;1;40;40#",
+		termimage.ITerm2: "\x1b]1337;File=inline=1;",
+	} {
+		t.Run(p.String(), func(t *testing.T) {
+			h := placeholderHarness(t)
+			h.withCovers(p, newCoverHost(t))
+			raws := h.covered()
+			// The song's line, 22, from cell 2: after the frame that blanked them.
+			if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[22;2H"+seq) {
+				t.Fatalf("overlays = %.60q, want the cover drawn once", raws)
+			}
+			if !strings.Contains(h.screen(), " \u2800\u2800\u2800\u2800 ") {
+				t.Error("the cover's cells are not left blank")
+			}
+			if raws := h.run(h.press("tab")); len(raws) != 0 {
+				t.Errorf("a render that leaves the cover drew %q", raws)
+			}
+			// A resize repaints every cell, the cover's too.
+			raws = h.run(h.send(tea.WindowSizeMsg{Width: 90, Height: 24}))
+			if len(raws) != 2 || raws[0] != termimage.CellSizeQuery || !strings.HasPrefix(raws[1], "\x1b7\x1b[22;2H") {
+				t.Errorf("after a resize, wrote %.40q", raws)
+			}
+			// Without the cover, its cells are painted over: nothing to draw.
+			h.mirror.setQueue(nil)
+			if raws := h.run(h.send(postedMsg{})); len(raws) != 0 || h.m.gfx.drawn != ([numSlots]placement{}) {
+				t.Errorf("without a cover, drew %q, and drawn = %+v", raws, h.m.gfx.drawn)
+			}
+		})
 	}
 }
 

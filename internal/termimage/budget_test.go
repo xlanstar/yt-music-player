@@ -15,9 +15,3 @@ func TestBudgetEncode(t *testing.T) {
 		})
 	}
 }
-
-// TestBudgetKittyCells holds a slot's placeholders.
-func TestBudgetKittyCells(t *testing.T) {
-	// 5 allocs today: the color, the lines and each line's string.
-	budget.Allocs(t, 6, 100, func() { sink = KittyCells(176, 4, 2) })
-}

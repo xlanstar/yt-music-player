@@ -14,7 +14,7 @@ package termimage
 
 import (
 	"image"
-	"strconv"
+	"slices"
 	"strings"
 )
 
@@ -32,12 +32,7 @@ const (
 
 var protocolNames = [...]string{None: "off", Blocks: "blocks", Sixel: "sixel", ITerm2: "iterm2", Kitty: "kitty"}
 
-func (p Protocol) String() string {
-	if int(p) < len(protocolNames) {
-		return protocolNames[p]
-	}
-	return "Protocol(" + strconv.Itoa(int(p)) + ")"
-}
+func (p Protocol) String() string { return protocolNames[p] }
 
 // maxPixels bounds the side of what Kitty and iTerm2 get, which they scale.
 const maxPixels = 256
@@ -118,19 +113,19 @@ func Passthrough(seq string) string {
 	return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
 }
 
-// Overlay returns seq drawn at cell x, y (from 0), the cursor kept where it
+// OverlayFrame is the most Overlay writes besides seq.
+const OverlayFrame = len("\x1b7\x1b[999;999H\x1b8")
+
+// Overlay writes seq drawn at cell x, y (from 0), the cursor kept where it
 // was: the renderer moves it by what it believes.
-func Overlay(seq string, x, y int) string {
-	var b strings.Builder
-	b.Grow(len(seq) + 16)
+func Overlay(b *strings.Builder, seq string, x, y int) {
 	b.WriteString("\x1b7\x1b[")
-	b.WriteString(strconv.Itoa(y + 1))
+	writeInt(b, y+1)
 	b.WriteByte(';')
-	b.WriteString(strconv.Itoa(x + 1))
+	writeInt(b, x+1)
 	b.WriteByte('H')
 	b.WriteString(seq)
 	b.WriteString("\x1b8")
-	return b.String()
 }
 
 // OverlayCells returns the lines an overlay covers: blank, but braille's
@@ -138,12 +133,7 @@ func Overlay(seq string, x, y int) string {
 // image, once the image goes. It never prints them to move the cursor:
 // 3 bytes a cell cost more than a cursor move.
 func OverlayCells(cols, rows int) []string {
-	line := strings.Repeat("\u2800", cols)
-	lines := make([]string, rows)
-	for i := range lines {
-		lines[i] = line
-	}
-	return lines
+	return slices.Repeat([]string{strings.Repeat("\u2800", cols)}, rows)
 }
 
 // rgb returns the pixel at x, y of an opaque image.

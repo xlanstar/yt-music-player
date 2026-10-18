@@ -321,16 +321,26 @@ func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
 	if msg.gen != g.gen {
 		return nil
 	}
-	var b strings.Builder
+	var draw [numSlots]*cover
+	size := 0
 	for s, p := range g.want {
 		if c := g.ready(p.key); c != nil && p != g.drawn[s] {
-			b.WriteString(termimage.Overlay(c.Overlay, p.x, p.y))
+			draw[s] = c
+			size += len(c.Overlay) + termimage.OverlayFrame
+		}
+	}
+	if size == 0 {
+		g.drawn = g.want
+		return nil
+	}
+	var b strings.Builder
+	b.Grow(size)
+	for s, c := range draw {
+		if c != nil {
+			termimage.Overlay(&b, c.Overlay, g.want[s].x, g.want[s].y)
 		}
 	}
 	g.drawn = g.want
-	if b.Len() == 0 {
-		return nil
-	}
 	return tea.Raw(b.String())
 }
 

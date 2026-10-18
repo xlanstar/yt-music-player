@@ -10,9 +10,6 @@ import (
 // no per-image quantizing, its maps nor its heap.
 var bayer = [4][4]uint8{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}
 
-// sixelLevels are the 6×6×6 palette's steps of a channel, in percent.
-var sixelLevels = [6]string{"0", "20", "40", "60", "80", "100"}
-
 // SixelImage returns img as a Sixel image, for Overlay to draw, in the 216
 // colors of a 6×6×6 cube, ordered-dithered.
 func SixelImage(img *image.RGBA) string {
@@ -40,12 +37,9 @@ func SixelImage(img *image.RGBA) string {
 		}
 		s.WriteByte('#')
 		writeInt(&s, c)
+		// The cube's steps, in percent.
 		s.WriteString(";2;")
-		s.WriteString(sixelLevels[c/36])
-		s.WriteByte(';')
-		s.WriteString(sixelLevels[c/6%6])
-		s.WriteByte(';')
-		s.WriteString(sixelLevels[c%6])
+		writeRGB(&s, c/36*20, c/6%6*20, c%6*20)
 	}
 	for y0 := 0; y0 < h; y0 += 6 {
 		band := idx[y0*w : min(y0+6, h)*w]

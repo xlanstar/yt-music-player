@@ -6,8 +6,8 @@ import (
 )
 
 // encodeCases are a player bar's cover, 4×2 cells of 20×40 pixels (Retina),
-// and the scaled case, the largest side encoded. allocs is each one's
-// budget (TestBudgetEncode).
+// Kitty's placeholders for it, and the scaled case, the largest side
+// encoded. allocs is each one's budget (TestBudgetEncode).
 var encodeCases = []struct {
 	name   string
 	encode func(m *image.RGBA) any
@@ -18,6 +18,8 @@ var encodeCases = []struct {
 	{"fill/cover80", func(m *image.RGBA) any { return Fill(m, 80, 80) }, 128, 2},
 	// 6 allocs today: Fill's 2, the lines and each line's string.
 	{"blocks/cover4x2", func(m *image.RGBA) any { return BlockLines(Fill(m, 4, 4)) }, 64, 7},
+	// 5 allocs today: the color, the lines and each line's string.
+	{"kitty/cells4x2", func(*image.RGBA) any { return KittyCells(176, 4, 2) }, 1, 6},
 	// 3 allocs today: the first command's keys and the string.
 	{"kitty/cover80", func(m *image.RGBA) any { return KittyUpload(m, 1, 4, 2, false) }, 80, 4},
 	// 5 allocs today: numbers past 99 take theirs.
@@ -44,13 +46,5 @@ func BenchmarkEncode(b *testing.B) {
 				sink = tc.encode(m)
 			}
 		})
-	}
-}
-
-// BenchmarkKittyCells makes a slot's placeholders, once per id and size.
-func BenchmarkKittyCells(b *testing.B) {
-	b.ReportAllocs()
-	for b.Loop() {
-		sink = KittyCells(176, 4, 2)
 	}
 }
