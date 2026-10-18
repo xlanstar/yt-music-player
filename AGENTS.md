@@ -40,9 +40,10 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `api`: the protocol between ytmd and its front-ends (frames, methods, events, error codes), types and pure functions only; `ipc`: ytmd's paths, single-instance lock, listening, dialing and starting ytmd, and the frame stream whose sends never block.
 - `remote`: a front-end's side of ytmd: `Client` (the front-end's `catalog.Source`, controls, the mirror of playback) and `Supervisor` (reconnects, versions, hand-off, the daemon's health).
 - `version`: ytmd's and ytm's version (`-ldflags -X`, else `dev`); `logfile`: ytmd's and ytm's size-bounded log files; `autostart`: ytmd at login (LaunchAgent, systemd user unit, HKCU Run) and, on Windows, the app's folder on the Path.
-- `quiet`: the heap back to the OS once builds (Desktop) or the loop (ytmd) stop.
+- `quiet`: the heap back to the OS once builds (Desktop), Update (TUI) or the loop (ytmd) stop.
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's service (player, playback, account, engine and `daemon.json` on the loop; serves `api` over `ipc`).
 - `tui`: `ytm`'s player in the terminal (Bubble Tea, Lip Gloss); `Update` is the UI thread, where posted funcs run as one message; screens are golden files in `testdata/` (`-update` rewrites them).
+- `termimage`: images in a terminal (Kitty's Unicode placeholders, iTerm2, Sixel, half blocks): detection and encoders, no I/O; the TUI's covers (`tui/graphics.go`).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
 - `artwork`: thumbnail loader with memory and disk caches.
 - `httpclient`: a process's HTTP client, tuned for YouTube's hosts.

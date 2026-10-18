@@ -13,11 +13,13 @@ import (
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/noticetext"
+	"yt-music-player/internal/quiet"
 	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
 	"yt-music-player/locales"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // The model's times and steps.
@@ -125,6 +127,10 @@ type model struct {
 	isNoticeNew bool
 	isTicking   bool
 
+	gfx gfx
+	// quiet gives the heap back once Update rests.
+	quiet quiet.GC
+
 	memo    memo
 	content string
 	// hits are what content shows that a click acts on, reused so that
@@ -145,8 +151,8 @@ func newModel(d deps) *model {
 	return &model{deps: d, queueFollows: true}
 }
 
-// Init implements tea.Model.
-func (m *model) Init() tea.Cmd { return nil }
+// Init implements tea.Model: it asks the terminal how it shows images.
+func (m *model) Init() tea.Cmd { return m.gfx.start() }
 
 // View implements tea.Model: the screen Update rendered last.
 func (m *model) View() tea.View {
@@ -167,6 +173,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.posts.run()
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		cmd = m.gfx.resized()
+	case uv.KittyGraphicsEvent, uv.CellSizeEvent, uv.PrimaryDeviceAttributesEvent,
+		tea.TerminalVersionMsg, tea.ColorProfileMsg, probeTimeoutMsg:
+		if !m.gfx.reply(msg) {
+			return m, nil
+		}
+	case overlayMsg:
+		return m, m.gfx.overlay(msg)
 	case tea.FocusMsg:
 		m.isBlurred = false
 		m.sup.Foreground()
@@ -226,7 +240,8 @@ func (m *model) settle(cmd tea.Cmd) tea.Cmd {
 	}
 	m.syncLoad()
 	m.render()
-	cmds := []tea.Cmd{cmd}
+	m.quiet.Note()
+	cmds := []tea.Cmd{cmd, m.gfx.commit()}
 	if m.isNoticeNew {
 		m.isNoticeNew = false
 		seq := m.noticeSeq

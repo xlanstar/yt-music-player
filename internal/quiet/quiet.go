@@ -1,7 +1,8 @@
 // Package quiet gives free heap memory back to the OS once a process has
 // gone quiet: busy, the heap grows to twice the live size, and the
 // scavenger takes minutes to return it (docs/performance.md). The Desktop
-// is quiet once it stops building, ytmd once its loop stops running.
+// is quiet once it stops building, the TUI once Update rests, ytmd once its
+// loop stops running.
 package quiet
 
 import (

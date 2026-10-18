@@ -36,6 +36,8 @@ type item struct {
 // page is what the body shows: header lines, then a message or a list.
 type page struct {
 	header []string
+	// art is the cover beside the header's first two lines.
+	art catalog.Art
 
 	// A message, when title is set; enter calls retry, if set.
 	title, detail, hint string
@@ -249,13 +251,14 @@ func (m *model) collectionPage(o opened) page {
 		}
 	}
 	songs := m.collectionSongs(o)
+	var art catalog.Art
 	switch o.kind {
 	case itemAlbum:
 		album, _ := m.cat.Album(o.id)
-		title, subtitle = album.Title, albumLine(album, songs)
+		title, subtitle, art = album.Title, albumLine(album, songs), album.Art
 	case itemPlaylist:
 		pl, _ := m.cat.Playlist(o.id)
-		title, subtitle = pl.Name, playlistLine(pl, songs)
+		title, subtitle, art = pl.Name, playlistLine(pl, songs), pl.Art
 	default:
 		subtitle = locales.AutoPlaylistSongs(len(songs))
 	}
@@ -266,10 +269,11 @@ func (m *model) collectionPage(o opened) page {
 		if o.kind == itemLiked {
 			detail = locales.LikedEmpty()
 		}
-		return page{header: header, title: empty, detail: detail}
+		return page{header: header, art: art, title: empty, detail: detail}
 	}
 	return page{
 		header: header,
+		art:    art,
 		list:   &m.collection[m.tab],
 		n:      1 + len(songs),
 		at: func(i int) item {

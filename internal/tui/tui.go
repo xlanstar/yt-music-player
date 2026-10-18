@@ -1,7 +1,12 @@
 // Package tui is YT Music Player in the terminal, `ytm` without arguments:
 // a Bubble Tea program over ytmd (docs/daemon.md), through a
 // remote.Client that a Supervisor keeps connected. Three tabs (the queue,
-// search, the library) sit over the player bar; there are no images.
+// search, the library) sit over the player bar.
+//
+// Covers show in the player bar and over an album or playlist where the
+// terminal shows images (package termimage, gfx): Kitty's placeholders and
+// half blocks are text, Sixel and iTerm2 images are drawn over blank cells
+// a few frames after the renderer blanked them.
 //
 // Update is the UI thread: the session, the loader, the catalog and the
 // Mirror are touched there only. Other goroutines post funcs, which queue
@@ -15,13 +20,16 @@ package tui
 import (
 	"context"
 	"errors"
+	"os"
 	"time"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
+	"yt-music-player/internal/termimage"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -51,10 +59,15 @@ func Run(ctx context.Context, cfg Config) error {
 	p := tea.NewProgram(a.m, tea.WithContext(ctx), tea.WithFPS(fps))
 	pumpCtx, stop := context.WithCancel(ctx)
 	go a.posts.pump(pumpCtx, p.Send)
+	a.m.quiet.Start()
 	_, err := p.Run()
 	stop()
 	// Update is done: this goroutine is the UI thread now.
-	a.close()
+	if images := a.close(); images != "" {
+		// Bubble Tea, stopped, writes nothing queued: Kitty keeps images
+		// until told.
+		_, _ = os.Stdout.WriteString(images)
+	}
 	switch {
 	case errors.Is(err, tea.ErrInterrupted), errors.Is(err, tea.ErrProgramKilled) && ctx.Err() != nil:
 		// A signal ended it: a quit, which leaves ytmd playing.
@@ -75,6 +88,10 @@ type app struct {
 func newApp(cfg Config) *app {
 	posts := newPoster()
 	m := newModel(deps{})
+	m.gfx = gfx{env: termimage.EnvFrom(os.Getenv), post: posts.post, newArt: func() *artwork.Loader {
+		dir, _ := artwork.DefaultDir()
+		return artwork.New(artwork.Options{Post: posts.post, Dir: dir, MemoryBytes: artMemory, Workers: artWorkers})
+	}}
 	c := remote.NewClient(posts.post, remote.Handler{
 		Account: func(e api.AccountEvent) { m.session.ApplyAccount(e) },
 		Library: func(l catalog.Library) { m.session.ApplyLibrary(l) },
@@ -105,8 +122,11 @@ func newApp(cfg Config) *app {
 	return &app{m: m, posts: posts, sup: sup}
 }
 
-// close stops the fetches and disconnects, on the UI thread.
-func (a *app) close() {
+// close stops the fetches and disconnects, on the UI thread; it returns
+// what frees the terminal's images.
+func (a *app) close() string {
 	a.m.loader.Stop()
 	a.sup.Close()
+	a.m.quiet.Stop()
+	return a.m.gfx.close()
 }

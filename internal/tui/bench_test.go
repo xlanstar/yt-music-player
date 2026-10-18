@@ -3,13 +3,14 @@ package tui
 import (
 	"testing"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/termimage"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 // viewCases are screens as Update renders them: a long queue playing
-// (which draws only the rows that show), the library, search results and
-// the help. allocs is each one's budget (TestBudgetView).
+// (which draws only the rows that show), the library, search results, the
+// help and the queue with covers. allocs is each one's budget (TestBudgetView).
 var viewCases = []struct {
 	name    string
 	prepare func(h *harness)
@@ -33,6 +34,17 @@ var viewCases = []struct {
 	}, 82},
 	// 98 allocs today.
 	{"help", func(h *harness) { h.press("?") }, 113},
+	// 76 allocs today: a cover, encoded once, costs a render its lines'
+	// joins.
+	{"queue-cover-kitty", func(h *harness) {
+		h.withCovers(termimage.Kitty, newCoverHost(h.t))
+		h.covered()
+	}, 88},
+	// 76 allocs today.
+	{"queue-cover-sixel", func(h *harness) {
+		h.withCovers(termimage.Sixel, newCoverHost(h.t))
+		h.covered()
+	}, 88},
 }
 
 // viewing is a screen of tc, rendered once.

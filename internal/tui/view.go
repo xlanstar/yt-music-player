@@ -29,6 +29,7 @@ const appName = "YT Music Player"
 func (m *model) render() {
 	w, h := m.width, m.height
 	m.hits = m.hits[:0]
+	m.gfx.beginFrame()
 	if w <= 0 || h <= 0 {
 		m.content = ""
 		return
@@ -50,6 +51,7 @@ func (m *model) render() {
 	if cut := len(lines) - h; cut > 0 {
 		// Too short for the bar: its last lines.
 		m.keepHits(cut, len(lines))
+		m.gfx.clip(cut)
 		lines = lines[cut:]
 	}
 	m.content = strings.Join(lines, "\n")
@@ -114,7 +116,16 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
-		for _, line := range p.header {
+		header := p.header
+		if p.art != "" && h >= coverRows && len(header) >= coverRows && m.gfx.isOn(w) {
+			if cover := m.gfx.place(slotHeader, 1, start, p.art); cover != nil {
+				for i := range coverRows {
+					lines = append(lines, fit(" "+cover[i]+header[i], w))
+				}
+				header = header[coverRows:]
+			}
+		}
+		for _, line := range header {
 			lines = append(lines, fit(line, w))
 		}
 		rows := h - len(p.header)
@@ -288,8 +299,19 @@ func (m *model) appendBar(lines []string, w int) []string {
 		if song.Artist != "" {
 			title += styleMuted.Render(" · " + song.Artist)
 		}
-		lines = append(lines, spread(title, heart, w))
-		lines = append(lines, m.progress(st, w, len(lines)))
+		var cover []string
+		if m.gfx.isOn(w) {
+			cover = m.gfx.place(slotBar, 1, len(lines), song.Art)
+		}
+		if cover == nil {
+			lines = append(lines, spread(title, heart, w))
+			lines = append(lines, m.progress(st, w, len(lines), 0))
+		} else {
+			// The cover spans the song and its progress, a space each side.
+			x := 1 + m.gfx.cols
+			lines = append(lines, " "+cover[0]+spread(title, heart, w-x))
+			lines = append(lines, " "+cover[1]+m.progress(st, w, len(lines), x))
+		}
 	}
 	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
@@ -305,16 +327,16 @@ func (m *model) appendBar(lines []string, w int) []string {
 	return append(lines, spread(" "+styleMuted.Render(status), right, w))
 }
 
-// progress is the current song's time on line y, as a bar between its
-// elapsed and whole length, a space before the end.
-func (m *model) progress(st api.State, w, y int) string {
+// progress is the current song's time on line y from cell x, as a bar
+// between its elapsed and whole length, a space before the end.
+func (m *model) progress(st api.State, w, y, x int) string {
 	pos := m.position(st)
 	elapsed := Clock(pos)
 	if st.Duration <= 0 {
 		return " " + elapsed
 	}
 	total := Clock(st.Duration)
-	start := 1 + width(elapsed) + 1
+	start := x + 1 + width(elapsed) + 1
 	bar := w - start - 1 - width(total) - 1
 	if bar < 4 {
 		return " " + elapsed + " / " + total

@@ -7,7 +7,7 @@
 | Binary | Links | Never links |
 |---|---|---|
 | `ytmd` (`cmd/ytmd`) | `daemon`, and what plays and signs in: `player`, `playback`, `account`, `audio`, `stream`, `auth`, `ytmusic`, MyGo's `audio` | MyGo's App, `ui`, `i18n`; `locales`, `session`, `loader`; pprof, but in `memprof` builds |
-| `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea, Lip Gloss), `locales` | MyGo's App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic` |
+| `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea, Lip Gloss), `termimage`, `artwork`, `locales` | MyGo's App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic` |
 | Desktop (`cmd/desktop`) | MyGo, `remote`, `session`, `loader`, `artwork`, `theme`, `settings` | `audio`, `auth`, `account`, `stream`, `innertube`, `ytmusic` |
 
 Each binary's `TestDeps` (and `session`'s) holds the last column; the test binaries are exempt, as Desktop's tests run a daemon in process. All three share `api`, `ipc`, `catalog`, `job`, `notice`, `version` and `logfile`.
@@ -107,7 +107,8 @@ An app on a disk not mounted at login reads as deleted, and macOS turns starting
 - Windows has no media keys (SMTC).
 - The TUI wakes while open: Bubble Tea v2.1's renderer runs a 30 fps frame timer (writing nothing when frames match), and on Windows its input loop polls every 10 ms ([ultraviolet #216](https://github.com/charmbracelet/ultraviolet/issues/216)). A paused ytmd and the Desktop wake nothing (`scripts/footprint.sh -daemon`).
 - On macOS, sign in once more after upgrading from 0.1: ytmd, signed as another program, cannot read the Desktop's Keychain item. Linux and Windows keep credentials in a file under `<cfg>`.
-- No images in the TUI; no remote or network control.
+- No remote or network control.
+- The TUI's covers need Kitty's Unicode placeholders (kitty, Ghostty), iTerm2's inline images (iTerm2, WezTerm), Sixel or 256 colors, picked by asking the terminal; `YTM_IMAGES=off|blocks|sixel|iterm2|kitty` overrides. In tmux, Kitty's need `allow-passthrough on`, and iTerm2's are not used.
 - The TUI takes the mouse, so terminals select text only with a modifier held while dragging: Shift in most, Option in iTerm2, Fn in Terminal.app.
 
 Still to check on real installs:

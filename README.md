@@ -39,7 +39,7 @@ If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is installed (with Homebrew, pipx,
 
 Songs play in a small background player, `ytmd`, which the app starts and which plays on when the window closes or the app quits; paused, it wakes nothing. *Quit and Stop Playback* in the app menu, or `ytm daemon stop`, stops it. *Start background player at login* in Settings (or `ytm autostart on`) has it ready for the media keys from login; deleting the app turns that off at the next login (on Windows, turn it off before uninstalling).
 
-`ytm` is the player in a terminal, and a command line for scripts: `ytm status [--json]`, `ytm play|pause|next|prev`, `ytm volume 50`, `ytm help` for the rest. Homebrew and the Linux packages put it on your `PATH`; on Windows, turn on *Use ytm in a terminal* in Settings. The macOS app has it at `/Applications/YT Music Player.app/Contents/Resources/ytm`. How it works: [docs/daemon.md](docs/daemon.md).
+`ytm` is the player in a terminal, with covers where the terminal shows images (Kitty, Ghostty, iTerm2, WezTerm, Sixel, or colored blocks; `YTM_IMAGES=off` turns them off), and a command line for scripts: `ytm status [--json]`, `ytm play|pause|next|prev`, `ytm volume 50`, `ytm help` for the rest. Homebrew and the Linux packages put it on your `PATH`; on Windows, turn on *Use ytm in a terminal* in Settings. The macOS app has it at `/Applications/YT Music Player.app/Contents/Resources/ytm`. How it works: [docs/daemon.md](docs/daemon.md).
 
 ## Build from source
 
