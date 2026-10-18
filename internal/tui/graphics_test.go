@@ -24,7 +24,8 @@ import (
 
 const coverURL = "https://lh3.googleusercontent.com/cover=w120-h120"
 
-// coverHost serves a red PNG for every URL, counting the requests.
+// coverHost serves a red PNG of 128 pixels for every URL, counting the
+// requests.
 type coverHost struct {
 	png   []byte
 	calls atomic.Int32
@@ -32,7 +33,7 @@ type coverHost struct {
 
 func newCoverHost(t testing.TB) *coverHost {
 	t.Helper()
-	m := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	m := image.NewRGBA(image.Rect(0, 0, 128, 128))
 	for i := 0; i < len(m.Pix); i += 4 {
 		copy(m.Pix[i:], []byte{220, 30, 40, 255})
 	}
@@ -201,6 +202,25 @@ func TestCoverITerm2(t *testing.T) {
 	raws := h.covered()
 	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[22;2H\x1b]1337;File=inline=1;") {
 		t.Fatalf("overlays = %.60q, want the cover drawn once", raws)
+	}
+}
+
+// TestCoverLarger encodes a cover again once its size loaded: meanwhile
+// it showed the one loaded for smaller cells.
+func TestCoverLarger(t *testing.T) {
+	h := placeholderHarness(t)
+	h.withCovers(termimage.Kitty, newCoverHost(t))
+	h.covered()
+	raws := h.run(h.send(uv.CellSizeEvent{Width: 20, Height: 40}))
+	raws = append(raws, h.covered()...)
+	uploads := 0
+	for _, raw := range raws {
+		if strings.Contains(raw, ",s=80,v=80,") {
+			uploads++
+		}
+	}
+	if c := h.m.gfx.ready(h.m.gfx.placed[slotBar].key); uploads != 2 || c == nil || c.srcPx != 80 {
+		t.Errorf("%d uploads of 80 pixels, want the 64's then the 80's", uploads)
 	}
 }
 

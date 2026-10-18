@@ -73,8 +73,10 @@ type cover struct {
 	lines []string
 	// seq is an overlay's image, kept to draw again, or Kitty's upload,
 	// dropped once sent.
-	seq     string
-	frame   uint64
+	seq   string
+	frame uint64
+	// srcPx is the width of the image encoded, or being encoded.
+	srcPx   int
 	isReady bool
 	job     job.Job
 }
@@ -211,13 +213,16 @@ func (g *gfx) place(s slot, x, y int, art catalog.Art) []string {
 	c := &g.covers[i]
 	c.frame = g.frame
 	g.placed[s] = placement{key: key, x: x, y: y}
-	if c.isReady {
-		return c.lines
-	}
-	if !c.job.IsRunning() && g.art != nil {
-		if img := g.art.Get(key.url, max(w, h)); img != nil {
+	// Get may give another size while this one loads: a larger one, once
+	// it came, encodes again.
+	if px := max(w, h); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
+		if img := g.art.Get(key.url, px); img != nil && img.RGBA.Rect.Dx() > c.srcPx {
+			c.srcPx = img.RGBA.Rect.Dx()
 			g.encode(c, img.RGBA, kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
+	}
+	if c.isReady {
+		return c.lines
 	}
 	return g.blank
 }
@@ -251,6 +256,12 @@ func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
 			e.lines = g.blank
 		}
 		c.lines, c.seq, c.isReady = e.lines, e.seq, true
+		for s := range g.drawn {
+			if g.drawn[s].key == key {
+				// An overlay encoded again draws again.
+				g.drawn[s], g.want[s] = placement{}, placement{}
+			}
+		}
 	})
 }
 
