@@ -1,7 +1,7 @@
 // Package termimage shows small covers in a terminal: it tells which protocol
 // the terminal speaks and encodes an opaque *image.RGBA for it. It does no I/O
-// and knows no TUI: a caller writes Probe, feeds the replies to Detect, and
-// writes what Encode returns.
+// and knows no TUI: a caller writes Probe if NeedsProbe, feeds the replies to
+// Detect, and writes what Encode returns.
 //
 // Kitty's Unicode placeholders and half blocks are text, which a cell renderer
 // diffs like any other. Sixel and iTerm2 images are pixels over cells: the

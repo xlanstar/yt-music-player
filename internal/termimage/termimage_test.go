@@ -77,6 +77,25 @@ func TestDetect(t *testing.T) {
 	}
 }
 
+func TestNeedsProbe(t *testing.T) {
+	tests := []struct {
+		name string
+		env  Env
+		want bool
+	}{
+		{"auto", Env{Term: "xterm-256color"}, true},
+		{"unknown override", Env{Override: "png", Term: "xterm"}, true},
+		{"override", Env{Override: "blocks", Term: "linux"}, false},
+		{"linux console", Env{Term: "linux"}, false},
+		{"dumb", Env{Term: "dumb"}, false},
+	}
+	for _, tc := range tests {
+		if got := NeedsProbe(tc.env); got != tc.want {
+			t.Errorf("%s: NeedsProbe = %t, want %t", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestEnvFrom(t *testing.T) {
 	env := map[string]string{"YTM_IMAGES": "kitty", "TERM": "xterm-kitty", "TMUX": "/tmp/tmux", "KITTY_WINDOW_ID": "1"}
 	got := EnvFrom(func(k string) string { return env[k] })

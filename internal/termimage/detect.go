@@ -58,6 +58,14 @@ func Probe(tmux bool) string {
 	return query + CellSizeQuery + "\x1b[>0q\x1b[c"
 }
 
+// NeedsProbe reports whether Detect needs Probe's replies: not when
+// YTM_IMAGES names a protocol, nor on a terminal without images, whose
+// Linux console would print the probe.
+func NeedsProbe(e Env) bool {
+	_, ok := ParseOverride(e.Override)
+	return !ok && !isPlain(e.Term)
+}
+
 // ParseOverride returns the protocol YTM_IMAGES names; ok is false for
 // auto, or a name it does not know.
 func ParseOverride(s string) (p Protocol, ok bool) {
@@ -87,7 +95,7 @@ func Detect(e Env, r Replies) Caps {
 	// tmux keeps the placeholders, text, but answers the query itself.
 	hasKitty := r.Kitty && hasPlaceholders(e, version) || e.Tmux && (e.Kitty || e.Ghostty)
 	switch {
-	case e.Term == "dumb" || e.Term == "linux":
+	case isPlain(e.Term):
 	case hasKitty && e.Colors:
 		// The placeholders' color, the image id, is one of 256.
 		c.Protocol = Kitty
@@ -100,6 +108,9 @@ func Detect(e Env, r Replies) Caps {
 	}
 	return c
 }
+
+// isPlain reports a terminal that shows text only.
+func isPlain(term string) bool { return term == "dumb" || term == "linux" }
 
 // hasPlaceholders reports Kitty's Unicode placeholders, which some
 // terminals speaking its graphics lack (WezTerm, Konsole).

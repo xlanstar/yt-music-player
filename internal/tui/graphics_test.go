@@ -345,6 +345,15 @@ func TestCoverDetect(t *testing.T) {
 		t.Errorf("cols = %d after square cells, want 2", g.cols)
 	}
 
+	// The Linux console shows no images, and would print the probe.
+	g, made = gfx{env: termimage.Env{Term: "linux"}, newArt: g.newArt}, 0
+	if cmd := g.start(); cmd != nil {
+		t.Error("on the Linux console, start wrote the probe")
+	}
+	if !g.isReady || g.caps.Protocol != termimage.None || made != 0 {
+		t.Errorf("on the Linux console, ready %t, caps = %+v, %d loaders", g.isReady, g.caps, made)
+	}
+
 	g = gfx{env: termimage.Env{Term: "xterm-256color"}}
 	g.reply(tea.ColorProfileMsg{Profile: colorprofile.TrueColor})
 	if !g.reply(probeTimeoutMsg{}) || g.caps.Protocol != termimage.Blocks {

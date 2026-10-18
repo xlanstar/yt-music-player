@@ -119,10 +119,10 @@ func newKittyBase() uint8 {
 	return 1 + rand.N[uint8](256-numCovers)
 }
 
-// start asks the terminal what it shows, unless YTM_IMAGES says; then
-// only the cell's pixels.
+// start asks the terminal what it shows, unless YTM_IMAGES says or it
+// shows none; then only the cell's pixels.
 func (g *gfx) start() tea.Cmd {
-	if _, ok := termimage.ParseOverride(g.env.Override); ok {
+	if !termimage.NeedsProbe(g.env) {
 		g.isReady = true
 		if g.detect(); g.caps.Protocol == termimage.None {
 			return nil
