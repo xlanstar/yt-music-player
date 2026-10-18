@@ -53,8 +53,18 @@ func Decode(data []byte, px int) (*Image, error) {
 		return nil, err
 	}
 	crop := square(trimBars(rgba64(src)))
-	m := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dx()))
-	draw.Draw(m, m.Bounds(), src, crop.Min, draw.Src)
+	side := crop.Dx()
+	if side >= 4*px {
+		// Scaled from the decoder's pixels, as copying them all first
+		// would take megabytes; halving to px then sees every one left.
+		side = 2 * px
+	}
+	m := image.NewRGBA(image.Rect(0, 0, side, side))
+	if side == crop.Dx() {
+		draw.Draw(m, m.Rect, src, crop.Min, draw.Src)
+	} else {
+		xdraw.ApproxBiLinear.Scale(m, m.Rect, src, crop, draw.Src, nil)
+	}
 	m = shrink(m, px)
 	return &Image{RGBA: m, Average: average(m)}, nil
 }

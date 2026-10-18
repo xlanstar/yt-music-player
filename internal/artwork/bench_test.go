@@ -171,8 +171,8 @@ var decodeCases = []struct {
 }{
 	{"jpeg/544", coverPx, budget.Cost{Allocs: 14, Bytes: 2.5e6}},   // 12 allocs, 2.17 MB today.
 	{"jpeg/1200", coverPx, budget.Cost{Allocs: 18, Bytes: 11.4e6}}, // 15 allocs, 9.9 MB today.
-	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 21, Bytes: 810e3}},  // 18 allocs, 702 KB today.
-	{"jpeg/hq720", 64, budget.Cost{Allocs: 22, Bytes: 4.83e6}},     // 19 allocs, 4.2 MB today.
+	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 17, Bytes: 440e3}},  // 14 allocs, 380 KB today.
+	{"jpeg/hq720", 64, budget.Cost{Allocs: 15, Bytes: 1.72e6}},     // 13 allocs, 1.49 MB today.
 	// 187 allocs, 2.95 MB today; most allocs are the PNG decoder's.
 	{"png/544", coverPx, budget.Cost{Allocs: 216, Bytes: 3.4e6}},
 	{"png/1200", coverPx, budget.Cost{Allocs: 669, Bytes: 15.7e6}}, // 581 allocs, 13.6 MB today.

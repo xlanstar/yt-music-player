@@ -7,6 +7,7 @@ import (
 	"hash/crc32"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -133,6 +134,14 @@ func TestDecodeTrimsLetterbox(t *testing.T) {
 	if !near(img.Average, red, 4) {
 		t.Errorf("average %v: the bars show", img.Average)
 	}
+	// Shown small, it is scaled from the decoder's pixels.
+	img, err = Decode(encodeJPEG(t, solid(480, 360, red, color.RGBA{2, 2, 2, 255})), 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := img.RGBA.Bounds(); b != image.Rect(0, 0, 64, 64) || !near(img.Average, red, 4) {
+		t.Errorf("bounds %v, average %v: the bars show", b, img.Average)
+	}
 	// Bars that aren't black are part of the picture.
 	img, err = Decode(encodePNG(t, solid(480, 360, red, color.RGBA{255, 255, 255, 255})), 1024)
 	if err != nil {
@@ -235,5 +244,62 @@ func TestShrinkSeesEveryPixel(t *testing.T) {
 	}
 	if m := checker(256); shrink(m, 256) != m {
 		t.Error("copied an image of the size")
+	}
+}
+
+// copyThenShrink decodes data as Decode did before scaling from the
+// decoder's pixels: the whole crop copied, then shrunk.
+func copyThenShrink(tb testing.TB, data []byte, px int) *image.RGBA {
+	tb.Helper()
+	src, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		tb.Fatal(err)
+	}
+	crop := square(trimBars(rgba64(src)))
+	m := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dx()))
+	draw.Draw(m, m.Rect, src, crop.Min, draw.Src)
+	return shrink(m, px)
+}
+
+// diff returns the mean and largest difference of a and b's channels.
+func diff(a, b *image.RGBA) (mean float64, most int) {
+	var sum int
+	for i := range a.Pix {
+		d := int(a.Pix[i]) - int(b.Pix[i])
+		d = max(d, -d)
+		sum += d
+		most = max(most, d)
+	}
+	return float64(sum) / float64(len(a.Pix)), most
+}
+
+func TestDecodeLargeLooksAsCopied(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		px   int
+	}{
+		{"jpeg/hq720", 64},
+		{"jpeg/hq720", 96},
+		{"jpeg/hq720", 160},
+		{"jpeg/hqdefault", 64},
+		{"jpeg/1200", 96},
+		{"jpeg/1200", 256},
+		{"png/1200", 128},
+		{"webp/1200", 288},
+	} {
+		data := benchFile()[tc.name]
+		img, err := Decode(data, tc.px)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := copyThenShrink(t, data, tc.px)
+		if img.RGBA.Rect != want.Rect {
+			t.Fatalf("%s at %d: bounds %v, want %v", tc.name, tc.px, img.RGBA.Rect, want.Rect)
+		}
+		mean, most := diff(img.RGBA, want)
+		// Edges and grain move most: 1-2 levels on average, 30-64 at most.
+		if mean > 3 || most > 80 {
+			t.Errorf("%s at %d: channels differ by %.2f on average, %d at most", tc.name, tc.px, mean, most)
+		}
 	}
 }
