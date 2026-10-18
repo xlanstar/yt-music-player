@@ -51,8 +51,9 @@ type Options struct {
 	// NoProbe skips the range request proving googlevideo serves a URL
 	// past its first MiB.
 	NoProbe bool
-	// YTDLP is the path of a yt-dlp binary, run when InnerTube gave no
-	// stream; empty disables it. See LookYTDLP.
+	// YTDLP is the yt-dlp run when InnerTube gave no stream: a path, or
+	// a name looked up then, on PATH and in the usual install directories
+	// (so one installed later is found). Empty disables it.
 	YTDLP string
 	// YTDLPTimeout bounds one yt-dlp run; zero means 30s.
 	YTDLPTimeout time.Duration
@@ -193,6 +194,11 @@ func (y *YouTube) resolve(ctx context.Context, videoID string) (Stream, error) {
 	}
 	log.Debug().Str("id", videoID).Str("client", visionOS.Name).Err(err).Msg("stream client failed")
 	if y.opts.YTDLP == "" {
+		return Stream{}, fmt.Errorf("stream: %s: %w", videoID, err)
+	}
+	if pe, ok := errors.AsType[*PlayabilityError](err); ok && pe.isFinal() {
+		// yt-dlp would take a second or so to say the same.
+		log.Debug().Str("id", videoID).Str("status", pe.Status).Msg("stream yt-dlp skipped")
 		return Stream{}, fmt.Errorf("stream: %s: %w", videoID, err)
 	}
 	s, ytErr := y.viaYTDLP(ctx, videoID)

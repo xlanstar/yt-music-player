@@ -3,8 +3,10 @@ package stream
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -89,6 +91,135 @@ func TestYTDLPTimeout(t *testing.T) {
 	}
 	if d := time.Since(start); d > 5*time.Second {
 		t.Errorf("took %v", d)
+	}
+}
+
+// yt-dlp runs without cookies, so it is skipped only for songs gone,
+// private or age-gated.
+func TestYTDLPSkipped(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		answer  func(playerReq) string
+		media   int
+		wantRun bool
+	}{
+		{"unavailable", fixed("player_error.json"), 206, false},
+		{"age-gated", fixed("player_login.json"), 206, false},
+		{"bot check", fixed("player_bot.json"), 206, true},
+		{"unplayable", fixed("player_unplayable.json"), 206, true},
+		{"no direct format", fixed("player_cipher.json"), 206, true},
+		{"po token", fixed("player_ok.json"), 403, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			bin, argsFile := fakeYTDLP(t, "exit 1")
+			f := newFake(t, tt.answer)
+			f.media = func(int) int { return tt.media }
+			if _, err := f.resolver(Options{YTDLP: bin}).Resolve(t.Context(), okID); err == nil {
+				t.Fatal("want an error")
+			}
+			_, err := os.Stat(argsFile)
+			if ran := err == nil; ran != tt.wantRun {
+				t.Errorf("yt-dlp ran = %v, want %v", ran, tt.wantRun)
+			}
+		})
+	}
+}
+
+func TestIsFinal(t *testing.T) {
+	for _, tt := range []struct {
+		status, reason string
+		want           bool
+	}{
+		{"ERROR", "This video is unavailable", true},
+		{"ERROR", "Something went wrong", false},
+		{"LOGIN_REQUIRED", "Sign in to confirm your age", true},
+		{"LOGIN_REQUIRED", "This video is private", true},
+		{"LOGIN_REQUIRED", "Sign in to confirm you’re not a bot", false},
+		{"UNPLAYABLE", "Video unavailable", false},
+		{"CONTENT_CHECK_REQUIRED", "", false},
+	} {
+		pe := &PlayabilityError{Client: "VISIONOS", Status: tt.status, Reason: tt.reason}
+		if got := pe.isFinal(); got != tt.want {
+			t.Errorf("%s %q: isFinal = %v, want %v", tt.status, tt.reason, got, tt.want)
+		}
+	}
+}
+
+// launchd starts ytmd on /usr/bin:/bin:/usr/sbin:/sbin, without where
+// Homebrew or pipx put yt-dlp and the JS runtimes it runs.
+func TestSearchPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("PATH alone on Windows")
+	}
+	t.Setenv("HOME", "/home/u")
+	t.Setenv("PATH", "/usr/bin:/usr/local/bin")
+	want := []string{"/usr/bin", "/usr/local/bin", "/opt/homebrew/bin", "/home/u/.local/bin", "/opt/local/bin"}
+	if got := searchPath(); !slices.Equal(got, want) {
+		t.Errorf("searchPath = %q, want %q", got, want)
+	}
+}
+
+func TestLookPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("executables need a mode bit")
+	}
+	const name = "stream-test-yt-dlp"
+	tmp := t.TempDir()
+	exe := func(dir string) string {
+		t.Helper()
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte("#!/bin/sh\n"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	onPath, home := filepath.Join(tmp, "path"), filepath.Join(tmp, "home")
+	inHome := exe(filepath.Join(home, ".local", "bin"))
+	t.Setenv("HOME", home)
+	t.Chdir(tmp)
+	exe(filepath.Join(tmp, "rel"))
+	// Not executable: passed over.
+	if err := os.WriteFile(filepath.Join(tmp, "plain"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", "rel"+string(filepath.ListSeparator)+onPath)
+
+	if got, err := lookPath(name, searchPath()); got != inHome || err != nil {
+		t.Errorf("lookPath = %q, %v; want %q, past a relative PATH entry", got, err, inHome)
+	}
+	first := exe(onPath)
+	if got, err := lookPath(name, searchPath()); got != first || err != nil {
+		t.Errorf("lookPath = %q, %v; want PATH's %q first", got, err, first)
+	}
+	if got, err := lookPath("/x/yt-dlp", nil); got != "/x/yt-dlp" || err != nil {
+		t.Errorf("lookPath(path) = %q, %v; want it as is", got, err)
+	}
+	if _, err := lookPath("plain", []string{tmp}); !errors.Is(err, exec.ErrNotFound) {
+		t.Errorf("err = %v, want exec.ErrNotFound", err)
+	}
+}
+
+// yt-dlp is looked up by name when needed, and runs with the install
+// directories on its PATH, where its JS runtime may be.
+func TestYTDLPEnvironment(t *testing.T) {
+	bin, _ := fakeYTDLP(t, "printf '%s' \"$PATH\" > \"${0%/*}/path\"\nexit 1")
+	dir := filepath.Dir(bin)
+	t.Setenv("HOME", "/home/u")
+	t.Setenv("PATH", dir+":/usr/bin:/bin")
+	f := newFake(t, fixed("player_unplayable.json"))
+	if _, err := f.resolver(Options{YTDLP: "yt-dlp"}).Resolve(t.Context(), okID); err == nil {
+		t.Fatal("want an error")
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "path"))
+	if err != nil {
+		t.Fatalf("yt-dlp did not run: %v", err)
+	}
+	want := dir + ":/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin:/home/u/.local/bin:/opt/local/bin"
+	if string(got) != want {
+		t.Errorf("yt-dlp's PATH = %q, want %q", got, want)
 	}
 }
 

@@ -1,5 +1,7 @@
 // Package stream resolves a YouTube Music song to the URL of its Opus
-// audio in WebM, with the headers fetching it needs.
+// audio in WebM, with the headers fetching it needs. It asks InnerTube as
+// one client, then yt-dlp where installed: on PATH or in the usual install
+// directories, which a PATH from launchd lacks.
 package stream
 
 import (

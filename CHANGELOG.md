@@ -20,6 +20,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 ### Fixed
 
 - Pages, search and your library that failed to load while offline load again by themselves once the computer is back online.
+- yt-dlp installed with Homebrew or pipx is found by the background player, so songs that need it play.
 - A song is queued only once: adding one already queued adds nothing, playing it next moves it after the current song, and a playlist that lists a song twice plays it once.
 
 ## [0.1.0] - 2026-10-16

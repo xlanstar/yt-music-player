@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -19,14 +22,47 @@ const (
 	ytdlpFormat = "251/bestaudio[ext=webm][acodec=opus]"
 )
 
-// LookYTDLP returns the path of yt-dlp on PATH, or "" when there is none,
-// for Options.YTDLP.
-func LookYTDLP() string {
-	p, err := exec.LookPath("yt-dlp")
-	if err != nil {
-		return ""
+// installDirs are where yt-dlp and the JS runtimes it needs are usually
+// installed, which ytmd's PATH may lack: launchd gives
+// /usr/bin:/bin:/usr/sbin:/sbin.
+func installDirs() []string {
+	if runtime.GOOS == "windows" {
+		return nil
 	}
-	return p
+	dirs := []string{"/opt/homebrew/bin", "/usr/local/bin"}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".local", "bin"))
+	}
+	return append(dirs, "/opt/local/bin")
+}
+
+// searchPath is PATH, then the installDirs it lacks.
+func searchPath() []string {
+	dirs := filepath.SplitList(os.Getenv("PATH"))
+	for _, dir := range installDirs() {
+		if !slices.Contains(dirs, dir) {
+			dirs = append(dirs, dir)
+		}
+	}
+	return dirs
+}
+
+// lookPath finds the executable name in dirs as exec.LookPath does in
+// PATH; a name with a directory is taken as is.
+func lookPath(name string, dirs []string) (string, error) {
+	if filepath.Base(name) != name {
+		return name, nil
+	}
+	for _, dir := range dirs {
+		// As exec.LookPath, never what the working directory holds.
+		if !filepath.IsAbs(dir) {
+			continue
+		}
+		if p, err := exec.LookPath(filepath.Join(dir, name)); err == nil {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("%s: %w", name, exec.ErrNotFound)
 }
 
 type ytdlpInfo struct {
@@ -46,12 +82,20 @@ type ytdlpInfo struct {
 // with a JS runtime or PO token plugin installed, gets past what the
 // clients here cannot. It keeps the user's yt-dlp config for that reason.
 func (y *YouTube) viaYTDLP(ctx context.Context, videoID string) (Stream, error) {
+	dirs := searchPath()
+	bin, err := lookPath(y.opts.YTDLP, dirs)
+	if err != nil {
+		return Stream{}, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, y.opts.YTDLPTimeout)
 	defer cancel()
 	// "--" because IDs may start with "-"; Resolve has checked the ID.
 	//nolint:gosec // the configured yt-dlp, on a checked ID
-	cmd := exec.CommandContext(ctx, y.opts.YTDLP, "-f", ytdlpFormat, "-j", "--no-playlist", "--no-warnings",
+	cmd := exec.CommandContext(ctx, bin, "-f", ytdlpFormat, "-j", "--no-playlist", "--no-warnings",
 		"--", "https://www.youtube.com/watch?v="+videoID)
+	// On the same PATH, yt-dlp finds whichever JS runtime (Deno, Node, Bun,
+	// QuickJS) is installed, as in a shell, rather than ytmd picking one.
+	cmd.Env = append(os.Environ(), "PATH="+strings.Join(dirs, string(filepath.ListSeparator)))
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	// A child that ignores the kill must not hold Resolve past its timeout.

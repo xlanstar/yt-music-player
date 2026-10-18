@@ -33,7 +33,7 @@ In your browser's developer tools, copy the `Cookie` header of any `music.youtub
 
 `ytm login` signs in from a terminal instead: paste the header, or pipe it (`pbpaste | ytm login`). After upgrading from 0.1 on macOS, sign in once more: the background player can't read the app's Keychain item.
 
-If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is on your `PATH`, it's used for songs the app can't play on its own.
+If [yt-dlp](https://github.com/yt-dlp/yt-dlp) is installed (with Homebrew, pipx, or on your `PATH`), it plays songs the app can't play on its own, such as those made for kids. Installed other than with Homebrew, it also needs [Deno](https://deno.com).
 
 ## Background player and `ytm`
 

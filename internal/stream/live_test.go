@@ -24,12 +24,15 @@ const webmMagic = "\x1a\x45\xdf\xa3"
 var liveSongs = []struct {
 	name, id string
 	playable bool
+	// needsYTDLP: only yt-dlp, with a JS runtime, plays it.
+	needsYTDLP bool
 }{
-	{"popular official", "kJQP7kiw5Fk", true}, // Luis Fonsi - Despacito
-	{"album track", "swJOIjjW69U", true},      // Fleetwood Mac - Dreams, from Rumours
-	{"older upload", "dQw4w9WgXcQ", true},     // 2009
-	{"age-gated", "07FYdnEawAQ", false},
-	{"invalid", "aaaaaaaaaaa", false},
+	{"popular official", "kJQP7kiw5Fk", true, false}, // Luis Fonsi - Despacito
+	{"album track", "swJOIjjW69U", true, false},      // Fleetwood Mac - Dreams, from Rumours
+	{"older upload", "dQw4w9WgXcQ", true, false},     // 2009
+	{"made for kids", "XqZsoesa55w", true, true},
+	{"age-gated", "07FYdnEawAQ", false, false},
+	{"invalid", "aaaaaaaaaaa", false, false},
 }
 
 // TestLive is the only test touching the network. Beyond resolving, it
@@ -49,20 +52,17 @@ func TestLive(t *testing.T) {
 		resolve func(*YouTube, context.Context, string) (Stream, error)
 		must    bool
 	}{
-		{"default", New(Options{HTTP: hc, YTDLP: LookYTDLP()}), (*YouTube).Resolve, true},
+		{"default", New(Options{HTTP: hc, YTDLP: "yt-dlp"}), (*YouTube).Resolve, true},
 		{"VISIONOS", New(Options{HTTP: hc, NoProbe: true}), (*YouTube).Resolve, false},
+		{"yt-dlp", New(Options{HTTP: hc, YTDLP: "yt-dlp", NoProbe: true}), (*YouTube).viaYTDLP, false},
 	}
-	if p := LookYTDLP(); p != "" {
-		paths = append(paths, struct {
-			name    string
-			y       *YouTube
-			resolve func(*YouTube, context.Context, string) (Stream, error)
-			must    bool
-		}{"yt-dlp", New(Options{HTTP: hc, YTDLP: p, NoProbe: true}), (*YouTube).viaYTDLP, false})
-	}
+	_, errYTDLP := lookPath("yt-dlp", searchPath())
 	for _, p := range paths {
 		for _, song := range liveSongs {
 			t.Run(p.name+"/"+song.name, func(t *testing.T) {
+				if errYTDLP != nil && (p.name == "yt-dlp" || p.must && song.needsYTDLP) {
+					t.Skip(errYTDLP)
+				}
 				calls.reset()
 				start := time.Now()
 				s, err := p.resolve(p.y, t.Context(), song.id)

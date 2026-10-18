@@ -44,6 +44,20 @@ func (e *PlayabilityError) isBotCheck() bool {
 	return e.Status == "LOGIN_REQUIRED" && strings.Contains(strings.ToLower(e.Reason), "not a bot")
 }
 
+// isFinal reports whether the song is gone, private or age-gated: what
+// yt-dlp, run without cookies, cannot get past either. Bot checks, PO
+// tokens and UNPLAYABLE (also "made for kids") are left to it.
+func (e *PlayabilityError) isFinal() bool {
+	reason := strings.ToLower(e.Reason)
+	switch e.Status {
+	case "ERROR":
+		return strings.Contains(reason, "unavailable")
+	case "LOGIN_REQUIRED":
+		return strings.Contains(reason, "confirm your age") || strings.Contains(reason, "private")
+	}
+	return false
+}
+
 type playerResponse struct {
 	ResponseContext struct {
 		VisitorData string `json:"visitorData"`

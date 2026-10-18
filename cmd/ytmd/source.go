@@ -24,7 +24,7 @@ func options() daemon.Options {
 		Source: ytmusic.New(nil, store),
 		// yt-dlp is only a fallback: it tracks YouTube's changes within
 		// days but takes seconds per song.
-		Resolver:  stream.New(stream.Options{YTDLP: stream.LookYTDLP()}),
+		Resolver:  stream.New(stream.Options{YTDLP: "yt-dlp"}),
 		NewEngine: audio.New,
 	}
 }
