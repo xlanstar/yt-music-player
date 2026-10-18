@@ -35,6 +35,12 @@ func TestBudgetLatest(t *testing.T) {
 	budget.Allocs(t, 2, 100, func() { sinkLatest = a.Latest() })
 }
 
+func TestBudgetStatus(t *testing.T) {
+	a := bigLatest(t)
+	// 0 allocs today: Latest copies the likes.
+	budget.Allocs(t, 0, 100, func() { sinkStatus, sinkBool = a.Status() })
+}
+
 func TestBudgetKeepLike(t *testing.T) {
 	a := bigLatest(t)
 	added := Change{Likes: &Likes{Added: []string{"liked-1000"}}}

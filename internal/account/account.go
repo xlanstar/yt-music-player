@@ -362,6 +362,10 @@ func (a *Account) Latest() Latest {
 	return l
 }
 
+// Status returns the latest Status reported, without Switched, if any:
+// what Latest().Status says, without copying the likes.
+func (a *Account) Status() (Status, bool) { return a.status, a.hasStatus }
+
 // CanSignIn reports whether the source signs in and out at all.
 func (a *Account) CanSignIn() bool { return a.accounts != nil }
 

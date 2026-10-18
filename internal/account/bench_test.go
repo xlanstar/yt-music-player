@@ -135,8 +135,12 @@ func BenchmarkLike(b *testing.B) {
 	}
 }
 
-// sinkLatest keeps the compiler from optimizing measured calls away.
-var sinkLatest Latest
+// Sinks keep the compiler from optimizing measured calls away.
+var (
+	sinkLatest Latest
+	sinkStatus Status
+	sinkBool   bool
+)
 
 // bigLatest is an Account that fetched 2000 liked songs.
 func bigLatest(tb testing.TB) *Account {
@@ -155,6 +159,15 @@ func BenchmarkLatest(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		sinkLatest = a.Latest()
+	}
+}
+
+// BenchmarkStatus is what `ytm status` costs the daemon's account.
+func BenchmarkStatus(b *testing.B) {
+	a := bigLatest(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		sinkStatus, sinkBool = a.Status()
 	}
 }
 

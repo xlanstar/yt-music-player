@@ -433,6 +433,9 @@ func TestLatest(t *testing.T) {
 	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{}) {
 		t.Fatalf("latest before any fetch %+v", got)
 	}
+	if st, ok := f.a.Status(); ok {
+		t.Fatalf("status before any fetch %+v", st)
+	}
 	f.a.Fetch(Profile)
 	f.a.Fetch(Library)
 	f.a.Fetch(Liked)
@@ -452,6 +455,9 @@ func TestLatest(t *testing.T) {
 	}
 	if got := f.a.Latest(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("latest %+v, want %+v", got, want)
+	}
+	if st, ok := f.a.Status(); !ok || st != *want.Status {
+		t.Errorf("status %+v, want %+v", st, *want.Status)
 	}
 
 	// Likes that went through join the latest, newest first.
@@ -523,6 +529,9 @@ func TestLatestAfterSignIn(t *testing.T) {
 	// those who connect later.
 	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{Status: &Status{Account: ada, SignedIn: true}}) {
 		t.Errorf("signed in, latest %+v", got)
+	}
+	if st, ok := f.a.Status(); !ok || st != (Status{Account: ada, SignedIn: true}) {
+		t.Errorf("signed in, status %+v", st)
 	}
 	f.a.Stop()
 }

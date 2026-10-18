@@ -217,8 +217,9 @@ func (s *Service) status() api.Status {
 	st := s.state()
 	song, _ := s.cat.Song(st.Current)
 	out := api.Status{Version: version.Version, Proto: api.Proto, State: st, Song: song, Length: s.player.Len()}
-	if latest := s.acct.Latest(); latest.Status != nil {
-		out.SignedIn, out.Account = latest.Status.SignedIn, latest.Status.Account
+	// Not Latest, which copies the likes: status bars poll this.
+	if st, ok := s.acct.Status(); ok {
+		out.SignedIn, out.Account = st.SignedIn, st.Account
 	}
 	return out
 }
