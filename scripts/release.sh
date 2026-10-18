@@ -5,7 +5,8 @@
 #       From a clean main equal to origin/main: runs the checks, moves
 #       CHANGELOG.md's Unreleased section under the next version, sets it in
 #       mygo.json, commits, tags vX.Y.Z and pushes main and the tag at once.
-#       The Release workflow builds the tag into a draft GitHub release.
+#       The Release workflow builds the tag into a draft GitHub release,
+#       then its publish job, once approved, runs publish.
 #   scripts/release.sh check vX.Y.Z
 #       The workflow's gate: the tag names mygo.json's version, CHANGELOG.md
 #       has its section, mygo.json configures updates and main holds the
@@ -21,7 +22,8 @@
 #       Fills packaging/homebrew/yt-music-player.rb with the published disk
 #       image's SHA-256 and pushes it to the Homebrew tap: never an older
 #       version, no commit when nothing changed. Rerun it when publish
-#       published but failed to update the tap.
+#       published but failed to update the tap. With TAP_TOKEN, as in the
+#       workflow, it clones and pushes with it rather than gh's login.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -191,14 +193,15 @@ release() {
 	git push --atomic origin main "$tag" ||
 		die "the push failed; commit and tag are local: git push --atomic origin main $tag"
 
-	echo "Pushed $tag. The Release workflow builds it into a draft release;"
-	echo "check the draft, then: scripts/release.sh publish $version"
+	echo "Pushed $tag. The Release workflow builds it into a draft release (gh run watch);"
+	echo "check the draft, then approve the run's publish job, which publishes it."
 }
 
 publish() {
 	need gh git jq shasum
 	valid "$1" || die "$1 is not X.Y.Z"
-	[ "$(draft "$1")" = true ] || die "v$1 has no draft release"
+	[ "$(draft "$1")" = true ] ||
+		die "v$1 has no draft release: is the workflow's draft job done, and can gh's account write $repo (gh auth status)?"
 	workdir
 	mkdir "$tmp/draft"
 	gh release download "v$1" --repo "$repo" --dir "$tmp/draft"
@@ -228,7 +231,14 @@ tap() {
 	# What users download, not what the draft held.
 	mkdir "$tmp/published"
 	fetch "$1" "$tmp/published"
-	gh repo clone "$tap_repo" "$tmp/tap" -- --quiet --depth 1
+	if [ -n "${TAP_TOKEN-}" ]; then
+		# A header, as actions/checkout sets it, keeps the token out of URLs.
+		auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TAP_TOKEN" | base64 | tr -d '\n')"
+		git -c http.extraHeader="$auth" clone --quiet --depth 1 "https://github.com/$tap_repo.git" "$tmp/tap"
+		git -C "$tmp/tap" config http.extraHeader "$auth"
+	else
+		gh repo clone "$tap_repo" "$tmp/tap" -- --quiet --depth 1
+	fi
 	file=$tmp/tap/Casks/$cask.rb
 	if [ -f "$file" ]; then
 		cur=$(sed -n 's/^  version "\(.*\)"$/\1/p' "$file")

@@ -1,6 +1,6 @@
 # Releasing
 
-One command to release, one workflow on GitHub, one command to publish to GitHub and Homebrew. Releases are for macOS (universal), Linux and Windows (amd64 and arm64 each) and ship ytmd and ytm beside the app. The macOS app is signed with a Developer ID and notarized; no certificate signs the Windows app, so SmartScreen warns at first run.
+One command to release, one workflow on GitHub, one approval to publish to GitHub and Homebrew. Releases are for macOS (universal), Linux and Windows (amd64 and arm64 each) and ship ytmd and ytm beside the app. The macOS app is signed with a Developer ID and notarized; no certificate signs the Windows app, so SmartScreen warns at first run.
 
 - **The version** is `version` in `mygo.json`, the only place it is written: the app reads it, `mygo build` puts it in `Info.plist`, the disk image's name and the update manifest, `scripts/build.sh` in ytmd and ytm. `0.0.0` means never released.
 - **A release** is an annotated tag `vX.Y.Z` on `main`, made only by `scripts/release.sh`. Tags are never moved, deleted or reused.
@@ -21,21 +21,18 @@ The tag starts `.github/workflows/release.yml` (`gh run watch` follows it):
 2. **checks**: the CI workflow, prek on macOS, as on every push and pull request.
 3. **macos**, in the `release` environment: `scripts/build.sh -platform darwin/universal -sign <identity>` builds the helpers for both architectures into one app, signs it with the hardened runtime, notarizes and staples it and the disk image, and signs the update with `MYGO_UPDATER_PRIVATE_KEY`. It checks the signatures, the tickets and that ytmd and ytm are universal, and keeps `YT-Music-Player-X.Y.Z-macos-universal.dmg` and the update files.
 4. **linux-windows**, a job per system on Ubuntu, in the `release` environment: `scripts/build.sh -platform linux/amd64,linux/arm64` (or `windows/…`) cross-compiles everything, MyGo needing no cgo, and signs the updates; NSIS makes the Windows installers. It checks each executable's architecture, the consoles (none for `ytmd.exe`) and the Debian package's `/opt/yt-music-player/ytmd` and `/usr/bin/ytm`, and keeps the `.deb`s, `-setup.exe`s, Linux's `install.sh` and the update files.
-5. **publish**: gathers the build jobs' files, refusing a name two of them made, writes `SHA256SUMS` of them all, attests their provenance (public repositories), then creates the **draft** release with the files and the notes.
+5. **draft**: gathers the build jobs' files, refusing a name two of them made, writes `SHA256SUMS` of them all, attests their provenance (public repositories), then creates the **draft** release with the files and the notes.
+6. **publish**, in the `publish` environment, waits for its reviewer's approval, then runs `scripts/release.sh publish X.Y.Z` (below) on macOS, for `brew style`.
 
-Then check the draft: download its files, `shasum -a 256 -c SHA256SUMS`, and on each system:
+Before approving, check the draft: download its files, `shasum -a 256 -c SHA256SUMS`, and on each system:
 
 - **macOS:** the app opens without Gatekeeper asking (`spctl -a -vv` says `source=Notarized Developer ID`); sign in, play a song, close the window: the song plays on, Now Playing shows *YT Music Player Helper*, and `"/Applications/YT Music Player.app/Contents/Resources/ytm" status` shows it.
 - **Linux:** `sh install.sh` the archive next to it, or `sudo apt install ./YT-Music-Player-X.Y.Z-linux-amd64.deb`, then `ytm version` and `ytm status` from the PATH (`~/.local/bin/ytm` or `/usr/bin/ytm`).
 - **Windows:** run the setup through SmartScreen's *More info → Run anyway*, then `"%LOCALAPPDATA%\Programs\YT Music Player\ytm.exe" status`.
 
-Publish it:
+Then approve: the run's page → *Review deployments* → `publish` → *Approve and deploy*. *Reject*, or no answer within 30 days, publishes nothing.
 
-```sh
-scripts/release.sh publish X.Y.Z
-```
-
-It checks that the draft has every platform's downloads and `update-<platform>.json`, that `SHA256SUMS` lists every file and matches it, and each manifest against the version and the files it links to; publishes the release as the latest; then runs `tap`. **Publishing ships the update**: installed apps read the manifest of the latest release, never a draft's.
+`scripts/release.sh publish X.Y.Z` checks that the draft has every platform's downloads and `update-<platform>.json`, that `SHA256SUMS` lists every file and matches it, and each manifest against the version and the files it links to; publishes the release as the latest; then runs `tap`. **Publishing ships the update**: installed apps read the manifest of the latest release, never a draft's.
 
 ## The helpers
 
@@ -47,7 +44,9 @@ It checks that the draft has every platform's downloads and `update-<platform>.j
 
 ## Security
 
-Only the workflow's `publish` job can write to the repository; the others read only, checkouts keep no credentials, and actions are pinned by commit, which Dependabot (`.github/dependabot.yml`) bumps weekly with the Go modules. The signing secrets are in the `release` environment, which only `v*` tags can use, and only the steps that sign read them.
+Only the workflow's `draft` and `publish` jobs can write to the repository; the others read only, checkouts keep no credentials, and actions are pinned by commit, which Dependabot (`.github/dependabot.yml`) bumps weekly with the Go modules. The signing secrets are in the `release` environment, which only `v*` tags can use, and only the steps that sign read them.
+
+`TAP_TOKEN`, which writes only the tap, is in the `publish` environment, whose job waits for approval.
 
 ## When something fails
 
@@ -57,8 +56,10 @@ Only the workflow's `publish` job can write to the repository; the others read o
 | The workflow, something flaky | Re-run the failed jobs. A rerun replaces the files of its draft, never of a published release. |
 | The workflow, signing | A secret is missing, expired or revoked: replace it ([signing](#signing-and-notarization), [updates](#updates)) and re-run the failed jobs. |
 | The workflow, notarization | `Invalid`: the job's log has the submission ID, and `xcrun notarytool log <id> --keychain-profile notary` on your Mac says why. Fix on `main` and release the next patch. |
-| The workflow, a real bug | Delete the draft if there is one, fix on `main`, and release the next patch. The failed tag stays, unreleased. |
-| `publish`, the tap | The release is published; fix, then `scripts/release.sh tap X.Y.Z`. |
+| The workflow, a real bug | Reject the publish job, delete the draft if there is one, fix on `main`, and release the next patch. The failed tag stays, unreleased. |
+| `publish`, its checks | Nothing is published: a missing or wrong file is a real bug, as above. Without `TAP_TOKEN`, add it and re-run the job. |
+| `publish`, the tap | The release is published; fix, then re-run the job, which then only updates the tap, or run `scripts/release.sh tap X.Y.Z`. |
+| `publish`, GitHub down | Re-run the job, or run `scripts/release.sh publish X.Y.Z` with a `gh` login that can write the repository. |
 | A published release | Never replace its files. Fix on `main` and release the next patch, which installed apps update to; edit the old release's notes to point to it. |
 
 ## Once, on GitHub
@@ -67,6 +68,7 @@ Only the workflow's `publish` job can write to the repository; the others read o
 - Settings → Rules: protect `main` (require the CI check, no force pushes) and tags `v*` (no updates or deletions).
 - Settings → General → Releases: turn on release immutability, so that a published release's files and tag cannot change.
 - Settings → Environments: `release`, its deployment branches and tags limited to the tag rule `v*`, with the secrets of [signing](#signing-and-notarization) and [updates](#updates).
+- Settings → Environments: `publish`, limited to `v*` likewise, *Required reviewers* yourself, and the secret `TAP_TOKEN`: a fine-grained token with *Contents: Read and write* on `xlanstar/homebrew-tap` only. Renew it before it expires.
 - Anyone can check a download: `gh attestation verify YT-Music-Player-X.Y.Z-macos-universal.dmg --repo xlanstar/yt-music-player`.
 
 ## Signing and notarization
@@ -116,7 +118,7 @@ gh secret set MYGO_UPDATER_PRIVATE_KEY --env release < <dir>/mygo-update.key
 
 - `packaging/homebrew/yt-music-player.rb` is the cask's template. Its `Casks/yt-music-player.rb` in the tap is only written by `scripts/release.sh tap X.Y.Z`; change the template, never the tap.
 - `tap` uses the disk image of the published release, as users download it, never a draft's; it refuses an older version than the tap's and commits nothing when nothing changed, so it can always run again, after a fix to the template too.
-- `tap` clones and pushes the tap with your `gh` login; `brew style` checks the cask first when Homebrew is installed.
+- `tap` clones and pushes the tap with `TAP_TOKEN` in the workflow, else with your `gh` login; `brew style` checks the cask first when Homebrew is installed.
 - The app updates itself, also when brew installed it: the cask says `auto_updates true`, and brew, which compares the installed app's version, upgrades only an app that did not update (Homebrew 6 and later; older versions with `--greedy`).
 - `scripts/install.sh [-universal]` installs this checkout through the same cask, from a local tap (`local/yt-music-player`) and the local disk image, its quarantine removed, as it is signed ad hoc. The app still updates itself to a newer release.
 - The cask links `ytm` into Homebrew's `bin`, and `brew uninstall` (upgrades too) first stops the background player with it. The LaunchAgent stays, for upgrades; without the app it removes itself at the next login. `--zap` removes it at once and forgets the sign-in (the Keychain item `yt-music-player`), settings, themes, the player's state and caches.

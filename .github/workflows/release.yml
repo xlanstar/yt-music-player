@@ -1,8 +1,8 @@
 # Builds a vX.Y.Z tag, which scripts/release.sh pushes, into a draft GitHub
-# release (docs/release.md). Each job has only the permissions it needs:
-# only publish, which builds and tests nothing, can write, and only the
-# build jobs, in the release environment that v* tags alone may use, have
-# the signing secrets.
+# release, published once approved (docs/release.md). Each job has only the
+# permissions it needs: only draft and publish, which build and test
+# nothing, can write, and only the build jobs, in the release environment
+# that v* tags alone may use, have the signing secrets.
 name: Release
 
 on:
@@ -225,7 +225,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  publish:
+  draft:
     needs: [macos, linux-windows]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -285,4 +285,36 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" dist/* --draft --verify-tag \
               --title "$GITHUB_REF_NAME" --notes-file "$notes"
+          fi
+
+  # Waits in the publish environment for its reviewer, who approves once
+  # the draft is checked: publishing ships the update to installed apps.
+  publish:
+    needs: draft
+    runs-on: macos-latest # brew style checks the cask
+    timeout-minutes: 15
+    environment: publish
+    permissions:
+      contents: write # publishes the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Publish the release and update the tap
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }} # this job's token cannot write the tap
+        run: |
+          # Before publishing, so that a missing token leaves nothing half done.
+          [ -n "$TAP_TOKEN" ] || { echo "::error::no TAP_TOKEN in the publish environment"; exit 1; }
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          version="${GITHUB_REF_NAME#v}"
+          # A rerun after the tap failed finds the release published.
+          if [ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)" = false ]; then
+            scripts/release.sh tap "$version"
+          else
+            scripts/release.sh publish "$version"
           fi
