@@ -20,6 +20,7 @@ Numbers from `scripts/footprint.sh` (`perf/footprint-baseline.txt`: M4 Max, 1280
 - Any frame makes Metal hold ~270 MB for ~1 s ("Owned physical footprint (unmapped) (graphics)", ~250 MB of it): the same in a minimal MyGo app and at any window size; MyGo's own textures are ~5 MB. So idle means no frames.
 - Playing draws one frame per shown step: ~330 MB focused (1 s steps), ~127 MB on average unfocused (5 s; the driver's memory goes ~1 s after a frame), ~70 MB minimized or hidden; paused and idle draw none, ~60 MB. Steps longer than the hold cost more CPU: a frame after the release takes ~8.5 ms against ~1.5.
 - Thumbnails cost about +14 MB idle footprint per page of real results, mostly decoded pixels in the Go heap. `internal/artwork` keeps a 32 MB memory LRU (images shown in the last two frames stay) and a 128 MB disk cache; MyGo keeps the pixels of about one page's images (~20) after the page is left, until it shows again.
+- `artwork` scales a cover from the decoder's pixels, a row at a time, with a box filter that counts every pixel once: a 1200 px JPEG shown at 352 allocates 2.7 MB, against 9.9 for a copy of it whole, halved, then bilinear (x/image/draw, 150 KB of binary).
 - The Go heap grows to twice what is live before a GC, and the scavenger returns free pages over minutes: `internal/quiet` runs `debug.FreeOSMemory` (0.6–5 ms, off the UI thread) after 3 s without a build, if the heap allocated 1 MB since. With thumbnails, idle ~96 → 77 MB, after every page ~121 → 96 MB.
 
 ## The background player
@@ -36,7 +37,7 @@ Numbers from `scripts/footprint.sh -daemon` (`perf/footprint-daemon-baseline.txt
 
 ## The TUI's covers
 
-- Detected off, nothing is made: no `artwork` loader, no HTTP client. The covers link `net/http`, TLS and the decoders into ytm (6.4 → 9.8 MB stripped); fetching them in ytmd instead would save ytm 2 MB of binary but keep connections and a cache in the process that never quits.
+- Detected off, nothing is made: no `artwork` loader, no HTTP client. The covers link `net/http`, TLS and the decoders into ytm (6.4 → 9.6 MB stripped); fetching them in ytmd instead would save ytm 2 MB of binary but keep connections and a cache in the process that never quits.
 - `artwork` decodes JPEG and PNG, what the URLs it makes serve; WebP's decoder (100 KB) comes with MyGo's `ui`, which registers it in the Desktop, and stays out of ytm.
 - Covers are fetched at their cells' pixels (artwork's bucket: 80 for 4×2 Retina cells), 2 workers, keeping 64 KB of decoded pixels besides those shown (`artMemory`). They encode off the UI thread, once per cover and size, each line after a space, which renders pass as a prefix: a frame with a cover allocates as one without (`TestBudgetView`).
 - Each protocol keeps only what it needs again: Kitty's upload goes once and is dropped, the terminal holding the pixels under 8 recycled ids (176–183); an overlay keeps its Sixel or JPEG to draw after a repaint; half blocks keep their lines. Covers off screen keep 64 KB of these, unsent uploads too (`offScreenBytes`).

@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	xdraw "golang.org/x/image/draw"
 	_ "golang.org/x/image/webp" // testdata's covers, as the Desktop's ui registers it
 )
 
@@ -224,33 +225,39 @@ func TestShrinkSeesEveryPixel(t *testing.T) {
 	// A checkerboard of single pixels: sampling would show stripes or
 	// moiré, averaging every pixel an even gray.
 	for _, side := range []int{1200, 1001} {
-		out := shrink(checker(side), 256)
-		if b := out.Bounds(); b != image.Rect(0, 0, 256, 256) {
-			t.Fatalf("%d: bounds %v", side, b)
-		}
-		// Except the last row and column of an odd size, which count twice
-		// when halved.
-		for y := range 255 {
-			for x := range 255 {
-				if c := out.RGBAAt(x, y); c.R < 110 || c.R > 145 || c.A != 255 {
-					t.Fatalf("%d: pixel (%d, %d) is %v, want an even gray", side, x, y, c)
+		m := checker(side)
+		// Through At too, as the decoders' images other than RGBA.
+		for _, src := range []image.Image{m, atOnly{m}} {
+			out := shrink(src, m.Rect, 256)
+			if b := out.Bounds(); b != image.Rect(0, 0, 256, 256) {
+				t.Fatalf("%d: bounds %v", side, b)
+			}
+			for y := range 256 {
+				for x := range 256 {
+					if c := out.RGBAAt(x, y); c.R < 110 || c.R > 145 || c.A != 255 {
+						t.Fatalf("%d: pixel (%d, %d) is %v, want an even gray", side, x, y, c)
+					}
 				}
 			}
 		}
 	}
-	// Below twice the size no filter avoids beats, but none of the
-	// pattern is lost.
-	out := shrink(checker(300), 256)
+	// Below twice the size none of the pattern is lost either.
+	out := shrink(checker(300), image.Rect(0, 0, 300, 300), 256)
 	if avg := average(out); avg.R < 120 || avg.R > 135 {
 		t.Errorf("300: average %v, want gray", avg)
 	}
-	if m := checker(256); shrink(m, 256) != m {
-		t.Error("copied an image of the size")
+	// Only the square asked for is read.
+	m := solid(30, 30, color.RGBA{255, 0, 0, 255}, color.RGBA{})
+	draw.Draw(m, image.Rect(10, 10, 20, 20), image.NewUniform(color.RGBA{0, 0, 255, 255}), image.Point{}, draw.Src)
+	for _, src := range []image.Image{m, atOnly{m}} {
+		if c := shrink(src, image.Rect(10, 10, 20, 20), 4).RGBAAt(3, 3); c != (color.RGBA{0, 0, 255, 255}) {
+			t.Errorf("%T: read outside the square: %v", src, c)
+		}
 	}
 }
 
-// copyThenShrink decodes data as Decode did before scaling from the
-// decoder's pixels: the whole crop copied, then shrunk.
+// copyThenShrink decodes data as Decode did before its box filter: the
+// crop copied whole, halved while twice the size, then bilinear.
 func copyThenShrink(tb testing.TB, data []byte, px int) *image.RGBA {
 	tb.Helper()
 	src, _, err := image.Decode(bytes.NewReader(data))
@@ -260,7 +267,33 @@ func copyThenShrink(tb testing.TB, data []byte, px int) *image.RGBA {
 	crop := square(trimBars(rgba64(src)))
 	m := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dx()))
 	draw.Draw(m, m.Rect, src, crop.Min, draw.Src)
-	return shrink(m, px)
+	for m.Rect.Dx() >= 2*px {
+		m = halve(m)
+	}
+	if m.Rect.Dx() <= px {
+		return m
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, px, px))
+	xdraw.ApproxBiLinear.Scale(dst, dst.Rect, m, m.Rect, draw.Src, nil)
+	return dst
+}
+
+// halve averages each 2×2 block; an odd last row or column counts twice.
+func halve(m *image.RGBA) *image.RGBA {
+	w, h := m.Rect.Dx(), m.Rect.Dy()
+	out := image.NewRGBA(image.Rect(0, 0, max(1, (w+1)/2), max(1, (h+1)/2)))
+	for y := range out.Rect.Dy() {
+		top := m.Pix[2*y*m.Stride:]
+		bottom := m.Pix[min(2*y+1, h-1)*m.Stride:]
+		for x := range out.Rect.Dx() {
+			left, right := 8*x, 4*min(2*x+1, w-1)
+			for c := range 4 {
+				sum := int(top[left+c]) + int(top[right+c]) + int(bottom[left+c]) + int(bottom[right+c])
+				out.Pix[y*out.Stride+4*x+c] = uint8((sum + 2) / 4)
+			}
+		}
+	}
+	return out
 }
 
 // diff returns the mean and largest difference of a and b's channels.
@@ -275,11 +308,13 @@ func diff(a, b *image.RGBA) (mean float64, most int) {
 	return float64(sum) / float64(len(a.Pix)), most
 }
 
-func TestDecodeLargeLooksAsCopied(t *testing.T) {
+func TestDecodeLooksAsBefore(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		px   int
 	}{
+		{"jpeg/544", 352},
+		{"jpeg/544", 192},
 		{"jpeg/hq720", 64},
 		{"jpeg/hq720", 96},
 		{"jpeg/hq720", 160},
@@ -299,7 +334,7 @@ func TestDecodeLargeLooksAsCopied(t *testing.T) {
 			t.Fatalf("%s at %d: bounds %v, want %v", tc.name, tc.px, img.RGBA.Rect, want.Rect)
 		}
 		mean, most := diff(img.RGBA, want)
-		// Edges and grain move most: 1-2 levels on average, 30-64 at most.
+		t.Logf("%s at %d: mean %.2f, most %d", tc.name, tc.px, mean, most)
 		if mean > 3 || most > 80 {
 			t.Errorf("%s at %d: channels differ by %.2f on average, %d at most", tc.name, tc.px, mean, most)
 		}

@@ -169,15 +169,15 @@ var decodeCases = []struct {
 	px    int
 	limit budget.Cost
 }{
-	{"jpeg/544", coverPx, budget.Cost{Allocs: 14, Bytes: 2.5e6}},   // 12 allocs, 2.17 MB today.
-	{"jpeg/1200", coverPx, budget.Cost{Allocs: 18, Bytes: 11.4e6}}, // 15 allocs, 9.9 MB today.
-	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 17, Bytes: 440e3}},  // 14 allocs, 380 KB today.
-	{"jpeg/hq720", 64, budget.Cost{Allocs: 15, Bytes: 1.72e6}},     // 13 allocs, 1.49 MB today.
-	// 187 allocs, 2.95 MB today; most allocs are the PNG decoder's.
-	{"png/544", coverPx, budget.Cost{Allocs: 216, Bytes: 3.4e6}},
-	{"png/1200", coverPx, budget.Cost{Allocs: 669, Bytes: 15.7e6}}, // 581 allocs, 13.6 MB today.
-	{"webp/544", coverPx, budget.Cost{Allocs: 27, Bytes: 2.54e6}},  // 23 allocs, 2.2 MB today.
-	{"webp/1200", coverPx, budget.Cost{Allocs: 29, Bytes: 11.7e6}}, // 25 allocs, 10.1 MB today.
+	{"jpeg/544", coverPx, budget.Cost{Allocs: 17, Bytes: 1.16e6}},  // 14 allocs, 1.01 MB today.
+	{"jpeg/1200", coverPx, budget.Cost{Allocs: 18, Bytes: 3.13e6}}, // 15 allocs, 2.72 MB today.
+	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 19, Bytes: 370e3}},  // 16 allocs, 320 KB today.
+	{"jpeg/hq720", 64, budget.Cost{Allocs: 18, Bytes: 1.65e6}},     // 15 allocs, 1.44 MB today.
+	// 187 allocs, 1.79 MB today; most allocs are the PNG decoder's.
+	{"png/544", coverPx, budget.Cost{Allocs: 216, Bytes: 2.06e6}},
+	{"png/1200", coverPx, budget.Cost{Allocs: 666, Bytes: 7.39e6}}, // 579 allocs, 6.43 MB today.
+	{"webp/544", coverPx, budget.Cost{Allocs: 29, Bytes: 1.2e6}},   // 25 allocs, 1.05 MB today.
+	{"webp/1200", coverPx, budget.Cost{Allocs: 29, Bytes: 3.38e6}}, // 25 allocs, 2.94 MB today.
 }
 
 func BenchmarkDecode(b *testing.B) {
@@ -193,13 +193,14 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
-// shrinkCases: bilinear from 544 px, halved first from 1200.
+// shrinkCases shrink benchCover's RGBA, as a PNG's, to coverPx.
 var shrinkCases = []struct {
 	n     int
 	limit budget.Cost
 }{
-	{544, budget.Cost{Allocs: 2, Bytes: 575e3}},   // 2 allocs, 500 KB today: the output, scaled once.
-	{1200, budget.Cost{Allocs: 5, Bytes: 2.25e6}}, // 4 allocs, 1.94 MB today: halved first.
+	// 4 allocs, 528 KB today, for each: the output, the spans and sums.
+	{544, budget.Cost{Allocs: 5, Bytes: 610e3}},
+	{1200, budget.Cost{Allocs: 5, Bytes: 610e3}},
 }
 
 func BenchmarkShrink(b *testing.B) {
@@ -208,7 +209,7 @@ func BenchmarkShrink(b *testing.B) {
 			m := benchCover(tc.n)
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkRGBA = shrink(m, coverPx)
+				sinkRGBA = shrink(m, m.Rect, coverPx)
 			}
 		})
 	}

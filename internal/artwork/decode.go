@@ -9,8 +9,6 @@ import (
 	_ "image/jpeg" // Decode
 	_ "image/png"  // Decode
 	"io"
-
-	xdraw "golang.org/x/image/draw"
 )
 
 // maxPixels keeps a corrupt or hostile header from allocating gigabytes.
@@ -53,19 +51,13 @@ func Decode(data []byte, px int) (*Image, error) {
 		return nil, err
 	}
 	crop := square(trimBars(rgba64(src)))
-	side := crop.Dx()
-	if side >= 4*px {
-		// Scaled from the decoder's pixels, as copying them all first
-		// would take megabytes; halving to px then sees every one left.
-		side = 2 * px
-	}
-	m := image.NewRGBA(image.Rect(0, 0, side, side))
-	if side == crop.Dx() {
-		draw.Draw(m, m.Rect, src, crop.Min, draw.Src)
+	var m *image.RGBA
+	if side := crop.Dx(); side > px {
+		m = shrink(src, crop, px)
 	} else {
-		xdraw.ApproxBiLinear.Scale(m, m.Rect, src, crop, draw.Src, nil)
+		m = image.NewRGBA(image.Rect(0, 0, side, side))
+		draw.Draw(m, m.Rect, src, crop.Min, draw.Src)
 	}
-	m = shrink(m, px)
 	return &Image{RGBA: m, Average: average(m)}, nil
 }
 
@@ -90,39 +82,101 @@ func (r *peekReader) Peek(n int) ([]byte, error) {
 	return r.data[:n], nil
 }
 
-// shrink scales a square image down to n pixels as MyGo draws a smaller
-// bitmap: halving while at least twice as large, then bilinear, so every
-// pixel counts. A kernel such as Catmull-Rom would allocate megabytes of
-// float64s per image.
-func shrink(m *image.RGBA, n int) *image.RGBA {
-	for m.Rect.Dx() >= 2*n {
-		m = halve(m)
-	}
-	if m.Rect.Dx() <= n {
-		return m
-	}
+// shrink returns the square r of src scaled down to n pixels, each the
+// mean of the area it covers: a box filter, which sees every pixel in one
+// pass. It reads src a row at a time: a copy of it whole took megabytes.
+func shrink(src image.Image, r image.Rectangle, n int) *image.RGBA {
+	side := r.Dx()
 	dst := image.NewRGBA(image.Rect(0, 0, n, n))
-	xdraw.ApproxBiLinear.Scale(dst, dst.Rect, m, m.Rect, draw.Src, nil)
+	rgba, isRGBA := src.(*image.RGBA)
+	var buf *image.RGBA
+	if !isRGBA {
+		buf = image.NewRGBA(image.Rect(0, 0, side, 1))
+	}
+	// row sums source row j, horizontally, into sums.
+	row := func(sums []uint32, j int, spans []span) {
+		if isRGBA {
+			sumRow(sums, rgba.Pix[rgba.PixOffset(r.Min.X, r.Min.Y+j):][:4*side], spans)
+			return
+		}
+		draw.Draw(buf, buf.Rect, src, image.Pt(r.Min.X, r.Min.Y+j), draw.Src)
+		sumRow(sums, buf.Pix, spans)
+	}
+	spans := boxSpans(side, n)
+	// An output row's first source row, those between, and its last,
+	// which is often the next one's first.
+	sums := make([]uint32, 12*n)
+	first, mid, last := sums[:4*n], sums[4*n:8*n], sums[8*n:]
+	whole, area := uint64(n), uint64(side*side) //nolint:gosec // sizes
+	prev := -1
+	for y, sp := range spans {
+		if sp.first == prev {
+			first, last = last, first
+		} else {
+			clear(first)
+			row(first, sp.first, spans)
+		}
+		clear(mid)
+		for j := sp.first + 1; j < sp.last; j++ {
+			row(mid, j, spans)
+		}
+		clear(last)
+		row(last, sp.last, spans)
+		prev = sp.last
+		out := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+		for i := range out {
+			v := uint64(sp.firstPart)*uint64(first[i]) + whole*uint64(mid[i]) + uint64(sp.lastPart)*uint64(last[i])
+			out[i] = uint8((v + area/2) / area) //nolint:gosec // a mean of bytes
+		}
+	}
 	return dst
 }
 
-// halve averages each 2×2 block; an odd last row or column counts twice.
-func halve(m *image.RGBA) *image.RGBA {
-	w, h := m.Rect.Dx(), m.Rect.Dy()
-	out := image.NewRGBA(image.Rect(0, 0, max(1, (w+1)/2), max(1, (h+1)/2)))
-	for y := range out.Rect.Dy() {
-		top := m.Pix[2*y*m.Stride:]
-		bottom := m.Pix[min(2*y+1, h-1)*m.Stride:]
-		outRow := out.Pix[y*out.Stride:]
-		for x := range out.Rect.Dx() {
-			left, right := 8*x, 4*min(2*x+1, w-1)
-			for c := range 4 {
-				sum := uint32(top[left+c]) + uint32(top[right+c]) + uint32(bottom[left+c]) + uint32(bottom[right+c])
-				outRow[4*x+c] = uint8((sum + 2) / 4) //nolint:gosec // the mean of four bytes
-			}
+// span is the source pixels an output pixel covers: in units of 1/n of
+// one, the first and last in part, those between whole.
+type span struct {
+	first, last         int
+	firstPart, lastPart uint32
+}
+
+// boxSpans returns the spans of n pixels over side > n: pixel x covers
+// [x*side, (x+1)*side) in units of 1/n, so it crosses a source pixel's edge.
+func boxSpans(side, n int) []span {
+	spans := make([]span, n)
+	for x := range spans {
+		lo, hi := x*side, (x+1)*side
+		first, last := lo/n, (hi-1)/n
+		spans[x] = span{
+			first: first, last: last,
+			firstPart: uint32((first+1)*n - lo), //nolint:gosec // at most n
+			lastPart:  uint32(hi - last*n),      //nolint:gosec // at most n
 		}
 	}
-	return out
+	return spans
+}
+
+// sumRow adds a row of pixels to sums, one per span, weighed in units of
+// 1/n: at most 255×side a row, and side ≤ 4096 (maxPixels) keeps a sum of
+// rows in uint32.
+func sumRow(sums []uint32, pix []uint8, spans []span) {
+	n := uint32(len(spans)) //nolint:gosec // a size
+	for x, sp := range spans {
+		var r, g, b, a uint32
+		for i := 4 * (sp.first + 1); i < 4*sp.last; i += 4 {
+			p := pix[i : i+4 : i+4]
+			r += uint32(p[0])
+			g += uint32(p[1])
+			b += uint32(p[2])
+			a += uint32(p[3])
+		}
+		f := pix[4*sp.first : 4*sp.first+4 : 4*sp.first+4]
+		l := pix[4*sp.last : 4*sp.last+4 : 4*sp.last+4]
+		s := sums[4*x : 4*x+4 : 4*x+4]
+		s[0] += n*r + sp.firstPart*uint32(f[0]) + sp.lastPart*uint32(l[0])
+		s[1] += n*g + sp.firstPart*uint32(f[1]) + sp.lastPart*uint32(l[1])
+		s[2] += n*b + sp.firstPart*uint32(f[2]) + sp.lastPart*uint32(l[2])
+		s[3] += n*a + sp.firstPart*uint32(f[3]) + sp.lastPart*uint32(l[3])
+	}
 }
 
 func square(r image.Rectangle) image.Rectangle {
