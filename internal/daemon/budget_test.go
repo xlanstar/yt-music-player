@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"path/filepath"
 	"testing"
 	"yt-music-player/internal/budget"
 )
@@ -40,4 +41,12 @@ func TestBudgetSnapshot(t *testing.T) {
 	// 6 allocs today: the event and its State, the queue's IDs and songs,
 	// the account's Latest, the frames.
 	budget.Allocs(t, 7, 20, func() { sinkFrames = s.snapshot() })
+}
+
+func TestBudgetWrite(t *testing.T) {
+	s, _ := benchService(t, bigQueue)
+	st := s.saved()
+	w := newStore(filepath.Join(t.TempDir(), "daemon.json"), 0)
+	// 15.1 allocs, 173 KB today: a 172 KB file, encoded to bytes first.
+	budget.Within(t, budget.Cost{Allocs: 18, Bytes: 2e5}, 20, func() { w.write(st) })
 }

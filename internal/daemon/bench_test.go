@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"path/filepath"
 	"strconv"
 	"testing"
 	"yt-music-player/internal/account"
@@ -118,6 +119,18 @@ func BenchmarkSnapshot(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		sinkFrames = s.snapshot()
+	}
+}
+
+// BenchmarkWrite saves a large queue's daemon.json, as the store's
+// goroutine does after a pause or a new song.
+func BenchmarkWrite(b *testing.B) {
+	s, _ := benchService(b, bigQueue)
+	st := s.saved()
+	w := newStore(filepath.Join(b.TempDir(), "daemon.json"), 0)
+	b.ReportAllocs()
+	for b.Loop() {
+		w.write(st)
 	}
 }
 
