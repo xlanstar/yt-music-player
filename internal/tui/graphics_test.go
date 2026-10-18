@@ -371,17 +371,23 @@ func TestCoverDetect(t *testing.T) {
 }
 
 // TestCoverTrim drops covers off screen, the oldest first, once their
-// images pass offScreenBytes.
+// images pass offScreenBytes: placed in another order than their slots.
 func TestCoverTrim(t *testing.T) {
 	var g gfx
 	half := termimage.Encoded{Upload: strings.Repeat("x", offScreenBytes/2)}
-	for i := range 3 {
-		g.covers[i] = cover{Encoded: half, key: coverKey{url: strconv.Itoa(i)}, frame: uint64(i)}
+	for i, frame := range []uint64{2, 1, 0, 3} {
+		g.covers[i] = cover{Encoded: half, key: coverKey{url: strconv.Itoa(i)}, frame: frame}
 	}
-	g.frame = 2
+	g.frame = 3
 	g.trim()
-	if g.covers[0].key.url != "" || g.covers[1].Upload == "" || g.covers[2].Upload == "" {
-		t.Errorf("kept %q, %q and %q, want the last two", g.covers[0].key.url, g.covers[1].key.url, g.covers[2].key.url)
+	var kept []string
+	for _, c := range g.covers {
+		if c.Upload != "" {
+			kept = append(kept, c.key.url)
+		}
+	}
+	if !slices.Equal(kept, []string{"0", "3"}) {
+		t.Errorf("kept %q, want the newest off screen and the one shown", kept)
 	}
 }
 

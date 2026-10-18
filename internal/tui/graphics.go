@@ -75,6 +75,9 @@ type cover struct {
 	job     job.Job
 }
 
+// size is the bytes of c's images: an overlay, or an upload not sent.
+func (c *cover) size() int { return len(c.Overlay) + len(c.Upload) }
+
 type probeTimeoutMsg struct{}
 
 // overlayMsg draws the overlays of commit gen, if still current.
@@ -353,23 +356,29 @@ func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
 	return tea.Raw(b.String())
 }
 
-// trim drops covers not shown once their images take more than
-// offScreenBytes; they encode again when shown.
+// trim drops covers not shown, the oldest first, once their images take
+// more than offScreenBytes; they encode again when shown.
 func (g *gfx) trim() {
 	total := 0
 	for i := range g.covers {
-		total += len(g.covers[i].Overlay) + len(g.covers[i].Upload)
+		total += g.covers[i].size()
 	}
-	for i := range g.covers {
-		c := &g.covers[i]
-		if total <= offScreenBytes {
+	for total > offScreenBytes {
+		oldest := -1
+		for i := range g.covers {
+			c := &g.covers[i]
+			isDroppable := c.frame != g.frame && c.size() > 0
+			if isDroppable && (oldest < 0 || c.frame < g.covers[oldest].frame) {
+				oldest = i
+			}
+		}
+		if oldest < 0 {
 			return
 		}
-		if n := len(c.Overlay) + len(c.Upload); c.frame != g.frame && n > 0 {
-			total -= n
-			c.job.Stop()
-			*c = cover{}
-		}
+		c := &g.covers[oldest]
+		total -= c.size()
+		c.job.Stop()
+		*c = cover{}
 	}
 }
 
