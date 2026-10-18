@@ -108,11 +108,45 @@ func TestSourceSeeks(t *testing.T) {
 	if end, err := src.Seek(-10, io.SeekEnd); err != nil || end != int64(len(data))-10 {
 		t.Errorf("Seek from the end: %d, %v", end, err)
 	}
-	src.mu.Lock()
-	kept := src.kept
-	src.mu.Unlock()
-	if kept > keepBytes+readAhead {
-		t.Errorf("keeps %d bytes", kept)
+	if n := src.buffers(); n > maxChunks {
+		t.Errorf("%d chunks made, want at most %d", n, maxChunks)
+	}
+}
+
+// maxChunks is how many chunks the window spans at most.
+const maxChunks = (keepBehind+readAhead)/chunkSize + 2
+
+// buffers counts the chunks the source made: kept, and dropped for reuse.
+func (s *httpSource) buffers() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.chunks) + len(s.free)
+}
+
+// A song streams through a window of chunks, made once: its memory does
+// not grow with its length.
+func TestSourceKeepsAWindow(t *testing.T) {
+	data := testBytes(6 << 20)
+	srv := serveBytes(t, data)
+	src := newTestSource(t, srv.URL, nil)
+	buf := make([]byte, 16<<10)
+	for read := 0; read < len(data); {
+		n, err := src.Read(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(buf[:n], data[read:read+n]) {
+			t.Fatalf("at %d, other bytes", read)
+		}
+		read += n
+		if n := src.buffers(); n > maxChunks {
+			t.Fatalf("at %d, %d chunks made, want at most %d", read, n, maxChunks)
+		}
+	}
+	// Ranges of half the read-ahead to all of it: a reader as fast as this
+	// one waits for each, which then asks for the whole window.
+	if n := len(srv.seen()); n < len(data)/readAhead || n > 2*len(data)/readAhead {
+		t.Errorf("%d requests for %d bytes", n, len(data))
 	}
 }
 

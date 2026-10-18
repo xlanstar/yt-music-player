@@ -88,18 +88,19 @@ func (m memTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // sourceCases are a song's worth of bytes, and ten minutes' at 128 kbit/s:
-// the source keeps the first whole, the second up to keepBytes.
+// both stream through the same window of chunks.
 var sourceCases = []struct {
 	name string
 	size int
 	// limit is TestBudgetSourceRead's.
 	limit budget.Cost
 }{
-	// 103 allocs today (requests, chunks), 4.27 MB: the file, and a
-	// request's buffer.
-	{"4MB", 4 << 20, budget.Cost{Allocs: 119, Bytes: 4.91e6}},
-	// 232-234 allocs today, 10.67 MB.
-	{"10min", 10 << 20, budget.Cost{Allocs: 270, Bytes: 12.3e6}},
+	// 132 allocs today (requests, chunks), 1.49 MB: the window, made once,
+	// and the download's buffer. Keeping the whole file took 4.27 MB, in
+	// fewer, longer requests (103 allocs).
+	{"4MB", 4 << 20, budget.Cost{Allocs: 152, Bytes: 1.72e6}},
+	// 288 allocs today, 1.50 MB.
+	{"10min", 10 << 20, budget.Cost{Allocs: 332, Bytes: 1.73e6}},
 }
 
 // readSource reads all of data through an httpSource, in the demuxer's

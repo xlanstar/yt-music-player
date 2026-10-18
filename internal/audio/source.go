@@ -15,15 +15,16 @@ import (
 )
 
 const (
-	// chunkSize is the unit the source keeps and drops: 8 s at 128 kbit/s.
+	// chunkSize is the unit the source keeps, drops and reuses: 8 s at
+	// 128 kbit/s.
 	chunkSize = 128 << 10
-	// readAhead is how far past the reader the source downloads: about two
-	// minutes of a song. A request asks for this much, and the next starts
-	// once the reader used half of it.
-	readAhead = 2 << 20
-	// keepBytes bounds what the source holds: a song of up to about eight
-	// minutes stays whole, so seeking back in it costs no request.
-	keepBytes = 8 << 20
+	// readAhead is how far past the reader the source downloads: about a
+	// minute at 128 kbit/s, half that at 256. The next request starts once
+	// half of it is left, and asks for what the reader used.
+	readAhead = 1 << 20
+	// keepBehind is how much the source keeps behind the reader, for short
+	// seeks back; one further back costs a request, as one forward does.
+	keepBehind = 256 << 10
 	// seekGap: a reader this far past what a request is downloading has it
 	// stopped, and a request started where it reads.
 	seekGap = 256 << 10
@@ -59,9 +60,10 @@ type httpSource struct {
 	cond sync.Cond
 	size int64 // -1 until known
 	// chunks are each a prefix of their chunkSize bytes, from the
-	// chunk's start.
+	// chunk's start; those outside the window around the reader go to
+	// free, for the next ones, so that a song allocates its window once.
 	chunks  map[int64][]byte
-	kept    int64
+	free    [][]byte
 	pos     int64
 	err     error // ends the stream past what is kept
 	closed  bool
@@ -85,6 +87,12 @@ func newHTTPSource(client *http.Client, rawURL string, header http.Header, onWai
 	s.cond.L = &s.mu
 	go s.download()
 	return s
+}
+
+// window is the chunks kept, [lo, hi): keepBehind behind the reader and
+// readAhead past it, rounded out to whole chunks; the caller holds mu.
+func (s *httpSource) window() (lo, hi int64) {
+	return max(s.pos-keepBehind, 0) / chunkSize, (s.pos + readAhead + chunkSize - 1) / chunkSize
 }
 
 // chunkLen is how many bytes chunk i holds when whole; the caller holds mu.
@@ -179,7 +187,7 @@ func (s *httpSource) Seek(offset int64, whence int) (int64, error) {
 func (s *httpSource) Close() error {
 	s.mu.Lock()
 	s.closed = true
-	s.chunks, s.kept = nil, 0
+	s.chunks, s.free = nil, nil
 	s.cond.Broadcast()
 	s.mu.Unlock()
 	s.cancel()
@@ -189,12 +197,13 @@ func (s *httpSource) Close() error {
 // download runs until Close: it fetches what the reader will want next.
 func (s *httpSource) download() {
 	failures := 0
+	buf := make([]byte, 32<<10)
 	for {
 		start, end, ok := s.nextRange()
 		if !ok {
 			return
 		}
-		err := s.fetch(start, end)
+		err := s.fetch(start, end, buf)
 		switch {
 		case err == nil:
 			failures = 0
@@ -218,8 +227,8 @@ func (s *httpSource) download() {
 }
 
 // nextRange waits until the reader wants bytes not kept, and returns the
-// range to ask for: from the first missing byte at or after the reader,
-// up to readAhead bytes, ending before what is kept beyond.
+// range to ask for: from the first missing byte at or after the reader to
+// the window's end, ending before what is kept beyond.
 func (s *httpSource) nextRange() (start, end int64, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -229,7 +238,8 @@ func (s *httpSource) nextRange() (start, end int64, ok bool) {
 		}
 		start, ok = s.firstMissing()
 		if ok && start-s.pos < readAhead/2 {
-			end = start + readAhead
+			_, hi := s.window()
+			end = hi * chunkSize
 			if s.size >= 0 {
 				end = min(end, s.size)
 			}
@@ -247,10 +257,11 @@ func (s *httpSource) nextRange() (start, end int64, ok bool) {
 }
 
 // firstMissing returns the first byte at or after the reader's chunk not
-// kept, within readAhead, and false when there is none; the caller holds
+// kept, within the window, and false when there is none; the caller holds
 // mu.
 func (s *httpSource) firstMissing() (int64, bool) {
-	for i := s.pos / chunkSize; i*chunkSize < s.pos+readAhead; i++ {
+	_, hi := s.window()
+	for i := s.pos / chunkSize; i < hi; i++ {
 		if s.size >= 0 && i*chunkSize >= s.size {
 			return 0, false
 		}
@@ -275,8 +286,8 @@ func (e statusError) Error() string {
 // refused, which playback answers by resolving the song anew.
 func (e statusError) final() bool { return e >= 400 && e < 500 && e != http.StatusTooManyRequests }
 
-// fetch downloads [start, end) into the chunks.
-func (s *httpSource) fetch(start, end int64) error {
+// fetch downloads [start, end) into the chunks, through buf.
+func (s *httpSource) fetch(start, end int64, buf []byte) error {
 	ctx, cancel := context.WithCancel(s.ctx)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.url, nil)
@@ -310,7 +321,7 @@ func (s *httpSource) fetch(start, end int64) error {
 	default:
 		return statusError(resp.StatusCode)
 	}
-	return s.store(resp.Body, start, end, idle, cancel)
+	return s.store(resp.Body, start, end, buf, idle, cancel)
 }
 
 // learnSize reads the length off a Content-Range ("bytes 0-99/1234").
@@ -338,8 +349,7 @@ func (s *httpSource) setSize(size int64) {
 
 // store copies body, which starts at at, into the chunks until end, or
 // errMoved once the reader wants bytes elsewhere.
-func (s *httpSource) store(body io.Reader, at, end int64, idle *time.Timer, stop func()) error {
-	buf := make([]byte, 32<<10)
+func (s *httpSource) store(body io.Reader, at, end int64, buf []byte, idle *time.Timer, stop func()) error {
 	for at < end {
 		n, err := body.Read(buf[:min(int64(len(buf)), end-at)])
 		if n > 0 {
@@ -394,34 +404,41 @@ func (s *httpSource) put(at int64, b []byte) (moved, closed bool) {
 			continue
 		}
 		if c == nil {
-			c = make([]byte, 0, s.chunkLen(i))
+			c = s.newChunk()
 		}
-		n := min(len(b), cap(c)-len(c))
+		n := min(int64(len(b)), s.chunkLen(i)-off)
 		s.chunks[i] = append(c, b[:n]...)
-		s.kept += int64(n)
-		at, b = at+int64(n), b[n:]
+		at, b = at+n, b[n:]
 	}
 	s.cond.Broadcast()
 	s.evict()
 	// A reader behind the request, or far beyond it, waits on bytes it
-	// will not bring.
+	// will not bring; past the window, the bytes would be dropped.
 	i, off := s.pos/chunkSize, s.pos%chunkSize
 	isKept := int64(len(s.chunks[i])) > off
-	return !isKept && (s.pos < at-chunkSize || s.pos > at+seekGap) || at-s.pos > readAhead+chunkSize, false
+	_, hi := s.window()
+	return !isKept && (s.pos < at-chunkSize || s.pos > at+seekGap) || at > hi*chunkSize, false
 }
 
-// evict drops the chunks furthest behind the reader until the source
-// keeps no more than keepBytes; the caller holds mu.
-func (s *httpSource) evict() {
-	if s.kept <= keepBytes {
-		return
+// newChunk returns an empty chunk, a dropped one if any; the caller holds
+// mu.
+func (s *httpSource) newChunk() []byte {
+	if n := len(s.free); n > 0 {
+		c := s.free[n-1]
+		s.free = s.free[:n-1]
+		return c
 	}
-	for i := range s.pos / chunkSize {
-		if c, ok := s.chunks[i]; ok {
+	return make([]byte, 0, chunkSize)
+}
+
+// evict drops the chunks outside the window, for newChunk; the caller
+// holds mu.
+func (s *httpSource) evict() {
+	lo, hi := s.window()
+	for i, c := range s.chunks {
+		if i < lo || i >= hi {
 			delete(s.chunks, i)
-			if s.kept -= int64(len(c)); s.kept <= keepBytes {
-				return
-			}
+			s.free = append(s.free, c[:0])
 		}
 	}
 }
