@@ -6,7 +6,7 @@
 
 | Binary | Links | Never links |
 |---|---|---|
-| `ytmd` (`cmd/ytmd`) | `daemon`, and what plays and signs in: `player`, `playback`, `account`, `audio`, `stream`, `auth`, `ytmusic`, MyGo's `audio` | MyGo's App, `ui`, `i18n`; `locales`, `session`, `loader` |
+| `ytmd` (`cmd/ytmd`) | `daemon`, and what plays and signs in: `player`, `playback`, `account`, `audio`, `stream`, `auth`, `ytmusic`, MyGo's `audio` | MyGo's App, `ui`, `i18n`; `locales`, `session`, `loader`; pprof, but in `memprof` builds |
 | `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea, Lip Gloss), `locales` | MyGo's App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic` |
 | Desktop (`cmd/desktop`) | MyGo, `remote`, `session`, `loader`, `artwork`, `theme`, `settings` | `audio`, `auth`, `account`, `stream`, `innertube`, `ytmusic` |
 

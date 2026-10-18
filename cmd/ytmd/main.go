@@ -26,6 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 	logs := startLog(paths)
+	serveProfiles()
 	svc, err := daemon.Open(paths, options())
 	if errors.Is(err, ipc.ErrLocked) {
 		// Another ytmd serves already; whoever started this one finds it.

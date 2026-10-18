@@ -8,8 +8,11 @@ import (
 )
 
 // forbidden are what ytmd must not link (docs/daemon.md, Programs): the UI,
-// MyGo's App and its languages, and the front-ends' state.
+// MyGo's App and its languages, and the front-ends' state; profiling only
+// in a memprof build.
 var forbidden = []string{
+	"net/http/pprof",
+	"runtime/pprof",
 	"github.com/egoist/mygo",
 	"github.com/egoist/mygo/ui",
 	"github.com/egoist/mygo/i18n",
