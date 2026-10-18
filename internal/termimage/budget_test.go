@@ -10,7 +10,7 @@ import (
 func TestBudgetEncode(t *testing.T) {
 	for _, tc := range encodeCases {
 		t.Run(tc.name, func(t *testing.T) {
-			m := cover(tc.px)
+			m := tc.source(t)
 			budget.Allocs(t, tc.allocs, 20, func() { sink = tc.encode(m) })
 		})
 	}

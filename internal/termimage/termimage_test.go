@@ -2,13 +2,17 @@ package termimage
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"image"
 	"image/color"
 	"image/jpeg"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
+	"yt-music-player/internal/artwork"
 )
 
 // cover is a deterministic square cover of n pixels: a gradient.
@@ -316,6 +320,52 @@ func TestProtocolString(t *testing.T) {
 	for p := range Kitty + 1 {
 		if q, ok := ParseOverride(p.String()); !ok || q != p {
 			t.Errorf("%v names %v", p, q)
+		}
+	}
+}
+
+// realCover is a cover as the TUI gets it: artwork's testdata, decoded.
+func realCover(tb testing.TB, px int) *image.RGBA {
+	tb.Helper()
+	data, err := os.ReadFile("../artwork/testdata/cover_544.webp")
+	if err != nil {
+		tb.Fatal(err)
+	}
+	img, err := artwork.Decode(data, px)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return img.RGBA
+}
+
+// TestEncodeSums holds every protocol's bytes, which optimizations keep.
+func TestEncodeSums(t *testing.T) {
+	sources := []struct {
+		name string
+		img  *image.RGBA
+		cell int
+		sums [Kitty + 1]string
+	}{
+		{"gradient80", cover(80), 20, [...]string{
+			Blocks: "d1e64e169d46f538", Sixel: "337678556959195d", ITerm2: "3bcca26318e23f62", Kitty: "e00e2efb84bb30c3",
+		}},
+		{"real80", realCover(t, 80), 20, [...]string{
+			Blocks: "4373aee7181619da", Sixel: "7d5760512140803e", ITerm2: "082d0a1eae97179e", Kitty: "4a6d6bb82737c57b",
+		}},
+		{"real256", realCover(t, 256), 64, [...]string{
+			Blocks: "0c82e81b84b074e8", Sixel: "1462d26b40f9f9f9", ITerm2: "c611b20ecda82c99", Kitty: "c97646acca961956",
+		}},
+	}
+	for _, src := range sources {
+		for p := Blocks; p <= Kitty; p++ {
+			e, err := Encode(src.img, Caps{Protocol: p, CellW: src.cell, CellH: 2 * src.cell}, 4, 2, 176, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sum := sha256.Sum256([]byte(strings.Join(e.Lines, "\n") + e.Upload + e.Overlay))
+			if got := hex.EncodeToString(sum[:8]); got != src.sums[p] {
+				t.Errorf("%s in %v: sum %s, want %s", src.name, p, got, src.sums[p])
+			}
 		}
 	}
 }
