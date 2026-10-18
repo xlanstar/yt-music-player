@@ -30,7 +30,8 @@ func SixelImage(img *image.RGBA) string {
 		}
 	}
 	var s strings.Builder
-	s.Grow(w*h/2 + 216*16 + 32)
+	// Covers take 0.7–1.25 bytes a pixel, and the palette's.
+	s.Grow(w*h*3/4 + 216*16 + 32)
 	s.WriteString("\x1bP0;1;0q\"1;1;")
 	writeInt(&s, w)
 	s.WriteByte(';')
