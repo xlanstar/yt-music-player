@@ -341,9 +341,3 @@ func TestCoverEvicts(t *testing.T) {
 		t.Errorf("kept %v, want the last %d", seen, numCovers)
 	}
 }
-
-func TestIsURL(t *testing.T) {
-	if !isURL(coverURL) || isURL("generated:neon-tide") {
-		t.Error("isURL tells a generated cover from a fetched one wrong")
-	}
-}

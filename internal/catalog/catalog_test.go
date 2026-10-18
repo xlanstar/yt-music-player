@@ -5,6 +5,17 @@ import (
 	"testing"
 )
 
+func TestArtIsURL(t *testing.T) {
+	for art, want := range map[Art]bool{
+		"https://lh3.googleusercontent.com/a=w120": true, "http://x/y.jpg": true,
+		"generated:neon-tide": false, "": false, "ftp://x": false,
+	} {
+		if got := art.IsURL(); got != want {
+			t.Errorf("Art(%q).IsURL() = %t, want %t", art, got, want)
+		}
+	}
+}
+
 func TestPlaceholderReferencesResolve(t *testing.T) {
 	c := Placeholder()
 	check := func(what, id string) {

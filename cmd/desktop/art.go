@@ -4,7 +4,6 @@ import (
 	"hash/fnv"
 	"image"
 	"math"
-	"strings"
 	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
 
@@ -60,7 +59,7 @@ func coverOf(art catalog.Art) cover {
 	if cv, ok := covers[art]; ok {
 		return cv
 	}
-	if !isURL(art) {
+	if !art.IsURL() {
 		col := &th.Color
 		return cover{from: col.CoverFrom, to: col.CoverTo, ink: col.CoverInk, motif: motifRings}
 	}
@@ -96,10 +95,6 @@ func urlCover(art catalog.Art) cover {
 	}
 	urlCovers[art] = cv
 	return cv
-}
-
-func isURL(art catalog.Art) bool {
-	return strings.HasPrefix(string(art), "https://") || strings.HasPrefix(string(art), "http://")
 }
 
 // artScale fetches thumbnails at twice their shown size, sharp on Retina.
@@ -138,7 +133,7 @@ func (a *app) useArt() {
 // thumbnail returns art's bitmap for box, a cover w DIPs wide (0 if
 // stretched), or nil while it loads.
 func thumbnail(c *ui.Context, box ui.Element, art catalog.Art, w float32) *ui.Bitmap {
-	if thumbs == nil || !isURL(art) {
+	if thumbs == nil || !art.IsURL() {
 		return nil
 	}
 	if w <= 0 {

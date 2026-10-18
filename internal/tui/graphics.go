@@ -204,7 +204,7 @@ func (g *gfx) beginFrame() {
 // place puts art's cover at cell x, y and returns its lines, blank
 // until it is ready; nil shows none (no protocol, no image).
 func (g *gfx) place(s slot, x, y int, art catalog.Art) []string {
-	if g.caps.Protocol == termimage.None || !isURL(art) {
+	if g.caps.Protocol == termimage.None || !art.IsURL() {
 		return nil
 	}
 	w, h := g.caps.Pixels(g.cols, coverRows, maxCoverPixels)
@@ -424,9 +424,4 @@ func (g *gfx) close() string {
 		}
 	}
 	return b.String()
-}
-
-// isURL tells a cover to fetch from a generated one, as the placeholder's.
-func isURL(art catalog.Art) bool {
-	return strings.HasPrefix(string(art), "https://") || strings.HasPrefix(string(art), "http://")
 }

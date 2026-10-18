@@ -2,11 +2,19 @@
 // IDs so routes, queues and likes survive a reload or refetch.
 package catalog
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 // Art names a release's artwork; the UI resolves it to a thumbnail or a
 // generated cover.
 type Art string
+
+// IsURL reports artwork to fetch, not a generated cover as the placeholder's.
+func (a Art) IsURL() bool {
+	return strings.HasPrefix(string(a), "https://") || strings.HasPrefix(string(a), "http://")
+}
 
 // Song is a track.
 type Song struct {
