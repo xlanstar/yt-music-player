@@ -24,12 +24,13 @@ var encodeCases = []encodeCase{
 	{"iterm2/cover80", encodeITerm2, 80, false, 17},
 	// 14 allocs today.
 	{"iterm2/real160", encodeITerm2, 160, true, 17},
-	// 3 allocs today: the color indexes and the string, grown once.
-	{"sixel/cover80", encodeSixel, 80, false, 4},
-	// 4 allocs today.
-	{"sixel/cover256", encodeSixel, 256, false, 5},
-	// 4 allocs today: the string grows once more.
-	{"sixel/real160", encodeSixel, 160, true, 5},
+	// 4 allocs today: the color indexes, a band's sixels, and the string,
+	// grown once, and its box in any.
+	{"sixel/cover80", encodeSixel, 80, false, 5},
+	// 5 allocs today: the string grows once more.
+	{"sixel/cover256", encodeSixel, 256, false, 6},
+	// 5 allocs today.
+	{"sixel/real160", encodeSixel, 160, true, 6},
 }
 
 type encodeCase struct {

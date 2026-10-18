@@ -16,13 +16,17 @@ func SixelImage(img *image.RGBA) string {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	idx := make([]uint8, w*h)
 	var used [216]bool
+	colors := 0
 	for y := range h {
 		for x := range w {
 			r, g, b := rgb(img, x, y)
 			t := bayer[y&3][x&3]
 			c := level(r, t)*36 + level(g, t)*6 + level(b, t)
 			idx[y*w+x] = c
-			used[c] = true
+			if !used[c] {
+				used[c] = true
+				colors++
+			}
 		}
 	}
 	var s strings.Builder
@@ -41,15 +45,26 @@ func SixelImage(img *image.RGBA) string {
 		s.WriteString(";2;")
 		writeRGB(&s, c/36*20, c/6%6*20, c%6*20)
 	}
+	// A band's sixels, a row of w per color in it, made in one pass.
+	sixels := make([]byte, min(colors, 6*w)*w)
 	for y0 := 0; y0 < h; y0 += 6 {
 		band := idx[y0*w : min(y0+6, h)*w]
-		var inBand [216]bool
-		for _, c := range band {
-			inBand[c] = true
+		// row is a color's row of sixels, plus one; 0 is none.
+		var row [216]uint8
+		n := 0
+		for r := range len(band) / w {
+			for x, c := range band[r*w : (r+1)*w] {
+				if row[c] == 0 {
+					n++
+					row[c] = uint8(n)
+					clear(sixels[(n-1)*w : n*w])
+				}
+				sixels[int(row[c]-1)*w+x] |= 1 << r
+			}
 		}
 		first := true
-		for c, ok := range inBand {
-			if !ok {
+		for c, i := range row {
+			if i == 0 {
 				continue
 			}
 			if !first {
@@ -58,7 +73,7 @@ func SixelImage(img *image.RGBA) string {
 			first = false
 			s.WriteByte('#')
 			writeInt(&s, c)
-			writeSixelRow(&s, band, w, uint8(c))
+			writeSixelRow(&s, sixels[int(i-1)*w:int(i)*w])
 		}
 		s.WriteByte('-')
 	}
@@ -76,10 +91,9 @@ func level(v, t uint8) uint8 {
 	return uint8(l) //nolint:gosec // at most 5
 }
 
-// writeSixelRow writes color c's pixels of a band, run-length encoded,
+// writeSixelRow writes a color's sixels of a band, run-length encoded,
 // without the empty run that ends it.
-func writeSixelRow(s *strings.Builder, band []uint8, w int, c uint8) {
-	rows := len(band) / w
+func writeSixelRow(s *strings.Builder, sixels []byte) {
 	var n int
 	var last byte
 	flush := func() {
@@ -95,13 +109,7 @@ func writeSixelRow(s *strings.Builder, band []uint8, w int, c uint8) {
 			}
 		}
 	}
-	for x := range w {
-		var bits byte
-		for r := range rows {
-			if band[r*w+x] == c {
-				bits |= 1 << r
-			}
-		}
+	for _, bits := range sixels {
 		ch := '?' + bits
 		if ch == last && n > 0 {
 			n++
