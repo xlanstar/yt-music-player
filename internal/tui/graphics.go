@@ -34,11 +34,12 @@ const (
 	numCovers = 8
 	// kittyBase is cover 0's Kitty image id, a 256-color index.
 	kittyBase = 176
-	// overlayBytes bounds the overlay images kept off screen.
-	overlayBytes = 256 << 10
-	// artMemory bounds the decoded pixels the TUI keeps: 16 covers of
-	// 64 pixels or 4 of 128.
-	artMemory  = 256 << 10
+	// offScreenBytes bounds the images kept for covers off screen:
+	// overlays to draw again, Kitty's uploads not sent.
+	offScreenBytes = 64 << 10
+	// artMemory bounds the decoded pixels the TUI keeps besides those
+	// shown: 4 covers of 64 pixels or 1 of 128. Never 0, artwork's 32 MB.
+	artMemory  = 64 << 10
 	artWorkers = 2
 )
 
@@ -268,13 +269,15 @@ func (g *gfx) clip(cut int) {
 // commit sends, after a render, what the renderer cannot: Kitty's new
 // uploads at once, overlays a few frames later.
 func (g *gfx) commit() tea.Cmd {
+	var cmd tea.Cmd
 	switch g.caps.Protocol {
 	case termimage.Kitty:
-		return g.upload()
+		cmd = g.upload()
 	case termimage.Sixel, termimage.ITerm2:
-		return g.scheduleOverlays()
+		cmd = g.scheduleOverlays()
 	}
-	return nil
+	g.trim()
+	return cmd
 }
 
 func (g *gfx) upload() tea.Cmd {
@@ -298,7 +301,6 @@ func (g *gfx) scheduleOverlays() tea.Cmd {
 			cur[s] = p
 		}
 	}
-	g.trimOverlays()
 	for s := range cur {
 		if cur[s] != g.drawn[s] {
 			// Its cells repaint, wiping the image.
@@ -347,20 +349,21 @@ func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
 	return tea.Raw(b.String())
 }
 
-// trimOverlays drops the images of covers not shown once they take more
-// than overlayBytes; they encode again when shown.
-func (g *gfx) trimOverlays() {
+// trim drops covers not shown once their images take more than
+// offScreenBytes; they encode again when shown.
+func (g *gfx) trim() {
 	total := 0
 	for i := range g.covers {
-		total += len(g.covers[i].Overlay)
+		total += len(g.covers[i].Overlay) + len(g.covers[i].Upload)
 	}
 	for i := range g.covers {
 		c := &g.covers[i]
-		if total <= overlayBytes {
+		if total <= offScreenBytes {
 			return
 		}
-		if c.frame != g.frame && c.Overlay != "" {
-			total -= len(c.Overlay)
+		if n := len(c.Overlay) + len(c.Upload); c.frame != g.frame && n > 0 {
+			total -= n
+			c.job.Stop()
 			*c = cover{}
 		}
 	}

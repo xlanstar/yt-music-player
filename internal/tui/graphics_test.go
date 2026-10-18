@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -318,6 +319,21 @@ func TestCoverDetect(t *testing.T) {
 	}
 	if g.reply(tickMsg{}) {
 		t.Error("another message changed the covers")
+	}
+}
+
+// TestCoverTrim drops covers off screen, the oldest first, once their
+// images pass offScreenBytes.
+func TestCoverTrim(t *testing.T) {
+	var g gfx
+	half := termimage.Encoded{Upload: strings.Repeat("x", offScreenBytes/2)}
+	for i := range 3 {
+		g.covers[i] = cover{Encoded: half, key: coverKey{url: strconv.Itoa(i)}, frame: uint64(i)}
+	}
+	g.frame = 2
+	g.trim()
+	if g.covers[0].key.url != "" || g.covers[1].Upload == "" || g.covers[2].Upload == "" {
+		t.Errorf("kept %q, %q and %q, want the last two", g.covers[0].key.url, g.covers[1].key.url, g.covers[2].key.url)
 	}
 }
 
