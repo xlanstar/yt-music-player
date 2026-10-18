@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"yt-music-player/internal/daemon"
 	"yt-music-player/internal/ipc"
@@ -19,7 +20,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// gcPercent is ytmd's GOGC. While a song plays, MyGo's audio output leaves
+// garbage on every buffer, and internal/quiet, which waits for the loop to
+// go quiet, never frees it: the heap stays at its goal, the live heap plus
+// GOGC percent. Half Go's 100 kept ~2 MB less of a playing ytmd's ~25,
+// for no measurable CPU (docs/performance.md).
+const gcPercent = 50
+
 func main() {
+	// One set in the environment wins, to compare.
+	if os.Getenv("GOGC") == "" {
+		debug.SetGCPercent(gcPercent)
+	}
 	paths, err := ipc.Default(version.IsDev(version.Version))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ytmd:", err)
