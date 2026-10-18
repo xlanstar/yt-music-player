@@ -19,10 +19,8 @@ func KittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	n := base64.StdEncoding.EncodedLen(3 * w * h)
 	chunks := max((n+kittyChunk-1)/kittyChunk, 1)
-	head := "\x1b_Ga=T,U=1,q=2,f=24,s=" + strconv.Itoa(w) + ",v=" + strconv.Itoa(h) +
-		",i=" + strconv.Itoa(int(id)) + ",c=" + strconv.Itoa(cols) + ",r=" + strconv.Itoa(rows)
 	var b strings.Builder
-	size := n + len(head) + chunks*len("\x1b_Gm=1;\x1b\\")
+	size := n + len("a=T,U=1,q=2,f=24,s=9999,v=9999,i=255,c=999,r=999,") + chunks*len("\x1b_Gm=1;\x1b\\")
 	if tmux {
 		size += chunks * len("\x1bPtmux;\x1b\x1b\\\x1b\\")
 	}
@@ -45,11 +43,19 @@ func KittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
 			esc = "\x1b\x1b"
 		}
 		b.WriteString(esc)
+		b.WriteString("_G")
 		if c == 0 {
-			b.WriteString(head[1:])
+			b.WriteString("a=T,U=1,q=2,f=24,s=")
+			writeInt(&b, w)
+			b.WriteString(",v=")
+			writeInt(&b, h)
+			b.WriteString(",i=")
+			writeInt(&b, int(id))
+			b.WriteString(",c=")
+			writeInt(&b, cols)
+			b.WriteString(",r=")
+			writeInt(&b, rows)
 			b.WriteByte(',')
-		} else {
-			b.WriteString("_G")
 		}
 		if c == chunks-1 {
 			b.WriteString("m=0;")
@@ -71,12 +77,13 @@ func KittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
 // over cols×rows cells; its id is their 256-color foreground, which a
 // renderer keeps where it would lower a true color.
 func KittyCells(id uint8, cols, rows int) []string {
-	fg := "\x1b[38;5;" + strconv.Itoa(int(id)) + "m"
 	lines := make([]string, rows)
 	var b strings.Builder
 	for y := range rows {
-		b.Grow(len(fg) + cols*8 + len("\x1b[39m"))
-		b.WriteString(fg)
+		b.Grow(len("\x1b[38;5;255m") + cols*8 + len("\x1b[39m"))
+		b.WriteString("\x1b[38;5;")
+		writeInt(&b, int(id))
+		b.WriteByte('m')
 		for x := range cols {
 			b.WriteRune(kitty.Placeholder)
 			b.WriteRune(kitty.Diacritic(y))

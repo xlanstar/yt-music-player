@@ -14,23 +14,23 @@ var encodeCases = []encodeCase{
 	{"fill/cover80", func(m *image.RGBA) any { return Fill(m, 80, 80) }, 128, false, 2},
 	// 6 allocs today: Fill's 2, the lines and each line's string.
 	{"blocks/cover4x2", func(m *image.RGBA) any { return BlockLines(Fill(m, 4, 4)) }, 64, false, 7},
-	// 5 allocs today: the color, the lines and each line's string.
-	{"kitty/cells4x2", func(*image.RGBA) any { return KittyCells(176, 4, 2) }, 1, false, 6},
-	// 3 allocs today: the first command's keys and the string.
-	{"kitty/cover80", func(m *image.RGBA) any { return KittyUpload(m, 1, 4, 2, false) }, 80, false, 4},
-	// 5 allocs today: numbers past 99 take theirs.
-	{"kitty/cover256", func(m *image.RGBA) any { return KittyUpload(m, 1, 8, 4, false) }, 256, false, 6},
+	// 4 allocs today: the lines, each line's string and their box.
+	{"kitty/cells4x2", func(*image.RGBA) any { return KittyCells(176, 4, 2) }, 1, false, 5},
+	// 2 allocs today: the string and its box.
+	{"kitty/cover80", func(m *image.RGBA) any { return KittyUpload(m, 1, 4, 2, false) }, 80, false, 2},
+	// 2 allocs today.
+	{"kitty/cover256", func(m *image.RGBA) any { return KittyUpload(m, 1, 8, 4, false) }, 256, false, 2},
 	// 9 allocs today: image/jpeg's encoder and tables, the JPEG, and the
 	// string and its box.
 	{"iterm2/cover80", encodeITerm2, 80, false, 11},
 	// 9 allocs today.
 	{"iterm2/real160", encodeITerm2, 160, true, 11},
-	// 8 allocs today: the placeholders' 5, the upload's 2 and the box;
-	// Fill keeps an image of the size.
+	// 5 allocs today: the placeholders' 3, the upload and the box; Fill
+	// keeps an image of the size.
 	{"encode/kitty-real80", func(m *image.RGBA) any {
 		e, _ := Encode(m, Caps{Protocol: Kitty, CellW: 20, CellH: 40}, 4, 2, 176, false)
 		return e
-	}, 80, true, 10},
+	}, 80, true, 6},
 	// 4 allocs today: the color indexes, a band's sixels, the string, grown
 	// once, and its box in any.
 	{"sixel/cover80", encodeSixel, 80, false, 5},
