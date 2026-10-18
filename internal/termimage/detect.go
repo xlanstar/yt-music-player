@@ -53,7 +53,7 @@ type Replies struct {
 func Probe(tmux bool) string {
 	query := "\x1b_Gi=" + strconv.Itoa(ProbeID) + ",s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\"
 	if tmux {
-		query = Passthrough(query)
+		query = passthrough(query)
 	}
 	return query + CellSizeQuery + "\x1b[>0q\x1b[c"
 }
@@ -62,13 +62,13 @@ func Probe(tmux bool) string {
 // YTM_IMAGES names a protocol, nor on a terminal without images, whose
 // Linux console would print the probe.
 func NeedsProbe(e Env) bool {
-	_, ok := ParseOverride(e.Override)
+	_, ok := parseOverride(e.Override)
 	return !ok && !isPlain(e.Term)
 }
 
-// ParseOverride returns the protocol YTM_IMAGES names; ok is false for
+// parseOverride returns the protocol YTM_IMAGES names; ok is false for
 // auto, or a name it does not know.
-func ParseOverride(s string) (p Protocol, ok bool) {
+func parseOverride(s string) (p Protocol, ok bool) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "off", "none", "0", "false":
 		return None, true
@@ -87,7 +87,7 @@ func ParseOverride(s string) (p Protocol, ok bool) {
 // Detect picks the best protocol the terminal shows images with.
 func Detect(e Env, r Replies) Caps {
 	c := Caps{CellW: r.CellW, CellH: r.CellH}
-	if p, ok := ParseOverride(e.Override); ok {
+	if p, ok := parseOverride(e.Override); ok {
 		c.Protocol = p
 		return c
 	}

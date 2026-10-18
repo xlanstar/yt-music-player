@@ -11,21 +11,21 @@ import (
 // is each one's budget (TestBudgetEncode).
 var encodeCases = []encodeCase{
 	// 2 allocs today: the image and its pixels.
-	{"fill/cover80", func(m *image.RGBA) any { return Fill(m, 80, 80) }, 128, false, 2},
-	// 6 allocs today: Fill's 2, the lines and each line's string.
-	{"blocks/cover4x2", func(m *image.RGBA) any { return BlockLines(Fill(m, 4, 4)) }, 64, false, 7},
+	{"fill/cover80", func(m *image.RGBA) any { return fill(m, 80, 80) }, 128, false, 2},
+	// 6 allocs today: fill's 2, the lines and each line's string.
+	{"blocks/cover4x2", func(m *image.RGBA) any { return blockLines(fill(m, 4, 4)) }, 64, false, 7},
 	// 4 allocs today: the lines, each line's string and their box.
-	{"kitty/cells4x2", func(*image.RGBA) any { return KittyCells(176, 4, 2) }, 1, false, 5},
+	{"kitty/cells4x2", func(*image.RGBA) any { return kittyCells(176, 4, 2) }, 1, false, 5},
 	// 2 allocs today: the string and its box.
-	{"kitty/cover80", func(m *image.RGBA) any { return KittyUpload(m, 1, 4, 2, false) }, 80, false, 2},
+	{"kitty/cover80", func(m *image.RGBA) any { return kittyUpload(m, 1, 4, 2, false) }, 80, false, 2},
 	// 2 allocs today.
-	{"kitty/cover256", func(m *image.RGBA) any { return KittyUpload(m, 1, 8, 4, false) }, 256, false, 2},
+	{"kitty/cover256", func(m *image.RGBA) any { return kittyUpload(m, 1, 8, 4, false) }, 256, false, 2},
 	// 9 allocs today: image/jpeg's encoder and tables, the JPEG, and the
 	// string and its box.
 	{"iterm2/cover80", encodeITerm2, 80, false, 11},
 	// 9 allocs today.
 	{"iterm2/real160", encodeITerm2, 160, true, 11},
-	// 5 allocs today: the placeholders' 3, the upload and the box; Fill
+	// 5 allocs today: the placeholders' 3, the upload and the box; fill
 	// keeps an image of the size.
 	{"encode/kitty-real80", func(m *image.RGBA) any {
 		e, _ := Encode(m, Caps{Protocol: Kitty, CellW: 20, CellH: 40}, 4, 2, 176, false)
@@ -56,9 +56,9 @@ func (tc encodeCase) source(tb testing.TB) *image.RGBA {
 	return cover(tc.px)
 }
 
-func encodeITerm2(m *image.RGBA) any { s, _ := ITerm2Image(m, 4, 2, false); return s }
+func encodeITerm2(m *image.RGBA) any { s, _ := iterm2Image(m, 4, 2, false); return s }
 
-func encodeSixel(m *image.RGBA) any { return SixelImage(m) }
+func encodeSixel(m *image.RGBA) any { return sixelImage(m) }
 
 var sink any
 

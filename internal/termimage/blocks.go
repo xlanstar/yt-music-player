@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// BlockLines returns img, cols×2rows pixels, as rows lines of upper half
+// blockLines returns img, cols×2rows pixels, as rows lines of upper half
 // blocks, each cell its top pixel over its bottom one, in true color; the
 // renderer lowers them to what the terminal shows.
-func BlockLines(img *image.RGBA) []string {
+func blockLines(img *image.RGBA) []string {
 	cols, rows := img.Rect.Dx(), img.Rect.Dy()/2
 	lines := make([]string, rows)
 	var b strings.Builder

@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// ITerm2Image returns img as an iTerm2 inline image over cols×rows cells, for
+// iterm2Image returns img as an iTerm2 inline image over cols×rows cells, for
 // Overlay to draw. JPEG, as covers are photos: a few KB, and no zlib.
-func ITerm2Image(img *image.RGBA, cols, rows int, tmux bool) (string, error) {
+func iterm2Image(img *image.RGBA, cols, rows int, tmux bool) (string, error) {
 	var data flushBuffer
 	// Covers take about a byte for 8 pixels; small ones, their tables.
 	data.Grow(img.Rect.Dx()*img.Rect.Dy()/8 + 1024)
@@ -36,7 +36,7 @@ func ITerm2Image(img *image.RGBA, cols, rows int, tmux bool) (string, error) {
 	}
 	b.WriteByte('\a')
 	if tmux {
-		return Passthrough(b.String()), nil
+		return passthrough(b.String()), nil
 	}
 	return b.String(), nil
 }

@@ -2,11 +2,11 @@ package termimage
 
 import "image"
 
-// Fill returns src cropped to w×h's shape around its middle and scaled to
+// fill returns src cropped to w×h's shape around its middle and scaled to
 // w×h, each pixel the mean of those it covers: a box filter, which a cover
 // shrunk a few times needs and costs one pass. A w×h src comes back as it
 // is, for the encoders only read it.
-func Fill(src *image.RGBA, w, h int) *image.RGBA {
+func fill(src *image.RGBA, w, h int) *image.RGBA {
 	if src.Rect == image.Rect(0, 0, w, h) {
 		return src
 	}

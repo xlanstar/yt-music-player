@@ -15,6 +15,7 @@ package termimage
 import (
 	"image"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -44,8 +45,8 @@ type Caps struct {
 	CellW, CellH int
 }
 
-// Cell returns a cell's pixels, assuming 10×20 when unknown.
-func (c Caps) Cell() (w, h int) {
+// cell returns a cell's pixels, assuming 10×20 when unknown.
+func (c Caps) cell() (w, h int) {
 	if c.CellW > 0 && c.CellH > 0 {
 		return c.CellW, c.CellH
 	}
@@ -54,7 +55,7 @@ func (c Caps) Cell() (w, h int) {
 
 // Fit returns how many columns a square image rows cells tall spans.
 func (c Caps) Fit(rows int) int {
-	w, h := c.Cell()
+	w, h := c.cell()
 	cols := (rows*h + w/2) / w
 	return min(max(cols, rows), 4*rows)
 }
@@ -65,7 +66,7 @@ func (c Caps) Pixels(cols, rows int) (w, h int) {
 	if c.Protocol == Blocks {
 		return cols, 2 * rows
 	}
-	cw, ch := c.Cell()
+	cw, ch := c.cell()
 	w, h = cols*cw, rows*ch
 	if c.Protocol == Sixel {
 		// Sixel pixels are the cells': a smaller image would not fill them.
@@ -92,24 +93,24 @@ type Encoded struct {
 // Pixels; id names a Kitty image, tmux passes sequences through.
 func Encode(src *image.RGBA, c Caps, cols, rows int, id uint8, tmux bool) (Encoded, error) {
 	w, h := c.Pixels(cols, rows)
-	img := Fill(src, w, h)
+	img := fill(src, w, h)
 	switch c.Protocol {
 	case Blocks:
-		return Encoded{Lines: BlockLines(img)}, nil
+		return Encoded{Lines: blockLines(img)}, nil
 	case Kitty:
-		return Encoded{Lines: KittyCells(id, cols, rows), Upload: KittyUpload(img, id, cols, rows, tmux)}, nil
+		return Encoded{Lines: kittyCells(id, cols, rows), Upload: kittyUpload(img, id, cols, rows, tmux)}, nil
 	case Sixel:
-		return Encoded{Lines: OverlayCells(cols, rows), Overlay: SixelImage(img)}, nil
+		return Encoded{Lines: overlayCells(cols, rows), Overlay: sixelImage(img)}, nil
 	case ITerm2:
-		seq, err := ITerm2Image(img, cols, rows, tmux)
-		return Encoded{Lines: OverlayCells(cols, rows), Overlay: seq}, err
+		seq, err := iterm2Image(img, cols, rows, tmux)
+		return Encoded{Lines: overlayCells(cols, rows), Overlay: seq}, err
 	}
 	return Encoded{}, nil
 }
 
-// Passthrough wraps seq for tmux to hand to the terminal around it, which
+// passthrough wraps seq for tmux to hand to the terminal around it, which
 // needs `set -g allow-passthrough on`.
-func Passthrough(seq string) string {
+func passthrough(seq string) string {
 	return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
 }
 
@@ -128,11 +129,11 @@ func Overlay(b *strings.Builder, seq string, x, y int) {
 	b.WriteString("\x1b8")
 }
 
-// OverlayCells returns the lines an overlay covers: blank, but braille's
+// overlayCells returns the lines an overlay covers: blank, but braille's
 // blank rather than spaces, so the renderer repaints them, wiping the
 // image, once the image goes. It never prints them to move the cursor:
 // 3 bytes a cell cost more than a cursor move.
-func OverlayCells(cols, rows int) []string {
+func overlayCells(cols, rows int) []string {
 	return slices.Repeat([]string{strings.Repeat("\u2800", cols)}, rows)
 }
 
@@ -140,4 +141,11 @@ func OverlayCells(cols, rows int) []string {
 func rgb(m *image.RGBA, x, y int) (r, g, b uint8) {
 	p := m.Pix[y*m.Stride+4*x:]
 	return p[0], p[1], p[2]
+}
+
+// writeInt writes n in decimal without the string strconv.Itoa allocates
+// past 99.
+func writeInt(b *strings.Builder, n int) {
+	var num [20]byte
+	b.Write(strconv.AppendInt(num[:0], int64(n), 10))
 }

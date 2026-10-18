@@ -41,7 +41,7 @@ Numbers from `scripts/footprint.sh -daemon` (`perf/footprint-daemon-baseline.txt
 - `artwork` decodes JPEG and PNG, what the URLs it makes serve; WebP's decoder (100 KB) comes with MyGo's `ui`, which registers it in the Desktop, and stays out of ytm.
 - Covers are fetched at their cells' pixels (artwork's bucket: 80 for 4×2 Retina cells), 2 workers, keeping 64 KB of decoded pixels besides those shown (`artMemory`). They encode off the UI thread, once per cover and size, each line after a space, which renders pass as a prefix: a frame with a cover allocates as one without (`TestBudgetView`).
 - Each protocol keeps what it needs again: Kitty's upload goes once, the terminal keeping the pixels under 8 recycled ids (from a random base, so two ytm in a terminal keep theirs); an overlay keeps its Sixel or JPEG for after a repaint, half blocks their lines. Covers off screen keep 64 KB of these, unsent uploads too (`offScreenBytes`).
-- The encoders are `termimage`'s, not x/ansi's, which box every pixel through `At` and, for Sixel, quantize with maps and pull in a bitset module. For 80 pixels: Sixel 3 allocs and ~40 µs (one pass per band), a Kitty upload 1, without zlib, whose state outweighs a cover, iTerm2's JPEG 8, image/jpeg's. `Fill` keeps a cover already the size.
+- The encoders are `termimage`'s, not x/ansi's, which box every pixel through `At` and, for Sixel, quantize with maps and pull in a bitset module. For 80 pixels: Sixel 3 allocs and ~40 µs (one pass per band), a Kitty upload 1, without zlib, whose state outweighs a cover, iTerm2's JPEG 8, image/jpeg's. `fill` keeps a cover already the size.
 - `internal/quiet` frees the heap 3 s after Update last ran, as it does after the Desktop's last build.
 
 ## Audio

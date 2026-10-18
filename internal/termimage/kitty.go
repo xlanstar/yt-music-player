@@ -12,10 +12,10 @@ import (
 // kittyChunk is the most base64 a Kitty command carries.
 const kittyChunk = 4096
 
-// KittyUpload returns the commands that send img as image id, placed
-// virtually over cols×rows cells for KittyCells to show. Raw RGB, not zlib:
+// kittyUpload returns the commands that send img as image id, placed
+// virtually over cols×rows cells for kittyCells to show. Raw RGB, not zlib:
 // a compressor's state outweighs a cover, which is sent once.
-func KittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
+func kittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	n := base64.StdEncoding.EncodedLen(3 * w * h)
 	chunks := max((n+kittyChunk-1)/kittyChunk, 1)
@@ -73,10 +73,10 @@ func KittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
 	return b.String()
 }
 
-// KittyCells returns the lines of Unicode placeholders that show image id
+// kittyCells returns the lines of Unicode placeholders that show image id
 // over cols×rows cells; its id is their 256-color foreground, which a
 // renderer keeps where it would lower a true color.
-func KittyCells(id uint8, cols, rows int) []string {
+func kittyCells(id uint8, cols, rows int) []string {
 	lines := make([]string, rows)
 	var b strings.Builder
 	for y := range rows {
@@ -100,7 +100,7 @@ func KittyCells(id uint8, cols, rows int) []string {
 func KittyDelete(id uint8, tmux bool) string {
 	seq := "\x1b_Ga=d,d=I,q=2,i=" + strconv.Itoa(int(id)) + "\x1b\\"
 	if tmux {
-		return Passthrough(seq)
+		return passthrough(seq)
 	}
 	return seq
 }

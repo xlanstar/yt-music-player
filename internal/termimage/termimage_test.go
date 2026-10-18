@@ -163,36 +163,36 @@ func TestEncode(t *testing.T) {
 
 func TestFill(t *testing.T) {
 	red := color.RGBA{200, 10, 20, 255}
-	if got := Fill(solid(64, 64, red), 7, 5).RGBAAt(6, 4); got != red {
-		t.Errorf("Fill of a solid cover = %v, want %v", got, red)
+	if got := fill(solid(64, 64, red), 7, 5).RGBAAt(6, 4); got != red {
+		t.Errorf("fill of a solid cover = %v, want %v", got, red)
 	}
 	// A wide box crops the cover's top and bottom.
 	src := solid(10, 10, color.RGBA{0, 0, 0, 255})
 	for x := range 10 {
 		src.SetRGBA(x, 0, color.RGBA{255, 255, 255, 255})
 	}
-	if got := Fill(src, 10, 5).RGBAAt(5, 0); got.R != 0 {
-		t.Errorf("Fill to 10×5 kept the top row: %v", got)
+	if got := fill(src, 10, 5).RGBAAt(5, 0); got.R != 0 {
+		t.Errorf("fill to 10×5 kept the top row: %v", got)
 	}
 	// Each pixel is the mean of the four it covers.
 	quad := solid(2, 2, color.RGBA{0, 0, 0, 255})
 	quad.SetRGBA(0, 0, color.RGBA{255, 255, 255, 255})
-	if got := Fill(quad, 1, 1).RGBAAt(0, 0); got.R != 64 {
-		t.Errorf("Fill to 1×1 = %v, want the mean, 64", got)
+	if got := fill(quad, 1, 1).RGBAAt(0, 0); got.R != 64 {
+		t.Errorf("fill to 1×1 = %v, want the mean, 64", got)
 	}
-	if m := solid(3, 3, red); Fill(m, 3, 3) != m {
-		t.Error("Fill to its own size copied")
+	if m := solid(3, 3, red); fill(m, 3, 3) != m {
+		t.Error("fill to its own size copied")
 	}
 	// Up, each pixel repeats.
-	if got := Fill(solid(1, 1, red), 3, 3).RGBAAt(2, 2); got != red {
-		t.Errorf("Fill up = %v, want %v", got, red)
+	if got := fill(solid(1, 1, red), 3, 3).RGBAAt(2, 2); got != red {
+		t.Errorf("fill up = %v, want %v", got, red)
 	}
 }
 
 func TestBlocks(t *testing.T) {
 	m := solid(2, 4, color.RGBA{1, 2, 3, 255})
 	m.SetRGBA(1, 1, color.RGBA{255, 0, 128, 255})
-	got := BlockLines(m)
+	got := blockLines(m)
 	want := []string{
 		"\x1b[38;2;1;2;3;48;2;1;2;3m▀\x1b[38;2;1;2;3;48;2;255;0;128m▀\x1b[m",
 		"\x1b[38;2;1;2;3;48;2;1;2;3m▀\x1b[38;2;1;2;3;48;2;1;2;3m▀\x1b[m",
@@ -206,10 +206,10 @@ var kittyCommand = regexp.MustCompile("\x1b_G([^;]*);([^\x1b]*)\x1b\\\\")
 
 func TestKittyUpload(t *testing.T) {
 	m := cover(64) // 12288 bytes of RGB: 16384 of base64, 4 chunks
-	seq := KittyUpload(m, 7, 4, 2, false)
+	seq := kittyUpload(m, 7, 4, 2, false)
 	cmds := kittyCommand.FindAllStringSubmatch(seq, -1)
 	if len(cmds) != 4 || strings.Join(kittyCommand.FindAllString(seq, -1), "") != seq {
-		t.Fatalf("KittyUpload sent %d commands, want 4 and nothing else", len(cmds))
+		t.Fatalf("kittyUpload sent %d commands, want 4 and nothing else", len(cmds))
 	}
 	if want := "a=T,U=1,q=2,f=24,s=64,v=64,i=7,c=4,r=2,m=1"; cmds[0][1] != want {
 		t.Errorf("first command's keys = %q, want %q", cmds[0][1], want)
@@ -238,7 +238,7 @@ func TestKittyUpload(t *testing.T) {
 			t.Fatalf("pixel %d = %v, want %v", i, data[3*i:3*i+3], p[:3])
 		}
 	}
-	tmux := KittyUpload(m, 7, 4, 2, true)
+	tmux := kittyUpload(m, 7, 4, 2, true)
 	if n := strings.Count(tmux, "\x1bPtmux;"); n != 4 {
 		t.Errorf("in tmux, %d commands passed through, want 4", n)
 	}
@@ -248,13 +248,13 @@ func TestKittyUpload(t *testing.T) {
 }
 
 func TestKittyCells(t *testing.T) {
-	got := KittyCells(176, 2, 2)
+	got := kittyCells(176, 2, 2)
 	want := []string{
 		"\x1b[38;5;176m\U0010EEEE\u0305\u0305\U0010EEEE\u0305\u030D\x1b[39m",
 		"\x1b[38;5;176m\U0010EEEE\u030D\u0305\U0010EEEE\u030D\u030D\x1b[39m",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
-		t.Errorf("KittyCells =\n%q\nwant\n%q", got, want)
+		t.Errorf("kittyCells =\n%q\nwant\n%q", got, want)
 	}
 }
 
@@ -265,7 +265,7 @@ func TestKittyDelete(t *testing.T) {
 }
 
 func TestITerm2(t *testing.T) {
-	seq, err := ITerm2Image(cover(48), 4, 2, false)
+	seq, err := iterm2Image(cover(48), 4, 2, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,14 +288,14 @@ func TestITerm2(t *testing.T) {
 
 func TestSixel(t *testing.T) {
 	m := solid(5, 7, color.RGBA{255, 0, 0, 255})
-	got := SixelImage(m)
+	got := sixelImage(m)
 	// Red is color 5·36: every pixel of the first band, the second band's
 	// top row.
 	want := "\x1bP0;1;0q\"1;1;5;7#180;2;100;0;0#180!5~-#180!5@-\x1b\\"
 	if got != want {
 		t.Errorf("Sixel(red 5×7) = %q, want %q", got, want)
 	}
-	gradient := SixelImage(cover(30))
+	gradient := sixelImage(cover(30))
 	if n := strings.Count(gradient, "-"); n != 5 {
 		t.Errorf("Sixel(30×30) has %d bands, want 5", n)
 	}
@@ -328,21 +328,21 @@ func TestOverlay(t *testing.T) {
 	if got, want := b.String(), "\x1b7\x1b[21;2HIMG\x1b8"; got != want || len(got)-3 > OverlayFrame {
 		t.Errorf("Overlay = %q, want %q", got, want)
 	}
-	cells := OverlayCells(3, 2)
+	cells := overlayCells(3, 2)
 	if len(cells) != 2 || cells[1] != "\u2800\u2800\u2800" {
-		t.Errorf("OverlayCells(3, 2) = %q", cells)
+		t.Errorf("overlayCells(3, 2) = %q", cells)
 	}
 }
 
 func TestPassthrough(t *testing.T) {
-	if got, want := Passthrough("\x1b_Gq\x1b\\"), "\x1bPtmux;\x1b\x1b_Gq\x1b\x1b\\\x1b\\"; got != want {
-		t.Errorf("Passthrough = %q, want %q", got, want)
+	if got, want := passthrough("\x1b_Gq\x1b\\"), "\x1bPtmux;\x1b\x1b_Gq\x1b\x1b\\\x1b\\"; got != want {
+		t.Errorf("passthrough = %q, want %q", got, want)
 	}
 }
 
 func TestProtocolString(t *testing.T) {
 	for p := range Kitty + 1 {
-		if q, ok := ParseOverride(p.String()); !ok || q != p {
+		if q, ok := parseOverride(p.String()); !ok || q != p {
 			t.Errorf("%v names %v", p, q)
 		}
 	}
@@ -363,7 +363,7 @@ func realCover(tb testing.TB, px int) *image.RGBA {
 	}
 	m := image.NewRGBA(src.Bounds())
 	draw.Draw(m, m.Rect, src, m.Rect.Min, draw.Src)
-	return Fill(m, px, px)
+	return fill(m, px, px)
 }
 
 // TestEncodeSums holds every protocol's bytes, which optimizations keep.

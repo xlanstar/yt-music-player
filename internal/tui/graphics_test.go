@@ -122,6 +122,18 @@ func (h *harness) run(cmd tea.Cmd) []string {
 	return nil
 }
 
+// placeholders are the lines of Kitty's placeholders that show image id
+// over a cover's 4×2 cells.
+func placeholders(t testing.TB, id uint8) []string {
+	t.Helper()
+	m := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	e, err := termimage.Encode(m, termimage.Caps{Protocol: termimage.Kitty}, 4, coverRows, id, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Lines
+}
+
 func TestCoverBlocks(t *testing.T) {
 	host := newCoverHost(t)
 	h := placeholderHarness(t)
@@ -155,7 +167,7 @@ func TestCoverKitty(t *testing.T) {
 	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b_Ga=T,U=1,q=2,f=24,s=40,v=40,i=40,c=4,r=2,") {
 		t.Fatalf("uploads = %.60q, want one of image 40", raws)
 	}
-	if want := termimage.KittyCells(40, 4, 2)[0]; !strings.Contains(h.m.content, " "+want+" ") {
+	if want := placeholders(t, 40)[0]; !strings.Contains(h.m.content, " "+want+" ") {
 		t.Errorf("the bar lacks the placeholders %q", want)
 	}
 	// Shown again, the image is the terminal's.
@@ -258,7 +270,7 @@ func TestCoverHeader(t *testing.T) {
 		t.Fatalf("uploads = %d, want 1", len(raws))
 	}
 	lines := strings.Split(h.m.content, "\n")
-	cells := termimage.KittyCells(176, 4, 2)
+	cells := placeholders(t, 176)
 	if !strings.HasPrefix(lines[2], " "+cells[0]+" ") || !strings.HasPrefix(lines[3], " "+cells[1]+" ") {
 		t.Errorf("the header lacks the cover:\n%q\n%q", lines[2], lines[3])
 	}

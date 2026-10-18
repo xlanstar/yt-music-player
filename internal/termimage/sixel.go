@@ -3,7 +3,6 @@ package termimage
 import (
 	"bytes"
 	"image"
-	"strconv"
 	"strings"
 )
 
@@ -11,9 +10,9 @@ import (
 // no per-image quantizing, its maps nor its heap.
 var bayer = [4][4]uint8{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}
 
-// SixelImage returns img as a Sixel image, for Overlay to draw, in the 216
+// sixelImage returns img as a Sixel image, for Overlay to draw, in the 216
 // colors of a 6×6×6 cube, ordered-dithered.
-func SixelImage(img *image.RGBA) string {
+func sixelImage(img *image.RGBA) string {
 	w, h := img.Rect.Dx(), img.Rect.Dy()
 	idx := make([]uint8, w*h)
 	var used [216]bool
@@ -124,11 +123,4 @@ func writeSixelRow(s *strings.Builder, sixels []byte) {
 		}
 		i = j
 	}
-}
-
-// writeInt writes n in decimal without the string strconv.Itoa allocates
-// past 99.
-func writeInt(b *strings.Builder, n int) {
-	var num [20]byte
-	b.Write(strconv.AppendInt(num[:0], int64(n), 10))
 }
