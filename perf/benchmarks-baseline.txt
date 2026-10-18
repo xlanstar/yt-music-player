@@ -983,10 +983,6 @@ BenchmarkPlayerBody/VISIONOS-16 ns/op 766.9 737.6 739.0 740.6 734.7 727.5
 BenchmarkPlayerBody/VISIONOS-16 MB/s 655.89 681.91 680.62 679.15 684.59 691.45
 BenchmarkPlayerBody/VISIONOS-16 B/op 704
 BenchmarkPlayerBody/VISIONOS-16 allocs/op 2
-BenchmarkPlayerBody/ANDROID_VR-16 ns/op 770.6 765.2 755.3 761.3 748.9 798.6
-BenchmarkPlayerBody/ANDROID_VR-16 MB/s 665.67 670.41 679.22 673.88 685.03 642.36
-BenchmarkPlayerBody/ANDROID_VR-16 B/op 768
-BenchmarkPlayerBody/ANDROID_VR-16 allocs/op 2
 BenchmarkPickFormat/ok-16 ns/op 1486 1468 1451 1482 1449 1451
 BenchmarkPickFormat/ok-16 B/op 432
 BenchmarkPickFormat/ok-16 allocs/op 3

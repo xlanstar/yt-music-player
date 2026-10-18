@@ -32,7 +32,7 @@ func TestResolve(t *testing.T) {
 	if !s.Expires.Equal(okExpires) {
 		t.Errorf("Expires = %v, want %v", s.Expires, okExpires)
 	}
-	if got := s.Header.Get("User-Agent"); got != VisionOS.UserAgent {
+	if got := s.Header.Get("User-Agent"); got != visionOS.UserAgent {
 		t.Errorf("Header User-Agent = %q, want VisionOS's", got)
 	}
 
@@ -41,8 +41,8 @@ func TestResolve(t *testing.T) {
 		t.Fatalf("player requests = %d, want 1", len(reqs))
 	}
 	r := reqs[0]
-	if r.Client != "VISIONOS" || r.Version != VisionOS.Version || r.ClientID != "101" ||
-		r.UserAgent != VisionOS.UserAgent || r.VideoID != okID {
+	if r.Client != "VISIONOS" || r.Version != visionOS.Version || r.ClientID != "101" ||
+		r.UserAgent != visionOS.UserAgent || r.VideoID != okID {
 		t.Errorf("request = %+v, want VisionOS asking for %s", r, okID)
 	}
 	if r.Visitor != "SEED" || r.VisitorHeader != "SEED" {
@@ -54,25 +54,6 @@ func TestResolve(t *testing.T) {
 	// The probe reads the end, past the MiB googlevideo always serves.
 	if got, want := f.probeRanges(), []string{"bytes=5416329-5417352"}; !slices.Equal(got, want) {
 		t.Errorf("probes = %q, want %q", got, want)
-	}
-}
-
-func TestFallbackOrder(t *testing.T) {
-	firsts := []string{"player_login.json", "player_unplayable.json", "player_cipher.json", "player_error.json"}
-	for _, first := range firsts {
-		t.Run(first, func(t *testing.T) {
-			f := newFake(t, byClient(map[string]string{"VISIONOS": first, "ANDROID_VR": "player_ok.json"}))
-			s, err := f.resolver(Options{}).Resolve(t.Context(), okID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got := f.clients(); !strings.HasPrefix(got, "VISIONOS() ANDROID_VR(VISITOR_") || len(f.players()) != 2 {
-				t.Errorf("asked %s, want VISIONOS then ANDROID_VR", got)
-			}
-			if got := s.Header.Get("User-Agent"); got != AndroidVR.UserAgent {
-				t.Errorf("User-Agent = %q, want the one ANDROID_VR's URL was issued for", got)
-			}
-		})
 	}
 }
 
@@ -98,12 +79,11 @@ func TestUnplayable(t *testing.T) {
 			if pe.Client != "VISIONOS" || pe.Status != tt.status || pe.Reason != tt.reason {
 				t.Errorf("got %+v, want %s %q", pe, tt.status, tt.reason)
 			}
-			if got, want := f.clients(), "VISIONOS() ANDROID_VR(VISITOR_"; !strings.HasPrefix(got, want) {
-				t.Errorf("asked %s, want every client, the second in the session the first was given", got)
+			if got := f.clients(); got != "VISIONOS()" {
+				t.Errorf("asked %s, want VISIONOS once", got)
 			}
-			msg := err.Error()
-			if !strings.Contains(msg, "ANDROID_VR") || !strings.HasPrefix(msg, "stream: "+okID+": unplayable: ") {
-				t.Errorf("err = %q, want every client's reason after the ID", err)
+			if msg := err.Error(); !strings.HasPrefix(msg, "stream: "+okID+": unplayable: VISIONOS: "+tt.status) {
+				t.Errorf("err = %q, want the reason after the ID", err)
 			}
 		})
 	}
@@ -135,7 +115,7 @@ func TestInvalidID(t *testing.T) {
 
 func TestVideoMismatch(t *testing.T) {
 	f := newFake(t, fixed("player_ok.json"))
-	_, err := f.resolver(Options{Clients: []Client{VisionOS}}).Resolve(t.Context(), "dQw4w9WgXcQ")
+	_, err := f.resolver(Options{}).Resolve(t.Context(), "dQw4w9WgXcQ")
 	if err == nil || errors.Is(err, ErrUnplayable) || !strings.Contains(err.Error(), "player response of "+okID) {
 		t.Fatalf("err = %v, want the other video named, and not as unplayable", err)
 	}
@@ -153,7 +133,7 @@ func botChecked(r playerReq) string {
 // session the check handed out, which is then kept.
 func TestBotCheck(t *testing.T) {
 	f := newFake(t, botChecked)
-	y := f.resolver(Options{Clients: []Client{VisionOS}})
+	y := f.resolver(Options{})
 	for _, id := range []string{okID, okID} {
 		y.Forget(id)
 		if _, err := y.Resolve(t.Context(), id); err != nil {
@@ -185,7 +165,7 @@ func TestRefusedRotatesSession(t *testing.T) {
 		}
 		return 206
 	}
-	y := f.resolver(Options{Clients: []Client{VisionOS}})
+	y := f.resolver(Options{})
 	if _, err := y.Resolve(t.Context(), okID); err != nil {
 		t.Fatal(err)
 	}
@@ -194,15 +174,14 @@ func TestRefusedRotatesSession(t *testing.T) {
 		t.Errorf("asked %s, want %s", got, want)
 	}
 
-	// Refused in every session: each client gets maxSessions, then the
-	// next client is asked.
+	// Refused in every session: the client gets maxSessions.
 	f = newFake(t, fixed("player_ok.json"))
 	f.media = func(int) int { return 403 }
 	_, err := f.resolver(Options{VisitorData: "V"}).Resolve(t.Context(), okID)
 	if !errors.Is(err, errRefused) || errors.Is(err, ErrUnplayable) {
 		t.Fatalf("err = %v, want refused, not unplayable", err)
 	}
-	if got, want := len(f.players()), 2*maxSessions; got != want {
+	if got, want := len(f.players()), maxSessions; got != want {
 		t.Errorf("player requests = %d, want %d: %s", got, want, f.clients())
 	}
 }
@@ -278,14 +257,14 @@ func TestCache(t *testing.T) {
 	y.Forget(okID)
 	resolve(3)
 	s, _ := y.Resolve(t.Context(), okID)
-	if got := s.Header.Get("User-Agent"); got != VisionOS.UserAgent {
+	if got := s.Header.Get("User-Agent"); got != visionOS.UserAgent {
 		t.Errorf("cached User-Agent = %q, changed by a caller", got)
 	}
 }
 
 func TestErrorsAreNotCached(t *testing.T) {
 	f := newFake(t, fixed("player_error.json"))
-	y := f.resolver(Options{Clients: []Client{VisionOS}})
+	y := f.resolver(Options{})
 	for range 2 {
 		if _, err := y.Resolve(t.Context(), okID); err == nil {
 			t.Fatal("want an error")
@@ -301,7 +280,7 @@ func TestConcurrentDedupe(t *testing.T) {
 		f := newFake(t, fixed("player_ok.json"))
 		f.gate = make(chan struct{})
 		f.arrived = make(chan playerReq, 100)
-		y := f.resolver(Options{Clients: []Client{VisionOS}})
+		y := f.resolver(Options{})
 
 		const n = 20
 		var wg sync.WaitGroup

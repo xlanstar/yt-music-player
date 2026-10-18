@@ -33,15 +33,15 @@ func TestYTDLPFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	bin, argsFile := fakeYTDLP(t, "cat '"+fixture+"'")
-	f := newFake(t, fixed("player_login.json"))
+	f := newFake(t, fixed("player_unplayable.json"))
 	y := f.resolver(Options{YTDLP: bin, NoProbe: true})
 	id := "-FGBhQbmPw8" // IDs may start with a dash
 	s, err := y.Resolve(t.Context(), id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(f.players()) != 2 {
-		t.Errorf("player requests = %d, want every client asked first", len(f.players()))
+	if len(f.players()) != 1 {
+		t.Errorf("player requests = %d, want InnerTube asked first", len(f.players()))
 	}
 	args, err := os.ReadFile(argsFile)
 	if err != nil {
@@ -68,10 +68,10 @@ func TestYTDLPFailure(t *testing.T) {
 	bin, _ := fakeYTDLP(t, "echo '[youtube] x: Downloading' >&2\n"+
 		"echo 'ERROR: [youtube] aaaaaaaaaaa: Video unavailable' >&2\n"+
 		"exit 1")
-	f := newFake(t, fixed("player_error.json"))
+	f := newFake(t, fixed("player_unplayable.json"))
 	_, err := f.resolver(Options{YTDLP: bin, NoProbe: true}).Resolve(t.Context(), "aaaaaaaaaaa")
 	if !errors.Is(err, ErrUnplayable) {
-		t.Errorf("err = %v, want the clients' ErrUnplayable kept", err)
+		t.Errorf("err = %v, want the client's ErrUnplayable kept", err)
 	}
 	if err == nil || !strings.Contains(err.Error(), "yt-dlp: [youtube] aaaaaaaaaaa: Video unavailable") {
 		t.Errorf("err = %v, want yt-dlp's ERROR line", err)
@@ -80,7 +80,7 @@ func TestYTDLPFailure(t *testing.T) {
 
 func TestYTDLPTimeout(t *testing.T) {
 	bin, _ := fakeYTDLP(t, "exec sleep 30")
-	f := newFake(t, fixed("player_error.json"))
+	f := newFake(t, fixed("player_unplayable.json"))
 	y := f.resolver(Options{YTDLP: bin, YTDLPTimeout: 100 * time.Millisecond, NoProbe: true})
 	start := time.Now()
 	_, err := y.Resolve(t.Context(), okID)

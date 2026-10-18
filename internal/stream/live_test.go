@@ -35,8 +35,8 @@ var liveSongs = []struct {
 // TestLive is the only test touching the network. Beyond resolving, it
 // proves each URL plays: the head is WebM, the tail is served (a URL
 // missing a PO token is cut off after a MiB), and the download is not
-// throttled (an unsolved n challenge caps it at tens of KB/s). Each client
-// is measured alone; only the default path must pass.
+// throttled (an unsolved n challenge caps it at tens of KB/s). VISIONOS and
+// yt-dlp are also measured alone; only the default path must pass.
 func TestLive(t *testing.T) {
 	if !*live {
 		t.Skip("touches YouTube; run with -live")
@@ -50,8 +50,7 @@ func TestLive(t *testing.T) {
 		must    bool
 	}{
 		{"default", New(Options{HTTP: hc, YTDLP: LookYTDLP()}), (*YouTube).Resolve, true},
-		{"VISIONOS", New(Options{HTTP: hc, Clients: []Client{VisionOS}, NoProbe: true}), (*YouTube).Resolve, false},
-		{"ANDROID_VR", New(Options{HTTP: hc, Clients: []Client{AndroidVR}, NoProbe: true}), (*YouTube).Resolve, false},
+		{"VISIONOS", New(Options{HTTP: hc, NoProbe: true}), (*YouTube).Resolve, false},
 	}
 	if p := LookYTDLP(); p != "" {
 		paths = append(paths, struct {

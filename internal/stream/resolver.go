@@ -44,8 +44,6 @@ type Options struct {
 	HTTP *http.Client
 	// BaseURL is DefaultBaseURL unless set, e.g. to an httptest server.
 	BaseURL string
-	// Clients are tried in order; empty means VisionOS, then AndroidVR.
-	Clients []Client
 	// VisitorData seeds the visitor session. Without one, the first
 	// player request is usually bot-checked; the resolver then adopts the
 	// visitorData that answer carries.
@@ -53,8 +51,8 @@ type Options struct {
 	// NoProbe skips the range request proving googlevideo serves a URL
 	// past its first MiB.
 	NoProbe bool
-	// YTDLP is the path of a yt-dlp binary, run after every client
-	// failed; empty disables it. See LookYTDLP.
+	// YTDLP is the path of a yt-dlp binary, run when InnerTube gave no
+	// stream; empty disables it. See LookYTDLP.
 	YTDLP string
 	// YTDLPTimeout bounds one yt-dlp run; zero means 30s.
 	YTDLPTimeout time.Duration
@@ -90,9 +88,6 @@ func New(opts Options) *YouTube {
 		opts.HTTP = http.DefaultClient
 	}
 	opts.BaseURL = strings.TrimSuffix(cmp.Or(opts.BaseURL, DefaultBaseURL), "/") + "/"
-	if len(opts.Clients) == 0 {
-		opts.Clients = []Client{VisionOS, AndroidVR}
-	}
 	if opts.YTDLPTimeout <= 0 {
 		opts.YTDLPTimeout = defaultYTDLPTimeout
 	}
@@ -186,39 +181,35 @@ func (y *YouTube) run(ctx context.Context, videoID string, c *call) {
 	y.mu.Unlock()
 }
 
-// resolve tries each client, then yt-dlp, keeping every failure so the
+// resolve asks InnerTube, then yt-dlp, keeping both failures so the
 // error says why each was passed over.
 func (y *YouTube) resolve(ctx context.Context, videoID string) (Stream, error) {
-	var errs []error
-	for _, c := range y.opts.Clients {
-		s, err := y.viaClient(ctx, c, videoID)
-		if err == nil {
-			return s, nil
-		}
-		if ctx.Err() != nil {
-			return Stream{}, fmt.Errorf("stream: %s: %w", videoID, ctx.Err())
-		}
-		log.Debug().Str("id", videoID).Str("client", c.Name).Err(err).Msg("stream client failed")
-		errs = append(errs, err)
+	s, err := y.viaClient(ctx, visionOS, videoID)
+	if err == nil {
+		return s, nil
 	}
-	if y.opts.YTDLP != "" {
-		s, err := y.viaYTDLP(ctx, videoID)
-		if err == nil {
-			return s, nil
-		}
-		if ctx.Err() != nil {
-			return Stream{}, fmt.Errorf("stream: %s: %w", videoID, ctx.Err())
-		}
-		log.Debug().Str("id", videoID).Err(err).Msg("stream yt-dlp failed")
-		errs = append(errs, err)
+	if ctx.Err() != nil {
+		return Stream{}, fmt.Errorf("stream: %s: %w", videoID, ctx.Err())
 	}
-	return Stream{}, fmt.Errorf("stream: %s: %w", videoID, errors.Join(errs...))
+	log.Debug().Str("id", videoID).Str("client", visionOS.Name).Err(err).Msg("stream client failed")
+	if y.opts.YTDLP == "" {
+		return Stream{}, fmt.Errorf("stream: %s: %w", videoID, err)
+	}
+	s, ytErr := y.viaYTDLP(ctx, videoID)
+	if ytErr == nil {
+		return s, nil
+	}
+	if ctx.Err() != nil {
+		return Stream{}, fmt.Errorf("stream: %s: %w", videoID, ctx.Err())
+	}
+	log.Debug().Str("id", videoID).Err(ytErr).Msg("stream yt-dlp failed")
+	return Stream{}, fmt.Errorf("stream: %s: %w", videoID, errors.Join(err, ytErr))
 }
 
 // viaClient asks as c, in a fresh visitor session when googlevideo
 // refuses a URL: YouTube enforces PO tokens on some sessions (about one
 // in four, in August 2026) and not others, and a session keeps its lot.
-func (y *YouTube) viaClient(ctx context.Context, c Client, videoID string) (Stream, error) {
+func (y *YouTube) viaClient(ctx context.Context, c client, videoID string) (Stream, error) {
 	for attempt := 1; ; attempt++ {
 		s, visitor, err := y.askClient(ctx, c, videoID)
 		if !errors.Is(err, errRefused) || attempt == maxSessions || ctx.Err() != nil {
@@ -235,7 +226,7 @@ func (y *YouTube) viaClient(ctx context.Context, c Client, videoID string) (Stre
 
 // askClient also returns the visitorData it used, so viaClient can drop a
 // refused session.
-func (y *YouTube) askClient(ctx context.Context, c Client, videoID string) (s Stream, visitor string, err error) {
+func (y *YouTube) askClient(ctx context.Context, c client, videoID string) (s Stream, visitor string, err error) {
 	sent := y.visitorData()
 	resp, err := y.player(ctx, c, videoID, sent)
 	if err != nil {

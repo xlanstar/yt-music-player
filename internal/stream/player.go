@@ -104,7 +104,7 @@ type format struct {
 	} `json:"audioTrack"`
 }
 
-func (y *YouTube) player(ctx context.Context, c Client, videoID, visitorData string) (*playerResponse, error) {
+func (y *YouTube) player(ctx context.Context, c client, videoID, visitorData string) (*playerResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	body, err := playerBody(c, videoID, visitorData)
@@ -167,7 +167,7 @@ type playerRequest struct {
 	RacyCheckOK    bool `json:"racyCheckOk"`
 }
 
-func playerBody(c Client, videoID, visitorData string) ([]byte, error) {
+func playerBody(c client, videoID, visitorData string) ([]byte, error) {
 	req := playerRequest{
 		Context:        c.context(visitorData),
 		VideoID:        videoID,
@@ -187,7 +187,7 @@ func parsePlayer(data []byte) (*playerResponse, error) {
 }
 
 // playability returns nil for an OK response.
-func (pr *playerResponse) playability(client string) *PlayabilityError {
+func (pr *playerResponse) playability(clientName string) *PlayabilityError {
 	ps := pr.PlayabilityStatus
 	if ps.Status == "OK" {
 		return nil
@@ -200,7 +200,7 @@ func (pr *playerResponse) playability(client string) *PlayabilityError {
 	if status == "" {
 		status = "NO_STATUS"
 	}
-	return &PlayabilityError{Client: client, Status: status, Reason: reason}
+	return &PlayabilityError{Client: clientName, Status: status, Reason: reason}
 }
 
 // unplayable wraps ErrUnplayable for reasons InnerTube did not give,
@@ -215,7 +215,7 @@ func (unplayable) Unwrap() error   { return ErrUnplayable }
 const errNoFormat = unplayable("no direct Opus format")
 
 // stream picks the best Opus format of an OK response.
-func (pr *playerResponse) stream(c Client, now time.Time) (Stream, error) {
+func (pr *playerResponse) stream(c client, now time.Time) (Stream, error) {
 	f, ok := pickFormat(pr.StreamingData.AdaptiveFormats)
 	if !ok {
 		return Stream{}, fmt.Errorf("%s: %w", c.Name, errNoFormat)

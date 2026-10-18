@@ -63,10 +63,6 @@ func fixed(name string) func(playerReq) string {
 	return func(playerReq) string { return name }
 }
 
-func byClient(m map[string]string) func(playerReq) string {
-	return func(r playerReq) string { return m[r.Client] }
-}
-
 func (f *fakeTube) resolver(opts Options) *YouTube {
 	opts.HTTP = f.srv.Client()
 	y := New(opts)

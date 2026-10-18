@@ -34,7 +34,7 @@ func TestBudgetParsePlayer(t *testing.T) {
 
 func TestBudgetPlayerBody(t *testing.T) {
 	// 2 allocs today: the encoder's buffer and the body.
-	budget.Allocs(t, 2, 100, func() { sinkBytes, sinkErr = playerBody(VisionOS, okID, "CgtWSVNJVE9SXzEyMw%3D%3D") })
+	budget.Allocs(t, 2, 100, func() { sinkBytes, sinkErr = playerBody(visionOS, okID, "CgtWSVNJVE9SXzEyMw%3D%3D") })
 }
 
 func TestBudgetPickFormat(t *testing.T) {
@@ -56,7 +56,7 @@ func TestBudgetStream(t *testing.T) {
 	now := okExpires.Add(-5 * time.Hour)
 	// 7 allocs today, one more since pickFormat parses the three Opus
 	// formats' URLs, not the two AAC ones.
-	budget.Allocs(t, 9, 100, func() { sinkStream, sinkErr = pr.stream(VisionOS, now) })
+	budget.Allocs(t, 9, 100, func() { sinkStream, sinkErr = pr.stream(visionOS, now) })
 }
 
 func TestBudgetPlayability(t *testing.T) {
@@ -65,7 +65,7 @@ func TestBudgetPlayability(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 2 allocs today: the error and its reason.
-	budget.Allocs(t, 2, 100, func() { sinkPE = pr.playability(VisionOS.Name) })
+	budget.Allocs(t, 2, 100, func() { sinkPE = pr.playability(visionOS.Name) })
 }
 
 func TestBudgetParseYTDLP(t *testing.T) {
@@ -80,7 +80,7 @@ func TestBudgetResolveCached(t *testing.T) {
 	y := New(Options{})
 	now := okExpires.Add(-5 * time.Hour)
 	y.now = func() time.Time { return now }
-	s, err := okPlayer(t).stream(VisionOS, now)
+	s, err := okPlayer(t).stream(visionOS, now)
 	if err != nil {
 		t.Fatal(err)
 	}

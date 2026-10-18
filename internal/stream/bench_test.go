@@ -99,16 +99,14 @@ func BenchmarkParsePlayer(b *testing.B) {
 }
 
 func BenchmarkPlayerBody(b *testing.B) {
-	for _, c := range []Client{VisionOS, AndroidVR} {
-		b.Run(c.Name, func(b *testing.B) {
-			data, _ := playerBody(c, okID, "CgtWSVNJVE9SXzEyMw%3D%3D")
-			b.SetBytes(int64(len(data)))
-			b.ReportAllocs()
-			for b.Loop() {
-				sinkBytes, sinkErr = playerBody(c, okID, "CgtWSVNJVE9SXzEyMw%3D%3D")
-			}
-		})
-	}
+	b.Run(visionOS.Name, func(b *testing.B) {
+		data, _ := playerBody(visionOS, okID, "CgtWSVNJVE9SXzEyMw%3D%3D")
+		b.SetBytes(int64(len(data)))
+		b.ReportAllocs()
+		for b.Loop() {
+			sinkBytes, sinkErr = playerBody(visionOS, okID, "CgtWSVNJVE9SXzEyMw%3D%3D")
+		}
+	})
 }
 
 func BenchmarkPickFormat(b *testing.B) {
@@ -150,7 +148,7 @@ func BenchmarkStream(b *testing.B) {
 			pr := mustParsePlayer(b, tc.data)
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkStream, sinkErr = pr.stream(VisionOS, benchNow)
+				sinkStream, sinkErr = pr.stream(visionOS, benchNow)
 			}
 		})
 	}
@@ -162,7 +160,7 @@ func BenchmarkPlayability(b *testing.B) {
 			pr := mustParsePlayer(b, readTestdata(b, "player_"+name+".json"))
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkPE = pr.playability(VisionOS.Name)
+				sinkPE = pr.playability(visionOS.Name)
 			}
 		})
 	}

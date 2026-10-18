@@ -99,7 +99,7 @@ func FuzzQueryValue(f *testing.F) {
 
 // TestPlayerBody holds the body to the maps it was once built from.
 func TestPlayerBody(t *testing.T) {
-	for _, c := range []Client{VisionOS, AndroidVR, {Name: "BARE", Version: "1"}} {
+	for _, c := range []client{visionOS, {Name: "BARE", Version: "1"}} {
 		for _, visitor := range []string{"", "CgtWSVNJVE9SXzEyMw%3D%3D"} {
 			client := map[string]any{"clientName": c.Name, "clientVersion": c.Version, "hl": "en"}
 			for k, v := range map[string]string{
@@ -109,9 +109,6 @@ func TestPlayerBody(t *testing.T) {
 				if v != "" {
 					client[k] = v
 				}
-			}
-			if c.AndroidSDKVersion != 0 {
-				client["androidSdkVersion"] = float64(c.AndroidSDKVersion)
 			}
 			want := map[string]any{
 				"context": map[string]any{"client": client},
