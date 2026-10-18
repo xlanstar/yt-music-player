@@ -61,9 +61,10 @@ func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 	h.t.Helper()
 	posts := h.m.posts
 	h.m.gfx = gfx{
-		env:     termimage.Env{Override: p.String()},
-		replies: termimage.Replies{CellW: 10, CellH: 20},
-		post:    posts.post,
+		env:       termimage.Env{Override: p.String()},
+		replies:   termimage.Replies{CellW: 10, CellH: 20},
+		kittyBase: 176,
+		post:      posts.post,
 		newArt: func() *artwork.Loader {
 			return artwork.New(artwork.Options{
 				Post: posts.post, Client: &http.Client{Transport: host}, MemoryBytes: artMemory, Workers: 1,
@@ -149,22 +150,38 @@ func TestCoverBlocks(t *testing.T) {
 func TestCoverKitty(t *testing.T) {
 	h := placeholderHarness(t)
 	h.withCovers(termimage.Kitty, newCoverHost(t))
+	h.m.gfx.kittyBase = 40
 	raws := h.covered()
-	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b_Ga=T,U=1,q=2,f=24,s=40,v=40,i=176,c=4,r=2,") {
-		t.Fatalf("uploads = %.60q, want one of image 176", raws)
+	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b_Ga=T,U=1,q=2,f=24,s=40,v=40,i=40,c=4,r=2,") {
+		t.Fatalf("uploads = %.60q, want one of image 40", raws)
 	}
-	if want := termimage.KittyCells(176, 4, 2)[0]; !strings.Contains(h.m.content, " "+want+" ") {
+	if want := termimage.KittyCells(40, 4, 2)[0]; !strings.Contains(h.m.content, " "+want+" ") {
 		t.Errorf("the bar lacks the placeholders %q", want)
 	}
 	// Shown again, the image is the terminal's.
 	if raws := h.run(h.press("tab")); len(raws) != 0 {
 		t.Errorf("a render sent %q again", raws)
 	}
-	// Another cover takes the slot: image 176 stays the terminal's.
+	// Another cover takes the slot: image 40 stays the terminal's.
 	h.m.gfx.covers[0] = cover{}
-	if got := h.m.gfx.close(); !strings.HasPrefix(got, termimage.KittyDelete(176, false)) ||
-		!strings.HasSuffix(got, termimage.KittyDelete(176+numCovers-1, false)) {
-		t.Errorf("close = %q, want images 176 to %d deleted", got, 176+numCovers-1)
+	if got := h.m.gfx.close(); !strings.HasPrefix(got, termimage.KittyDelete(40, false)) ||
+		!strings.HasSuffix(got, termimage.KittyDelete(40+numCovers-1, false)) {
+		t.Errorf("close = %q, want images 40 to %d deleted", got, 40+numCovers-1)
+	}
+}
+
+// TestKittyBase picks each process's ids among the 256 colors' 1 to 255.
+func TestKittyBase(t *testing.T) {
+	seen := map[uint8]bool{}
+	for range 1000 {
+		b := newKittyBase()
+		if b == 0 || int(b)+numCovers-1 > 255 {
+			t.Fatalf("base %d: ids %d to %d, want 1 to 255", b, b, int(b)+numCovers-1)
+		}
+		seen[b] = true
+	}
+	if len(seen) < 2 {
+		t.Errorf("every process would pick %v", seen)
 	}
 }
 

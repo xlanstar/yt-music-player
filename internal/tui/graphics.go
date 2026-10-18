@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"image"
+	"math/rand/v2"
 	"slices"
 	"strings"
 	"time"
@@ -32,8 +33,6 @@ const (
 	overlayDelay = 3 * time.Second / fps
 	// numCovers bounds the covers kept: two show, the rest come back.
 	numCovers = 8
-	// kittyBase is cover 0's Kitty image id, a 256-color index.
-	kittyBase = 176
 	// offScreenBytes bounds the images kept for covers off screen:
 	// overlays to draw again, Kitty's uploads not sent.
 	offScreenBytes = 64 << 10
@@ -99,7 +98,10 @@ type gfx struct {
 	art    *artwork.Loader
 
 	covers [numCovers]cover
-	frame  uint64
+	// kittyBase is cover 0's Kitty image id, a 256-color index
+	// (newKittyBase).
+	kittyBase uint8
+	frame     uint64
 	// hasUploads holds once a Kitty image went, whose id a cover taken
 	// for another may never send again.
 	hasUploads bool
@@ -108,6 +110,13 @@ type gfx struct {
 	// while they differ, an overlayMsg of gen will draw them.
 	drawn, want [numSlots]placement
 	gen         uint64
+}
+
+// newKittyBase picks a process's first Kitty image id: two ytm in one
+// terminal, as in tmux's panes, would else replace and delete each
+// other's images.
+func newKittyBase() uint8 {
+	return 1 + rand.N[uint8](256-numCovers)
 }
 
 // start asks the terminal what it shows, unless YTM_IMAGES says; then
@@ -203,7 +212,7 @@ func (g *gfx) show(s slot, w, y int, art catalog.Art) (lines [coverRows]string, 
 	if px := max(g.caps.Pixels(g.cols, coverRows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
 		if img := g.art.Get(key.url, px); img != nil && img.RGBA.Rect.Dx() > c.srcPx {
 			c.srcPx = img.RGBA.Rect.Dx()
-			g.encode(c, img.RGBA, kittyBase+uint8(i)) //nolint:gosec // i < numCovers
+			g.encode(c, img.RGBA, g.kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
 	}
 	if c.isReady {
@@ -401,7 +410,7 @@ func (g *gfx) close() string {
 		g.covers[i].job.Stop()
 		if g.hasUploads {
 			// q=2: an id never sent is no error.
-			b.WriteString(termimage.KittyDelete(kittyBase+uint8(i), g.env.Tmux))
+			b.WriteString(termimage.KittyDelete(g.kittyBase+uint8(i), g.env.Tmux))
 		}
 	}
 	return b.String()

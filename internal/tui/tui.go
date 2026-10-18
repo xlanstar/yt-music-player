@@ -88,7 +88,7 @@ type app struct {
 func newApp(cfg Config) *app {
 	posts := newPoster()
 	m := newModel(deps{})
-	m.gfx = gfx{env: termimage.EnvFrom(os.Getenv), post: posts.post, newArt: func() *artwork.Loader {
+	m.gfx = gfx{env: termimage.EnvFrom(os.Getenv), kittyBase: newKittyBase(), post: posts.post, newArt: func() *artwork.Loader {
 		dir, _ := artwork.DefaultDir()
 		return artwork.New(artwork.Options{Post: posts.post, Dir: dir, MemoryBytes: artMemory, Workers: artWorkers})
 	}}
