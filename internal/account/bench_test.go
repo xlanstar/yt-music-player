@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 	"yt-music-player/internal/catalog"
@@ -33,20 +34,68 @@ func bigLikes() catalog.Source {
 	return likedSource{catalog.NewPlaceholderSource(0), songs}
 }
 
-// fetchCases are each Part from the placeholder, and Liked music of 2000
-// songs without their IDs. Allocs today are mostly the source's.
+// decodedLikes answers Liked music as a Source decoding YouTube's pages
+// does, every string a copy of its own: n songs, seven in ten from
+// albums of about three liked songs, with their album's cover, the rest
+// videos with covers of their own; artists of about four.
+type decodedLikes struct {
+	catalog.Source
+	n int
+}
+
+func (s decodedLikes) Playlist(context.Context, string) (catalog.Playlist, []catalog.Song, error) {
+	songs := make([]catalog.Song, s.n)
+	for i := range songs {
+		songs[i] = decodedSong(i)
+	}
+	return catalog.Playlist{ID: catalog.LikedID}, songs, nil
+}
+
+// decodedSong is shaped like a real one: an 11-character ID, a 17-character
+// album ID and covers of about 130 bytes.
+func decodedSong(i int) catalog.Song {
+	id := fmt.Sprintf("v%010d", i)
+	song := catalog.Song{
+		ID:      id,
+		Title:   "Song title number " + strconv.Itoa(i) + " (Remastered)",
+		Artist:  "Artist " + strconv.Itoa(i*7919%1250),
+		Seconds: 221,
+	}
+	if i%10 >= 7 {
+		song.Art = catalog.Art("https://i.ytimg.com/vi/" + id + "/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg" +
+			fmt.Sprintf("&rs=AMzJL3%026d", i))
+		return song
+	}
+	album := i * 104729 % 1750
+	song.Album = "Album name " + strconv.Itoa(album)
+	song.AlbumID = fmt.Sprintf("MPREb_%011d", album)
+	song.Art = catalog.Art(fmt.Sprintf("https://lh3.googleusercontent.com/%080d=w120-h120-l90-rj", album))
+	return song
+}
+
+func decoded5000() catalog.Source { return decodedLikes{catalog.NewPlaceholderSource(0), 5000} }
+
+// fetchCases are each Part from the placeholder, Liked music of 2000
+// songs without their IDs, and 5000 described as YouTube does. Allocs
+// today are mostly the source's.
 var fetchCases = []struct {
 	name  string
 	src   func() catalog.Source
 	part  Part
 	limit float64
 }{
-	{"profile", placeholder, Profile, 9},  // 7 allocs today.
-	{"library", placeholder, Library, 21}, // 18 allocs today.
-	// Liked: 10 and 9 allocs today, one the copy of the IDs the account
-	// keeps (Latest).
-	{"liked", placeholder, Liked, 11},
-	{"liked/2000", bigLikes, Liked, 10},
+	{"profile", placeholder, Profile, 9}, // 7 allocs today.
+	// 25 allocs today, 7 sharing the songs' strings (shareStrings), which
+	// ytmd keeps.
+	{"library", placeholder, Library, 29},
+	// Liked: 16 and 10 allocs today: a copy of the IDs the account keeps
+	// (Latest), the songs' new slice, and 5 sharing the strings of songs
+	// described.
+	{"liked", placeholder, Liked, 19},
+	{"liked/2000", bigLikes, Liked, 12},
+	// 56 983 allocs, 3.3 MB today, the source's but 20 and 1 MB:
+	// shareStrings' map and new slice, the copy of the IDs.
+	{"liked/5000-described", decoded5000, Liked, 65531},
 }
 
 func placeholder() catalog.Source { return catalog.NewPlaceholderSource(0) }

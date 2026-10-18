@@ -162,6 +162,28 @@ func recordLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("liked music: name %q, owner set %v, %d songs", pl.Name, pl.Owner != "", len(songs))
+	// How much the songs ytmd keeps repeat (account.shareStrings), and
+	// overlap the library's.
+	distinct := func(field func(catalog.Song) string) int {
+		seen := map[string]bool{}
+		for _, s := range songs {
+			seen[field(s)] = true
+		}
+		return len(seen)
+	}
+	inLibrary := map[string]bool{}
+	for _, s := range lib.Songs {
+		inLibrary[s.ID] = true
+	}
+	both := 0
+	for _, s := range songs {
+		if inLibrary[s.ID] {
+			both++
+		}
+	}
+	t.Logf("  distinct: %d artists, %d albums, %d covers; %d of them among the library's %d songs",
+		distinct(func(s catalog.Song) string { return s.Artist }), distinct(func(s catalog.Song) string { return s.AlbumID }),
+		distinct(func(s catalog.Song) string { return string(s.Art) }), both, len(lib.Songs))
 	home, err := c.Home(ctx)
 	if err != nil {
 		t.Fatal(err)

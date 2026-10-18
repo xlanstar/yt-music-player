@@ -3,8 +3,10 @@ package account
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
+	"unsafe"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 )
@@ -124,6 +126,41 @@ func TestFetch(t *testing.T) {
 	if f.a.IsBusy() {
 		t.Error("busy after the fetches")
 	}
+}
+
+// Songs decoded page by page each hold their own copy of an artist,
+// album or cover; the account keeps one.
+func TestFetchSharesStrings(t *testing.T) {
+	described := func() []catalog.Song {
+		var songs []catalog.Song
+		for _, id := range []string{"far-1", "far-2"} {
+			songs = append(songs, catalog.Song{
+				ID: id, Title: id, Artist: strings.Clone("Ada"), Album: strings.Clone("Engine"),
+				AlbumID: strings.Clone("MPREb_engine"), Art: catalog.Art(strings.Clone("https://example.com/engine.jpg")),
+			})
+		}
+		return songs
+	}
+	shares := func(t *testing.T, songs []catalog.Song) {
+		t.Helper()
+		a, b := songs[0], songs[1]
+		for _, pair := range [][2]string{{a.Artist, b.Artist}, {a.Album, b.Album}, {a.AlbumID, b.AlbumID}, {string(a.Art), string(b.Art)}} {
+			if pair[0] != pair[1] || unsafe.StringData(pair[0]) != unsafe.StringData(pair[1]) {
+				t.Errorf("%q and %q are two copies", pair[0], pair[1])
+			}
+		}
+	}
+
+	f := newFixture()
+	f.a.Fetch(Liked)
+	f.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Songs: described()}
+	f.run(t)
+	shares(t, f.a.likedSongs)
+
+	f.a.Fetch(Library)
+	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: catalog.Library{Songs: described()}}
+	f.run(t)
+	shares(t, f.a.library.Songs)
 }
 
 func TestFetchFails(t *testing.T) {

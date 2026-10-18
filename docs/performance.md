@@ -25,6 +25,7 @@ Numbers from `scripts/footprint.sh` (`perf/footprint-baseline.txt`: M4 Max, 1280
 Numbers from `scripts/footprint.sh -daemon` (`perf/footprint-daemon-baseline.txt`: M4 Max, a placeholder ytmd, whose engine is a fake on a clock).
 
 - ytmd's footprint: ~6 MB fresh and paused (RSS ~13 MB), ~6.4 MB playing, ~8.5 MB after a Desktop toured every page through it (RSS ~16 MB). A real engine adds its stream's buffers and decoder while playing (3–4 MB of heap, below) and MyGo's audio output. The window's numbers above hold no player.
+- Signed in, ytmd keeps the library and the liked songs (up to 2000 a library part, 5000 liked) for front-ends that connect later. Sources decode a copy of each artist, album and cover per song; `account` keeps one of each (`shareStrings`): 5000 liked songs shaped as YouTube's, albums of about three, keep 1.38 MB instead of 1.85 (`TestBudgetLiveLikes`), covers (URLs of about 130 bytes) half of it.
 - Paused, ytmd wakes nothing: top counts 0 idle wake-ups and 0 context switches over 10 s, also with a TUI connected (measured by hand), and none while the placeholder plays. No ticker or heartbeat: state goes out on changes only, and the save 2 s after a change and the heap's release 3 s after the last request (`internal/quiet`, as the Desktop) are one-shot timers. Go's runtime alone wakes it, about once a minute (sysmon, for the forced GC).
 - Front-ends never poll ytmd ([docs/daemon.md](daemon.md#health)); the TUI itself is not idle (Bubble Tea's renderer ticks at 30 fps while it runs).
 
