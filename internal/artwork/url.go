@@ -25,7 +25,7 @@ func Bucket(px int) int {
 
 // SizedURL returns u resized for px pixels where the host allows: Google's
 // image hosts scale to any size, YouTube's video thumbnails come in a few.
-// Other URLs, and signed ones, come back unchanged.
+// Other URLs come back unchanged.
 func SizedURL(u string, px int) string {
 	parsed, err := url.Parse(u)
 	if err != nil {
@@ -35,11 +35,13 @@ func SizedURL(u string, px int) string {
 	case strings.HasSuffix(host, ".googleusercontent.com") || strings.HasSuffix(host, ".ggpht.com"):
 		return googleSized(u, px)
 	case host == "i.ytimg.com" || strings.HasSuffix(host, ".ytimg.com") || host == "img.youtube.com":
-		if parsed.RawQuery != "" {
-			// sqp names the crop and rs signs it: another name fails.
-			return u
+		end := len(u)
+		if i := strings.IndexAny(u, "?#"); i >= 0 {
+			end = i
 		}
-		return ytimgSized(u, px)
+		if sized, ok := ytimgSized(u[:end], px, parsed.RawQuery != ""); ok {
+			return sized
+		}
 	}
 	return u
 }
@@ -108,21 +110,24 @@ type ytVariant struct {
 }
 
 var ytVariants = [...]ytVariant{
-	{"default", 90, true},
+	{"default", 67, true},
 	{"mqdefault", 180, true},
 	{"hqdefault", 270, true},
 	{"sddefault", 360, false},
+	{"hq720", 720, false},
 	{"maxresdefault", 720, false},
 }
 
 // ytimgSized picks the smallest thumbnail that covers px, never one
-// larger than the URL's unless every video has it.
-func ytimgSized(u string, px int) string {
+// larger than the URL's unless every video has it. A signed URL's sqp
+// names its crop and rs signs it, so it gives way only to one every video
+// has unsigned, which Decode squares anyway.
+func ytimgSized(u string, px int, isSigned bool) (string, bool) {
 	dir, file, hasDir := strings.CutLast(u, "/")
 	name, ext, hasExt := strings.CutLast(file, ".")
 	isThumbnail := hasDir && hasExt && strings.Contains(dir, "/vi")
 	if !isThumbnail {
-		return u
+		return "", false
 	}
 	named := -1
 	for i, v := range ytVariants {
@@ -131,7 +136,7 @@ func ytimgSized(u string, px int) string {
 		}
 	}
 	if named < 0 {
-		return u
+		return "", false
 	}
 	pick := named
 	for i, v := range ytVariants {
@@ -140,14 +145,19 @@ func ytimgSized(u string, px int) string {
 			break
 		}
 	}
-	if pick > named && !ytVariants[pick].isUniversal {
+	switch {
+	case isSigned && !ytVariants[pick].isUniversal:
+		return "", false
+	case ytVariants[pick].side == ytVariants[named].side:
+		pick = named
+	case pick > named && !ytVariants[pick].isUniversal:
 		// Only the named one, or one every video has, surely exists.
 		pick = named
 		for i := named; i < len(ytVariants) && ytVariants[i].isUniversal; i++ {
 			pick = i
 		}
 	}
-	return dir + "/" + ytVariants[pick].name + "." + ext
+	return dir + "/" + ytVariants[pick].name + "." + ext, true
 }
 
 func isDigits(s string) bool {

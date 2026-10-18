@@ -40,8 +40,23 @@ func TestSizedURL(t *testing.T) {
 		{vi + "maxresdefault.jpg", 320, vi + "sddefault.jpg"},
 		{vi + "sddefault.jpg", 128, vi + "mqdefault.jpg"},
 		{"https://i.ytimg.com/vi_webp/ZXhwXhv37Ps/hqdefault.webp", 96, "https://i.ytimg.com/vi_webp/ZXhwXhv37Ps/mqdefault.webp"},
-		// Signed crops stay as they are.
-		{vi + "hqdefault.jpg?sqp=-oaym&rs=AMz", 96, vi + "hqdefault.jpg?sqp=-oaym&rs=AMz"},
+		// default's still is 67 px high once its bars are trimmed.
+		{vi + "default.jpg", 64, vi + "default.jpg"},
+		{vi + "default.jpg", 80, vi + "mqdefault.jpg"},
+		{vi + "hqdefault.jpg", 64, vi + "default.jpg"},
+		// hq720 is maxresdefault's size, and as rare.
+		{vi + "hq720.jpg", 96, vi + "mqdefault.jpg"},
+		{vi + "hq720.jpg", 320, vi + "sddefault.jpg"},
+		{vi + "hq720.jpg", 640, vi + "hq720.jpg"},
+		{vi + "hq720.jpg", 1024, vi + "hq720.jpg"},
+		{vi + "maxresdefault.jpg", 448, vi + "maxresdefault.jpg"},
+		// Signed crops give way to a still every video has, else stay.
+		{vi + "hqdefault.jpg?sqp=-oaym&rs=AMz", 96, vi + "mqdefault.jpg"},
+		{vi + "hqdefault.jpg?sqp=-oaym&rs=AMz", 256, vi + "hqdefault.jpg"},
+		{vi + "hqdefault.jpg?sqp=-oaym&rs=AMz", 352, vi + "hqdefault.jpg?sqp=-oaym&rs=AMz"},
+		{vi + "hq720.jpg?sqp=-oaym&rs=AMz", 192, vi + "hqdefault.jpg"},
+		{vi + "hq720.jpg?sqp=-oaym&rs=AMz", 640, vi + "hq720.jpg?sqp=-oaym&rs=AMz"},
+		{vi + "frame0.jpg?sqp=-oaym&rs=AMz", 96, vi + "frame0.jpg?sqp=-oaym&rs=AMz"},
 		{vi + "frame0.jpg", 96, vi + "frame0.jpg"},
 		{"https://example.com/a=w60-h60", 96, "https://example.com/a=w60-h60"},
 		{"neon-tide", 96, "neon-tide"},
