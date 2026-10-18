@@ -64,7 +64,14 @@ type engine struct {
 	volume   float64
 	info     Info
 	isClosed bool
+	// released is where the stream Release let go of was, while
+	// isReleased, until the next Load.
+	released   place
+	isReleased bool
 }
+
+// place is where a stream is, in seconds, and how long it is.
+type place struct{ at, seconds float64 }
 
 // load is one Load's stream.
 type load struct {
@@ -103,6 +110,7 @@ func (e *engine) Load(media Media, at float64) {
 		return
 	}
 	e.dropLocked()
+	e.isReleased = false
 	e.loads++
 	l := &load{n: e.loads, media: media, startAt: max(at, 0)}
 	e.cur = l
@@ -226,6 +234,9 @@ func (e *engine) Pause() {
 func (e *engine) Seek(sec float64) {
 	sec = max(sec, 0)
 	e.mu.Lock()
+	if e.isReleased {
+		e.released.at = sec
+	}
 	if l := e.cur; l != nil {
 		if !l.isReady {
 			l.startAt = sec
@@ -249,6 +260,19 @@ func (e *engine) SetVolume(v float64) {
 	e.mu.Unlock()
 }
 
+func (e *engine) Release() {
+	e.mu.Lock()
+	l := e.cur
+	if l == nil || l.wantsPlay {
+		e.mu.Unlock()
+		return
+	}
+	e.released, e.isReleased = place{at: e.positionLocked(), seconds: e.durationLocked()}, true
+	e.dropLocked()
+	e.mu.Unlock()
+	e.publish()
+}
+
 func (e *engine) SetInfo(info Info) {
 	e.mu.Lock()
 	e.info = info
@@ -264,6 +288,8 @@ func (e *engine) Position() float64 {
 
 func (e *engine) positionLocked() float64 {
 	switch l := e.cur; {
+	case e.isReleased:
+		return e.released.at
 	case l == nil:
 		return 0
 	case !l.isReady:
@@ -282,6 +308,9 @@ func (e *engine) Duration() float64 {
 // durationLocked is the file's length, else the resolver's; 0 until
 // ready.
 func (e *engine) durationLocked() float64 {
+	if e.isReleased {
+		return e.released.seconds
+	}
 	l := e.cur
 	if l == nil || !l.isReady {
 		return 0
@@ -300,6 +329,7 @@ func (e *engine) Close() {
 	}
 	e.isClosed = true
 	e.dropLocked()
+	e.isReleased = false
 	e.mu.Unlock()
 	e.publish()
 	e.controls.close()
@@ -447,17 +477,17 @@ func (e *engine) command(ev Event) {
 func (e *engine) publish() {
 	e.mu.Lock()
 	np := nowPlaying{Info: e.info, state: stateStopped}
-	if l := e.cur; l != nil && !e.isClosed {
+	if l := e.cur; (l != nil || e.isReleased) && !e.isClosed {
 		np.duration = e.durationLocked()
 		if np.duration == 0 {
 			np.duration = e.info.Seconds
 		}
 		np.elapsed = e.positionLocked()
 		np.state = statePaused
-		if l.wantsPlay {
+		if l != nil && l.wantsPlay {
 			np.state = statePlaying
+			np.advancing = l.isReady && !l.isStalled
 		}
-		np.advancing = l.wantsPlay && l.isReady && !l.isStalled
 	}
 	e.mu.Unlock()
 	e.controls.publish(np)

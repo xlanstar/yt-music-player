@@ -48,6 +48,9 @@ func (f *Fake) Seek(sec float64) { f.Pos = sec; f.note("seek " + num(sec)) }
 // SetVolume records the volume.
 func (f *Fake) SetVolume(v float64) { f.Volume = v; f.note("volume " + num(v)) }
 
+// Release records the release.
+func (f *Fake) Release() { f.note("release") }
+
 // SetInfo sets Info, without recording a call.
 func (f *Fake) SetInfo(info Info) { f.Info = info }
 

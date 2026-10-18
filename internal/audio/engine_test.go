@@ -105,6 +105,8 @@ type engineFixture struct {
 	ev   chan Event
 	mu   sync.Mutex
 	outs []*fakeOutput
+	// lastSrc is the source of the last output made.
+	lastSrc *httpSource
 }
 
 func newEngineFixture(t *testing.T) *engineFixture {
@@ -115,6 +117,7 @@ func newEngineFixture(t *testing.T) *engineFixture {
 		go o.decode()
 		x.mu.Lock()
 		x.outs = append(x.outs, o)
+		x.lastSrc = d.(*opusStream).src.(*httpSource)
 		x.mu.Unlock()
 		return o
 	})
@@ -425,4 +428,58 @@ func TestEnginePublishes(t *testing.T) {
 	if np := c.get(); np.state != stateStopped || !c.isClosed || c.claims != 1 {
 		t.Errorf("closed: %+v, closed %v, %d claims", np, c.isClosed, c.claims)
 	}
+}
+
+func TestEngineReleases(t *testing.T) {
+	srv := serveTone(t)
+	x := newEngineFixture(t)
+	c := &recordingControls{}
+	x.controls = c
+	x.Load(Media{URL: srv.URL}, 0)
+	x.Play()
+	x.expect(t, Ready, 1)
+	o := x.out()
+	o.Seek(3 * time.Second)
+	// A stream that plays is kept.
+	x.Release()
+	if o.isClosed {
+		t.Fatal("released while playing")
+	}
+	x.Pause()
+	x.Release()
+	if !o.isClosed {
+		t.Error("output left open")
+	}
+	x.src().mu.Lock()
+	isClosed := x.src().closed
+	x.src().mu.Unlock()
+	if !isClosed {
+		t.Error("source left open")
+	}
+	if p, d := x.Position(), x.Duration(); p != 3 || d < 6 || d > 6.05 {
+		t.Errorf("released: at %v of %v, want 3 of 6", p, d)
+	}
+	if np := c.get(); np.state != statePaused || np.elapsed != 3 || np.duration < 6 || np.advancing {
+		t.Errorf("released: shows %+v", np)
+	}
+	x.Seek(4)
+	x.Play()
+	if np := c.get(); np.state != statePaused || np.elapsed != 4 {
+		t.Errorf("released, sought and played: shows %+v", np)
+	}
+	x.none(t)
+	// A Load plays on.
+	x.Load(Media{URL: srv.URL}, x.Position())
+	x.Play()
+	x.expect(t, Ready, 2)
+	if o := x.out(); !o.Playing() || len(o.seeks) != 1 || o.seeks[0] != 4*time.Second {
+		t.Errorf("loaded again: playing %v, seeks %v", o.Playing(), o.seeks)
+	}
+}
+
+// src is the current load's source.
+func (x *engineFixture) src() *httpSource {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+	return x.lastSrc
 }

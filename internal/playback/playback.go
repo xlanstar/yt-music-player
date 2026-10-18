@@ -2,9 +2,10 @@
 // passes on whatever changed in the player (a request, a media key) and
 // reads where the engine is. It resolves streams off its thread,
 // prefetches the next song near the end, resolves a stream that fails once
-// loaded anew (once), and skips unplayable songs, stopping after a few in
-// a row. It knows no UI and says no words: failures become notices, and
-// the front-ends time their frames themselves.
+// loaded anew (once), skips unplayable songs, stopping after a few in a
+// row, and has the engine let go of a stream paused for a while. It knows
+// no UI and says no words: failures become notices, and the front-ends
+// time their frames themselves.
 //
 // A Playback belongs to the daemon's loop, which owns the player and the
 // engine. Resolves run on goroutines that call only the Resolver; their
@@ -38,11 +39,17 @@ const (
 	expirySlack = time.Minute
 )
 
+// releaseAfter is how long the engine keeps a stream paused (about 2 MB:
+// its download, decoder and output) before Release; Play then loads it
+// again, a request away. A var for tests.
+var releaseAfter = time.Minute
+
 type loadState uint8
 
 const (
 	unloaded  loadState = iota
 	resolving           // waiting for the resolver
+	released            // the engine let go of it, paused: Play loads it again
 	loading             // the engine has it, not ready yet
 	loaded
 )
@@ -87,6 +94,12 @@ type Playback struct {
 	next          prefetch
 	prefetching   job.Job
 	prefetchTimer *time.Timer
+
+	// holds reports whether the engine has a stream, this song's or the
+	// last; isReleasing, that releaseTimer runs, as it does while that
+	// stream is paused.
+	holds, isReleasing bool
+	releaseTimer       *time.Timer
 }
 
 type prefetch struct {
@@ -120,7 +133,7 @@ func (pb *Playback) Follow() {
 	}
 	if p.Position != pb.pos {
 		pb.pos = p.Position
-		if pb.state >= loading {
+		if pb.state >= released {
 			pb.engine.Seek(p.Position)
 		}
 	}
@@ -134,13 +147,14 @@ func (pb *Playback) Follow() {
 			}
 		case pb.song == "" || pb.state == resolving:
 			// Nothing to play, or resolved will play it.
-		case pb.state == unloaded || expiring(pb.stream):
+		case pb.state < loading || expiring(pb.stream):
 			pb.resolve()
 		default:
 			pb.engine.Play()
 		}
 	}
 	pb.follow()
+	pb.armRelease()
 }
 
 // follow reads the engine's position while the song moves on its own.
@@ -205,11 +219,16 @@ func (pb *Playback) switchSong(id string) {
 	pb.isPlaying, pb.pos = false, pb.player.Position
 }
 
-// resolve finds the current song's stream, off the loop unless
-// prefetched.
+// resolve finds the current song's stream: the one released if it still
+// works, else off the loop unless prefetched.
 func (pb *Playback) resolve() {
 	pb.resolving.Stop()
+	isReleased := pb.state == released
 	pb.state = resolving
+	if isReleased && !expiring(pb.stream) {
+		pb.resolved(pb.stream, nil)
+		return
+	}
 	if s, ok := pb.prefetched(pb.song); ok {
 		pb.resolved(s, nil)
 		return
@@ -239,7 +258,7 @@ func (pb *Playback) resolved(s stream.Stream, err error) {
 		Seconds: float64(song.Seconds),
 	})
 	pb.engine.Load(audio.Media{URL: s.URL, Seconds: s.Seconds, Header: s.Header}, p.Position)
-	pb.pos = p.Position
+	pb.pos, pb.holds = p.Position, true
 	if pb.isPlaying {
 		pb.engine.Play()
 	}
@@ -431,6 +450,38 @@ func (pb *Playback) prefetched(id string) (stream.Stream, bool) {
 	return next.stream, next.isResolved && !expiring(next.stream)
 }
 
+// armRelease runs the release timer while the engine holds a paused
+// stream: from the pause, not pushed back by what else the loop does.
+func (pb *Playback) armRelease() {
+	isPaused := pb.holds && !pb.isPlaying
+	if isPaused == pb.isReleasing {
+		return
+	}
+	pb.isReleasing = isPaused
+	switch {
+	case !isPaused:
+		pb.releaseTimer.Stop()
+	case pb.releaseTimer == nil:
+		post := pb.post
+		pb.releaseTimer = time.AfterFunc(releaseAfter, func() { post(pb.releaseDue) })
+	default:
+		pb.releaseTimer.Reset(releaseAfter)
+	}
+}
+
+// releaseDue runs when the release timer fires: the stream may play again
+// since it was set.
+func (pb *Playback) releaseDue() {
+	if !pb.isReleasing || pb.engine == nil {
+		return
+	}
+	pb.isReleasing, pb.holds = false, false
+	pb.engine.Release()
+	if pb.state >= loading {
+		pb.state, pb.isStalled = released, false
+	}
+}
+
 // SongLength returns s's length in seconds, from its stream once it
 // plays, which may know better than the catalog.
 func (pb *Playback) SongLength(s catalog.Song) float64 {
@@ -452,6 +503,9 @@ func (pb *Playback) Stop() {
 	pb.prefetching.Stop()
 	if pb.prefetchTimer != nil {
 		pb.prefetchTimer.Stop()
+	}
+	if pb.releaseTimer != nil {
+		pb.releaseTimer.Stop()
 	}
 	if pb.engine != nil {
 		pb.engine.Close()

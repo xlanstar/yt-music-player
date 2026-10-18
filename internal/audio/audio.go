@@ -39,6 +39,11 @@ type Engine interface {
 	SetVolume(v float64)
 	// SetInfo describes what plays to Now Playing.
 	SetInfo(Info)
+	// Release lets go of a paused stream's memory: its download, decoder
+	// and output. Position, Duration and Now Playing stay where it was,
+	// paused, Seek moving them, until a Load plays on; Play does nothing
+	// until then. A stream that plays is kept.
+	Release()
 	// Position and Duration are in seconds; Duration is 0 until known.
 	Position() float64
 	Duration() float64

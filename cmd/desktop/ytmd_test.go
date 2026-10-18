@@ -229,6 +229,7 @@ func (e *testEngine) Seek(sec float64)               { e.do(func(f *audio.Fake) 
 func (e *testEngine) SetVolume(v float64)            { e.do(func(f *audio.Fake) { f.SetVolume(v) }) }
 
 func (e *testEngine) SetInfo(info audio.Info) { e.do(func(f *audio.Fake) { f.SetInfo(info) }) }
+func (e *testEngine) Release()                { e.do(func(f *audio.Fake) { f.Release() }) }
 func (e *testEngine) Close()                  { e.do(func(f *audio.Fake) { f.Close() }) }
 
 func (e *testEngine) Position() (pos float64) {
