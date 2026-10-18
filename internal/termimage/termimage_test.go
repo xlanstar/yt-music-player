@@ -7,12 +7,14 @@ import (
 	"encoding/hex"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
-	"yt-music-player/internal/artwork"
+
+	"golang.org/x/image/webp"
 )
 
 // cover is a deterministic square cover of n pixels: a gradient.
@@ -327,18 +329,22 @@ func TestProtocolString(t *testing.T) {
 	}
 }
 
-// realCover is a cover as the TUI gets it: artwork's testdata, decoded.
+// realCover is a photo of px pixels: artwork's testdata, decoded here so
+// that artwork's scaling never moves these tests' sums.
 func realCover(tb testing.TB, px int) *image.RGBA {
 	tb.Helper()
-	data, err := os.ReadFile("../artwork/testdata/cover_544.webp")
+	f, err := os.Open("../artwork/testdata/cover_544.webp")
 	if err != nil {
 		tb.Fatal(err)
 	}
-	img, err := artwork.Decode(data, px)
+	defer func() { _ = f.Close() }()
+	src, err := webp.Decode(f)
 	if err != nil {
 		tb.Fatal(err)
 	}
-	return img.RGBA
+	m := image.NewRGBA(src.Bounds())
+	draw.Draw(m, m.Rect, src, m.Rect.Min, draw.Src)
+	return Fill(m, px, px)
 }
 
 // TestEncodeSums holds every protocol's bytes, which optimizations keep.
@@ -353,10 +359,10 @@ func TestEncodeSums(t *testing.T) {
 			Blocks: "d1e64e169d46f538", Sixel: "337678556959195d", ITerm2: "3bcca26318e23f62", Kitty: "e00e2efb84bb30c3",
 		}},
 		{"real80", realCover(t, 80), 20, [...]string{
-			Blocks: "4373aee7181619da", Sixel: "7d5760512140803e", ITerm2: "082d0a1eae97179e", Kitty: "4a6d6bb82737c57b",
+			Blocks: "404ec4b09c29f316", Sixel: "e00c4b8b5ae6087d", ITerm2: "5152465f37ec7013", Kitty: "848e929691682f8e",
 		}},
 		{"real256", realCover(t, 256), 64, [...]string{
-			Blocks: "0c82e81b84b074e8", Sixel: "1462d26b40f9f9f9", ITerm2: "c611b20ecda82c99", Kitty: "c97646acca961956",
+			Blocks: "874f47f73e9bce53", Sixel: "32c2319514da40db", ITerm2: "e46e083df4c59e58", Kitty: "31bd35b5370a8b43",
 		}},
 	}
 	for _, src := range sources {
