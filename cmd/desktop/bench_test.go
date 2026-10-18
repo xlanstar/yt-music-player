@@ -76,7 +76,11 @@ var pastedCookie = func() string {
 	var b strings.Builder
 	b.WriteString("Cookie: ")
 	for i := range 40 {
-		b.WriteString("NAME" + strconv.Itoa(i) + "=" + strings.Repeat("v", 40) + ";")
+		b.WriteString("NAME")
+		b.WriteString(strconv.Itoa(i))
+		b.WriteRune('=')
+		b.WriteString(strings.Repeat("v", 40))
+		b.WriteRune(';')
 		sep := " "
 		if i%8 == 7 {
 			sep = "\n "
