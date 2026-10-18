@@ -15,6 +15,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	_ "golang.org/x/image/webp" // testdata's covers, as the Desktop's ui registers it
 )
 
 // solid returns a w×h image of c whose top and bottom h/8 rows are band,

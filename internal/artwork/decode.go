@@ -11,7 +11,6 @@ import (
 	"io"
 
 	xdraw "golang.org/x/image/draw"
-	_ "golang.org/x/image/webp" // Decode
 )
 
 // maxPixels keeps a corrupt or hostile header from allocating gigabytes.
@@ -31,9 +30,10 @@ type Image struct {
 // Bytes returns the memory the image's pixels take.
 func (m *Image) Bytes() int { return len(m.RGBA.Pix) }
 
-// Decode decodes a JPEG, PNG or WebP image into a square cover of at most
-// px pixels: it trims letterbox bars, crops the middle square, and scales
-// down so a large header image does not stay in memory at full size.
+// Decode decodes a JPEG or PNG image, as the URLs SizedURL makes serve, or
+// one of a format the program registers (MyGo's ui adds WebP), into a
+// square cover of at most px pixels: it trims letterbox bars, crops the
+// middle square, and scales down so a large image does not stay in memory.
 func Decode(data []byte, px int) (*Image, error) {
 	if px <= 0 {
 		return nil, errors.New("artwork: no size")
