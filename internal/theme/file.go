@@ -15,11 +15,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// file is a theme file (docs/theme.md, testdata/dusk.json): a base preset,
-// a Seed that derives the colors anew, then single tokens, each optional.
-// Tokens are the fields of Seed, Colors, Contrast, Type, Radius, Sizes and
-// Layout, in any case. Unknown fields, bad colors, out-of-bounds numbers
-// and text that cannot keep 4.5:1 are rejected.
+// file is a theme file (docs/theme.md, testdata/dusk.json): a base preset, a
+// Seed deriving the colors anew, then optional tokens, the fields of Seed,
+// Colors, Contrast, Type, Radius, Sizes and Layout in any case. Unknown fields,
+// bad colors, out-of-bounds numbers and text below 4.5:1 are rejected.
 type file struct {
 	Name     string             `json:"name,omitzero"`
 	Base     string             `json:"base,omitzero"`

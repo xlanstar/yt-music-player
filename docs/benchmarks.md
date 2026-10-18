@@ -9,9 +9,10 @@
 
 ## Budgets
 
-- `TestBudget<Function>` holds allocations, which are deterministic where time is not: `budget.Allocs(t, limit, runs, f)` (skipped under `-race`). Where bytes set the footprint (`artwork`'s decoding and loading, `ytmusic`'s `decode`), `budget.Within(t, budget.Cost{Allocs: …, Bytes: …}, runs, f)` holds both. `budget.Measure` gives the numbers; it runs on one P after a GC, so the runtime's own allocations stay out.
+- `TestBudget<Function>` holds allocations, which are deterministic where time is not: `budget.Allocs(t, limit, runs, f)` (skipped under `-race`). Where bytes set the footprint, `budget.Within(t, budget.Cost{Allocs: …, Bytes: …}, runs, f)` holds both. `budget.Measure` gives the numbers; it runs on one P after a GC, so the runtime's own allocations stay out.
 - Averages keep their fraction: a slice growing once in 100 calls is 0.01, and a 0 budget fails on it. Hot paths assert an interface once, not per call, converting one to another too (an `io.ReadSeeker` passed as an `io.Reader`): the runtime builds its assertion cache now and then (1 call in 1024).
-- A ceiling is about 1.15× today's count, rounded up; 0–2 are held exactly; a comment gives today's (`// 27 allocs today.`, `// 2.17 MB today.`). One that varies between runs (a map's tables split as its random hash seed fills them) is 1.15× the most seen, its range in the comment. Lower one with an improvement; raising one needs its reason stated in the same change. No budgets on calls over a connection (loopback `httptest` included): a client over an in-memory `RoundTripper` is deterministic, a socket is not.
+- A ceiling is about 1.15× today's count, rounded up, 0–2 held exactly, today's in a comment (`// 27 allocs today.`, `// 2.17 MB today.`); one that varies between runs (a map's random hash seed) is 1.15× the most seen, its range in the comment. Lower one with an improvement; raising one needs its reason in the same change.
+- No budgets on calls over a socket, loopback `httptest` included: unlike an in-memory `RoundTripper`, it is not deterministic.
 - What ytmd keeps for days has its heap held too (`TestBudgetLiveLikes`, `TestBudgetLiveQueue`): the heap with the value, less once it is collected, on songs shaped as YouTube's (`catalogtest.Decoded`: every string a copy of its own, as decoded).
 - Where a benchmark has a case table, the limits live in it, and the budget ranges over the same cases: a case without its limit does not compile.
 - Screens (`cmd/desktop/budget_test.go`), together about 7 s:
@@ -26,12 +27,12 @@
 
 ns/op is too noisy to gate. `scripts/bench.sh` runs Pages, Interactions, Memo and every `./internal/...` benchmark (6 runs of 100 ms each, about 4 minutes) into `perf/benchmarks-latest.txt`, headed by Go version, CPU, git state and load, and compares it with `perf/benchmarks-baseline.txt` through a pinned benchstat.
 
-- Both files hold, per package, one line per benchmark and unit (`BenchmarkPages/Home-16 allocs/op 26`): each run's value in run order, or one value when every run gave it, without go test's column widths and iteration counts. A refreshed baseline's diff then shows the time lines and the allocations that moved, nothing else; the script expands the files back for benchstat.
+- Both files hold, per package, one line per benchmark and unit (`BenchmarkPages/Home-16 allocs/op 26`): each run's value in run order, or one value when every run gave it, so that a refreshed baseline's diff shows only the lines that moved; the script expands them back for benchstat.
 - Six runs are the fewest benchstat gives a confidence interval for; more short runs beat fewer long ones, and 300 ms runs took 10 minutes for no narrower intervals.
 - A package (`scripts/bench.sh ./internal/artwork/`) or `-run Pages/Home` focuses it; `-count 10` for a closer look.
 - The `RunParallel` benchmarks (`innertube` `AuthSignedIn`, `stream` `Resolve/cached_parallel`) run on their own at `-cpu 1,4,<all>` in the full suite, to show how contention scales; with a package or `-run`, everything runs in one pass at all CPUs.
 - It warns when the baseline's Go, CPU, `-count` or `-benchtime` differ from the run's, and lists benchmarks without baseline rows and, after a full run, baseline rows of benchmarks gone: the baseline is stale.
-- `-against <rev>` compares with a git revision instead, built in a temporary worktree and run now, in turn with the working tree (`-count 1` each, old and new alternating, so drift hits both), into `perf/benchmarks-against.txt`. Prefer it to the baseline, which measures another day and toolchain too (Go 1.27's allocator alone moved allocation-heavy numbers). Takes packages and `-run`; twice as long.
+- `-against <rev>` compares with a git revision instead, built in a temporary worktree and run now, alternating with the working tree (`-count 1` each) so that drift hits both, into `perf/benchmarks-against.txt`. Prefer it to the baseline, which measures another day and toolchain too. Takes packages and `-run`; twice as long.
 - `-profile <package>` also writes `perf/cpu.prof` and `perf/mem.prof` (one package: go test profiles one at a time); `go tool pprof -top perf/cpu.prof`, `go tool pprof -alloc_objects -top perf/mem.prof`.
 - `-update` makes a full run the baseline, committed with the change it records.
 

@@ -20,11 +20,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// gcPercent is ytmd's GOGC. While a song plays, MyGo's audio output leaves
-// garbage on every buffer, and internal/quiet, which waits for the loop to
-// go quiet, never frees it: the heap stays at its goal, the live heap plus
-// GOGC percent. Half Go's 100 kept ~2 MB less of a playing ytmd's ~25,
-// for no measurable CPU (docs/performance.md).
+// gcPercent is ytmd's GOGC: while a song plays, MyGo's audio output leaves
+// garbage on every buffer that internal/quiet never frees, so the heap sits
+// at its goal. Half Go's default costs no measurable CPU (docs/performance.md).
 const gcPercent = 50
 
 func main() {

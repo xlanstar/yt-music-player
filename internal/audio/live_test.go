@@ -2,13 +2,10 @@
 
 package audio
 
-// Live check of the engine on the system's output; it plays sound and uses
-// the network, so it never runs with the other tests:
-//
-//	go test -tags audiolive -run Live -v ./internal/audio/
-//
-// AUDIO_LIVE_URL picks the stream; else yt-dlp resolves AUDIO_LIVE_ID
-// (a YouTube video ID) to its Opus format and headers.
+// Live check of the engine on the system's output, with sound and network:
+// `go test -tags audiolive -run Live -v ./internal/audio/`. AUDIO_LIVE_URL
+// picks the stream; else yt-dlp resolves AUDIO_LIVE_ID (a YouTube video ID)
+// to its Opus format and headers.
 
 import (
 	"context"

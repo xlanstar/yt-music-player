@@ -23,13 +23,10 @@ var (
 	ErrOverflow = errors.New("ipc: peer reads too slowly")
 )
 
-// Conn carries frames over a connection, one gob stream each way.
-//
-// Send never blocks, so the daemon's loop never waits on a socket: a
-// writer goroutine encodes what was queued since its last write and
-// flushes it at once. A frame, and what it points to, must not change once
-// sent. Frames go out in order; only a State event still queued is
-// replaced, by a newer one. Receive reads on the caller's goroutine.
+// Conn carries frames over a connection, one gob stream each way. Send never
+// blocks, so the daemon's loop never waits on a socket; a sent frame, and what
+// it points to, must not change. Frames go out in order, but a newer State
+// event replaces one still queued. Receive reads on the caller's goroutine.
 type Conn struct {
 	nc  net.Conn
 	dec *gob.Decoder

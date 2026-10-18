@@ -92,11 +92,10 @@ type interactionBudget struct {
 	perBuild              bool
 }
 
-// interactionBudgets are BenchmarkInteractions' ceilings; builds are exact.
-// The Tester's clock stands still between ops, so a hover's motion never
-// ends: the Tester settles its 20 frames, each built, at the instant of the
-// input. The hero's posed thumbnails rasterize slowly, hence its cost per
-// build. Hovers take 20 ms to 400 ms an op, hence fewer runs.
+// interactionBudgets are BenchmarkInteractions' ceilings; builds are exact:
+// the Tester's clock stands still, so a hover settles its 20 frames, each
+// built, at the input's instant. The hero's slow posed thumbnails are held
+// per build; hovers, up to 400 ms an op, take fewer runs.
 var interactionBudgets = map[string]interactionBudget{
 	"HoverRows":  {35, 6120, 1, 20, false},   // 30 allocs, 5319 B today: the row's fade only paints.
 	"HoverCards": {598, 23240, 20, 3, false}, // 520 allocs, 20203 B today.

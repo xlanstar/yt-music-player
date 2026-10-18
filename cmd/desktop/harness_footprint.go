@@ -20,12 +20,9 @@ import (
 )
 
 // footprintHarness measures, in the real window, the footprint as macOS
-// counts it (footprint(1), Activity Monitor's number) and the frames
-// drawn: idle, after one frame, after every page, and while a song plays
-// focused, unfocused, minimized and paused ("Memory on macOS" in
-// docs/performance.md). ytmd plays, a placeholder one (footprint.sh)
-// through its silent clock engine: frames without sound or network, and
-// none of the daemon's memory, which is its own process's.
+// counts it and the frames drawn, idle and playing ("Memory on macOS" in
+// docs/performance.md). Its ytmd, footprint.sh's placeholder, plays silently
+// in its own process, so the daemon's memory is not counted.
 func footprintHarness(a *app, w *mygo.Window) {
 	if os.Getenv("MYGO_FRAME_STATS") != "all" {
 		fmt.Fprintln(os.Stderr, "footprint: MYGO_FRAME_STATS=all is needed to count frames")

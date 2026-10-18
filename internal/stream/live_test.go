@@ -35,10 +35,9 @@ var liveSongs = []struct {
 	{"invalid", "aaaaaaaaaaa", false, false},
 }
 
-// TestLive is the only test touching the network. Beyond resolving, it
-// proves each URL plays: the head is WebM, the tail is served (a URL
-// missing a PO token is cut off after a MiB), and the download is not
-// throttled (an unsolved n challenge caps it at tens of KB/s). VISIONOS and
+// TestLive, the only test touching the network, proves each URL plays: a
+// WebM head, the tail served (a URL missing a PO token stops after a MiB), no
+// throttling (an unsolved n challenge caps it at tens of KB/s). VISIONOS and
 // yt-dlp are also measured alone; only the default path must pass.
 func TestLive(t *testing.T) {
 	if !*live {

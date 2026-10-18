@@ -26,11 +26,10 @@ import (
 // wait bounds every wait for the daemon, the app's posts or a request.
 const wait = 5 * time.Second
 
-// posts stand in for Window.Update, as tests have no window: what the app
-// posts queues in app, what its remote Client posts in client, and the
-// test runs them on its goroutine, the Tester's UI thread. Every build
-// runs the Client's first, as a window runs Update's funcs before a
-// frame; the app's wait for the test, which may hold them.
+// posts stand in for Window.Update: what the app and its Client post runs
+// on the test's goroutine, the Tester's UI thread. Every build runs the
+// Client's first, as a window does before a frame; the app's wait for the
+// test, which may hold them.
 type posts struct {
 	app, client chan func()
 	ytmd        *testYtmd
@@ -160,11 +159,9 @@ func (y *testYtmd) until(tb testing.TB, what string, cond func() bool) {
 	}
 }
 
-// syncDaemon is a round trip to ytmd: every event caused before it, by a
-// control or by the daemon's own loop, has been applied once it returns.
-// The first Ping may share the daemon's batch with what came before, whose
-// events follow the batch's replies; the second, sent after the first's
-// reply, comes in a later batch.
+// syncDaemon returns once every event caused before it, by a control or by
+// ytmd's own loop, has been applied. Two Pings: the first's reply may come
+// before its batch's events; the second's comes in a later batch.
 func syncDaemon(tb testing.TB, q posts) {
 	tb.Helper()
 	y := q.ytmd

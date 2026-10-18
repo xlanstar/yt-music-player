@@ -17,12 +17,10 @@ func useLanguage() {
 	i18n.SetLocaleFunc(func() string { return lang })
 }
 
-// language picks, of the catalogs' languages, the one for the user's: the
-// first of $LC_ALL, $LC_MESSAGES, the system's preferred languages and
-// $LANG that names any, as POSIX orders the variables. The system's come
-// before $LANG because macOS terminals set $LANG from the region, not
-// from the language the user chose. A language without a catalog
-// ("zh_CN", "ja", "C") falls back to English, not to the next source.
+// language picks the catalogs' language for the first source naming any:
+// $LC_ALL, $LC_MESSAGES, the system's, then $LANG, which macOS terminals set
+// from the region. One without a catalog ("zh_CN", "ja", "C") falls back to
+// English, not to the next source.
 func language(getenv func(string) string, system func() []string) string {
 	preferred := userLanguages(getenv, system)
 	if lang := i18n.Match(preferred, i18n.Languages()); lang != "" {

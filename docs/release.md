@@ -1,6 +1,6 @@
 # Releasing
 
-One command to release, one workflow on GitHub, one command to publish to GitHub and Homebrew. Releases are for macOS (one app for Apple silicon and Intel), Linux and Windows (amd64 and arm64 each), ship the background player `ytmd` and the command line `ytm` beside the app, and update the installed apps. The macOS app is signed with a Developer ID and notarized; no certificate signs the Windows app, so SmartScreen warns before it first runs.
+One command to release, one workflow on GitHub, one command to publish to GitHub and Homebrew. Releases are for macOS (universal), Linux and Windows (amd64 and arm64 each) and ship ytmd and ytm beside the app. The macOS app is signed with a Developer ID and notarized; no certificate signs the Windows app, so SmartScreen warns at first run.
 
 - **The version** is `version` in `mygo.json`, the only place it is written: the app reads it, `mygo build` puts it in `Info.plist`, the disk image's name and the update manifest, `scripts/build.sh` in ytmd and ytm. `0.0.0` means never released.
 - **A release** is an annotated tag `vX.Y.Z` on `main`, made only by `scripts/release.sh`. Tags are never moved, deleted or reused.
@@ -13,27 +13,33 @@ One command to release, one workflow on GitHub, one command to publish to GitHub
 scripts/release.sh minor        # or patch, major
 ```
 
-From a clean `main` equal to `origin/main` with a non-empty Unreleased section and `updates` in `mygo.json`, it shows the next version and its notes and asks before doing anything. Then it runs `prek run --all-files`, moves Unreleased under `## [X.Y.Z] - <date>`, sets the version in `mygo.json`, commits `chore(release): vX.Y.Z`, tags, and pushes `main` and the tag together (`--atomic`: both or neither).
+From a clean `main` equal to `origin/main`, a non-empty Unreleased section and `updates` in `mygo.json`, it shows the next version and its notes and asks first. Then it runs `prek run --all-files`, moves Unreleased under `## [X.Y.Z] - <date>`, sets the version in `mygo.json`, commits `chore(release): vX.Y.Z`, tags, and pushes `main` and the tag at once (`--atomic`).
 
 The tag starts `.github/workflows/release.yml` (`gh run watch` follows it):
 
 1. **tag**: `scripts/release.sh check` refuses a tag that is not `vX.Y.Z`, differs from `mygo.json`, has no CHANGELOG section or is not on `main`, and a `mygo.json` without `updates`.
 2. **checks**: the CI workflow, prek on macOS, as on every push and pull request.
-3. **macos**, in the `release` environment: `scripts/build.sh -platform darwin/universal -sign <identity>` builds the helpers for both architectures and makes one app, signs it with the hardened runtime, notarizes the disk image, staples the tickets and signs the update with `MYGO_UPDATER_PRIVATE_KEY`. It checks the signature and tickets (`codesign`, `spctl`, `stapler`) and that ytmd and ytm are universal, and keeps the disk image and the update files under the names their manifest links to (`yt-music-player-X.Y.Z-darwin-universal.tar.gz`, `update-darwin-universal.json`, and `…-to-X.Y.Z-darwin-universal.delta` from the last published versions, none for the first).
-4. **linux-windows**, at the same time, in the `release` environment, a job per system on Ubuntu: `scripts/build.sh -platform linux/amd64,linux/arm64` (or `windows/…`) builds the helpers and cross-compiles the app, MyGo needing no cgo, and signs the updates with the same key; `apt` installs NSIS for the Windows installers. It checks each executable's architecture, that `ytmd.exe` has no console and `ytm.exe` one, and that the Debian package has `/opt/yt-music-player/ytmd` (which `ytmd.service` runs) and `/usr/bin/ytm`. It keeps `YT-Music-Player-X.Y.Z-linux-<arch>.deb`, `YT-Music-Player-X.Y.Z-windows-<arch>-setup.exe`, `install.sh` (Linux's, the same for both architectures), and each platform's update files as above (`yt-music-player-X.Y.Z-<platform>.tar.gz`, which `install.sh` installs on Linux, `update-<platform>.json`, deltas).
+3. **macos**, in the `release` environment: `scripts/build.sh -platform darwin/universal -sign <identity>` builds the helpers for both architectures into one app, signs it with the hardened runtime, notarizes and staples it and the disk image, and signs the update with `MYGO_UPDATER_PRIVATE_KEY`. It checks the signatures, the tickets and that ytmd and ytm are universal, and keeps `YT-Music-Player-X.Y.Z-macos-universal.dmg` and the update files.
+4. **linux-windows**, a job per system on Ubuntu, in the `release` environment: `scripts/build.sh -platform linux/amd64,linux/arm64` (or `windows/…`) cross-compiles everything, MyGo needing no cgo, and signs the updates; NSIS makes the Windows installers. It checks each executable's architecture, the consoles (none for `ytmd.exe`) and the Debian package's `/opt/yt-music-player/ytmd` and `/usr/bin/ytm`, and keeps the `.deb`s, `-setup.exe`s, Linux's `install.sh` and the update files.
 5. **publish**: gathers the build jobs' files, refusing a name two of them made, writes `SHA256SUMS` of them all, attests their provenance (public repositories), then creates the **draft** release with the files and the notes.
 
-Then check the draft: download its files, `shasum -a 256 -c SHA256SUMS`, open the app, which opens without Gatekeeper asking (`spctl -a -vv` says `source=Notarized Developer ID`), sign in, play a song, close the window: the song plays on, Now Playing shows *YT Music Player Helper*, and `"/Applications/YT Music Player.app/Contents/Resources/ytm" status` shows it. On Linux, `sh install.sh` the archive next to it, or `sudo apt install ./YT-Music-Player-X.Y.Z-linux-amd64.deb`, then `ytm version` and `ytm status` from the PATH (`~/.local/bin/ytm` or `/usr/bin/ytm`); on Windows, run the setup through SmartScreen's *More info → Run anyway*, then `"%LOCALAPPDATA%\Programs\YT Music Player\ytm.exe" status`. Publish it:
+Then check the draft: download its files, `shasum -a 256 -c SHA256SUMS`, and on each system:
+
+- **macOS:** the app opens without Gatekeeper asking (`spctl -a -vv` says `source=Notarized Developer ID`); sign in, play a song, close the window: the song plays on, Now Playing shows *YT Music Player Helper*, and `"/Applications/YT Music Player.app/Contents/Resources/ytm" status` shows it.
+- **Linux:** `sh install.sh` the archive next to it, or `sudo apt install ./YT-Music-Player-X.Y.Z-linux-amd64.deb`, then `ytm version` and `ytm status` from the PATH (`~/.local/bin/ytm` or `/usr/bin/ytm`).
+- **Windows:** run the setup through SmartScreen's *More info → Run anyway*, then `"%LOCALAPPDATA%\Programs\YT Music Player\ytm.exe" status`.
+
+Publish it:
 
 ```sh
 scripts/release.sh publish X.Y.Z
 ```
 
-It checks that the draft has every platform's downloads and `update-<platform>.json` (`darwin-universal`, `linux-amd64`, `linux-arm64`, `windows-amd64`, `windows-arm64`), that `SHA256SUMS` lists every file and matches it, and each manifest against the version and the files it links to, publishes the release as the latest, then runs `tap`. **Publishing ships the update**: installed apps read the manifest of the latest release, never a draft's.
+It checks that the draft has every platform's downloads and `update-<platform>.json`, that `SHA256SUMS` lists every file and matches it, and each manifest against the version and the files it links to; publishes the release as the latest; then runs `tap`. **Publishing ships the update**: installed apps read the manifest of the latest release, never a draft's.
 
 ## The helpers
 
-`ytmd` and `ytm` (`cmd/ytmd`, `cmd/ytm`) ship as MyGo [platform resources](https://mygo.egoist.dev/docs/distribution.md#platform-resources): `scripts/build.sh` builds them into `resources/<platform>/` (ignored by git) for each target, as `mygo build` builds the app (no cgo, `-trimpath`, stripped, `mygo.json`'s version), then runs `mygo build`, which copies each target's directory into its app, signs what it holds and, for `darwin/universal`, merges `darwin-arm64` with `darwin-amd64`. A bare `mygo build` ships whatever an earlier run left there, or nothing.
+`ytmd` and `ytm` ship as MyGo [platform resources](https://mygo.egoist.dev/docs/distribution.md#platform-resources): `scripts/build.sh` builds them into `resources/<platform>/` (ignored by git) as `mygo build` builds the app (no cgo, `-trimpath`, stripped, `mygo.json`'s version), then runs `mygo build`, which copies each target's directory into its app, signs it and merges `darwin/universal`'s two. A bare `mygo build` ships whatever an earlier run left there, or nothing.
 
 - **macOS**: `Contents/Resources/YT Music Player Helper.app` (ytmd in a bundle of its own, `dev.lanstar.ytmusicplayer.daemon`, `LSUIElement`, the app's icon) and `Contents/Resources/ytm`. Now Playing shows the bundle's name, which is not the app's: LaunchServices registers nested apps too and would find two *YT Music Player*s.
 - **Linux**: `ytmd`, `ytm` and `ytmd.service` (`packaging/linux/`, for the Debian package's `/opt/yt-music-player`; `ytm autostart on` writes the real one) beside the app. `mygo.json`'s `linux.command` links `ytm` on the PATH to the app, which runs the `ytm` beside it when started under that name.
@@ -41,7 +47,7 @@ It checks that the draft has every platform's downloads and `update-<platform>.j
 
 ## Security
 
-Only the workflow's `publish` job can write to the repository; every other job has read access only, credentials are not kept in checkouts, and the actions are pinned by commit; Dependabot (`.github/dependabot.yml`) bumps them and the Go modules weekly. The signing secrets are in the `release` environment, which only `v*` tags can use, and only the build jobs' steps that sign read them.
+Only the workflow's `publish` job can write to the repository; the others read only, checkouts keep no credentials, and actions are pinned by commit, which Dependabot (`.github/dependabot.yml`) bumps weekly with the Go modules. The signing secrets are in the `release` environment, which only `v*` tags can use, and only the steps that sign read them.
 
 ## When something fails
 
@@ -90,7 +96,9 @@ The certificate expires after five years, and a revoked app-specific password fa
 
 ## Updates
 
-The app updates itself ([MyGo's updates](https://mygo.egoist.dev/docs/updates.md)): `mygo.json`'s `updates` holds the public key and the repository, and the app reads its platform's `update-<platform>.json` of the latest release, checks the archive's or delta's Ed25519 signature against the key built into it, and replaces itself: on Windows when the setup installed it, on Linux when `install.sh` did (in `~/.local`), never from the Debian package, which `apt` updates. A running ytmd keeps its files; the relaunched app hands off to its own ([docs/daemon.md](daemon.md#versions-and-hand-off)). The build jobs sign the updates with the secret key:
+The app updates itself ([MyGo's updates](https://mygo.egoist.dev/docs/updates.md)) from `mygo.json`'s `updates`: it reads `update-<platform>.json` of `updates.github`'s latest release, checks the archive's or delta's Ed25519 signature against `updates.publicKey`, and replaces itself, but not the Debian package, which `apt` updates, nor on Windows an app the setup did not install. The relaunched app hands off to its own ytmd ([docs/daemon.md](daemon.md#versions-and-hand-off)).
+
+The build jobs sign the updates with the secret key:
 
 ```sh
 go tool mygo keygen   # prints where it wrote mygo-update.key and mygo-update.pub
@@ -111,5 +119,5 @@ gh secret set MYGO_UPDATER_PRIVATE_KEY --env release < <dir>/mygo-update.key
 - `tap` clones and pushes the tap with your `gh` login; `brew style` checks the cask first when Homebrew is installed.
 - The app updates itself, also when brew installed it: the cask says `auto_updates true`, and brew, which compares the installed app's version, upgrades only an app that did not update (Homebrew 6 and later; older versions with `--greedy`).
 - `scripts/install.sh [-universal]` installs this checkout through the same cask, from a local tap (`local/yt-music-player`) and the local disk image, its quarantine removed, as it is signed ad hoc. The app still updates itself to a newer release.
-- The cask links `ytm` into Homebrew's `bin`, and `brew uninstall` (upgrades too) first stops the background player with it. A plain uninstall leaves the login item (the LaunchAgent), so that upgrades keep it; without the app, it removes itself at the next login. `--zap` removes it at once, and forgets the sign-in (the Keychain item `yt-music-player`), settings, themes, the player's state and the caches.
+- The cask links `ytm` into Homebrew's `bin`, and `brew uninstall` (upgrades too) first stops the background player with it. The LaunchAgent stays, for upgrades; without the app it removes itself at the next login. `--zap` removes it at once and forgets the sign-in (the Keychain item `yt-music-player`), settings, themes, the player's state and caches.
 - After a release: `brew update && brew outdated --cask` lists nothing for an app that updated itself, and `brew audit --cask --online xlanstar/tap/yt-music-player`.

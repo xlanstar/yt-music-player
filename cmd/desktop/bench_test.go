@@ -255,11 +255,10 @@ func retainedKB(tb testing.TB, s **screen) int64 {
 	return (with - liveHeap()) / 1024
 }
 
-// BenchmarkPages measures one steady frame per page. ns/op covers build,
-// layout and scene recording (the Tester rasterizes only on Image); the
-// Tester settles up to 20 frames while the view animates; live-KB is the heap
-// the screen retains (retainedKB). The Tester adds checks a release build
-// skips, so compare pages with each other, not with the app.
+// BenchmarkPages measures one steady frame per page: build, layout and scene
+// recording (the Tester rasterizes only on Image), and live-KB, the heap the
+// screen retains. The Tester adds checks a release build skips, so compare
+// pages with each other, not with the app.
 func BenchmarkPages(b *testing.B) {
 	for _, pc := range pageCases {
 		b.Run(pc.name, func(b *testing.B) {
@@ -373,11 +372,9 @@ var interactionCases = []struct {
 			}
 		}
 	}},
-	// Another front-end moves the current song in the queue: ytmd sends a
-	// State and the queue in one event, the Client applies it to the
-	// Mirror, and the player bar and the queue panel build anew. The op
-	// counts the other front-end's request and ytmd's work too, all in
-	// this process.
+	// Another front-end moves the current song: ytmd sends the State and the
+	// queue in one event to the Client's Mirror. The op counts the other
+	// front-end's request and ytmd's work too, all in this process.
 	{"remote-event", func(*app) {}, func(tb testing.TB, s *screen) func(int) {
 		other := peer(tb, s.q)
 		return func(i int) {

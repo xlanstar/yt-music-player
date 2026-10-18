@@ -162,11 +162,9 @@ func fetch(ctx context.Context, src catalog.Source, p Part) (Change, error) {
 	}
 }
 
-// shareStrings returns a copy of songs that holds one copy of each
-// artist, album and cover they repeat (catalog.ShareStrings): the account
-// keeps them as long as ytmd runs. 5000 liked songs, albums of about
-// three, took 1.85 MB, now 1.38 (TestBudgetLiveLikes). A copy, as what a
-// Source returned may be read elsewhere.
+// shareStrings returns a copy of songs sharing the strings they repeat
+// (catalog.ShareStrings), kept as long as ytmd runs (TestBudgetLiveLikes);
+// a copy, as what a Source returned may be read elsewhere.
 func shareStrings(songs []catalog.Song) []catalog.Song {
 	songs = slices.Clone(songs)
 	catalog.ShareStrings(songs)
@@ -340,11 +338,10 @@ func (a *Account) Status() (Status, bool) { return a.status, a.hasStatus }
 // CanSignIn reports whether the source signs in and out at all.
 func (a *Account) CanSignIn() bool { return a.accounts != nil }
 
-// SignIn sends credentials, as pasted, off the thread, canceling a sign-in
-// in flight; the caller should forget them. done gets the account signed
-// in or why not, though never the failure of a sign-in canceled: one whose
-// credentials were stored anyway still signs in. A Status reports the
-// sign-in before done.
+// SignIn sends credentials, as pasted, off the thread, canceling one in
+// flight; the caller should forget them. done gets the account, after its
+// Status, or why not; a canceled sign-in never fails, though one whose
+// credentials were stored anyway still signs in.
 func (a *Account) SignIn(credentials string, done func(catalog.Account, error)) {
 	accounts := a.accounts
 	creds := api.CleanCredentials(credentials)

@@ -36,11 +36,11 @@ Each binary's `TestDeps` (and `session`'s) holds the last column; the test binar
 
 ## Starting and stopping
 
-**On demand.** A front-end that cannot connect starts ytmd, whatever the failure, then dials every 50 ms for up to 5 s. It looks for ytmd at `$YTMD_PATH`, else beside itself, symlinks resolved: `ytmd` (`ytmd.exe`), and on macOS inside `YT Music Player Helper.app` (in `Contents/Resources`). ytmd starts detached (its own session or process group), with the null device for its streams, the front-end's environment (`YT_LOG` too) and its own directory as working directory.
+**On demand.** A front-end that cannot connect, whatever the failure, starts ytmd, then dials every 50 ms for up to 5 s. It looks for ytmd at `$YTMD_PATH`, else beside itself, symlinks resolved: `ytmd` (`ytmd.exe`), on macOS in `Contents/Resources/YT Music Player Helper.app`. ytmd starts detached, its streams on the null device, in its own directory, with the front-end's environment.
 
 **Single instance.** ytmd takes the lock without waiting, or exits 0 when another holds it; loads `daemon.json`; listens, removing a stale socket; resumes after a hand-off; fetches the account, library and likes. The OS releases the lock with the process.
 
-**Stopping.** Only `ytm daemon stop`, Desktop's *Quit and Stop Playback* (app menu), a `Shutdown` request, SIGTERM or SIGINT stop ytmd, never idleness: it pauses, saves, closes the engine and media controls, removes the socket and flushes its connections for up to 1 s. Windows has no SIGTERM and kills a windowless process at logout: the queue and settings were saved within 2 s, the position at the last pause, seek or new song.
+**Stopping.** Only `ytm daemon stop`, Desktop's *Quit and Stop Playback*, a `Shutdown` request, SIGTERM or SIGINT stop ytmd, never idleness: it pauses, saves, closes the engine, removes the socket and flushes its connections for up to 1 s. Windows has no SIGTERM and kills a windowless process at logout, losing only what [Saved state](#saved-state) had not yet written.
 
 ## Versions and hand-off
 
@@ -50,7 +50,7 @@ The Desktop and the TUI:
 
 - **Daemon older:** hand off to the front-end's own ytmd, once per daemon version. Still older (an old `YTMD_PATH`, two installs): the health is *DaemonOutdated*; calls go on if the protocol matches, else stop.
 - **Daemon newer:** nothing if the protocol matches; else *FrontendOutdated*, and calls stop.
-- **Hand-off:** the front-end asks for one with a 5 s wait. ytmd tells its other connections, which then only redial, never start a daemon, for that wait; replies; saves, with a note that it was playing, valid until now + wait + 30 s; and exits. The front-end waits for it to go, starts its own ytmd and dials it. That ytmd plays on if it was playing and the note has not expired; any other start is paused. `ytm daemon restart` hands off the same way.
+- **Hand-off:** asked with a 5 s wait, ytmd tells its other connections to only redial meanwhile, never start a daemon; replies; saves whether it was playing, valid for the wait plus 30 s; and exits. The asking front-end starts its own ytmd, which plays on only if that note, still valid, says so. `ytm daemon restart` hands off alike.
 - **Updates** need nothing more: a running ytmd keeps its files, and the relaunched Desktop hands off.
 
 The CLI connects once, never subscribes to events and never hands off: an older daemon gets a warning on stderr. Controls, `login`, `logout`, `daemon start` and `daemon restart` start ytmd; `status`, `daemon status`, `daemon stop`, `version`, `logs` and `autostart` never do. Exit codes: 0, 1 failed, 2 usage, 3 not running (`status`, `daemon status`). `cmd/ytm/testdata/status.json` holds `ytm status --json`'s fields.
@@ -71,7 +71,7 @@ AF_UNIX stream sockets on every OS (Windows 10 1803+), one gob stream per direct
 
 - **Requests** carry an ID; the reply carries it back. A front-end whose context ends sends a cancel (catalog requests, sign-in) and returns at once; a closed connection cancels all its requests.
 - **Data:** ytmd keeps no catalog and caches no pages, only its queue's and the likes' songs, which front-ends send with the IDs they play, queue or like. The queue holds each song once (package `player`).
-- **Events** go to the Desktop and TUI: first a snapshot (state, queue and its songs, account, library and likes as fetched, a failure per part whose last fetch failed), then changes. The playback state goes out whole on each change (play, pause, song, stall, volume, mute, repeat, shuffle, or a jump of the position by over 1 s), never on a timer: receivers move the position on with their own clock. A sign-in that switches accounts empties the queue.
+- **Events:** first a snapshot (state, queue and its songs, account, library and likes, a failure per part whose last fetch failed), then changes. The playback state goes out whole when a field changes or the position jumps over 1 s, never on a timer: receivers move the position with their own clock. A sign-in switching accounts empties the queue.
 - **Order:** a reply precedes the events its request causes, but for sign-in and sign-out, whose account event comes first.
 - **Backpressure:** each connection queues up to 64 frames; a newer playback state replaces a queued one. A full queue closes the connection, and the front-end reconnects to a snapshot.
 - **Errors** travel as codes: not found, signed out, invalid credentials (with the reason, which the sign-in form shows) and internal (anything else, logged by ytmd at debug). A front-end that needs `errors.Is` on a new daemon error adds a code (`TestErrorCodes`). Nothing on the wire holds cookies, headers, visitorData or stream URLs.

@@ -18,11 +18,10 @@ type client struct {
 	OSName, OSVersion       string
 }
 
-// visionOS gets full-speed direct audio URLs that need neither a PO token
-// nor n-parameter descrambling. It is yt-dlp's only default client without
-// a JS runtime. It cannot play "made for kids" videos, which yt-dlp can
-// with one. ANDROID_VR, long the other such client, has had its URLs
-// refused past the first MiB since August 2026.
+// visionOS gets full-speed direct audio URLs needing neither a PO token nor
+// n-parameter descrambling: yt-dlp's only default client without a JS runtime
+// (ANDROID_VR's URLs are refused past the first MiB). "Made for kids" videos
+// it can't play are left to yt-dlp, which plays them with a runtime.
 var visionOS = client{
 	Name:        "VISIONOS",
 	ID:          101,

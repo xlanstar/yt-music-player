@@ -13,13 +13,9 @@ import (
 const appBundleID = "dev.lanstar.ytmusicplayer"
 
 // newLaunchAgent is macOS's entry for the user uid: a plist in
-// home/Library/LaunchAgents, which launchd loads at the next login. No
-// KeepAlive, or launchd would start the daemon again after `ytm daemon
-// stop`.
-//
-// It starts ytmd through sh, which removes the plist and disables the label
-// instead when ytmd is gone: deleting the app, by brew, the Trash or
-// anything, then turns starting at login off by itself at the next login.
+// home/Library/LaunchAgents, loaded at the next login, without KeepAlive,
+// which would restart ytmd after `ytm daemon stop`. Its sh script removes it
+// and disables the label once ytmd is gone, however the app was deleted.
 func newLaunchAgent(home string, uid int, run runner) fileEntry {
 	target := "gui/" + strconv.Itoa(uid) + "/" + label
 	path := filepath.Join(home, "Library", "LaunchAgents", label+".plist")
@@ -34,12 +30,10 @@ func newLaunchAgent(home string, uid int, run runner) fileEntry {
 	}
 }
 
-// The plist's ProgramArguments are sh, -c, the script, then ytmd, which sh
-// gives the script as $0: the path is never parsed as shell, whatever it
-// holds. The script names the plist by the absolute path this package
-// writes, single-quoted, rather than by ~: it removes that very file
-// whatever HOME launchd gives sh, and a home moved is a plist Repair
-// rewrites. launchctl and id are found on launchd's default PATH.
+// The plist runs sh -c script with ytmd as $0, so the path is never parsed
+// as shell. The script names the plist by its absolute path, single-quoted,
+// not by ~, whatever HOME launchd gives sh (Repair rewrites a moved home's).
+// launchctl and id are on launchd's default PATH.
 const (
 	plistHead = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

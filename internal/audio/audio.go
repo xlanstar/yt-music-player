@@ -25,9 +25,9 @@ type Media struct {
 	Header http.Header
 }
 
-// Engine plays one stream at a time. Call its methods from the UI thread.
-// It reports through the events function given to New, never from within
-// one of its own methods.
+// Engine plays one stream at a time. Call its methods from one goroutine,
+// ytmd's loop. It reports through the events function given to New, never
+// from within one of its own methods.
 type Engine interface {
 	// Load replaces the stream, starting at seconds, paused until Play.
 	// Loads are numbered from 1; their events carry that number.

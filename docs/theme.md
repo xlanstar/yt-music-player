@@ -11,7 +11,9 @@ Your own themes are JSON files in its `themes/` directory, listed by file name. 
 - `type` (6–96) and `radius` (0–999): sizes in DIPs, named likewise; `unit` (2–8, 4 by default): the spacing unit, in DIPs, which every gap and padding is a multiple of.
 - `layout`: `sidebar` and `panel` (`left`, `right`, `hidden`), `playerBar` (`bottom`, `top`), `density` (`comfortable`, `compact`), `sizes` (`row`, `rowArt`, `card`, `smallCard`, `cell`) and `regions` (`sidebar`, `panel`, `player`, `header`, `gutter`, `page`, `panelRadius`).
 
-Colors are `#RGB`, `#RRGGBB`, `#RRGGBBAA` or `oklch(L C H)` with an optional `/ A`; colors outside sRGB are clamped into it. The player is always dark, as album art brings the color: a seed's base is darkened to it, and text too dim to keep 4.5:1 on the surfaces is lightened; surfaces too light for any text to keep it are rejected. Unknown fields, bad colors and sizes out of bounds are errors, which Appearance shows by the file, and the default theme is used instead.
+Colors are `#RGB`, `#RRGGBB`, `#RRGGBBAA` or `oklch(L C H)` with an optional `/ A`, clamped into sRGB. The player is always dark, as album art brings the color: a seed's base is darkened, text too dim to keep 4.5:1 on the surfaces is lightened, and surfaces too light for any text to keep it are rejected.
+
+Unknown fields, bad colors, sizes out of bounds and translucent surfaces or text are errors, which Appearance shows by the file, and the default theme is used instead.
 
 Example ([`internal/theme/testdata/dusk.json`](../internal/theme/testdata/dusk.json)):
 

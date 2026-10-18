@@ -35,12 +35,10 @@ type Handler struct {
 	Link func(Link)
 }
 
-// Client is a front-end's end of the daemon's socket. Without a
-// connection, every call fails with api.ErrDisconnected.
-//
-// Its methods are safe for concurrent use. Those that take a ctx block
-// until the reply, so run them off the UI thread; when ctx ends first
-// they return ctx.Err() and tell the daemon to cancel.
+// Client is a front-end's end of the daemon's socket; without a connection,
+// every call fails with api.ErrDisconnected. Its methods are safe for
+// concurrent use. Those taking a ctx, Go aside, block until the reply (run
+// them off the UI thread) or, ctx ending first, cancel and return ctx.Err().
 type Client struct {
 	post func(func())
 	h    Handler

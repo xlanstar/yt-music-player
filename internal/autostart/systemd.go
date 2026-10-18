@@ -7,10 +7,9 @@ import (
 )
 
 // newSystemdUnit is Linux's entry: a user unit in config/systemd/user
-// (config is XDG_CONFIG_HOME) that default.target wants, so the user's
-// manager starts it at the next login. Restart=no, or systemd would start
-// the daemon again after `ytm daemon stop`. ConditionPathExists has systemd
-// skip the unit, which is no failure, once ytmd is gone with the app.
+// (XDG_CONFIG_HOME) that default.target wants, started at the next login.
+// Restart=no, or systemd would restart ytmd after `ytm daemon stop`;
+// ConditionPathExists skips it, without failing, once ytmd is gone.
 func newSystemdUnit(config string, run runner) fileEntry {
 	return fileEntry{
 		path:   filepath.Join(config, "systemd", "user", unitName),

@@ -51,11 +51,10 @@ func TestRecord(t *testing.T) {
 	t.Run("library", recordLibrary)
 }
 
-// recordLibrary smoke-tests the signed-in calls live with the account in
-// YTM_COOKIE. It writes no fixtures: signed-in responses hold personal
-// data no trimming reliably removes, so testdata/signed_in is written by
-// hand. It logs only counts and shapes, never names, the user's own IDs
-// or the cookie, and never changes the account (no Like).
+// recordLibrary smoke-tests the signed-in calls live with YTM_COOKIE's
+// account. It writes no fixtures, as no trimming reliably removes personal
+// data (testdata/signed_in is hand-written). It logs only counts and shapes,
+// never names, the user's own IDs or the cookie, and changes nothing (no Like).
 func recordLibrary(t *testing.T) {
 	cookie := os.Getenv("YTM_COOKIE")
 	if cookie == "" {

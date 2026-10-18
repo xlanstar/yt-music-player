@@ -20,11 +20,9 @@ func songs5000() ([]string, []catalog.Song) {
 	return ids, songs
 }
 
-// encodeCases are frames a daemon sends often (state) or large: a queue's
-// snapshot and a playlist of 5000 songs. limit holds allocations per steady
-// Encode, the stream's types already sent. 0.1 rather than 0: gob keeps
-// its buffers in a sync.Pool, which a GC under load empties, so one call
-// in twenty may refill it.
+// encodeCases are frames a daemon sends often (state) or large. limit holds
+// allocations per steady Encode, types already sent: 0.1, not 0, as a GC
+// under load empties gob's buffer sync.Pool, which a call may refill.
 var encodeCases = []struct {
 	name  string
 	frame func() *Frame

@@ -159,11 +159,10 @@ func thumbnail(c *ui.Context, box ui.Element, art catalog.Art, w float32) *ui.Bi
 // out at, 0 while the first is measured.
 var stretchedWidths = map[catalog.Art]float32{}
 
-// stretchedWidth returns box's width in the last frame, else that of
-// art's last stretched cover, as on a page shown again. Grid cells are
-// 150 to 340 DIPs wide, so a guess would fetch twice or blur: a new cover
-// asks for one more frame to measure it and returns 0 meanwhile. Only
-// once per art, so a cover never laid out can't draw frames forever.
+// stretchedWidth returns box's width in the last frame, else art's last
+// stretched one. A guess would fetch twice or blur, so a new cover returns 0
+// and asks for a frame to measure it, once per art: one never laid out
+// can't draw frames forever.
 func stretchedWidth(c *ui.Context, box ui.Element, art catalog.Art) float32 {
 	if w := box.LayoutBounds().W; w > 0 {
 		// Clearing bounds the map in a long session.
@@ -259,11 +258,10 @@ func (cv cover) paint(p *ui.Painter, r ui.Rect, radius float32) {
 	p.FillGradient(r, sheen, radius)
 }
 
-// clips reports whether cv, painted side DIPs square and rounded by
-// radius, clips its motif. Only a cover that doesn't may be posed or
-// transformed: a moved clip is drawn through a mask texture. Dots stay
-// inside a square cover; stripes are shaded as a fill. A shown thumbnail
-// clips nothing, so for one this errs toward true.
+// clips reports whether cv, painted side DIPs square and rounded by radius,
+// clips its motif. Only a cover that doesn't may be posed or transformed: a
+// moved clip is drawn through a mask texture. For a shown thumbnail, which
+// clips nothing, it errs toward true.
 func (cv cover) clips(radius, side float32) bool {
 	dotsInside := cv.motif == motifDots && min(radius, side/2) < side*0.2
 	return !dotsInside && cv.motif != motifStripes

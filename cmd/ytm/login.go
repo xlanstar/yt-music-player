@@ -148,11 +148,9 @@ const (
 	keyDelete    = 0x7f // what Backspace sends on most terminals
 )
 
-// readHidden reads one line from a terminal in raw mode, at most limit
-// bytes: raw, because the line discipline of a cooked terminal cuts lines
-// at 1 KiB on macOS, shorter than most Cookie headers. A longer line is
-// read to its end, so that its rest does not reach the shell, and
-// refused.
+// readHidden reads one line of at most limit bytes from a terminal in raw
+// mode: a cooked one cuts lines at 1 KiB on macOS, shorter than most Cookie
+// headers. A longer line is read to its end, kept from the shell, and refused.
 func readHidden(r io.Reader, limit int) (string, error) {
 	br := bufio.NewReader(r)
 	line := make([]byte, 0, 4096)

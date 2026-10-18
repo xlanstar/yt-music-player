@@ -8,11 +8,9 @@ import (
 	"testing"
 )
 
-// Allocs fails t when f allocates more than limit times per call, averaged
-// over runs calls. Set limit a little above today's count so dependency
-// noise passes but a real regression does not. Unlike testing.AllocsPerRun,
-// which divides as integers, the average keeps its fraction: an allocation
-// every few calls (a slice growing) counts.
+// Allocs fails t when f allocates more than limit (a little above today's
+// count) times per call, averaged over runs calls, keeping the fraction
+// testing.AllocsPerRun drops: an allocation every few calls counts.
 func Allocs(t *testing.T, limit float64, runs int, f func()) {
 	t.Helper()
 	if got := measure(t, runs, f).Allocs; got > limit {

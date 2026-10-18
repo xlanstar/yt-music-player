@@ -71,11 +71,10 @@ func oldFrames() []oldFrame {
 	}
 }
 
-// TestBootstrapFrozen holds that peers of any Proto still hand off.
-// testdata/bootstrap-proto1.hex, never changed, is what a Proto 1 peer sent
-// of bootstrapFrames, the types of its whole Frame first: today's Frame
-// must read it (which fails too when any field of Frame changes type), and
-// an old peer must read today's stream alike.
+// TestBootstrapFrozen holds that peers of any Proto still hand off: today's
+// Frame reads testdata/bootstrap-proto1.hex, a Proto 1 peer's bootstrapFrames
+// never to change (failing too when a Frame field changes type), and an old
+// peer reads today's stream.
 func TestBootstrapFrozen(t *testing.T) {
 	text, err := os.ReadFile("testdata/bootstrap-proto1.hex")
 	if err != nil {

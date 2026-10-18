@@ -190,11 +190,10 @@ func (s Source) None(t testing.TB, idle func(), wait time.Duration) {
 	})
 }
 
-// Decoded returns n songs shaped as a Source decoding YouTube Music's
-// pages gives them, every string a copy of its own: 11-character IDs and
-// covers of about 130 bytes; seven in ten from albums of about three of
-// the songs, with their album's cover, the rest videos with covers of
-// their own; artists of about four.
+// Decoded returns n songs as a Source decoding YouTube Music's pages gives
+// them, every string its own copy: seven in ten from albums of about three,
+// with the album's cover, the rest videos with their own; artists of about
+// four.
 func Decoded(n int) []catalog.Song {
 	artists, albums := max(n/4, 1), max(n*35/100, 1)
 	songs := make([]catalog.Song, n)

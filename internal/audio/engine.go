@@ -11,11 +11,10 @@ import (
 )
 
 const (
-	// stallMargin: a playing stream with less decoded ahead of it, while
-	// its source has waited stallGrace for the network, is buffering; it
-	// plays again once resumeAhead is decoded, looked at every stallPoll.
-	// Without the grace a seek would stall for a moment every time, and
-	// without the margin a stall would end with every piece of a response.
+	// stallMargin: a playing stream with less decoded ahead, its source waiting
+	// stallGrace for the network, buffers until resumeAhead is, checked every
+	// stallPoll. The grace keeps seeks from stalling; resumeAhead, well above
+	// the margin, keeps a stall from ending with every piece of a response.
 	stallMargin = opusRate / 10
 	stallGrace  = 200 * time.Millisecond
 	resumeAhead = opusRate / 2
@@ -46,12 +45,10 @@ func (o mygoOutput) setVolume(v float64) { o.SetVolume(v) }
 
 func newMyGoOutput(d mygoaudio.Decoder) output { return mygoOutput{mygoaudio.NewPlayer(d)} }
 
-// engine plays WebM Opus streams: an httpSource fetches the file, an
-// opusStream decodes it, and MyGo's audio output plays it, on every
-// system. Its methods come from the UI thread; the stream is opened on a
-// goroutine, and the source, the decoder and timers report from theirs.
-// State is under mu, and events are sent holding it, so that they arrive
-// in order (a stall's Buffering before its Playing): never from a method.
+// engine plays WebM Opus streams through an httpSource, an opusStream and
+// MyGo's audio output. Its methods come from one thread (ytmd's loop); its
+// goroutines and timers send events holding mu, which keeps them in order (a
+// stall's Buffering before its Playing), never from a method.
 type engine struct {
 	events    func(Event)
 	client    *http.Client
@@ -89,7 +86,7 @@ type load struct {
 
 // New returns the engine, fetching through client (nil: http.DefaultClient),
 // which needs no Timeout. events is called from other goroutines and must
-// not call the engine: route them to the UI thread.
+// not call the engine: post them to the caller's loop.
 func New(events func(Event), client *http.Client) (Engine, error) {
 	if client == nil {
 		client = http.DefaultClient

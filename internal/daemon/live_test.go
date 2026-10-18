@@ -3,11 +3,8 @@
 package daemon
 
 // Live check of the daemon over YouTube Music, signed out, playing on the
-// system's output; it plays sound and uses the network, so it never runs
-// with the other tests:
-//
-//	go test -tags audiolive -run LiveDaemon -v ./internal/daemon/
-//
+// system's output, with sound and network:
+// `go test -tags audiolive -run LiveDaemon -v ./internal/daemon/`.
 // LIVE_DAEMON_ID picks the song (a video ID).
 
 import (
