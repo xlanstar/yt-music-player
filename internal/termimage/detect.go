@@ -78,7 +78,7 @@ func ParseOverride(s string) (p Protocol, ok bool) {
 
 // Detect picks the best protocol the terminal shows images with.
 func Detect(e Env, r Replies) Caps {
-	c := Caps{CellW: r.CellW, CellH: r.CellH, Tmux: e.Tmux}
+	c := Caps{CellW: r.CellW, CellH: r.CellH}
 	if p, ok := ParseOverride(e.Override); ok {
 		c.Protocol = p
 		return c

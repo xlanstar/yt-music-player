@@ -64,8 +64,8 @@ func TestDetect(t *testing.T) {
 			if got.Protocol != tc.want {
 				t.Errorf("Detect = %v, want %v", got.Protocol, tc.want)
 			}
-			if got.CellW != tc.r.CellW || got.Tmux != tc.env.Tmux {
-				t.Errorf("Detect = %+v, lost the replies or the env", got)
+			if got.CellW != tc.r.CellW {
+				t.Errorf("Detect = %+v, lost the replies", got)
 			}
 		})
 	}
@@ -120,8 +120,18 @@ func TestPixels(t *testing.T) {
 		{Caps{Protocol: Sixel, CellW: 100, CellH: 200}, 400, 400},
 	}
 	for _, tc := range tests {
-		if w, h := tc.caps.Pixels(4, 2, 256); w != tc.w || h != tc.h {
+		if w, h := tc.caps.Pixels(4, 2); w != tc.w || h != tc.h {
 			t.Errorf("%+v.Pixels(4, 2) = %d×%d, want %d×%d", tc.caps, w, h, tc.w, tc.h)
+		}
+	}
+}
+
+func TestEncode(t *testing.T) {
+	for _, p := range []Protocol{Blocks, Sixel, ITerm2, Kitty} {
+		e, err := Encode(cover(64), Caps{Protocol: p}, 4, 2, 176, false)
+		isOverlay := p == Sixel || p == ITerm2
+		if err != nil || len(e.Lines) != 2 || (e.Upload != "") != (p == Kitty) || (e.Overlay != "") != isOverlay {
+			t.Errorf("Encode(%v) = %d lines, upload %t, overlay %t (%v)", p, len(e.Lines), e.Upload != "", e.Overlay != "", err)
 		}
 	}
 }
@@ -303,8 +313,5 @@ func TestPassthrough(t *testing.T) {
 func TestProtocolString(t *testing.T) {
 	if Kitty.String() != "kitty" || Protocol(9).String() != "Protocol(9)" {
 		t.Errorf("String = %q, %q", Kitty.String(), Protocol(9).String())
-	}
-	if !Sixel.IsOverlay() || Kitty.IsOverlay() {
-		t.Error("IsOverlay: Sixel and iTerm2 only")
 	}
 }

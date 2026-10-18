@@ -23,8 +23,6 @@ const (
 	coverRows = 2
 	// coverMinWidth is the narrowest terminal that shows covers.
 	coverMinWidth = 40
-	// maxCoverPixels bounds what Kitty and iTerm2 get, which they scale.
-	maxCoverPixels = 256
 	// probeWait is how long a terminal has to answer the probe.
 	probeWait = time.Second
 	// overlayDelay lets the frame that blanked an overlay's cells out
@@ -51,12 +49,10 @@ const (
 	numSlots
 )
 
-// coverKey is a cover at a size, in a protocol, whose pixels w×h are.
+// coverKey is a cover in a protocol, at the size of coverRows cells.
 type coverKey struct {
-	url        string
-	p          termimage.Protocol
-	cols, rows int
-	w, h       int
+	url  string
+	caps termimage.Caps
 }
 
 // placement is a cover a render placed at cell x, y; its zero value is none.
@@ -65,26 +61,16 @@ type placement struct {
 	x, y int
 }
 
-// cover is a cover encoded for the terminal, or being encoded.
+// cover is a cover encoded for the terminal, or being encoded; its
+// Upload goes once sent.
 type cover struct {
-	key coverKey
-	// lines are what its cells show: blocks, Kitty's placeholders, or an
-	// overlay's blank.
-	lines []string
-	// seq is an overlay's image, kept to draw again, or Kitty's upload,
-	// dropped once sent.
-	seq   string
+	termimage.Encoded
+	key   coverKey
 	frame uint64
 	// srcPx is the width of the image encoded, or being encoded.
 	srcPx   int
 	isReady bool
 	job     job.Job
-}
-
-// encoded is what an encoding job returns.
-type encoded struct {
-	lines []string
-	seq   string
 }
 
 type probeTimeoutMsg struct{}
@@ -207,22 +193,21 @@ func (g *gfx) place(s slot, x, y int, art catalog.Art) []string {
 	if g.caps.Protocol == termimage.None || !art.IsURL() {
 		return nil
 	}
-	w, h := g.caps.Pixels(g.cols, coverRows, maxCoverPixels)
-	key := coverKey{url: string(art), p: g.caps.Protocol, cols: g.cols, rows: coverRows, w: w, h: h}
+	key := coverKey{url: string(art), caps: g.caps}
 	i := g.claim(key)
 	c := &g.covers[i]
 	c.frame = g.frame
 	g.placed[s] = placement{key: key, x: x, y: y}
 	// Get may give another size while this one loads: a larger one, once
 	// it came, encodes again.
-	if px := max(w, h); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
+	if px := max(g.caps.Pixels(g.cols, coverRows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
 		if img := g.art.Get(key.url, px); img != nil && img.RGBA.Rect.Dx() > c.srcPx {
 			c.srcPx = img.RGBA.Rect.Dx()
 			g.encode(c, img.RGBA, kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
 	}
 	if c.isReady {
-		return c.lines
+		return c.Lines
 	}
 	return g.blank
 }
@@ -247,15 +232,15 @@ func (g *gfx) claim(key coverKey) int {
 
 // encode encodes img for c off the UI thread.
 func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
-	key, tmux := c.key, g.caps.Tmux
-	job.Run(&c.job, g.post, func(context.Context) (encoded, error) {
-		return encodeCover(img, key, id, tmux)
-	}, func(e encoded, err error) {
+	key, cols, tmux := c.key, g.cols, g.env.Tmux
+	job.Run(&c.job, g.post, func(context.Context) (termimage.Encoded, error) {
+		return termimage.Encode(img, key.caps, cols, coverRows, id, tmux)
+	}, func(e termimage.Encoded, err error) {
 		if err != nil {
-			log.Debug().Err(err).Stringer("protocol", key.p).Msg("tui: cover not encoded")
-			e.lines = g.blank
+			log.Debug().Err(err).Stringer("protocol", key.caps.Protocol).Msg("tui: cover not encoded")
+			e.Lines = g.blank
 		}
-		c.lines, c.seq, c.isReady = e.lines, e.seq, true
+		c.Encoded, c.isReady = e, true
 		for s := range g.drawn {
 			if g.drawn[s].key == key {
 				// An overlay encoded again draws again.
@@ -263,25 +248,6 @@ func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
 			}
 		}
 	})
-}
-
-func encodeCover(src *image.RGBA, k coverKey, id uint8, tmux bool) (encoded, error) {
-	img := termimage.Fill(src, k.w, k.h)
-	switch k.p {
-	case termimage.Blocks:
-		return encoded{lines: termimage.BlockLines(img)}, nil
-	case termimage.Kitty:
-		return encoded{
-			lines: termimage.KittyCells(id, k.cols, k.rows),
-			seq:   termimage.KittyUpload(img, id, k.cols, k.rows, tmux),
-		}, nil
-	case termimage.Sixel:
-		return encoded{lines: termimage.OverlayCells(k.cols, k.rows), seq: termimage.SixelImage(img)}, nil
-	case termimage.ITerm2:
-		seq, err := termimage.ITerm2Image(img, k.cols, k.rows, tmux)
-		return encoded{lines: termimage.OverlayCells(k.cols, k.rows), seq: seq}, err
-	}
-	return encoded{}, nil
 }
 
 // clip moves the placements up by cut lines, as render cuts its top,
@@ -299,31 +265,33 @@ func (g *gfx) clip(cut int) {
 // commit sends, after a render, what the renderer cannot: Kitty's new
 // uploads at once, overlays a few frames later.
 func (g *gfx) commit() tea.Cmd {
-	switch p := g.caps.Protocol; {
-	case p == termimage.Kitty:
+	switch g.caps.Protocol {
+	case termimage.Kitty:
 		return g.upload()
-	case p.IsOverlay():
+	case termimage.Sixel, termimage.ITerm2:
 		return g.scheduleOverlays()
 	}
 	return nil
 }
 
 func (g *gfx) upload() tea.Cmd {
-	var cmds []tea.Cmd
+	var b strings.Builder
 	for i := range g.covers {
-		c := &g.covers[i]
-		if c.seq != "" && c.frame == g.frame {
-			cmds = append(cmds, tea.Raw(c.seq))
-			c.seq, g.hasUploads = "", true
+		if c := &g.covers[i]; c.Upload != "" && c.frame == g.frame {
+			b.WriteString(c.Upload)
+			c.Upload, g.hasUploads = "", true
 		}
 	}
-	return tea.Batch(cmds...)
+	if b.Len() == 0 {
+		return nil
+	}
+	return tea.Raw(b.String())
 }
 
 func (g *gfx) scheduleOverlays() tea.Cmd {
 	var cur [numSlots]placement
 	for s, p := range g.placed {
-		if c := g.ready(p.key); c != nil && c.seq != "" {
+		if c := g.ready(p.key); c != nil && c.Overlay != "" {
 			cur[s] = p
 		}
 	}
@@ -356,7 +324,7 @@ func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
 	var b strings.Builder
 	for s, p := range g.want {
 		if c := g.ready(p.key); c != nil && p != g.drawn[s] {
-			b.WriteString(termimage.Overlay(c.seq, p.x, p.y))
+			b.WriteString(termimage.Overlay(c.Overlay, p.x, p.y))
 		}
 	}
 	g.drawn = g.want
@@ -371,24 +339,21 @@ func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
 func (g *gfx) trimOverlays() {
 	total := 0
 	for i := range g.covers {
-		total += len(g.covers[i].seq)
+		total += len(g.covers[i].Overlay)
 	}
 	for i := range g.covers {
 		c := &g.covers[i]
 		if total <= overlayBytes {
 			return
 		}
-		if c.frame != g.frame && c.seq != "" {
-			total -= len(c.seq)
+		if c.frame != g.frame && c.Overlay != "" {
+			total -= len(c.Overlay)
 			*c = cover{}
 		}
 	}
 }
 
 func (g *gfx) ready(key coverKey) *cover {
-	if key == (coverKey{}) {
-		return nil
-	}
 	for i := range g.covers {
 		if c := &g.covers[i]; c.key == key && c.isReady {
 			return c
@@ -420,7 +385,7 @@ func (g *gfx) close() string {
 		g.covers[i].job.Stop()
 		if g.hasUploads {
 			// q=2: an id never sent is no error.
-			b.WriteString(termimage.KittyDelete(kittyBase+uint8(i), g.caps.Tmux))
+			b.WriteString(termimage.KittyDelete(kittyBase+uint8(i), g.env.Tmux))
 		}
 	}
 	return b.String()
