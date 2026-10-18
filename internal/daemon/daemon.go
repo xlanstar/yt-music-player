@@ -252,6 +252,13 @@ func (s *Service) stop(resumeBefore time.Time) {
 }
 
 func (s *Service) finish() {
+	// Saved and unlistened already: a hand-off's next ytmd, started once the
+	// asker's connection ends, must not find the lock held while others flush.
+	if s.lock != nil {
+		if err := s.lock.Unlock(); err != nil {
+			log.Debug().Err(err).Msg("unlock")
+		}
+	}
 	s.mu.Lock()
 	s.closed = true
 	live := make([]*ipc.Conn, 0, len(s.live))
@@ -266,10 +273,5 @@ func (s *Service) finish() {
 	}
 	wg.Wait()
 	cancel()
-	if s.lock != nil {
-		if err := s.lock.Unlock(); err != nil {
-			log.Debug().Err(err).Msg("unlock")
-		}
-	}
 	close(s.done)
 }

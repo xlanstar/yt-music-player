@@ -4,6 +4,10 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ## [Unreleased]
 
+### Fixed
+
+- After an update, music keeps playing even while another window or `ytm` is slow to let go of the old background player.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added

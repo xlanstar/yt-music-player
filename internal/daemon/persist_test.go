@@ -195,6 +195,36 @@ func TestHandoff(t *testing.T) {
 	}
 }
 
+// TestHandoffUnlocksFirst: the asker's next ytmd finds the lock free while
+// a stalled front-end still holds up the flush.
+func TestHandoffUnlocksFirst(t *testing.T) {
+	path := filepath.Join(shortDir(t), "ytmd.lock")
+	lock, err := ipc.TryLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := newHarness(t, Options{})
+	h.svc.lock = lock
+	// Greets, then never reads: the daemon's hello to it never leaves.
+	ours, theirs := net.Pipe()
+	t.Cleanup(func() { _ = ours.Close() })
+	go h.svc.Serve(theirs)
+	if err := ipc.NewConn(ours).Send(api.Frame{Hello: &api.Hello{Proto: api.Proto, Role: api.RoleTUI}}); err != nil {
+		t.Fatal(err)
+	}
+	c := h.connect(false)
+	for n := 0; n < 2; {
+		h.do(func() { n = len(h.svc.conns) })
+	}
+	c.call(api.Call{Method: api.MethodHandoff, Hand: &api.HandoffArgs{Wait: 5 * time.Second}})
+	c.closed()
+	next, err := ipc.TryLock(path)
+	if err != nil {
+		t.Fatalf("lock after the hand-off: %v", err)
+	}
+	_ = next.Unlock()
+}
+
 func TestHandoffTooLate(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "daemon.json")
 	h := newHarness(t, Options{State: path})

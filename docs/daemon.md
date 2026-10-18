@@ -38,9 +38,9 @@ Each binary's `TestDeps` (and `session`'s) holds the last column; the test binar
 
 **On demand.** A front-end that cannot connect, whatever the failure, starts ytmd, then dials every 50 ms for up to 5 s. It looks for ytmd at `$YTMD_PATH`, else beside itself, symlinks resolved: `ytmd` (`ytmd.exe`), on macOS in `Contents/Resources/YT Music Player Helper.app`. ytmd starts detached, its streams on the null device, in its own directory, with the front-end's environment.
 
-**Single instance.** ytmd takes the lock without waiting, or exits 0 when another holds it; loads `daemon.json`; listens, removing a stale socket; resumes after a hand-off; fetches the account, library and likes. The OS releases the lock with the process.
+**Single instance.** ytmd takes the lock without waiting, or exits 0 when another holds it; loads `daemon.json`; listens, removing a stale socket; resumes after a hand-off; fetches the account, library and likes. Stopping releases the lock, else the OS does with the process.
 
-**Stopping.** Only `ytm daemon stop`, Desktop's *Quit and Stop Playback*, a `Shutdown` request, SIGTERM or SIGINT stop ytmd, never idleness: it pauses, saves, closes the engine, removes the socket and flushes its connections for up to 1 s. Windows has no SIGTERM and kills a windowless process at logout, losing only what [Saved state](#saved-state) had not yet written.
+**Stopping.** Only `ytm daemon stop`, Desktop's *Quit and Stop Playback*, a `Shutdown` request, SIGTERM or SIGINT stop ytmd, never idleness: it pauses, saves, closes the engine, removes the socket, unlocks, then flushes its connections for up to 1 s. Windows has no SIGTERM and kills a windowless process at logout, losing only what [Saved state](#saved-state) had not yet written.
 
 ## Versions and hand-off
 
