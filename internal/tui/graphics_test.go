@@ -158,8 +158,11 @@ func TestCoverKitty(t *testing.T) {
 	if raws := h.run(h.press("tab")); len(raws) != 0 {
 		t.Errorf("a render sent %q again", raws)
 	}
-	if got := h.m.gfx.close(); got != termimage.KittyDelete(176, false) {
-		t.Errorf("close = %q, want image 176 deleted", got)
+	// Another cover takes the slot: image 176 stays the terminal's.
+	h.m.gfx.covers[0] = cover{}
+	if got := h.m.gfx.close(); !strings.HasPrefix(got, termimage.KittyDelete(176, false)) ||
+		!strings.HasSuffix(got, termimage.KittyDelete(176+numCovers-1, false)) {
+		t.Errorf("close = %q, want images 176 to %d deleted", got, 176+numCovers-1)
 	}
 }
 

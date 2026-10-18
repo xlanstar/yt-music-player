@@ -73,10 +73,10 @@ type cover struct {
 	lines []string
 	// seq is an overlay's image, kept to draw again, or Kitty's upload,
 	// dropped once sent.
-	seq             string
-	frame           uint64
-	isReady, isSent bool
-	job             job.Job
+	seq     string
+	frame   uint64
+	isReady bool
+	job     job.Job
 }
 
 // encoded is what an encoding job returns.
@@ -107,7 +107,10 @@ type gfx struct {
 
 	covers [numCovers]cover
 	frame  uint64
-	placed [numSlots]placement
+	// hasUploads holds once a Kitty image went, whose id a cover taken
+	// for another may never send again.
+	hasUploads bool
+	placed     [numSlots]placement
 	// drawn are the overlays the terminal shows, want those it should:
 	// while they differ, an overlayMsg of gen will draw them.
 	drawn, want [numSlots]placement
@@ -298,9 +301,9 @@ func (g *gfx) upload() tea.Cmd {
 	var cmds []tea.Cmd
 	for i := range g.covers {
 		c := &g.covers[i]
-		if c.isReady && !c.isSent && c.seq != "" && c.frame == g.frame {
+		if c.seq != "" && c.frame == g.frame {
 			cmds = append(cmds, tea.Raw(c.seq))
-			c.seq, c.isSent = "", true
+			c.seq, g.hasUploads = "", true
 		}
 	}
 	return tea.Batch(cmds...)
@@ -403,9 +406,9 @@ func (g *gfx) close() string {
 	}
 	var b strings.Builder
 	for i := range g.covers {
-		c := &g.covers[i]
-		c.job.Stop()
-		if c.isSent {
+		g.covers[i].job.Stop()
+		if g.hasUploads {
+			// q=2: an id never sent is no error.
 			b.WriteString(termimage.KittyDelete(kittyBase+uint8(i), g.caps.Tmux))
 		}
 	}
