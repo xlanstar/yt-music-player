@@ -2,6 +2,7 @@ package artwork
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -229,6 +230,20 @@ func TestFailureIsCachedForAWhile(t *testing.T) {
 			t.Errorf("fetched %d times after a minute, want 2", n)
 		}
 	})
+}
+
+func TestFailuresAreBounded(t *testing.T) {
+	l := offlineLoader(t, 0)
+	failed := errors.New("artwork: offline")
+	for i := range 3 * maxFailed {
+		l.finish(key{coverURL(i), 96}, nil, failed)
+	}
+	l.mu.Lock()
+	n := len(l.failed)
+	l.mu.Unlock()
+	if n == 0 || n > maxFailed {
+		t.Errorf("%d failures kept, want 1 to %d", n, maxFailed)
+	}
 }
 
 func TestMemoryBudgetEvictsLeastRecentlyUsed(t *testing.T) {

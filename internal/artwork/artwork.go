@@ -32,8 +32,9 @@ const (
 	// maxQueue bounds pending loads, as scrolling a long list asks for
 	// every cover it passes. The oldest are dropped; scrolling back asks
 	// again.
-	maxQueue = 128
-	maxBody  = 16 << 20
+	maxQueue  = 128
+	maxBody   = 16 << 20
+	maxFailed = 1 << 12
 )
 
 // Options configure a Loader.
@@ -277,6 +278,11 @@ func (l *Loader) finish(k key, img *Image, err error) {
 	switch {
 	case l.isClosed || errors.Is(err, context.Canceled):
 	case err != nil:
+		// Bounds the failures of a long session, kept until asked again:
+		// those cleared are only tried again sooner.
+		if len(l.failed) >= maxFailed {
+			clear(l.failed)
+		}
 		l.failed[k] = time.Now().Add(l.opts.FailFor)
 	default:
 		e := &entry{key: k, img: img, shownFrame: l.frame}
