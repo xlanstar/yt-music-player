@@ -110,7 +110,7 @@ type ytVariant struct {
 }
 
 var ytVariants = [...]ytVariant{
-	{"default", 67, true},
+	{"default", 68, true},
 	{"mqdefault", 180, true},
 	{"hqdefault", 270, true},
 	{"sddefault", 360, false},

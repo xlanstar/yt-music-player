@@ -367,6 +367,7 @@ func realCover(tb testing.TB, px int) *image.RGBA {
 }
 
 // TestEncodeSums holds every protocol's bytes, which optimizations keep.
+// iTerm2's pin image/jpeg's output too: a Go upgrade may move them.
 func TestEncodeSums(t *testing.T) {
 	sources := []struct {
 		name string

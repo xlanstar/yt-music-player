@@ -40,8 +40,10 @@ func TestSizedURL(t *testing.T) {
 		{vi + "maxresdefault.jpg", 320, vi + "sddefault.jpg"},
 		{vi + "sddefault.jpg", 128, vi + "mqdefault.jpg"},
 		{"https://i.ytimg.com/vi_webp/ZXhwXhv37Ps/hqdefault.webp", 96, "https://i.ytimg.com/vi_webp/ZXhwXhv37Ps/mqdefault.webp"},
-		// default's still is 67 px high once its bars are trimmed.
+		// default's still is 68 px high once its bars are trimmed (90 - 2·11).
 		{vi + "default.jpg", 64, vi + "default.jpg"},
+		{vi + "default.jpg", 68, vi + "default.jpg"},
+		{vi + "default.jpg", 69, vi + "mqdefault.jpg"},
 		{vi + "default.jpg", 80, vi + "mqdefault.jpg"},
 		{vi + "hqdefault.jpg", 64, vi + "default.jpg"},
 		// hq720 is maxresdefault's size, and as rare.
