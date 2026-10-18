@@ -31,7 +31,7 @@ func installDirs() []string {
 	}
 	dirs := []string{"/opt/homebrew/bin", "/usr/local/bin"}
 	if home, err := os.UserHomeDir(); err == nil {
-		dirs = append(dirs, filepath.Join(home, ".local", "bin"))
+		dirs = append(dirs, filepath.Join(home, ".local", "bin"), filepath.Join(home, ".deno", "bin"))
 	}
 	return append(dirs, "/opt/local/bin")
 }

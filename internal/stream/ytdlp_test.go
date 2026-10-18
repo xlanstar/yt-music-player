@@ -146,14 +146,14 @@ func TestIsFinal(t *testing.T) {
 }
 
 // launchd starts ytmd on /usr/bin:/bin:/usr/sbin:/sbin, without where
-// Homebrew or pipx put yt-dlp and the JS runtimes it runs.
+// Homebrew, pipx or Deno's installer put yt-dlp and the JS runtimes it runs.
 func TestSearchPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("PATH alone on Windows")
 	}
 	t.Setenv("HOME", "/home/u")
 	t.Setenv("PATH", "/usr/bin:/usr/local/bin")
-	want := []string{"/usr/bin", "/usr/local/bin", "/opt/homebrew/bin", "/home/u/.local/bin", "/opt/local/bin"}
+	want := []string{"/usr/bin", "/usr/local/bin", "/opt/homebrew/bin", "/home/u/.local/bin", "/home/u/.deno/bin", "/opt/local/bin"}
 	if got := searchPath(); !slices.Equal(got, want) {
 		t.Errorf("searchPath = %q, want %q", got, want)
 	}
@@ -217,7 +217,7 @@ func TestYTDLPEnvironment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("yt-dlp did not run: %v", err)
 	}
-	want := dir + ":/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin:/home/u/.local/bin:/opt/local/bin"
+	want := dir + ":/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin:/home/u/.local/bin:/home/u/.deno/bin:/opt/local/bin"
 	if string(got) != want {
 		t.Errorf("yt-dlp's PATH = %q, want %q", got, want)
 	}
