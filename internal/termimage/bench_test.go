@@ -24,12 +24,12 @@ var encodeCases = []encodeCase{
 	{"iterm2/cover80", encodeITerm2, 80, false, 17},
 	// 14 allocs today.
 	{"iterm2/real160", encodeITerm2, 160, true, 17},
-	// 10 allocs today: Fill's 2, the placeholders' 5, the upload's 2 and
-	// the box.
+	// 8 allocs today: the placeholders' 5, the upload's 2 and the box;
+	// Fill keeps an image of the size.
 	{"encode/kitty-real80", func(m *image.RGBA) any {
 		e, _ := Encode(m, Caps{Protocol: Kitty, CellW: 20, CellH: 40}, 4, 2, 176, false)
 		return e
-	}, 80, true, 12},
+	}, 80, true, 10},
 	// 4 allocs today: the color indexes, a band's sixels, the string, grown
 	// once, and its box in any.
 	{"sixel/cover80", encodeSixel, 80, false, 5},

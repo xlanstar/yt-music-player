@@ -159,6 +159,9 @@ func TestFill(t *testing.T) {
 	if got := Fill(quad, 1, 1).RGBAAt(0, 0); got.R != 64 {
 		t.Errorf("Fill to 1×1 = %v, want the mean, 64", got)
 	}
+	if m := solid(3, 3, red); Fill(m, 3, 3) != m {
+		t.Error("Fill to its own size copied")
+	}
 	// Up, each pixel repeats.
 	if got := Fill(solid(1, 1, red), 3, 3).RGBAAt(2, 2); got != red {
 		t.Errorf("Fill up = %v, want %v", got, red)
