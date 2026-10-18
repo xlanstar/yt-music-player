@@ -103,6 +103,16 @@ func TestBudgetFetch(t *testing.T) {
 	})
 }
 
+func TestBudgetPrune(t *testing.T) {
+	if budget.Race {
+		t.Skip("budgets skip under -race")
+	}
+	d := fullDisk(t, cachedFiles)
+	// 10832 allocs, 1.66 MB today: ReadDir's entries, each file's info and
+	// path, and the list of them.
+	budget.Within(t, budget.Cost{Allocs: 12460, Bytes: 1.91e6}, 3, d.prune)
+}
+
 func TestBudgetLoad(t *testing.T) {
 	data := benchFile()["jpeg/544"]
 	l := New(Options{Client: &http.Client{Transport: memoryTransport(data)}})

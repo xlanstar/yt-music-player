@@ -408,6 +408,34 @@ func BenchmarkFetch(b *testing.B) {
 	})
 }
 
+// cachedFiles is a full disk cache's count: 128 MB of covers of about
+// 70 KB.
+const cachedFiles = 1800
+
+// fullDisk makes a disk cache of n one-byte files, under its budget.
+func fullDisk(tb testing.TB, n int) *disk {
+	tb.Helper()
+	d := &disk{dir: tb.TempDir(), maxBytes: defaultDiskBytes}
+	for i := range n {
+		if err := os.WriteFile(d.path(coverURL(i)), []byte{1}, 0o600); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	return d
+}
+
+// BenchmarkPrune is the scan a run's first write makes, the cache under
+// its budget.
+func BenchmarkPrune(b *testing.B) {
+	b.Run("under_budget", func(b *testing.B) {
+		d := fullDisk(b, cachedFiles)
+		b.ReportAllocs()
+		for b.Loop() {
+			d.prune()
+		}
+	})
+}
+
 // sharingLoader makes a Loader whose download of u has finished.
 func sharingLoader(tb testing.TB, u string) *Loader {
 	tb.Helper()
