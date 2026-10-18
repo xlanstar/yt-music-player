@@ -1,6 +1,7 @@
 package ytmusic
 
 import (
+	"bytes"
 	"cmp"
 	"encoding/json/v2"
 	"io"
@@ -52,7 +53,7 @@ func readBytes(tb testing.TB, name string) []byte {
 // decoded is a fixture as callWith hands it to the parsers.
 func decoded(tb testing.TB, name string) *response {
 	tb.Helper()
-	v, err := decode(readBytes(tb, name))
+	v, err := decode(bytes.NewReader(readBytes(tb, name)))
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -95,9 +96,11 @@ func BenchmarkDecode(b *testing.B) {
 		data := readBytes(b, name+".json")
 		b.Run(name, func(b *testing.B) {
 			b.SetBytes(int64(len(data)))
+			var r bytes.Reader
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkResponse, sinkErr = decode(data)
+				r.Reset(data)
+				sinkResponse, sinkErr = decode(&r)
 			}
 		})
 	}

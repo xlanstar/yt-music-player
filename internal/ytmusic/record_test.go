@@ -74,11 +74,15 @@ func recordLibrary(t *testing.T) {
 
 	// What the library pages look like, for whoever updates the fixtures.
 	for _, id := range []string{libraryPlaylists, libraryAlbums, libraryArtists, librarySongs} {
-		data, err := c.api.Call(ctx, "browse", map[string]any{"browseId": id})
+		var data []byte
+		err := c.api.Call(ctx, "browse", map[string]any{"browseId": id}, func(r io.Reader) (err error) {
+			data, err = io.ReadAll(r)
+			return err
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp, err := decode(data)
+		resp, err := decode(bytes.NewReader(data))
 		if err != nil {
 			t.Fatal(err)
 		}

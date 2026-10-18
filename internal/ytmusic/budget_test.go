@@ -1,6 +1,7 @@
 package ytmusic
 
 import (
+	"bytes"
 	"cmp"
 	"testing"
 	"yt-music-player/internal/budget"
@@ -8,9 +9,13 @@ import (
 
 func TestBudgetDecode(t *testing.T) {
 	data := readBytes(t, "album.json")
-	// 373 allocs, 28.3 KB today: every response is decoded, its bytes held
-	// until parsed.
-	budget.Within(t, budget.Cost{Allocs: 429, Bytes: 32.6e3}, 20, func() { sinkResponse, sinkErr = decode(data) })
+	var r bytes.Reader
+	// 372 allocs, 28.3 KB today (read whole first: 389, 117 KB): every
+	// response is decoded, its bytes held until parsed.
+	budget.Within(t, budget.Cost{Allocs: 429, Bytes: 32.6e3}, 20, func() {
+		r.Reset(data)
+		sinkResponse, sinkErr = decode(&r)
+	})
 }
 
 func TestBudgetSearchSongs(t *testing.T) {

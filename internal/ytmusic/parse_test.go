@@ -68,7 +68,7 @@ func FuzzParse(f *testing.F) {
 			parseItem(row)
 			ranked([]item{row})
 		}
-		resp, err := decode(data)
+		resp, err := decode(bytes.NewReader(data))
 		if err != nil {
 			return
 		}
@@ -155,7 +155,7 @@ func TestDecodeSkipsChangedFields(t *testing.T) {
 	if bytes.Equal(data, changed) {
 		t.Fatal("nothing changed")
 	}
-	resp, err := decode(changed)
+	resp, err := decode(bytes.NewReader(changed))
 	if err != nil {
 		t.Fatal(err)
 	}

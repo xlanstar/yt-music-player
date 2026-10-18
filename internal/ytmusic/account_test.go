@@ -449,7 +449,7 @@ func TestSignedOutResponse(t *testing.T) {
 			`"params":[{"key":"logged_in","value":"1"}]}]}}`, false},
 		{`{"contents":{}}`, false},
 	} {
-		resp, err := decode([]byte(tc.json))
+		resp, err := decode(strings.NewReader(tc.json))
 		if err != nil {
 			t.Fatal(err)
 		}

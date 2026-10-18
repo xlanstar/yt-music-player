@@ -127,11 +127,12 @@ func (e *StatusError) Unwrap() error {
 }
 
 // Call posts body to endpoint (like "search" or "browse") with the client
-// context added and returns the response body. body is not modified.
-func (c *Client) Call(ctx context.Context, endpoint string, body map[string]any) ([]byte, error) {
+// context added, and hands the body of the response that succeeds to
+// decode, returning its error as is. body is not modified.
+func (c *Client) Call(ctx context.Context, endpoint string, body map[string]any, decode func(io.Reader) error) error {
 	data, err := c.payload(body)
 	if err != nil {
-		return nil, fmt.Errorf("innertube: %s: %w", endpoint, err)
+		return fmt.Errorf("innertube: %s: %w", endpoint, err)
 	}
 	base := c.BaseURL
 	if base == "" {
@@ -147,19 +148,19 @@ func (c *Client) Call(ctx context.Context, endpoint string, body map[string]any)
 		backoff = 500 * time.Millisecond
 	}
 	for attempt := 0; ; attempt++ {
-		resp, wait, err := c.do(ctx, endpoint, url, data)
+		wait, err := c.do(ctx, endpoint, url, data, decode)
 		// Only a 429 or a 5xx may succeed on retry.
 		statusErr, isStatus := errors.AsType[*StatusError](err)
 		if err == nil || attempt >= retries || !isStatus ||
 			statusErr.StatusCode != http.StatusTooManyRequests && statusErr.StatusCode < 500 {
-			return resp, err
+			return err
 		}
 		wait = max(wait, min(backoff<<attempt, maxRetryAfter))
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return nil, fmt.Errorf("innertube: %s: %w (after %w)", endpoint, ctx.Err(), err)
+			return fmt.Errorf("innertube: %s: %w (after %w)", endpoint, ctx.Err(), err)
 		case <-timer.C:
 		}
 	}
@@ -177,10 +178,11 @@ func (c *Client) do(
 	ctx context.Context,
 	endpoint, url string,
 	data []byte,
-) (body []byte, wait time.Duration, err error) {
+	decode func(io.Reader) error,
+) (wait time.Duration, err error) {
 	req, signed, err := c.newRequest(ctx, endpoint, url, data)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	client := c.HTTP
@@ -189,24 +191,29 @@ func (c *Client) do(
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, fmt.Errorf("innertube: %s: %w", endpoint, err)
+		return 0, fmt.Errorf("innertube: %s: %w", endpoint, err)
 	}
 	// The body is read in full, so closing cannot lose anything.
 	defer func() { _ = resp.Body.Close() }()
-	body, err = io.ReadAll(io.LimitReader(resp.Body, maxResponse))
-	if err != nil {
-		return nil, 0, fmt.Errorf("innertube: %s: %w", endpoint, err)
-	}
+	body := io.LimitReader(resp.Body, maxResponse)
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		msg, err := io.ReadAll(body)
+		if err != nil {
+			return 0, fmt.Errorf("innertube: %s: %w", endpoint, err)
+		}
 		statusErr := &StatusError{
 			Endpoint:      endpoint,
 			StatusCode:    resp.StatusCode,
-			Message:       errorMessage(body),
+			Message:       errorMessage(msg),
 			Authenticated: signed,
 		}
-		return nil, retryAfter(resp.Header.Get("Retry-After")), statusErr
+		return retryAfter(resp.Header.Get("Retry-After")), statusErr
 	}
-	return body, 0, nil
+	// Decoded as it is read: io.ReadAll's growing copies were about 3/4 of
+	// a page's allocated bytes.
+	err = decode(body)
+	_, _ = io.Copy(io.Discard, body)
+	return 0, err
 }
 
 func (c *Client) newRequest(

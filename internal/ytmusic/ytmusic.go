@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strings"
@@ -89,15 +90,14 @@ func callWith(
 	endpoint string,
 	body map[string]any,
 ) (*response, error) {
-	data, err := api.Call(ctx, endpoint, body)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := decode(data)
-	if err != nil {
-		return nil, fmt.Errorf("ytmusic: %s: %w", endpoint, err)
-	}
-	return resp, nil
+	var resp *response
+	err := api.Call(ctx, endpoint, body, func(r io.Reader) (err error) {
+		if resp, err = decode(r); err != nil {
+			return fmt.Errorf("ytmusic: %s: %w", endpoint, err)
+		}
+		return nil
+	})
+	return resp, err
 }
 
 // caller is Client.call or, for what needs an account, Client.signedCall.

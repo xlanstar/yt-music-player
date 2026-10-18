@@ -27,6 +27,16 @@ func server(t *testing.T, h http.HandlerFunc) *Client {
 	}
 }
 
+// callBody is Call keeping the response body.
+func callBody(ctx context.Context, c *Client, endpoint string, body map[string]any) ([]byte, error) {
+	var data []byte
+	err := c.Call(ctx, endpoint, body, func(r io.Reader) (err error) {
+		data, err = io.ReadAll(r)
+		return err
+	})
+	return data, err
+}
+
 func TestCallRequest(t *testing.T) {
 	var got struct {
 		method, path, query string
@@ -48,7 +58,7 @@ func TestCallRequest(t *testing.T) {
 		return nil
 	})
 	in := map[string]any{"browseId": "MPREb_x"}
-	out, err := c.Call(t.Context(), "browse", in)
+	out, err := callBody(t.Context(), c, "browse", in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +105,7 @@ func TestCallRetries5xx(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{}`))
 	})
-	if _, err := c.Call(t.Context(), "search", nil); err != nil {
+	if _, err := callBody(t.Context(), c, "search", nil); err != nil {
 		t.Fatal(err)
 	}
 	if n := calls.Load(); n != 3 {
@@ -110,7 +120,7 @@ func TestCallGivesUp(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	})
 	c.Retries = 2
-	_, err := c.Call(t.Context(), "search", nil)
+	_, err := callBody(t.Context(), c, "search", nil)
 	if statusErr, ok := errors.AsType[*StatusError](err); !ok || statusErr.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("err = %v, want a 503 StatusError", err)
 	}
@@ -126,7 +136,7 @@ func TestCallStatusError(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"error":{"code":400,"message":"Request contains an invalid argument."}}`))
 	})
-	_, err := c.Call(t.Context(), "browse", nil)
+	_, err := callBody(t.Context(), c, "browse", nil)
 	statusErr, ok := errors.AsType[*StatusError](err)
 	if !ok {
 		t.Fatalf("err = %v, want a StatusError", err)
@@ -147,7 +157,7 @@ func TestCallCanceledDuringBackoff(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	time.AfterFunc(20*time.Millisecond, cancel)
 	start := time.Now()
-	_, err := c.Call(ctx, "search", nil)
+	_, err := callBody(ctx, c, "search", nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v, want context.Canceled", err)
 	}
@@ -163,7 +173,7 @@ func TestCallCanceledInFlight(t *testing.T) {
 	t.Cleanup(func() { close(release) })
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
 	defer cancel()
-	if _, err := c.Call(ctx, "search", nil); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := callBody(ctx, c, "search", nil); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
 	}
 }
@@ -178,7 +188,7 @@ func TestAuthSigns(t *testing.T) {
 	authorization := func() string { return sent.Load().Get("Authorization") }
 	call := func() {
 		t.Helper()
-		if _, err := c.Call(t.Context(), "browse", nil); err != nil {
+		if _, err := callBody(t.Context(), c, "browse", nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -199,7 +209,7 @@ func TestAuthSigns(t *testing.T) {
 	// A copy, as made for a visitor, shares the credentials.
 	visitorCopy := *c
 	visitorCopy.VisitorID = "v"
-	if _, err := visitorCopy.Call(t.Context(), "browse", nil); err != nil {
+	if _, err := callBody(t.Context(), &visitorCopy, "browse", nil); err != nil {
 		t.Fatal(err)
 	}
 	if cookie := sent.Load().Get("Cookie"); !c.Auth.IsSignedIn() || authorization() != "signed" || cookie != "SOCS=CAI; SID=x" {
@@ -221,8 +231,23 @@ func TestAuthError(t *testing.T) {
 	c := server(t, func(http.ResponseWriter, *http.Request) { t.Error("request sent despite an Auth error") })
 	c.Auth = &Auth{}
 	c.Auth.Set(func(*http.Request) error { return boom })
-	if _, err := c.Call(t.Context(), "browse", nil); !errors.Is(err, boom) {
+	if _, err := callBody(t.Context(), c, "browse", nil); !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want boom", err)
+	}
+}
+
+func TestDecodeError(t *testing.T) {
+	var requests atomic.Int32
+	c := server(t, func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		_, _ = w.Write([]byte(`{}`))
+	})
+	boom := errors.New("boom")
+	if err := c.Call(t.Context(), "browse", nil, func(io.Reader) error { return boom }); !errors.Is(err, boom) {
+		t.Errorf("err = %v, want boom", err)
+	}
+	if n := requests.Load(); n != 1 {
+		t.Errorf("%d requests, want 1: a decode error is not retried", n)
 	}
 }
 
@@ -248,7 +273,7 @@ func TestUnauthorized(t *testing.T) {
 		if tc.signed {
 			c.Auth.Set(func(*http.Request) error { return nil })
 		}
-		_, err := c.Call(t.Context(), "like/like", nil)
+		_, err := callBody(t.Context(), c, "like/like", nil)
 		if statusErr, ok := errors.AsType[*StatusError](err); !ok || statusErr.Authenticated != tc.signed ||
 			errors.Is(err, ErrUnauthorized) != tc.want {
 			t.Errorf("%d signed %v: err = %v, want unauthorized %v", tc.status, tc.signed, err, tc.want)
@@ -292,7 +317,7 @@ func TestAuthSwapRace(t *testing.T) {
 	for range 8 {
 		wg.Go(func() {
 			for range 10 {
-				if _, err := c.Call(t.Context(), "browse", nil); err != nil {
+				if _, err := callBody(t.Context(), c, "browse", nil); err != nil {
 					t.Error(err)
 				}
 			}

@@ -140,6 +140,12 @@ func serveResponse(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(benchResponse)
 }
 
+// discard reads a response as a decoder would, keeping nothing.
+func discard(r io.Reader) error {
+	_, err := io.Copy(io.Discard, r)
+	return err
+}
+
 func BenchmarkCall(b *testing.B) {
 	body := benchBodies[0].body
 	run := func(b *testing.B, c *Client) {
@@ -149,7 +155,7 @@ func BenchmarkCall(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			var err error
-			if sinkBytes, err = c.Call(ctx, "browse", body); err != nil {
+			if err = c.Call(ctx, "browse", body, discard); err != nil {
 				b.Fatal(err)
 			}
 		}

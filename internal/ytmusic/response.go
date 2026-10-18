@@ -4,6 +4,7 @@ import (
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
+	"io"
 	"strings"
 	"yt-music-player/internal/catalog"
 )
@@ -394,9 +395,9 @@ func skipUnless(dec *jsontext.Decoder, want jsontext.Kind) error {
 	return dec.SkipValue()
 }
 
-func decode(data []byte) (*response, error) {
+func decode(r io.Reader) (*response, error) {
 	var resp response
-	if err := json.Unmarshal(data, &resp, lenient); err != nil {
+	if err := json.UnmarshalRead(r, &resp, lenient); err != nil {
 		return nil, err
 	}
 	return &resp, nil
