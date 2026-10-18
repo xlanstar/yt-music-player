@@ -76,13 +76,13 @@ func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 	h.mirror.songs[song.ID] = song
 }
 
-// covered settles until the covers shown loaded and encoded, and returns
-// what went to the terminal meanwhile.
+// covered settles until the page and the covers shown loaded and encoded,
+// and returns what went to the terminal meanwhile.
 func (h *harness) covered() []string {
 	h.t.Helper()
 	raws := h.run(h.send(postedMsg{}))
 	deadline := time.After(5 * time.Second)
-	for h.m.gfx.isBusy() {
+	for h.m.gfx.isBusy() || h.m.loader.IsBusy() {
 		select {
 		case <-h.m.posts.wake:
 			raws = append(raws, h.run(h.send(postedMsg{}))...)
@@ -209,8 +209,7 @@ func TestCoverHeader(t *testing.T) {
 	h := newHarness(t, albumArt{catalog.NewPlaceholderSource(0)})
 	h.withCovers(termimage.Kitty, newCoverHost(t))
 	h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
-	h.send(postedMsg{})
-	h.loaded()
+	// Not loaded(), which would drop an upload made meanwhile.
 	raws := h.covered()
 	// One image: the album's is the song's.
 	if len(raws) != 1 {
