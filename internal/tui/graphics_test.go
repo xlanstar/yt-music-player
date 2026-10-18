@@ -283,6 +283,28 @@ func TestCoverOverlayReturns(t *testing.T) {
 	}
 }
 
+// TestCoverOverlayDropped draws no Sixel image over Kitty's placeholders
+// once the protocol changed before the overlay's frame came.
+func TestCoverOverlayDropped(t *testing.T) {
+	h := placeholderHarness(t)
+	h.withCovers(termimage.Sixel, newCoverHost(t))
+	h.covered()
+	// A resize schedules the overlay again; Kitty comes before its frame.
+	pending := h.send(tea.WindowSizeMsg{Width: 90, Height: 24})
+	h.m.gfx.env.Override = termimage.Kitty.String()
+	raws := h.run(h.send(uv.CellSizeEvent{Width: 10, Height: 20}))
+	raws = append(raws, h.covered()...)
+	raws = append(raws, h.run(pending)...)
+	for _, raw := range raws {
+		if strings.Contains(raw, "\x1bP0;1;0q") {
+			t.Errorf("drew the Sixel image over Kitty's placeholders: %.40q", raw)
+		}
+	}
+	if h.m.gfx.want != ([numSlots]placement{}) {
+		t.Errorf("want = %+v, want no overlay", h.m.gfx.want)
+	}
+}
+
 func TestCoverOff(t *testing.T) {
 	host := newCoverHost(t)
 	h := placeholderHarness(t)

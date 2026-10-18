@@ -276,15 +276,10 @@ func (g *gfx) clip(cut int) {
 }
 
 // commit sends, after a render, what the renderer cannot: Kitty's new
-// uploads at once, overlays a few frames later.
+// uploads at once, overlays a few frames later. Both run whatever the
+// protocol, so one changed drops the overlays of the last.
 func (g *gfx) commit() tea.Cmd {
-	var cmd tea.Cmd
-	switch g.caps.Protocol {
-	case termimage.Kitty:
-		cmd = g.upload()
-	case termimage.Sixel, termimage.ITerm2:
-		cmd = g.scheduleOverlays()
-	}
+	cmd := tea.Batch(g.upload(), g.scheduleOverlays())
 	g.trim()
 	return cmd
 }
