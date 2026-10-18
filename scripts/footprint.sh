@@ -19,6 +19,9 @@
 #                                  window server); about 90 seconds, into
 #                                  perf/footprint-daemon-latest.txt, against
 #                                  perf/footprint-daemon-baseline.txt
+#   scripts/footprint.sh -daemon -live
+#                                  a real ytmd instead, signed out, its
+#                                  engine playing two songs at volume 0
 #   scripts/footprint.sh [-daemon] -update
 #                                  make the latest run the baseline, after a
 #                                  placeholder run of a deliberate change
@@ -27,7 +30,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,24s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,27s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
@@ -43,10 +46,6 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
-# ytmd is measured on the placeholder alone: its fake engine plays with
-# no account, and a real one would sign in from the Keychain, which a home
-# of its own has not.
-[ -z "$daemon" ] || [ -z "$live" ] || usage
 
 latest=perf/footprint-latest.txt
 baseline=perf/footprint-baseline.txt
@@ -185,10 +184,20 @@ if [ -n "$daemon" ]; then
 	} >"$tmp/out.txt"
 
 	# A home of its own: a fresh state (the placeholder's queue, paused),
-	# and no other development ytmd's socket, lock or log.
+	# and no other development ytmd's socket, lock or log. Nor the login
+	# Keychain, whose search list is under $HOME: a real ytmd plays signed
+	# out, never asking for the Desktop's item.
 	mkdir "$tmp/home"
 	HOME=$tmp/home TMPDIR=$tmp
 	export HOME TMPDIR
+	if [ -n "$live" ]; then
+		# A real build has no seed: two songs to play, silently.
+		state="$HOME/Library/Application Support/yt-music-player"
+		mkdir -p "$state"
+		cat >"$state/daemon-dev.json" <<'EOF'
+{"v":1,"queue":["dQw4w9WgXcQ","fJ9rUzIMcZQ"],"order":[0,1],"volume":0,"songs":[{"id":"dQw4w9WgXcQ","title":"Never Gonna Give You Up","artist":"Rick Astley","seconds":213},{"id":"fJ9rUzIMcZQ","title":"Bohemian Rhapsody","artist":"Queen","seconds":359}]}
+EOF
+	fi
 	spawned=1
 	"$ytm" daemon start >/dev/null
 	pid=$(pgrep -f "^$tmp/ytmd\$")
@@ -244,7 +253,7 @@ if [ -n "$daemon" ]; then
 		' "$tmp/mb.txt" >>"$tmp/out.txt"
 	}
 
-	echo "footprint.sh: measuring ytmd (placeholder), about $([ -n "$desktop" ] && echo 90 || echo 50) seconds" >&2
+	echo "footprint.sh: measuring ytmd ($source), about $([ -n "$desktop" ] && echo 90 || echo 50) seconds" >&2
 	measure ytmd-idle no
 	"$ytm" play >/dev/null
 	measure ytmd-playing yes
