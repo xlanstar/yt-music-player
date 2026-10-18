@@ -105,6 +105,15 @@ entry = "go test -run '^$' -bench . -benchtime 1x ./..."
 files = '(\.go|^go\.(mod|sum)|/testdata/.+|^cmd/desktop/icons/.+\.svg|^locales/.+\.json)$'
 pass_filenames = false
 
+# Comments and docs stay short (AGENTS.md): only what a change touches.
+[[repos.hooks]]
+id = "short-prose"
+name = "Comments and docs stay short"
+language = "system"
+entry = "scripts/check-prose.sh"
+files = '(\.go|^docs/.+\.md)$'
+exclude = '(/testdata/|_gen\.go$)'
+
 # Only the staged SVGs, as every hook takes; scripts/fetch-lucide-icons.sh
 # runs this hook on the icons it fetches. Pinned like golangci-lint.
 [[repos.hooks]]

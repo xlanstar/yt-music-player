@@ -67,8 +67,8 @@ What each binary must not link: `docs/daemon.md` (Programs), held by `TestDeps`.
 ## Rules
 
 - Read the relevant docs and skills before changing code.
-- `.agents/skills/golang-*` come from [samber/cc-skills-golang](https://github.com/samber/cc-skills-golang) (MIT, `evals/` dropped). Where one disagrees with this file (docs stay short, threading through `job.Run`/`post`), this file wins.
-- Keep docs short and update them in the same change as the code. Comments explain why, never what.
+- `.agents/skills/golang-*` come from [samber/cc-skills-golang](https://github.com/samber/cc-skills-golang) (MIT, `evals/` and `golang-documentation` dropped). Where one disagrees with this file, this file wins.
+- Comments: one or two lines, the deciding why. Docs: update in the same change, in place, never appended. Measurements and history go in the commit body.
 - Follow Go and MyGo best practices. Build UI with MyGo's Native UI API, not its web frontend (no HTML/CSS/JS).
 - Commits: [Conventional Commits](https://www.conventionalcommits.org) (`feat(player): add shuffle`), imperative, under 72 characters.
 
