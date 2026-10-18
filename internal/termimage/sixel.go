@@ -21,8 +21,8 @@ func SixelImage(img *image.RGBA) string {
 	for y := range h {
 		for x := range w {
 			r, g, b := rgb(img, x, y)
-			t := bayer[y&3][x&3]
-			c := level(r, t)*36 + level(g, t)*6 + level(b, t)
+			l := &levels[bayer[y&3][x&3]]
+			c := l[r]*36 + l[g]*6 + l[b]
 			idx[y*w+x] = c
 			if !used[c] {
 				used[c] = true
@@ -82,6 +82,16 @@ func SixelImage(img *image.RGBA) string {
 	s.WriteString("\x1b\\")
 	return s.String()
 }
+
+// levels[t][v] is level(v, t).
+var levels = func() (l [16][256]uint8) {
+	for t := range l {
+		for v := range l[t] {
+			l[t][v] = level(uint8(v), uint8(t))
+		}
+	}
+	return l
+}()
 
 // level returns channel v's step of six, dithered by threshold t of 16.
 func level(v, t uint8) uint8 {
