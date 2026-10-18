@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"image"
+	"slices"
 	"strings"
 	"time"
 	"yt-music-player/internal/artwork"
@@ -114,11 +115,15 @@ type gfx struct {
 	blank       []string
 }
 
-// start asks the terminal what it shows, unless YTM_IMAGES says.
+// start asks the terminal what it shows, unless YTM_IMAGES says; then
+// only the cell's pixels.
 func (g *gfx) start() tea.Cmd {
 	if _, ok := termimage.ParseOverride(g.env.Override); ok {
-		g.detect()
-		return nil
+		g.isReady = true
+		if g.detect(); g.caps.Protocol == termimage.None {
+			return nil
+		}
+		return tea.Raw(termimage.CellSizeQuery)
 	}
 	return tea.Batch(
 		tea.Raw(termimage.Probe(g.env.Tmux)),
@@ -126,68 +131,45 @@ func (g *gfx) start() tea.Cmd {
 	)
 }
 
-// reply takes an answer to the probe, or the color profile; it reports
-// covers changing.
+// reply keeps an answer to the probe, or the color profile; it reports
+// covers changing, false for other messages. Covers wait for the device
+// attributes, which a terminal sends after its other answers, or the
+// probe's time.
 func (g *gfx) reply(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case uv.KittyGraphicsEvent:
-		if msg.Options.ID == termimage.ProbeID {
-			g.replies.Kitty = string(msg.Payload) == "OK"
+		if msg.Options.ID != termimage.ProbeID {
+			return false
 		}
+		g.replies.Kitty = string(msg.Payload) == "OK"
 	case uv.CellSizeEvent:
 		g.replies.CellW, g.replies.CellH = msg.Width, msg.Height
-		if g.isReady {
-			return g.setCell(msg.Width, msg.Height)
-		}
 	case tea.TerminalVersionMsg:
 		g.replies.Version = msg.Name
 	case uv.PrimaryDeviceAttributesEvent:
-		g.replies.Attributes(msg)
-		if !g.isReady {
-			return g.detect()
-		}
+		g.replies.Sixel = slices.Contains(msg, 4)
+		g.isReady = true
 	case probeTimeoutMsg:
-		if !g.isReady {
-			return g.detect()
-		}
+		g.isReady = true
 	case tea.ColorProfileMsg:
 		g.env.Colors = msg.Profile >= colorprofile.ANSI256
-		if g.isReady {
-			return g.detect()
-		}
+	default:
+		return false
 	}
-	return false
+	return g.isReady && g.detect()
 }
 
-// detect picks the protocol; it reports a change.
+// detect picks the protocol and sizes covers to the cell, and the blank
+// they show while loading; it reports a change.
 func (g *gfx) detect() bool {
 	was := g.caps
-	g.isReady = true
 	g.caps = termimage.Detect(g.env, g.replies)
-	g.fit()
+	g.cols = g.caps.Fit(coverRows)
+	g.blank = slices.Repeat([]string{strings.Repeat(" ", g.cols)}, coverRows)
 	if g.caps.Protocol != termimage.None && g.art == nil && g.newArt != nil {
 		g.art = g.newArt()
 	}
 	return g.caps != was
-}
-
-func (g *gfx) setCell(w, h int) bool {
-	if g.caps.CellW == w && g.caps.CellH == h {
-		return false
-	}
-	g.caps.CellW, g.caps.CellH = w, h
-	g.fit()
-	return true
-}
-
-// fit sizes covers to the cell, and the blank they show while loading.
-func (g *gfx) fit() {
-	g.cols = g.caps.Fit(coverRows)
-	line := strings.Repeat(" ", g.cols)
-	g.blank = make([]string, coverRows)
-	for i := range g.blank {
-		g.blank[i] = line
-	}
 }
 
 // resized follows a resize, which repaints every cell: overlays again,
@@ -197,7 +179,7 @@ func (g *gfx) resized() tea.Cmd {
 		return nil
 	}
 	g.drawn, g.want = [numSlots]placement{}, [numSlots]placement{}
-	return tea.Raw("\x1b[16t")
+	return tea.Raw(termimage.CellSizeQuery)
 }
 
 // isOn reports covers showing in w cells.

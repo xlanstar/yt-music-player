@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -67,8 +68,12 @@ func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 			})
 		},
 	}
-	if cmd := h.m.gfx.start(); cmd != nil {
-		h.t.Fatal("an override probes nothing")
+	want := []string{termimage.CellSizeQuery}
+	if p == termimage.None {
+		want = nil
+	}
+	if raws := h.run(h.m.gfx.start()); !slices.Equal(raws, want) {
+		h.t.Fatalf("an override asked %q, want only the cell's pixels", raws)
 	}
 	h.t.Cleanup(func() { h.m.gfx.close() })
 	song := h.mirror.songs[h.mirror.state.Current]
@@ -292,12 +297,15 @@ func TestCoverDetect(t *testing.T) {
 	if g.reply(uv.KittyGraphicsEvent{}) || g.replies.Kitty {
 		t.Error("another image's reply counted as the probe's")
 	}
+	if g.reply(tickMsg{}) {
+		t.Error("another message changed the covers")
+	}
 }
 
 // TestCoverEvicts reuses the cover placed longest ago.
 func TestCoverEvicts(t *testing.T) {
-	g := gfx{caps: termimage.Caps{Protocol: termimage.Blocks}}
-	g.fit()
+	g := gfx{env: termimage.Env{Override: "blocks"}}
+	g.detect()
 	for i := range numCovers + 2 {
 		g.beginFrame()
 		g.place(slotBar, 1, 0, catalog.Art(fmt.Sprintf("https://x/%d", i)))

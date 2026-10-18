@@ -33,29 +33,30 @@ func solid(w, h int, c color.RGBA) *image.RGBA {
 }
 
 func TestDetect(t *testing.T) {
-	cell := Replies{CellW: 9, CellH: 18, Done: true}
+	cell := Replies{CellW: 9, CellH: 18}
 	tests := []struct {
 		name string
 		env  Env
 		r    Replies
 		want Protocol
 	}{
-		{"kitty", Env{Term: "xterm-kitty"}, Replies{Kitty: true, Version: "kitty(0.42.1)", Done: true}, Kitty},
-		{"ghostty", Env{TermProgram: "ghostty"}, Replies{Kitty: true, Version: "ghostty 1.2.0", Done: true}, Kitty},
-		{"wezterm speaks Kitty without placeholders", Env{TermProgram: "WezTerm"}, Replies{Kitty: true, Sixel: true, Version: "WezTerm 20240203", Done: true}, ITerm2},
-		{"iterm2", Env{TermProgram: "iTerm.app"}, Replies{Version: "iTerm2 3.5.14", Done: true}, ITerm2},
-		{"iterm2 over ssh", Env{LCTerminal: "iTerm2"}, Replies{Done: true}, ITerm2},
-		{"sixel", Env{Term: "foot"}, Replies{Sixel: true, CellW: 9, CellH: 18, Done: true}, Sixel},
-		{"sixel without its cell", Env{Term: "foot", Colors: true}, Replies{Sixel: true, Done: true}, Blocks},
-		{"tmux in kitty", Env{Tmux: true, Kitty: true}, Replies{Sixel: true, Version: "tmux 3.5", Done: true}, Kitty},
+		{"kitty", Env{Term: "xterm-kitty", Colors: true}, Replies{Kitty: true, Version: "kitty(0.42.1)"}, Kitty},
+		{"kitty in sixteen colors", Env{Term: "xterm-kitty"}, Replies{Kitty: true, Version: "kitty(0.42.1)"}, None},
+		{"ghostty", Env{TermProgram: "ghostty", Colors: true}, Replies{Kitty: true, Version: "ghostty 1.2.0"}, Kitty},
+		{"wezterm speaks Kitty without placeholders", Env{TermProgram: "WezTerm"}, Replies{Kitty: true, Sixel: true, Version: "WezTerm 20240203"}, ITerm2},
+		{"iterm2", Env{TermProgram: "iTerm.app"}, Replies{Version: "iTerm2 3.5.14"}, ITerm2},
+		{"iterm2 over ssh", Env{LCTerminal: "iTerm2"}, Replies{}, ITerm2},
+		{"sixel", Env{Term: "foot"}, Replies{Sixel: true, CellW: 9, CellH: 18}, Sixel},
+		{"sixel without its cell", Env{Term: "foot", Colors: true}, Replies{Sixel: true}, Blocks},
+		{"tmux in kitty", Env{Tmux: true, Kitty: true, Colors: true}, Replies{Sixel: true, Version: "tmux 3.5"}, Kitty},
 		{"tmux in iterm2", Env{Tmux: true, TermProgram: "tmux", LCTerminal: "iTerm2", Colors: true}, cell, Blocks},
-		{"tmux with sixel", Env{Tmux: true}, Replies{Sixel: true, CellW: 9, CellH: 18, Done: true}, Sixel},
-		{"colors only", Env{Term: "xterm-256color", Colors: true}, Replies{Done: true}, Blocks},
-		{"sixteen colors", Env{Term: "xterm"}, Replies{Done: true}, None},
-		{"dumb", Env{Term: "dumb", Colors: true}, Replies{Kitty: true, Done: true}, None},
-		{"override", Env{Override: "Sixel", Term: "xterm-kitty"}, Replies{Kitty: true, Done: true}, Sixel},
-		{"override off", Env{Override: "off", Term: "xterm-kitty"}, Replies{Kitty: true, Done: true}, None},
-		{"override unknown is auto", Env{Override: "png", Colors: true}, Replies{Done: true}, Blocks},
+		{"tmux with sixel", Env{Tmux: true}, Replies{Sixel: true, CellW: 9, CellH: 18}, Sixel},
+		{"colors only", Env{Term: "xterm-256color", Colors: true}, Replies{}, Blocks},
+		{"sixteen colors", Env{Term: "xterm"}, Replies{}, None},
+		{"dumb", Env{Term: "dumb", Colors: true}, Replies{Kitty: true}, None},
+		{"override", Env{Override: "Sixel", Term: "xterm-kitty"}, Replies{Kitty: true}, Sixel},
+		{"override off", Env{Override: "off", Term: "xterm-kitty"}, Replies{Kitty: true}, None},
+		{"override unknown is auto", Env{Override: "png", Colors: true}, Replies{}, Blocks},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -79,21 +80,9 @@ func TestEnvFrom(t *testing.T) {
 	}
 }
 
-func TestAttributes(t *testing.T) {
-	var r Replies
-	r.Attributes([]int{62, 4, 22})
-	if !r.Sixel || !r.Done {
-		t.Errorf("Attributes(62;4;22) = %+v, want Sixel and Done", r)
-	}
-	r.Attributes([]int{62, 22})
-	if r.Sixel {
-		t.Error("Attributes(62;22) kept Sixel")
-	}
-}
-
 func TestProbe(t *testing.T) {
 	p := Probe(false)
-	if !strings.HasPrefix(p, "\x1b_Gi=22868,") || !strings.HasSuffix(p, "\x1b[c") {
+	if !strings.HasPrefix(p, "\x1b_Gi=22868,") || !strings.Contains(p, CellSizeQuery) || !strings.HasSuffix(p, "\x1b[c") {
 		t.Errorf("Probe = %q: the query first, the device attributes last", p)
 	}
 	if got := Probe(true); !strings.HasPrefix(got, "\x1bPtmux;\x1b\x1b_G") {

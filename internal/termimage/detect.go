@@ -1,13 +1,15 @@
 package termimage
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 )
 
 // ProbeID is the image id of Probe's Kitty query, which its reply names.
 const ProbeID = 22868
+
+// CellSizeQuery asks for a cell's pixels, which a font's size changes.
+const CellSizeQuery = "\x1b[16t"
 
 // Env is what the environment says of the terminal.
 type Env struct {
@@ -44,15 +46,6 @@ type Replies struct {
 	// Version is XTVERSION's, as "kitty(0.42.1)" or "iTerm2 3.5.14".
 	Version      string
 	CellW, CellH int
-	// Done is set once the device attributes came, which a terminal sends
-	// after its other answers.
-	Done bool
-}
-
-// Attributes keeps the primary device attributes, the probe's last answer.
-func (r *Replies) Attributes(attrs []int) {
-	r.Sixel = slices.Contains(attrs, 4)
-	r.Done = true
 }
 
 // Probe asks for Kitty graphics, the cell's pixels, the terminal's name and,
@@ -62,7 +55,7 @@ func Probe(tmux bool) string {
 	if tmux {
 		query = Passthrough(query)
 	}
-	return query + "\x1b[16t\x1b[>0q\x1b[c"
+	return query + CellSizeQuery + "\x1b[>0q\x1b[c"
 }
 
 // ParseOverride returns the protocol YTM_IMAGES names; ok is false for
@@ -91,10 +84,12 @@ func Detect(e Env, r Replies) Caps {
 		return c
 	}
 	version := strings.ToLower(r.Version)
+	// tmux keeps the placeholders, text, but answers the query itself.
+	hasKitty := r.Kitty && hasPlaceholders(e, version) || e.Tmux && (e.Kitty || e.Ghostty)
 	switch {
 	case e.Term == "dumb" || e.Term == "linux":
-	case r.Kitty && hasPlaceholders(e, version), e.Tmux && (e.Kitty || e.Ghostty):
-		// tmux keeps the placeholders, text, but answers the query itself.
+	case hasKitty && e.Colors:
+		// The placeholders' color, the image id, is one of 256.
 		c.Protocol = Kitty
 	case !e.Tmux && isITerm2(e, version):
 		c.Protocol = ITerm2

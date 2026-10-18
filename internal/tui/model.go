@@ -19,7 +19,6 @@ import (
 	"yt-music-player/locales"
 
 	tea "charm.land/bubbletea/v2"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // The model's times and steps.
@@ -174,11 +173,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		cmd = m.gfx.resized()
-	case uv.KittyGraphicsEvent, uv.CellSizeEvent, uv.PrimaryDeviceAttributesEvent,
-		tea.TerminalVersionMsg, tea.ColorProfileMsg, probeTimeoutMsg:
-		if !m.gfx.reply(msg) {
-			return m, nil
-		}
 	case overlayMsg:
 		return m, m.gfx.overlay(msg)
 	case tea.FocusMsg:
@@ -226,7 +220,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	default:
-		return m, nil
+		// The terminal's answers about images, or nothing.
+		if !m.gfx.reply(msg) {
+			return m, nil
+		}
 	}
 	return m, m.settle(cmd)
 }
