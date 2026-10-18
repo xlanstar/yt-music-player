@@ -20,10 +20,11 @@ var encodeCases = []encodeCase{
 	{"kitty/cover80", func(m *image.RGBA) any { return KittyUpload(m, 1, 4, 2, false) }, 80, false, 4},
 	// 5 allocs today: numbers past 99 take theirs.
 	{"kitty/cover256", func(m *image.RGBA) any { return KittyUpload(m, 1, 8, 4, false) }, 256, false, 6},
-	// 14 allocs today: image/jpeg's encoder and buffer, and the string.
-	{"iterm2/cover80", encodeITerm2, 80, false, 17},
-	// 14 allocs today.
-	{"iterm2/real160", encodeITerm2, 160, true, 17},
+	// 9 allocs today: image/jpeg's encoder and tables, the JPEG, and the
+	// string and its box.
+	{"iterm2/cover80", encodeITerm2, 80, false, 11},
+	// 9 allocs today.
+	{"iterm2/real160", encodeITerm2, 160, true, 11},
 	// 8 allocs today: the placeholders' 5, the upload's 2 and the box;
 	// Fill keeps an image of the size.
 	{"encode/kitty-real80", func(m *image.RGBA) any {
