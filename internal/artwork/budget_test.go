@@ -25,7 +25,7 @@ func TestBudgetDecode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			data := benchFile()[tc.name]
 			// Each takes milliseconds and allocates the same each time.
-			budget.Within(t, tc.limit, 3, func() { sinkImage, sinkErr = Decode(data, coverPx) })
+			budget.Within(t, tc.limit, 3, func() { sinkImage, sinkErr = Decode(data, tc.px) })
 		})
 	}
 }

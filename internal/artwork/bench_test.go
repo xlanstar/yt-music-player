@@ -6,6 +6,7 @@ import (
 	"flag"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -38,20 +39,23 @@ var coverSizes = []int{544, 1200}
 
 // benchCover is a deterministic n px square with what makes a photo costly
 // to code and scale: gradients, shapes and grain.
-func benchCover(n int) *image.RGBA {
-	m := image.NewRGBA(image.Rect(0, 0, n, n))
+func benchCover(n int) *image.RGBA { return benchPicture(n, n) }
+
+// benchPicture is benchCover at w×h.
+func benchPicture(w, h int) *image.RGBA {
+	m := image.NewRGBA(image.Rect(0, 0, w, h))
 	seed := uint32(2463534242)
-	for y := range n {
-		for x := range n {
+	for y := range h {
+		for x := range w {
 			seed ^= seed << 13
 			seed ^= seed >> 17
 			seed ^= seed << 5
 			grain := uint8(seed % 24)
-			dx, dy := x-n/2, y-n/3
-			r := uint8(x*200/n) + grain
-			g := uint8(y*160/n) + grain
-			b := uint8(120 + (x+y)*100/(2*n))
-			if dx*dx+dy*dy < n*n/16 {
+			dx, dy := x-w/2, y-h/3
+			r := uint8(x*200/w) + grain
+			g := uint8(y*160/h) + grain
+			b := uint8(120 + (x+y)*100/(w+h))
+			if side := min(w, h); dx*dx+dy*dy < side*side/16 {
 				r, g, b = 240-grain, 200-grain, 90+grain
 			}
 			i := m.PixOffset(x, y)
@@ -61,22 +65,32 @@ func benchCover(n int) *image.RGBA {
 	return m
 }
 
-// benchFile holds benchCover encoded, keyed "format/size": WebP comes from
-// testdata, as Go has no WebP encoder.
+// benchFile holds benchCover encoded, keyed "format/size", and video
+// stills, "jpeg/" and YouTube's name: WebP comes from testdata, as Go has
+// no WebP encoder.
 var benchFile = sync.OnceValue(func() map[string][]byte {
 	files := map[string][]byte{}
-	for _, n := range coverSizes {
-		m := benchCover(n)
-		var j, p bytes.Buffer
+	encodeJPEG := func(m image.Image) []byte {
+		var j bytes.Buffer
 		// Google's thumbnails are JPEGs of about this quality (l90).
 		if err := jpeg.Encode(&j, m, &jpeg.Options{Quality: 90}); err != nil {
 			panic(err)
 		}
+		return j.Bytes()
+	}
+	// hqdefault letterboxes a 16:9 still in 4:3; hq720 is the still.
+	still := image.NewRGBA(image.Rect(0, 0, 480, 360))
+	draw.Draw(still, image.Rect(0, 45, 480, 315), benchPicture(480, 270), image.Point{}, draw.Src)
+	files["jpeg/hqdefault"] = encodeJPEG(still)
+	files["jpeg/hq720"] = encodeJPEG(benchPicture(1280, 720))
+	for _, n := range coverSizes {
+		m := benchCover(n)
+		var p bytes.Buffer
 		if err := png.Encode(&p, m); err != nil {
 			panic(err)
 		}
 		size := strconv.Itoa(n)
-		files["jpeg/"+size], files["png/"+size] = j.Bytes(), p.Bytes()
+		files["jpeg/"+size], files["png/"+size] = encodeJPEG(m), p.Bytes()
 		w, err := os.ReadFile(filepath.Join("testdata", "cover_"+size+".webp"))
 		if err != nil {
 			panic(err)
@@ -147,19 +161,23 @@ func BenchmarkSizedURL(b *testing.B) {
 	}
 }
 
-// decodeCases are benchFile's covers. A page holds tens of decoded covers,
-// so their bytes are budgeted too.
+// decodeCases are benchFile's covers at coverPx, and video stills at a
+// small row's size. A page holds tens of decoded covers, so their bytes
+// are budgeted too.
 var decodeCases = []struct {
 	name  string
+	px    int
 	limit budget.Cost
 }{
-	{"jpeg/544", budget.Cost{Allocs: 20, Bytes: 2.5e6}},   // 17 allocs, 2.17 MB today.
-	{"jpeg/1200", budget.Cost{Allocs: 23, Bytes: 11.4e6}}, // 20 allocs, 9.91 MB today.
+	{"jpeg/544", coverPx, budget.Cost{Allocs: 20, Bytes: 2.5e6}},   // 17 allocs, 2.17 MB today.
+	{"jpeg/1200", coverPx, budget.Cost{Allocs: 23, Bytes: 11.4e6}}, // 20 allocs, 9.91 MB today.
+	{"jpeg/hqdefault", 64, budget.Cost{Allocs: 27, Bytes: 820e3}},  // 23 allocs, 711 KB today.
+	{"jpeg/hq720", 64, budget.Cost{Allocs: 28, Bytes: 4.84e6}},     // 24 allocs, 4.21 MB today.
 	// 192 allocs, 2.96 MB today; most allocs are the PNG decoder's.
-	{"png/544", budget.Cost{Allocs: 221, Bytes: 3.4e6}},
-	{"png/1200", budget.Cost{Allocs: 674, Bytes: 15.7e6}}, // 586 allocs, 13.6 MB today.
-	{"webp/544", budget.Cost{Allocs: 33, Bytes: 2.55e6}},  // 28 allocs, 2.21 MB today.
-	{"webp/1200", budget.Cost{Allocs: 35, Bytes: 11.7e6}}, // 30 allocs, 10.1 MB today.
+	{"png/544", coverPx, budget.Cost{Allocs: 221, Bytes: 3.4e6}},
+	{"png/1200", coverPx, budget.Cost{Allocs: 674, Bytes: 15.7e6}}, // 586 allocs, 13.6 MB today.
+	{"webp/544", coverPx, budget.Cost{Allocs: 33, Bytes: 2.55e6}},  // 28 allocs, 2.21 MB today.
+	{"webp/1200", coverPx, budget.Cost{Allocs: 35, Bytes: 11.7e6}}, // 30 allocs, 10.1 MB today.
 }
 
 func BenchmarkDecode(b *testing.B) {
@@ -169,7 +187,7 @@ func BenchmarkDecode(b *testing.B) {
 			b.SetBytes(int64(len(data)))
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkImage, sinkErr = Decode(data, coverPx)
+				sinkImage, sinkErr = Decode(data, tc.px)
 			}
 		})
 	}
