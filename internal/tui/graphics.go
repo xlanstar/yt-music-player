@@ -107,12 +107,11 @@ type gfx struct {
 	covers [numCovers]cover
 	frame  uint64
 	placed [numSlots]placement
-	// drawn are the overlays the terminal shows, want those an
-	// overlayMsg of gen will draw; isDirty, after a full repaint.
-	drawn, want        [numSlots]placement
-	gen                uint64
-	isPending, isDirty bool
-	blank              []string
+	// drawn are the overlays the terminal shows, want those it should:
+	// while they differ, an overlayMsg of gen will draw them.
+	drawn, want [numSlots]placement
+	gen         uint64
+	blank       []string
 }
 
 // start asks the terminal what it shows, unless YTM_IMAGES says.
@@ -197,7 +196,7 @@ func (g *gfx) resized() tea.Cmd {
 	if !g.isReady || g.caps.Protocol == termimage.None {
 		return nil
 	}
-	g.isDirty = true
+	g.drawn, g.want = [numSlots]placement{}, [numSlots]placement{}
 	return tea.Raw("\x1b[16t")
 }
 
@@ -333,16 +332,21 @@ func (g *gfx) scheduleOverlays() tea.Cmd {
 		}
 	}
 	g.trimOverlays()
-	switch {
-	case cur == g.drawn && !g.isDirty:
-		// An overlay scheduled to go back where it was is drawn already.
-		g.isPending = false
+	for s := range cur {
+		if cur[s] != g.drawn[s] {
+			// Its cells repaint, wiping the image.
+			g.drawn[s] = placement{}
+		}
+	}
+	if cur == g.want {
+		// Drawn, or scheduled to be.
 		return nil
-	case g.isPending && cur == g.want:
+	}
+	g.want = cur
+	if cur == g.drawn {
 		return nil
 	}
 	g.gen++
-	g.want, g.isPending, g.isDirty = cur, true, false
 	gen := g.gen
 	return tea.Tick(overlayDelay, func(time.Time) tea.Msg { return overlayMsg{gen} })
 }
@@ -350,18 +354,14 @@ func (g *gfx) scheduleOverlays() tea.Cmd {
 // overlay draws the overlays commit scheduled, unless the screen changed
 // since; the renderer's frame blanked their cells meanwhile.
 func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
-	if msg.gen != g.gen || !g.isPending {
+	if msg.gen != g.gen {
 		return nil
 	}
-	g.isPending = false
 	var b strings.Builder
 	for s, p := range g.want {
-		c := g.ready(p.key)
-		if c == nil || c.seq == "" {
-			g.want[s] = placement{}
-			continue
+		if c := g.ready(p.key); c != nil && p != g.drawn[s] {
+			b.WriteString(termimage.Overlay(c.seq, p.x, p.y))
 		}
-		b.WriteString(termimage.Overlay(c.seq, p.x, p.y))
 	}
 	g.drawn = g.want
 	if b.Len() == 0 {

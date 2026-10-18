@@ -225,6 +225,22 @@ func TestCoverHeader(t *testing.T) {
 	}
 }
 
+// TestCoverOverlayReturns draws a header's image again after the help
+// hid and showed it before the overlay's frame came.
+func TestCoverOverlayReturns(t *testing.T) {
+	h := newHarness(t, albumArt{catalog.NewPlaceholderSource(0)})
+	h.withCovers(termimage.Sixel, newCoverHost(t))
+	h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
+	if raws := h.covered(); len(raws) != 1 || !strings.Contains(raws[0], "\x1b[3;2H") {
+		t.Fatalf("overlays = %.40q, want the header's", raws)
+	}
+	h.press("?")
+	raws := h.run(h.press("?"))
+	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[3;2H\x1bP") || strings.Contains(raws[0], "\x1b[22;2H") {
+		t.Errorf("back from the help, drew %.40q, want only the header's cover", raws)
+	}
+}
+
 func TestCoverOff(t *testing.T) {
 	host := newCoverHost(t)
 	h := placeholderHarness(t)
