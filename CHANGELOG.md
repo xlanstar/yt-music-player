@@ -4,6 +4,8 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+
 ### Added
 
 - Traditional Chinese: the app, its menus and the update window follow the system's language (or the app's, in System Settings on macOS).
