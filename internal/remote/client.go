@@ -68,14 +68,13 @@ type link struct {
 	n    uint64 // the Client's count of it
 	conn *ipc.Conn
 	peer Peer
-	// isQuiet drops events: the daemon is about to go away.
-	isQuiet bool
-	// closed is closed once the connection is gone and every call on it
-	// failed.
+	// closed closes once the connection is gone and all its calls have failed.
 	closed chan struct{}
 
-	// Guarded by Client.mu.
-	lastID  uint32
+	// Client.mu guards lastID and pending.
+	lastID uint32
+	// isQuiet drops events: the daemon is about to go away.
+	isQuiet bool
 	pending map[uint32]*pending
 }
 

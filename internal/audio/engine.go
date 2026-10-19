@@ -55,16 +55,16 @@ type engine struct {
 	newOutput func(mygoaudio.Decoder) output
 	controls  controls
 
-	mu       sync.Mutex
-	cur      *load
-	loads    uint64
-	volume   float64
-	info     Info
-	isClosed bool
-	// released is where the stream Release let go of was, while
-	// isReleased, until the next Load.
+	// mu guards cur through isClosed, including the current load's mutable fields.
+	mu     sync.Mutex
+	cur    *load
+	loads  uint64
+	volume float64
+	info   Info
+	// released preserves position and duration while isReleased, until the next Load.
 	released   place
 	isReleased bool
+	isClosed   bool
 }
 
 // place is where a stream is, in seconds, and how long it is.

@@ -28,7 +28,7 @@ type likedMemo struct {
 
 type volumeMemo struct {
 	percent int
-	muted   bool
 	text    string
+	muted   bool
 	ok      bool
 }

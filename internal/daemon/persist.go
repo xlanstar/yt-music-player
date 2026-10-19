@@ -33,11 +33,10 @@ type savedState struct {
 	Muted    bool          `json:"muted"`
 	Repeat   player.Repeat `json:"repeat"`
 	Shuffled bool          `json:"shuffled"`
-	Songs    []savedSong   `json:"songs,omitzero"`
-	// ResumePlaying, from a hand-off, has the next daemon play on if it
-	// starts before ResumeBefore.
-	ResumePlaying bool      `json:"resumePlaying,omitzero"`
-	ResumeBefore  time.Time `json:"resumeBefore,omitzero"`
+	// ResumePlaying continues a hand-off if the next daemon starts before ResumeBefore.
+	ResumePlaying bool        `json:"resumePlaying,omitzero"`
+	Songs         []savedSong `json:"songs,omitzero"`
+	ResumeBefore  time.Time   `json:"resumeBefore,omitzero"`
 }
 
 // savedSong is a catalog.Song in daemon.json, zero fields left out.

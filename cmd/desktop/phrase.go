@@ -15,13 +15,11 @@ type phrase struct {
 	n      int
 	format func(args [2]string) string
 	lang   string
-	isSet  bool
-	// parts are the text around the arguments; order is the argument
-	// each gap takes, as a translation may swap them.
+	// parts surround the arguments; order maps gaps to arguments after translation.
 	parts [3]string
 	order [2]int
-	// exact is false when the markers did not come back once each, so
-	// fill formats every time.
+	isSet bool
+	// exact is false if markers were lost or repeated; fill then formats each call.
 	exact bool
 }
 

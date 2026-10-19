@@ -92,23 +92,14 @@ type model struct {
 	deps
 
 	width, height int
-	tab           tab
-	isHelp        bool
-	// isBlurred holds once the terminal said it lost focus; one that
-	// reports no focus counts as focused.
-	isBlurred bool
-	link      remote.Link
+	link          remote.Link
 
 	queue, search, library listState
-	// queueFollows keeps the queue's cursor on the current song until
-	// the user moves it.
-	queueFollows bool
 	// opened is each tab's open collection, collection its list.
 	opened     [numTabs]opened
 	collection [numTabs]listState
 
-	query    string
-	isTyping bool
+	query string
 
 	// lastClick is the last left click, to tell a double click.
 	lastClick click
@@ -119,12 +110,9 @@ type model struct {
 	shown    fetchstate.Resource
 	searched string
 
-	// notice is the status line's message, until a clearNoticeMsg of
-	// noticeSeq; isNoticeNew asks settle to schedule that.
-	notice      string
-	noticeSeq   uint64
-	isNoticeNew bool
-	isTicking   bool
+	// notice expires when clearNoticeMsg carries the matching noticeSeq.
+	notice    string
+	noticeSeq uint64
 
 	gfx gfx
 	// quiet gives the heap back once Update rests.
@@ -132,9 +120,19 @@ type model struct {
 
 	memo    memo
 	content string
-	// hits are what content shows that a click acts on, reused so that
-	// frames allocate nothing for them.
+	// hits reuse storage for content's click targets to avoid per-frame allocations.
 	hits []hit
+
+	tab    tab
+	isHelp bool
+	// isBlurred stays false for terminals that never report focus.
+	isBlurred bool
+	// queueFollows tracks the current song until the user moves the cursor.
+	queueFollows bool
+	isTyping     bool
+	// isNoticeNew asks settle to schedule the notice's expiry.
+	isNoticeNew bool
+	isTicking   bool
 }
 
 // tickMsg moves the progress on by a second.

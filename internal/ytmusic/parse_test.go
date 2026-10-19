@@ -111,12 +111,12 @@ func TestPlaylistStops(t *testing.T) {
 	}
 	for _, tc := range []struct {
 		name      string
-		repeat    bool
 		wantSongs int
 		wantCalls int32
+		repeat    bool
 	}{
-		{"endless", false, maxPlaylistSongs, maxPlaylistSongs / 100},
-		{"repeating", true, 200, 2},
+		{name: "endless", wantSongs: maxPlaylistSongs, wantCalls: maxPlaylistSongs / 100},
+		{name: "repeating", wantSongs: 200, wantCalls: 2, repeat: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var calls atomic.Int32

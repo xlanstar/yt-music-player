@@ -93,26 +93,25 @@ type gfx struct {
 	// cols is a cover's width, caps.Fit(coverRows).
 	cols int
 	// blank is a cover's lines while it loads.
-	blank   []string
-	isReady bool
+	blank []string
 
 	post   func(func())
 	newArt func() *artwork.Loader
 	art    *artwork.Loader
 
 	covers [numCovers]cover
-	// kittyBase is cover 0's Kitty image id, a 256-color index
-	// (newKittyBase).
-	kittyBase uint8
-	frame     uint64
-	// hasUploads holds once a Kitty image went, whose id a cover taken
-	// for another may never send again.
-	hasUploads bool
-	placed     [numSlots]placement
+	frame  uint64
+	placed [numSlots]placement
 	// drawn are the overlays the terminal shows, want those it should:
 	// while they differ, an overlayMsg of gen will draw them.
 	drawn, want [numSlots]placement
 	gen         uint64
+
+	isReady bool
+	// kittyBase is cover 0's Kitty image ID, a 256-color index (newKittyBase).
+	kittyBase uint8
+	// hasUploads keeps Kitty cleanup enabled even after uploaded covers are evicted.
+	hasUploads bool
 }
 
 // newKittyBase picks a process's first Kitty image id: two ytm in one

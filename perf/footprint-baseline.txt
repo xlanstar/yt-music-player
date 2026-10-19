@@ -1,17 +1,17 @@
 # yt-music-player footprint, scripts/footprint.sh
 # source: placeholder
-# date: 2026-10-18T19:58:54Z
+# date: 2026-10-19T03:13:49Z
 # go: go version go1.27.2 darwin/arm64
 # cpu: Apple M4 Max, macOS 27.0
-# git: f73cd58, 1 files changed
+# git: b7929fe, 26 files changed
 # window: 1280x770 points
 # phases: one line each, key=value; frame-ms: frame times; MB: footprint(1)'s, sampled 5 times a second; gfx-MB: its unmapped graphics part
-phase=idle focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=67 MB-mean=67 MB-max=67 gfx-MB-mean=3 gfx-MB-max=3
-phase=playing-focused focus=yes shown=yes secs=5.0 frames=5 frames/min=60.0 frame-ms-median=1.6 frame-ms-max=1.8 MB-min=334 MB-mean=335 MB-max=335 gfx-MB-mean=251 gfx-MB-max=251
-phase=paused focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=67 MB-mean=67 MB-max=67 gfx-MB-mean=3 gfx-MB-max=3
-phase=idle-after-pages focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=70 MB-mean=70 MB-max=70 gfx-MB-mean=3 gfx-MB-max=3
-phase=playing-unfocused focus=no shown=yes secs=10.0 frames=2 frames/min=12.0 frame-ms-median=21.6 frame-ms-max=21.6 MB-min=69 MB-mean=136 MB-max=337 gfx-MB-mean=62 gfx-MB-max=251
-phase=playing-minimized focus=no shown=no secs=6.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=69 MB-mean=70 MB-max=70 gfx-MB-mean=3 gfx-MB-max=3
-# one frame: 1 drawn (9.8 ms), footprint 67 MB, +267 MB at its peak, held about 1.0 s
-# pages: 27 shown, idle footprint +2 MB, +0.1 MB a page
+phase=idle focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=61 MB-mean=61 MB-max=61 gfx-MB-mean=3 gfx-MB-max=3
+phase=playing-focused focus=yes shown=yes secs=5.0 frames=5 frames/min=60.0 frame-ms-median=1.1 frame-ms-max=1.6 MB-min=343 MB-mean=344 MB-max=344 gfx-MB-mean=251 gfx-MB-max=251
+phase=paused focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=62 MB-mean=62 MB-max=62 gfx-MB-mean=3 gfx-MB-max=3
+phase=idle-after-pages focus=yes shown=yes secs=3.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=68 MB-mean=68 MB-max=68 gfx-MB-mean=3 gfx-MB-max=3
+phase=playing-unfocused focus=no shown=yes secs=10.0 frames=2 frames/min=12.0 frame-ms-median=25.7 frame-ms-max=25.7 MB-min=68 MB-mean=135 MB-max=335 gfx-MB-mean=62 gfx-MB-max=251
+phase=playing-minimized focus=no shown=no secs=6.0 frames=0 frames/min=0.0 frame-ms-median=0.0 frame-ms-max=0.0 MB-min=68 MB-mean=68 MB-max=68 gfx-MB-mean=3 gfx-MB-max=3
+# one frame: 1 drawn (6.1 ms), footprint 61 MB, +267 MB at its peak, held about 1.1 s
+# pages: 27 shown, idle footprint +7 MB, +0.3 MB a page
 # end

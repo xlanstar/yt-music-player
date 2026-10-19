@@ -63,31 +63,28 @@ type Session struct {
 	loader *loader.Loader
 	cat    *catalog.Catalog
 
-	isSignedIn bool
-	account    catalog.Account
+	account catalog.Account
 	// displayName is made once rather than every build.
 	displayName string
 	// library lacks its playlists, which the catalog keeps.
 	library catalog.Library
-	// likeOrder is Liked music's order, newest first, including songs
-	// unliked since; liked says which are liked, so a reverted unlike
-	// keeps its place.
+	// likeOrder keeps newest-first order, including unliked songs; liked filters it,
+	// so reverting an unlike restores the song's place.
 	likeOrder []string
 	liked     map[string]bool
 	likesGen  uint64
-	// pending holds unanswered likes by song, so they survive a Liked
-	// music fetch that crossed them; seq picks a song's latest. An account
-	// change clears them.
+	// pending keeps each song's latest unanswered like across crossing fetches.
+	// Account changes clear it; likeSeq identifies the latest request.
 	pending map[string]pendingLike
 	likeSeq uint64
 
-	// isSigningIn holds from SignIn until the answer of the latest,
-	// signInSeq, or CancelSignIn.
-	isSigningIn  bool
-	signInSeq    uint64
-	isSigningOut bool
+	signInSeq uint64
+	notices   []notice.Notice
 
-	notices []notice.Notice
+	isSignedIn bool
+	// isSigningIn lasts until the latest signInSeq answers or CancelSignIn.
+	isSigningIn  bool
+	isSigningOut bool
 }
 
 type pendingLike struct {

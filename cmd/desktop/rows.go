@@ -8,16 +8,15 @@ import (
 )
 
 type songRowOpts struct {
+	index      int     // position shown in a table or ranked, from 0
+	art        float32 // cover size, 0 for none
+	albumWidth float32 // album column width, 0 for none
 	// isInTable lays the row out in songList's columns.
 	isInTable bool
 	// isRanked leads with a chart position and its trend.
 	isRanked   bool
-	index      int     // position shown in a table or ranked, from 0
-	art        float32 // cover size, 0 for none
-	showsAlbum bool    // "artist · album" under the title, not just the artist
-	albumWidth float32 // album column width, 0 for none
-	// hasActions adds Like and More, shown on hover or focus; Like stays
-	// while the song is liked.
+	showsAlbum bool // "artist · album" under the title, not just the artist
+	// hasActions shows Like and More on hover or focus; liked songs keep Like.
 	hasActions bool
 	isCompact  bool // smaller type, for the narrow queue
 }

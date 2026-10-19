@@ -41,20 +41,21 @@ const (
 // Player is the playback state. Exported fields are plain values so UI
 // controls can bind to them; the queue changes only through methods.
 type Player struct {
-	Playing  bool
 	Position float64 // seconds into the current song
 	Volume   float64 // 0 to 1
-	Muted    bool
-	Repeat   Repeat
 
 	queue []string
 	// order is the play order as indices into queue, in sequence or
 	// shuffled; at is the current song's index in order.
-	order      []int
-	at         int
-	isShuffled bool
+	order []int
+	at    int
 	// gen counts changes to queue and order.
 	gen uint64
+
+	Playing    bool
+	Muted      bool
+	Repeat     Repeat
+	isShuffled bool
 }
 
 // New returns a paused player at the start of queue.

@@ -20,13 +20,13 @@ type fakeOutput struct {
 	d mygoaudio.Decoder
 
 	mu       sync.Mutex
-	playing  bool
-	ended    bool
 	pos      time.Duration
 	volume   float64
 	seeks    []time.Duration
-	isClosed bool
 	frames   int64 // decoded
+	playing  bool
+	ended    bool
+	isClosed bool
 }
 
 func (o *fakeOutput) decode() {

@@ -248,13 +248,14 @@ func (c *Client) newRequest(
 // requestContext is a struct, not maps: maps took 8 of a payload's 16
 // allocations (BenchmarkPayload, BenchmarkContext).
 type requestContext struct {
+	// A trailing zero-size field would add padding after Client.
+	User   struct{} `json:"user"`
 	Client struct {
 		ClientName    string `json:"clientName"`
 		ClientVersion string `json:"clientVersion"`
 		HL            string `json:"hl,omitzero"`
 		GL            string `json:"gl,omitzero"`
 	} `json:"client"`
-	User struct{} `json:"user"`
 }
 
 func (c *Client) context() requestContext {

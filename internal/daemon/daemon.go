@@ -70,7 +70,7 @@ type Service struct {
 	pid  int
 	now  func() time.Time
 
-	// The rest but lis, lock, mu's and done are the loop's.
+	// src through quiet belong to the loop, as do resume and stopping below.
 	src    catalog.Source
 	cat    *catalog.Catalog // the queue's songs only
 	player *player.Player
@@ -89,17 +89,19 @@ type Service struct {
 
 	store *store // nil keeps nothing
 	quiet quiet.GC
-	// resume plays at Start: a hand-off's resumePlaying.
-	resume   bool
-	stopping bool
 
 	lis  net.Listener
 	lock *ipc.Lock
 
+	// mu guards live and closed.
 	mu     sync.Mutex
 	live   map[*ipc.Conn]struct{} // every connection served
-	closed bool                   // no more connections
 	done   chan struct{}
+	closed bool // no more connections
+
+	// resume continues a hand-off's playback at Start.
+	resume   bool
+	stopping bool
 }
 
 // New returns a Service, its state loaded from opts.State, and starts its

@@ -18,15 +18,14 @@ import (
 // Windows, ytm on the Path. Switching runs package autostart, which may take
 // seconds, off the UI thread; a failure turns the switch back.
 type startupState struct {
-	// isKnown: Status answered.
+	login    job.Job
+	terminal job.Job
+	sys      startupSystem
+	// isKnown is set once the login status request has answered.
 	atLogin, isKnown bool
-	login            job.Job
 	inTerminal       bool
-	terminal         job.Job
-	// hasTerminal offers the Path's switch (Windows); set before
-	// startStartup.
+	// hasTerminal enables the Windows Path switch; set before startStartup.
 	hasTerminal bool
-	sys         startupSystem
 }
 
 // startupSystem is package autostart and where the helpers are; tests fake

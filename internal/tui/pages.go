@@ -23,12 +23,12 @@ const (
 
 // item is a list's row; only the fields of its kind are set.
 type item struct {
-	kind     itemKind
 	song     catalog.Song
 	album    catalog.Album
 	playlist catalog.Playlist
 	// text is a heading's, or Liked music's count.
 	text string
+	kind itemKind
 	// isCurrent marks the queue's current song.
 	isCurrent bool
 }

@@ -13,6 +13,12 @@ Why the rules in `AGENTS.md` are what they are, and how to measure.
 - Benchmarks and allocation budgets: `docs/benchmarks.md`.
 - No PGO (`default.pgo`): a CPU profile of three placeholder `YT_HARNESS=1` tours spends about 90% in Metal and other C calls. Built with it, Pages, Interactions and Memo moved +0.06% geomean (10 interleaved runs, M4 Max, Go 1.27.2): 1–2% faster on 8 of 19 pages, 0.5–3% slower on 5 other benchmarks, allocations unchanged, +49 KB of binary.
 
+## Struct layout
+
+- Group small fields and move trailing zero-size fields forward; verify savings with `unsafe.Sizeof`.
+- Audit with `fieldalignment -json ./...`, including build tags and target platforms. Prefer size savings over pointer-prefix-only reordering.
+- Preserve CLI JSON order and frozen old-peer types; gob reordering must still pass the bootstrap test.
+
 ## Memory on macOS
 
 Numbers from `scripts/footprint.sh` (`perf/footprint-baseline.txt`: M4 Max, 1280×770 window, placeholder catalog), but for thumbnails.

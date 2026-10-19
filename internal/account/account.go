@@ -79,10 +79,8 @@ type Account struct {
 	report   func(Change)
 
 	fetches [Liked + 1]job.Job
-	// liking holds the latest like sent for each song until it is
-	// answered; seq tells it from earlier ones, whose answers report no
-	// change: the latest decides. A sign-in or sign-out clears it, so the
-	// previous credentials' likes change nothing.
+	// liking maps songs to their latest likeSeq; stale replies change nothing.
+	// Credential changes clear it so old likes cannot affect the new account.
 	liking      map[string]uint64
 	likeSeq     uint64
 	likeCtx     context.Context
@@ -93,16 +91,16 @@ type Account struct {
 	stopSignIn context.CancelFunc
 	signOutJob job.Job
 
-	// The latest reported: status once hasStatus, library once fetched,
-	// likes once hasLikes (likedSongs replaced whole, never edited), and
-	// the failure of each Part whose last fetch failed.
-	status     Status
-	hasStatus  bool
-	library    *catalog.Library
-	likedIDs   []string
+	// Latest reported values; hasStatus and hasLikes distinguish unfetched values.
+	status   Status
+	library  *catalog.Library
+	likedIDs []string
+	// likedSongs is replaced whole, never edited.
 	likedSongs []catalog.Song
-	hasLikes   bool
-	failed     [Liked + 1]*Failure
+	// failed holds each Part's latest fetch failure.
+	failed    [Liked + 1]*Failure
+	hasStatus bool
+	hasLikes  bool
 }
 
 // Latest is the latest an Account reported of each Part, as a full

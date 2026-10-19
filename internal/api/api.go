@@ -27,24 +27,24 @@ const Proto uint16 = 1
 // Frame is one message on the socket; exactly one of Hello, Call, Reply,
 // Cancel and Event is set.
 type Frame struct {
+	Hello *Hello
+	Call  *Call
+	Reply *Reply
+	Event *Event
 	// ID numbers a front-end's requests from 1; a Reply or Cancel carries
 	// its request's. Events are 0.
 	ID     uint32
-	Hello  *Hello
-	Call   *Call
-	Reply  *Reply
 	Cancel bool // cancels the request ID
-	Event  *Event
 }
 
 // Hello is each side's first frame.
 type Hello struct {
-	Proto   uint16
 	Version string // MAJOR.MINOR.PATCH, or "dev"
+	PID     int
+	Proto   uint16
 	Role    Role
 	// Subscribe asks for events: Desktop and the TUI do, the CLI not.
 	Subscribe bool
-	PID       int
 }
 
 // Call is a request; at most one args field is set, the one its Method
@@ -166,37 +166,34 @@ type PlaylistReply struct {
 // Status is a snapshot for `ytm status`.
 type Status struct {
 	Version string
-	Proto   uint16
 	State   State
 	// Song is the current song; zero with an empty queue.
 	Song catalog.Song
-	// Length is the number of songs in the queue; State.Index is the
-	// current one's.
+	// Length is the queue size; State.Index identifies the current song.
 	Length   int
-	SignedIn bool
 	Account  catalog.Account
+	Proto    uint16
+	SignedIn bool
 }
 
 // State is the playback state, sent whole on each change, never on a
 // timer.
 type State struct {
-	Playing bool
-	// Waiting reports a song loading or stalled: Position stands still,
-	// though Playing.
-	Waiting bool
-	// Position is the seconds into the current song when sent; a receiver
-	// moves it on with its own monotonic clock while Playing and not
-	// Waiting.
-	Position float64
-	Duration float64 // seconds; 0 when unknown
-	Volume   float64 // 0 to 1
-	Muted    bool
-	Repeat   Repeat
-	Shuffled bool
 	// Current is the current song's ID and Index its index in the queue;
 	// "" and 0 with an empty queue.
 	Current string
 	Index   int
+	// Position is seconds into the song when sent; receivers advance it with a
+	// monotonic clock while Playing and not Waiting.
+	Position float64
+	Duration float64 // seconds; 0 when unknown
+	Volume   float64 // 0 to 1
+	Playing  bool
+	// Waiting freezes Position while a Playing song loads or stalls.
+	Waiting  bool
+	Muted    bool
+	Repeat   Repeat
+	Shuffled bool
 }
 
 // Queue is the whole queue, in play order (shuffled when shuffling).

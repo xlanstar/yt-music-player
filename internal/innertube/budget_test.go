@@ -3,6 +3,7 @@ package innertube
 import (
 	"net/http"
 	"testing"
+	"unsafe"
 	"yt-music-player/internal/budget"
 )
 
@@ -14,6 +15,10 @@ func TestBudgetPayload(t *testing.T) {
 }
 
 func TestBudgetContext(t *testing.T) {
+	var rc requestContext
+	if got, want := unsafe.Sizeof(rc), unsafe.Sizeof(rc.Client); got != want {
+		t.Errorf("context is %d bytes, client is %d; keep User before Client", got, want)
+	}
 	c := benchClient()
 	// 0 allocs today: a pinned version.
 	budget.Allocs(t, 0, 100, func() { sinkCtx = c.context() })

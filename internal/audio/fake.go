@@ -5,21 +5,19 @@ import "strconv"
 // Fake is an Engine for tests: it plays nothing, records calls, and
 // reports what the test makes it report. Not safe for concurrent use.
 type Fake struct {
-	// Calls records calls as "load URL at 12", "play", "pause", "seek 30",
-	// "volume 0.5".
+	// Calls records engine calls with their arguments.
 	Calls []string
-	// Pos and Dur are returned by Position and Duration; Load and Seek
-	// set Pos.
+	// Pos and Dur are seconds; Load and Seek update Pos.
 	Pos, Dur float64
-	Playing  bool
 	Volume   float64
 	Info     Info
 	Media    Media
-	Closed   bool
 	// Loads counts Load calls; events carry it.
 	Loads uint64
 
-	events func(Event)
+	events  func(Event)
+	Playing bool
+	Closed  bool
 }
 
 // NewFake returns a Fake that reports to events.

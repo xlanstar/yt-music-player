@@ -56,9 +56,8 @@ const (
 
 // Playback plays the player's songs.
 type Playback struct {
-	// Resolver finds songs' streams; NewEngine makes the engine as the
-	// first song loads. Without a Resolver nothing plays and the player
-	// acts as a mock; Stop, or failing to make an engine, clears it.
+	// Resolver finds streams; NewEngine makes the engine when the first song loads.
+	// A nil Resolver makes the player a mock; Stop or engine creation failure clears it.
 	Resolver  stream.Resolver
 	NewEngine func(events func(audio.Event)) (audio.Engine, error)
 
@@ -67,23 +66,17 @@ type Playback struct {
 	post   func(func())
 	engine audio.Engine
 
-	// song is what the engine has or is about to load; state is how far
-	// it got.
-	song       string
-	state      loadState
-	isStalled  bool
-	stream     stream.Stream
-	hasRetried bool
-	resolving  job.Job
+	// song is the ID the engine has or is about to load.
+	song      string
+	stream    stream.Stream
+	resolving job.Job
 	// onResolved is pb.resolved, stored once because a method value allocates.
 	onResolved func(stream.Stream, error)
 	// loads numbers the engine's Loads; events of an older load are dropped.
 	loads uint64
-	// isPlaying, pos and volume are what the engine last got from the
-	// player, to detect changes.
-	isPlaying bool
-	pos       float64
-	volume    float64
+	// pos and volume cache the last values sent to the engine to detect changes.
+	pos    float64
+	volume float64
 	// seconds is the song's length per the engine, 0 until ready.
 	seconds float64
 	// failures counts songs in a row that could not play.
@@ -95,11 +88,16 @@ type Playback struct {
 	prefetching   job.Job
 	prefetchTimer *time.Timer
 
-	// holds reports whether the engine has a stream, this song's or the
-	// last; isReleasing, that releaseTimer runs, as it does while that
-	// stream is paused.
+	releaseTimer *time.Timer
+	// state tracks how far loading song has progressed.
+	state      loadState
+	isStalled  bool
+	hasRetried bool
+	// isPlaying caches the last playing state sent to the engine to detect changes.
+	isPlaying bool
+	// holds includes the current or previous stream still held by the engine.
+	// isReleasing means releaseTimer is armed for that paused stream.
 	holds, isReleasing bool
-	releaseTimer       *time.Timer
 }
 
 type prefetch struct {
