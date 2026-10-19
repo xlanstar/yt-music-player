@@ -38,6 +38,14 @@ ns/op is too noisy to gate. `scripts/bench.sh` runs Pages, Interactions, Memo an
 
 Compare allocs/op and B/op first, then sec/op, only on a quiet machine (it warns when busy).
 
+## Binary size
+
+`scripts/binsize.sh` builds the Desktop, ytmd and ytm with the release flags (`scripts/build.sh`'s and `mygo build`'s: `-trimpath`, `-s -w`, `mygo_noinspector`, no cgo) for every platform released, into `perf/binsize-latest.txt`, and compares them with `perf/binsize-baseline.txt`, per program and the three together.
+
+- Sizes are the linker's, exact and the same on any machine for the same Go and code: no runs to repeat. darwin's carry the linker's ad-hoc signature, not `codesign`'s (about 90 KB less on the Desktop); Windows' Desktop lacks mygo's icon and manifest. Linux's match a release byte for byte.
+- It warns when the Go of the two differs: a toolchain moves sizes on its own.
+- `-platform darwin/arm64,…` focuses it; `-against <rev>` compares with a git revision, built in a temporary worktree, into `perf/binsize-against.txt`; `-update` makes a run of every platform the baseline.
+
 ## Commits
 
-A change with a measurable performance effect is a `perf(scope):` commit whose body pastes benchstat's output (`scripts/bench.sh -against HEAD` before committing): only the affected rows, never one marked `~` (not significant), with the goos, goarch and cpu lines.
+A change with a measurable performance effect is a `perf(scope):` commit whose body pastes benchstat's output (`scripts/bench.sh -against HEAD` before committing): only the affected rows, never one marked `~` (not significant), with the goos, goarch and cpu lines. One that moves binary size pastes `scripts/binsize.sh -against HEAD`'s rows that moved.
