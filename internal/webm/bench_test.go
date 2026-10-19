@@ -139,6 +139,67 @@ func readThrough(tb testing.TB, r *Reader) {
 	}
 }
 
+// laceCases are laced blocks of each kind, of 20 ms Opus packets, and
+// one of maxLaced frames.
+var laceCases = []struct {
+	name   string
+	kind   byte
+	frames int
+	// limit is TestBudgetUnlace's: 0 allocs today, the frames' slice reused.
+	limit float64
+}{
+	{"Xiph", laceXiph, 16, 0},
+	{"fixed", laceFixed, 16, 0},
+	{"EBML", laceEBML, 16, 0},
+	{"EBML/256", laceEBML, maxLaced, 0},
+}
+
+// lacedBlock is a laced block's data, frame i of bytes i: 160 bytes under
+// fixed lacing, else between 120 and 319.
+func lacedBlock(kind byte, frames int) []byte {
+	size := func(i int) int {
+		if kind == laceFixed {
+			return 160
+		}
+		return 120 + i*37%200
+	}
+	b := []byte{byte(frames - 1)}
+	for i := range frames - 1 {
+		switch n := size(i); kind {
+		case laceXiph:
+			for ; n >= 0xFF; n -= 0xFF {
+				b = append(b, 0xFF)
+			}
+			b = append(b, byte(n))
+		case laceEBML:
+			// Two-byte vints: the first size, then differences biased by 2^13-1.
+			if i > 0 {
+				n += 1<<13 - 1 - size(i-1)
+			}
+			b = append(b, 0x40|byte(n>>8), byte(n))
+		}
+	}
+	for i := range frames {
+		b = append(b, bytes.Repeat([]byte{byte(i)}, size(i))...)
+	}
+	return b
+}
+
+// BenchmarkUnlace keeps the frames, as readBlock does, for the next block
+// to reuse.
+func BenchmarkUnlace(b *testing.B) {
+	for _, tc := range laceCases {
+		b.Run(tc.name, func(b *testing.B) {
+			data := lacedBlock(tc.kind, tc.frames)
+			r := &Reader{}
+			b.ReportAllocs()
+			for b.Loop() {
+				r.laced, sinkErr = r.unlace(tc.kind, data)
+			}
+		})
+	}
+}
+
 func BenchmarkSeek(b *testing.B) {
 	for _, f := range benchFiles(b) {
 		b.Run(f.name, func(b *testing.B) {

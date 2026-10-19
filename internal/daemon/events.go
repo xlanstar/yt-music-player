@@ -175,10 +175,10 @@ func (s *Service) snapshot() []api.Frame {
 	if latest.Likes != nil {
 		ev.Likes = likesEvent(latest.Likes)
 	}
-	frames := make([]api.Frame, 0, 1+len(latest.Failed))
-	frames = append(frames, api.Frame{Event: ev})
-	for _, f := range latest.Failed {
-		frames = append(frames, api.Frame{Event: &api.Event{Failed: failedEvent(f)}})
+	frames := make([]api.Frame, 1+len(latest.Failed))
+	frames[0] = api.Frame{Event: ev}
+	for i, f := range latest.Failed {
+		frames[i+1] = api.Frame{Event: &api.Event{Failed: failedEvent(f)}}
 	}
 	return frames
 }

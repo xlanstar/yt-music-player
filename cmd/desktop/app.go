@@ -166,9 +166,11 @@ func appWith(cat *catalog.Catalog, clientPost func(func())) *app {
 		search:      func() { a.searchFor(a.search.query) },
 	}
 	for choice, lc := range layoutChoices {
+		chooses := make([]func(), len(lc.chips))
 		for option := range lc.chips {
-			a.actions.chooseChip[choice] = append(a.actions.chooseChip[choice], func() { a.chooseChip(choice, option) })
+			chooses[option] = func() { a.chooseChip(choice, option) }
 		}
+		a.actions.chooseChip[choice] = chooses
 	}
 	// An empty Dir saves nothing and never fails, until useSettings.
 	a.look.saver = settings.NewSaver("", nil)

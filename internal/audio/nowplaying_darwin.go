@@ -83,9 +83,9 @@ var registerObserver = sync.OnceValue(func() error {
 			return 0 // MPRemoteCommandHandlerStatusSuccess
 		}
 	}
-	var methods []objc.MethodDef
-	for _, c := range remoteCommands {
-		methods = append(methods, objc.MethodDef{Cmd: sel(c.action), Fn: handler(c.kind)})
+	methods := make([]objc.MethodDef, len(remoteCommands))
+	for i, c := range remoteCommands {
+		methods[i] = objc.MethodDef{Cmd: sel(c.action), Fn: handler(c.kind)}
 	}
 	_, err := objc.RegisterClass("YTMCommandObserver", objc.GetClass("NSObject"), nil, nil, methods)
 	return err

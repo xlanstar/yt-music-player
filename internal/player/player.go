@@ -188,8 +188,10 @@ func (p *Player) QueueGen() uint64 { return p.gen }
 // AppendPlayOrder appends the queue's songs to dst in play order: shuffled
 // while shuffling.
 func (p *Player) AppendPlayOrder(dst []string) []string {
-	for _, i := range p.order {
-		dst = append(dst, p.queue[i])
+	n := len(dst)
+	dst = slices.Grow(dst, len(p.order))[:n+len(p.order)]
+	for j, i := range p.order {
+		dst[n+j] = p.queue[i]
 	}
 	return dst
 }

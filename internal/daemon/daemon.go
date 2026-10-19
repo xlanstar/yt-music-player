@@ -263,9 +263,11 @@ func (s *Service) finish() {
 	}
 	s.mu.Lock()
 	s.closed = true
-	live := make([]*ipc.Conn, 0, len(s.live))
+	live := make([]*ipc.Conn, len(s.live))
+	i := 0
 	for c := range s.live {
-		live = append(live, c)
+		live[i] = c
+		i++
 	}
 	s.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), flushTimeout)

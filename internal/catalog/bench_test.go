@@ -315,7 +315,7 @@ func placeholderCalls(ctx context.Context, src *PlaceholderSource) []sourceCall 
 		{"Playlist", 2, func() { sinkPlaylist, sinkSongs, sinkErr = src.Playlist(ctx, "late-night-drive") }},
 		// 2 allocs today, as Playlist.
 		{"Playlist/liked", 2, func() { sinkPlaylist, sinkSongs, sinkErr = src.Playlist(ctx, LikedID) }},
-		{"Home", 27, func() { sinkHome, sinkErr = src.Home(ctx) }},          // 23 allocs today: shelves of items.
+		{"Home", 10, func() { sinkHome, sinkErr = src.Home(ctx) }},          // 9 allocs today: shelves of items.
 		{"Explore", 4, func() { sinkExplore, sinkErr = src.Explore(ctx) }},  // 3 allocs today.
 		{"Account", 0, func() { sinkAccount, sinkErr = src.Account(ctx) }},  // 0 allocs today, as Like.
 		{"Library", 13, func() { sinkLibrary, sinkErr = src.Library(ctx) }}, // 11 allocs today: every list copied.

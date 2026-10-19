@@ -556,10 +556,11 @@ func (w *Reader) unlace(kind byte, data []byte) ([][]byte, error) {
 	}
 	frames := w.laced[:0]
 	if cap(frames) < count {
-		frames = make([][]byte, 0, count)
+		frames = make([][]byte, count)
 	}
-	for _, size := range sizes {
-		frames = append(frames, data[:size])
+	frames = frames[:count]
+	for i, size := range sizes {
+		frames[i] = data[:size]
 		data = data[size:]
 	}
 	return frames, nil

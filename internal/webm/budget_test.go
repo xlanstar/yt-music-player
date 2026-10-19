@@ -42,6 +42,30 @@ func TestBudgetReadFrame(t *testing.T) {
 	}
 }
 
+func TestBudgetUnlace(t *testing.T) {
+	for _, tc := range laceCases {
+		t.Run(tc.name, func(t *testing.T) {
+			data := lacedBlock(tc.kind, tc.frames)
+			r := &Reader{}
+			// The first block makes the frames' slice; the next reuse it.
+			frames, err := r.unlace(tc.kind, data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(frames) != tc.frames {
+				t.Fatalf("%d frames, want %d", len(frames), tc.frames)
+			}
+			for i, f := range frames {
+				if len(f) == 0 || f[0] != byte(i) || f[len(f)-1] != byte(i) {
+					t.Fatalf("frame %d is not its bytes: sizes misread", i)
+				}
+			}
+			r.laced = frames
+			budget.Allocs(t, tc.limit, 100, func() { r.laced, sinkErr = r.unlace(tc.kind, data) })
+		})
+	}
+}
+
 func TestBudgetSeek(t *testing.T) {
 	r, err := Open(bytes.NewReader(benchFiles(t)[1].data))
 	if err != nil {

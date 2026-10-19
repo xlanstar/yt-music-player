@@ -150,21 +150,27 @@ func (s *PlaceholderSource) Home(ctx context.Context) (Home, error) {
 		return Home{}, err
 	}
 	picks := Shelf{Title: "Quick picks", Strapline: "Start radio from a song"}
-	for _, song := range s.cat.Songs[:min(quickPicks, len(s.cat.Songs))] {
-		picks.Items = append(picks.Items, Item{Kind: ItemSong, Song: song})
+	songs := s.cat.Songs[:min(quickPicks, len(s.cat.Songs))]
+	picks.Items = make([]Item, len(songs))
+	for i, song := range songs {
+		picks.Items[i] = Item{Kind: ItemSong, Song: song}
 	}
 	albums := Shelf{Title: "Albums for you", Strapline: "Based on your listening"}
-	for _, album := range s.cat.Albums {
-		albums.Items = append(albums.Items, Item{Kind: ItemAlbum, Album: album})
+	albums.Items = make([]Item, len(s.cat.Albums))
+	for i, album := range s.cat.Albums {
+		albums.Items[i] = Item{Kind: ItemAlbum, Album: album}
 	}
 	mixes := Shelf{Title: "Mixed for you", Strapline: "Made for you"}
-	for _, mix := range placeholderMixes() {
+	mixList := placeholderMixes()
+	mixes.Items = make([]Item, len(mixList))
+	for i, mix := range mixList {
 		mix.Songs = nil
-		mixes.Items = append(mixes.Items, Item{Kind: ItemPlaylist, Playlist: mix})
+		mixes.Items[i] = Item{Kind: ItemPlaylist, Playlist: mix}
 	}
 	artists := Shelf{Title: "Artists you love"}
-	for _, artist := range s.artists {
-		artists.Items = append(artists.Items, Item{Kind: ItemArtist, Artist: artist})
+	artists.Items = make([]Item, len(s.artists))
+	for i, artist := range s.artists {
+		artists.Items[i] = Item{Kind: ItemArtist, Artist: artist}
 	}
 	return Home{Shelves: []Shelf{picks, albums, mixes, artists}}, nil
 }
