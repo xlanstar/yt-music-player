@@ -46,6 +46,21 @@ Compare allocs/op and B/op first, then sec/op, only on a quiet machine (it warns
 - It warns when the Go of the two differs: a toolchain moves sizes on its own.
 - `-platform darwin/arm64,…` focuses it; `-against <rev>` compares with a git revision, built in a temporary worktree, into `perf/binsize-against.txt`; `-update` makes a run of every platform the baseline.
 
+### Attribution with gsa
+
+Use [gsa](https://github.com/Zxilly/go-size-analyzer) first (`brew install go-size-analyzer`), not custom parsers or full symbol dumps. Analyze an existing binary; `scripts/binsize.sh` removes its temporary builds.
+
+```sh
+gsa /path/to/binary                        # Package and section summary
+gsa /path/to/before /path/to/after         # Compare matching Go, target, tags and flags
+gsa /path/to/binary -o /tmp/gsa.json       # Filter with jq; do not read the full JSON
+```
+
+- Agents use text or filtered JSON; `--tui` is for interactive inspection.
+- Package attribution is not removable cost: shared dependencies, initializers and metadata need an actual before/after file-size comparison.
+- Check parser warnings. Use a matching unstripped build or targeted `go tool nm` only when attribution is incomplete or a difference unexplained.
+- Gsa does not measure runtime memory; use pprof and the [process-memory tools](performance.md#measuring).
+
 ## Commits
 
 A change with a measurable performance effect is a `perf(scope):` commit whose body pastes benchstat's output (`scripts/bench.sh -against HEAD` before committing): only the affected rows, never one marked `~` (not significant), with the goos, goarch and cpu lines. One that moves binary size pastes `scripts/binsize.sh -against HEAD`'s rows that moved.

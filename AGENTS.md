@@ -99,6 +99,7 @@ Reasons and measurements: `docs/performance.md`.
 - Don't remake per build what changes rarely: memoize it in `a.memo`; never copy a playlist's songs per build.
 - JSON keeps encoding/json/v2's defaults; an option only for a need a test or file format shows.
 - Run `scripts/bench.sh` before and after performance-sensitive changes (`-against <rev>` does both).
+- Analyze binary size with `gsa` first: text or filtered JSON, not full symbol dumps or custom parsers ([usage](docs/benchmarks.md#attribution-with-gsa)).
 
 ### Logging
 
