@@ -105,8 +105,8 @@ func TestBudgetLookups(t *testing.T) {
 func TestBudgetSetLibrary(t *testing.T) {
 	c := bigCatalog()
 	ids := slices.Clone(c.libraryIDs)
-	// 2 allocs today: the cloned IDs, and the playlists they index.
-	budget.Allocs(t, 2, 100, func() { c.SetLibrary(ids) })
+	// 1 alloc today: the playlists the IDs index; the IDs keep their array.
+	budget.Allocs(t, 1, 100, func() { c.SetLibrary(ids) })
 }
 
 func TestBudgetPlaceholderSource(t *testing.T) {

@@ -159,7 +159,8 @@ func (p *Player) resetOrder() {
 	if p.at < len(p.order) {
 		current = p.order[p.at]
 	}
-	p.order = make([]int, len(p.queue))
+	// The player alone holds its order (Order copies): reuse its array.
+	p.order = sized(p.order, len(p.queue))
 	for i := range p.order {
 		p.order[i] = i
 	}
@@ -236,12 +237,28 @@ func (p *Player) PlayAll(ids []string, start int) {
 // setQueue makes ids, each once, the queue in sequence, at ids[start].
 func (p *Player) setQueue(ids []string, start int) {
 	p.gen++
-	p.queue, p.order = slices.Clone(ids), make([]int, len(ids))
+	// The player alone holds its queue and order (Queued and Order copy):
+	// reuse their arrays, the old songs past the new ones cleared.
+	old := len(p.queue)
+	p.queue = append(p.queue[:0], ids...)
+	if old > len(ids) {
+		clear(p.queue[len(ids):old])
+	}
+	p.order = sized(p.order, len(ids))
 	p.queue, p.at = dedupe(p.queue, min(max(start, 0), max(len(ids)-1, 0)), p.order)
 	p.order = p.order[:len(p.queue)]
 	for i := range p.order {
 		p.order[i] = i
 	}
+}
+
+// sized returns order n long, over its array when that has room; else a
+// new one of exactly n, so that Enqueue's growth starts from n.
+func sized(order []int, n int) []int {
+	if cap(order) < n {
+		return make([]int, n)
+	}
+	return order[:n]
 }
 
 // dedupe removes from q, in place, each ID after its first, and returns q
@@ -492,7 +509,7 @@ func (p *Player) ClearUpNext() {
 	for i := range kept {
 		kept[i] = p.queue[p.order[i]]
 	}
-	p.queue, p.order = kept, nil
+	p.queue = kept
 	at := p.at
 	p.resetOrder()
 	p.at = at
@@ -643,15 +660,9 @@ func (p *Player) shuffleRest() {
 	if len(p.order) == 0 {
 		return
 	}
-	current := p.order[p.at]
-	// One allocation: current, then the rest.
-	order := make([]int, 1, len(p.order))
-	order[0] = current
-	for _, i := range p.order {
-		if i != current {
-			order = append(order, i)
-		}
-	}
+	// In place: current first, then the rest, shuffled.
+	order := p.order
+	order[0], order[p.at] = order[p.at], order[0]
 	p.gen++
 	rest := order[1:]
 	//nolint:gosec // a play order, no secret

@@ -2,10 +2,7 @@
 // IDs so routes, queues and likes survive a reload or refetch.
 package catalog
 
-import (
-	"slices"
-	"strings"
-)
+import "strings"
 
 // Art names a release's artwork; the UI resolves it to a thumbnail or a
 // generated cover.
@@ -350,7 +347,13 @@ func (c *Catalog) Playlist(id string) (Playlist, bool) {
 
 // SetLibrary sets the user's saved playlists, in order.
 func (c *Catalog) SetLibrary(ids []string) {
-	c.libraryIDs = slices.Clone(ids)
+	// The catalog alone reads its IDs: reuse their array, the old IDs past
+	// the new ones cleared.
+	old := len(c.libraryIDs)
+	c.libraryIDs = append(c.libraryIDs[:0], ids...)
+	if old > len(ids) {
+		clear(c.libraryIDs[len(ids):old])
+	}
 	c.gen++
 	c.indexLibrary()
 }

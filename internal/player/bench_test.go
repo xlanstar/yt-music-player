@@ -148,13 +148,13 @@ var playAllCases = []struct {
 	ids     []string
 	limit   float64
 }{
-	// 2 allocs today: the queue and its order.
-	{"in_order", false, queueIDs(bigQueue), 2},
-	// 3 allocs today: plus the shuffled order.
-	{"shuffled", true, queueIDs(bigQueue), 3},
-	// A list with each song twice, as a playlist may: 2 allocs today, as
+	// 0 allocs today: the queue and its order keep their arrays.
+	{"in_order", false, queueIDs(bigQueue), 0},
+	// 0 allocs today: the order shuffles in place.
+	{"shuffled", true, queueIDs(bigQueue), 0},
+	// A list with each song twice, as a playlist may: 0 allocs today, as
 	// in_order's.
-	{"repeated", false, slices.Concat(queueIDs(bigQueue/2), queueIDs(bigQueue/2)), 2},
+	{"repeated", false, slices.Concat(queueIDs(bigQueue/2), queueIDs(bigQueue/2)), 0},
 }
 
 func BenchmarkPlayAll(b *testing.B) {

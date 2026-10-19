@@ -41,3 +41,20 @@ func TestBudgetClick(t *testing.T) {
 		})
 	}
 }
+
+// TestBudgetPost holds a post and its run, as each of remote's events
+// does.
+func TestBudgetPost(t *testing.T) {
+	p := newPoster()
+	fn := func() {}
+	posting := func() {
+		p.post(fn)
+		<-p.wake
+		p.run()
+	}
+	// The queue and the batch each grow once.
+	posting()
+	posting()
+	// 0 allocs today: the queue takes the last batch's array.
+	budget.Allocs(t, 0, 100, posting)
+}

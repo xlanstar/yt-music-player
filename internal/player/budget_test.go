@@ -28,13 +28,13 @@ func TestBudgetMoves(t *testing.T) {
 
 func TestBudgetToggleShuffle(t *testing.T) {
 	p := bigPlayer()
-	// 1 alloc today: the new order.
-	budget.Allocs(t, 1, 20, func() {
+	// 0 allocs today: the order shuffles in place.
+	budget.Allocs(t, 0, 20, func() {
 		p.isShuffled = false
 		p.ToggleShuffle()
 	})
-	// 1 alloc today: the order.
-	budget.Allocs(t, 1, 20, func() {
+	// 0 allocs today: the order is reset in place.
+	budget.Allocs(t, 0, 20, func() {
 		p.isShuffled = true
 		p.ToggleShuffle()
 	})
