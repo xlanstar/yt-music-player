@@ -4,9 +4,12 @@
 // Detect, and writes what Encode returns.
 //
 // Kitty's Unicode placeholders and half blocks are text, which a cell renderer
-// diffs like any other. Sixel and iTerm2 images are pixels over cells: the
-// caller shows Encoded.Lines, blank, and draws the image after the frame that
-// blanked them (Overlay), and again after a full repaint.
+// diffs like any other. Sixel and iTerm2 images are pixels over cells, which a
+// write to any of them wipes: the caller shows Encoded.Lines, blank, each line's
+// first cell after a Mark, and passes every frame the renderer writes through
+// Splice, which draws after it the images whose marks it wrote. A cover's cells
+// change only with its mark, and a renderer writes a line from its first
+// changed cell, or whole: a frame that wipes an image writes its mark.
 //
 // Encoders take what artwork decodes, opaque and small, and read Pix directly:
 // x/ansi's general encoders box every pixel through image.Image.At.

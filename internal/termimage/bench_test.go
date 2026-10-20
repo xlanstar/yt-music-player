@@ -2,6 +2,8 @@ package termimage
 
 import (
 	"image"
+	"slices"
+	"strconv"
 	"testing"
 )
 
@@ -73,6 +75,72 @@ func BenchmarkEncode(b *testing.B) {
 			for b.Loop() {
 				sink = tc.encode(m)
 			}
+		})
+	}
+}
+
+// spliceCases are frames as the renderer writes them: a key's without
+// covers, a tick's that repaints the song beside a Sixel cover, and the
+// scaled case, 200 lines repainted with both covers. allocs is each one's
+// budget (TestBudgetSplice).
+var spliceCases = []spliceCase{
+	// 0 allocs today: dst is the last frame's.
+	{"key", 24, nil, 0},
+	// 0 allocs today.
+	{"tick-sixel", 24, []int{21}, 0},
+	// 0 allocs today.
+	{"repaint-200", 200, []int{2, 3, 197, 198}, 0},
+}
+
+type spliceCase struct {
+	name string
+	rows int
+	// marked are the lines written with a mark.
+	marked []int
+	allocs float64
+}
+
+// frame returns tc's frame, its table and the screen's size.
+func (tc spliceCase) frame() (frame []byte, t *Table, w, h int) {
+	seq := sixelImage(cover(80))
+	t = NewTable(12345, []Placement{
+		{Seq: seq, X: 1, Y: tc.rows - 3, Cols: 4, Rows: 2},
+		{Seq: seq, X: 1, Y: 2, Cols: 4, Rows: 2},
+	})
+	var b []byte
+	b = append(b, "\x1b[?2026h"...)
+	for y := range tc.rows {
+		b = append(b, "\x1b["...)
+		b = strconv.AppendInt(b, int64(y+1), 10)
+		b = append(b, ";1H\x1b[K "...)
+		if slices.Contains(tc.marked, y) {
+			slot := 0
+			if y < tc.rows/2 {
+				slot = 1
+			}
+			b = append(b, Mark(12345, slot, 0)...)
+		}
+		b = append(b, "⠀⠀⠀⠀ Midnight Arcade · Neon Tide · 0:41 ━━━━━━━━━━──────────── 3:12"...)
+	}
+	b = append(b, "\x1b[?2026l"...)
+	return b, t, 80, tc.rows
+}
+
+var sinkBytes []byte
+
+// BenchmarkSplice splices a frame's overlays as ytm does for each frame
+// the renderer writes.
+func BenchmarkSplice(b *testing.B) {
+	for _, tc := range spliceCases {
+		b.Run(tc.name, func(b *testing.B) {
+			frame, t, w, h := tc.frame()
+			dst := Splice(nil, frame, t, w, h)
+			b.SetBytes(int64(len(frame)))
+			b.ReportAllocs()
+			for b.Loop() {
+				dst = Splice(dst[:0], frame, t, w, h)
+			}
+			sinkBytes = dst
 		})
 	}
 }

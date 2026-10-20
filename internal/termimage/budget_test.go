@@ -15,3 +15,15 @@ func TestBudgetEncode(t *testing.T) {
 		})
 	}
 }
+
+// TestBudgetSplice holds splicing a frame, which ytm does for every frame
+// the renderer writes, into the last frame's buffer.
+func TestBudgetSplice(t *testing.T) {
+	for _, tc := range spliceCases {
+		t.Run(tc.name, func(t *testing.T) {
+			frame, tab, w, h := tc.frame()
+			dst := Splice(nil, frame, tab, w, h)
+			budget.Allocs(t, tc.allocs, 100, func() { dst = Splice(dst[:0], frame, tab, w, h) })
+		})
+	}
+}
