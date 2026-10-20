@@ -9,7 +9,7 @@ import (
 )
 
 // iterm2Image returns img as an iTerm2 inline image over cols×rows cells, for
-// Overlay to draw. JPEG, as covers are photos: a few KB, and no zlib.
+// Splice to draw. JPEG, as covers are photos: a few KB, and no zlib.
 func iterm2Image(img *image.RGBA, cols, rows int, tmux bool) (string, error) {
 	var data flushBuffer
 	// Covers take about a byte for 8 pixels; small ones, their tables.

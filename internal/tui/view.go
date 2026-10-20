@@ -54,7 +54,8 @@ func (m *model) render() {
 		m.gfx.clip(cut)
 		lines = lines[cut:]
 	}
-	m.content = strings.Join(lines, "\n")
+	m.gfx.endFrame()
+	m.content = m.gfx.join(lines)
 }
 
 // bodyHeight is how many lines the page has.

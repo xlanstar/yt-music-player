@@ -7,6 +7,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 ### Fixed
 
 - After an update, music keeps playing even while another window or `ytm` is slow to let go of the old background player.
+- In `ytm`, covers in iTerm2, WezTerm and Sixel terminals no longer vanish beside wide characters, such as a Japanese song title, a moment after showing.
 
 ## [0.2.0] - 2026-10-19
 

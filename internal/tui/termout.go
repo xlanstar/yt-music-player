@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"yt-music-player/internal/termimage"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/term"
 )
 
@@ -75,7 +76,16 @@ func (o *termOut) Write(frame []byte) (int, error) {
 // the UI thread, once an Update at most: the generation after the last.
 func (o *termOut) publish(t *termimage.Table) { o.tables[t.Gen()%2].Store(t) }
 
-// resize keeps the screen's size, before the renderer takes it.
+// filter keeps the screen's size from a resize before Bubble Tea's
+// renderer takes it, which may draw the last view at it (tea.WithFilter).
+func (o *termOut) filter(_ tea.Model, msg tea.Msg) tea.Msg {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		o.resize(size.Width, size.Height)
+	}
+	return msg
+}
+
+// resize keeps the screen's size.
 func (o *termOut) resize(w, h int) {
 	o.size.Store(uint64(max(w, 0))<<32 | uint64(max(h, 0)))
 }

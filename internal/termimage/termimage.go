@@ -92,7 +92,8 @@ type Encoded struct {
 	Lines []string
 	// Upload is sent once: Kitty's pixels, which the terminal keeps.
 	Upload string
-	// Overlay is drawn over Lines after each repaint: Sixel or iTerm2.
+	// Overlay is drawn over Lines after each frame that writes their marks
+	// (Splice): Sixel or iTerm2.
 	Overlay string
 }
 
@@ -119,21 +120,6 @@ func Encode(src *image.RGBA, c Caps, cols, rows int, id uint8, tmux bool) (Encod
 // needs `set -g allow-passthrough on`.
 func passthrough(seq string) string {
 	return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
-}
-
-// OverlayFrame is the most Overlay writes besides seq.
-const OverlayFrame = len("\x1b7\x1b[999;999H\x1b8")
-
-// Overlay writes seq drawn at cell x, y (from 0), the cursor kept where it
-// was: the renderer moves it by what it believes.
-func Overlay(b *strings.Builder, seq string, x, y int) {
-	b.WriteString("\x1b7\x1b[")
-	writeInt(b, y+1)
-	b.WriteByte(';')
-	writeInt(b, x+1)
-	b.WriteByte('H')
-	b.WriteString(seq)
-	b.WriteString("\x1b8")
 }
 
 // overlayCells returns the lines an overlay covers: blank, but braille's

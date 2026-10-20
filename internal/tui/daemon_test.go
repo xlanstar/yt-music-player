@@ -54,7 +54,7 @@ func newDaemonApp(t *testing.T) *daemonApp {
 	a := newApp(Config{
 		Dialer: pipeDialer{svc}, Version: "1.2.3", DaemonLog: "/logs/ytmd.log",
 		Spawn: func() error { return errors.New("no ytmd to start") },
-	})
+	}, nil)
 	t.Cleanup(func() {
 		a.close()
 		svc.Shutdown()

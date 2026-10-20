@@ -171,8 +171,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		cmd = m.gfx.resized()
-	case overlayMsg:
-		return m, m.gfx.overlay(msg)
 	case tea.FocusMsg:
 		m.isBlurred = false
 		m.sup.Foreground()

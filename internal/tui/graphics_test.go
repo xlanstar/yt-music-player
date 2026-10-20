@@ -102,8 +102,8 @@ func (h *harness) covered() []string {
 	return raws
 }
 
-// run runs cmd as Bubble Tea would, sending overlayMsgs back, and
-// returns the sequences written; nothing else may wait long.
+// run runs cmd as Bubble Tea would and returns the sequences written;
+// nothing else may wait long.
 func (h *harness) run(cmd tea.Cmd) []string {
 	if cmd == nil {
 		return nil
@@ -117,10 +117,22 @@ func (h *harness) run(cmd tea.Cmd) []string {
 		return raws
 	case tea.RawMsg:
 		return []string{fmt.Sprint(msg.Msg)}
-	case overlayMsg:
-		return h.run(h.send(msg))
 	}
 	return nil
+}
+
+// overlays are what termOut draws after a frame that writes the whole
+// screen: the overlays of the marks the screen holds, from the table the
+// model last published.
+func (h *harness) overlays() string {
+	h.t.Helper()
+	g := &h.m.gfx
+	if g.table != nil && g.table.Gen() != g.published {
+		h.t.Fatalf("table %d not published, %d is", g.table.Gen(), g.published)
+	}
+	frame := []byte(h.m.content)
+	text := termimage.Splice(nil, frame, nil, h.m.width, h.m.height)
+	return string(termimage.Splice(nil, frame, g.table, h.m.width, h.m.height)[len(text):])
 }
 
 // placeholders are the lines of Kitty's placeholders that show image id
@@ -198,7 +210,8 @@ func TestKittyBase(t *testing.T) {
 	}
 }
 
-// TestCoverOverlays draws Sixel's and iTerm2's images over blank cells.
+// TestCoverOverlays draws Sixel's and iTerm2's images over blank cells,
+// after the frames that write their marks.
 func TestCoverOverlays(t *testing.T) {
 	for p, seq := range map[termimage.Protocol]string{
 		termimage.Sixel:  "\x1bP0;1;0q\"1;1;40;36#",
@@ -207,26 +220,33 @@ func TestCoverOverlays(t *testing.T) {
 		t.Run(p.String(), func(t *testing.T) {
 			h := placeholderHarness(t)
 			h.withCovers(p, newCoverHost(t))
-			raws := h.covered()
-			// The song's line, 22, from cell 2: after the frame that blanked them.
-			if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[22;2H"+seq) {
-				t.Fatalf("overlays = %.60q, want the cover drawn once", raws)
+			if raws := h.covered(); len(raws) != 0 {
+				t.Errorf("wrote %.40q besides the screen", raws)
+			}
+			// The song's line, 22, from cell 2.
+			if got := h.overlays(); !strings.HasPrefix(got, "\x1b7\x1b[22;2H"+seq) || strings.Count(got, "\x1b7") != 1 {
+				t.Fatalf("overlays = %.60q, want the cover's", got)
 			}
 			if !strings.Contains(h.screen(), " \u2800\u2800\u2800\u2800 ") {
 				t.Error("the cover's cells are not left blank")
 			}
-			if raws := h.run(h.press("tab")); len(raws) != 0 {
-				t.Errorf("a render that leaves the cover drew %q", raws)
+			// The same overlays keep their generation, and the lines their
+			// bytes: the renderer writes them only when it must.
+			gen, content := h.m.gfx.published, h.m.content
+			h.press("tab")
+			h.press("shift+tab")
+			if raws := h.run(h.send(tea.WindowSizeMsg{Width: 90, Height: 24})); len(raws) != 1 || raws[0] != termimage.CellSizeQuery {
+				t.Errorf("a resize wrote %.40q, want the cell's size asked", raws)
 			}
-			// A resize repaints every cell, the cover's too.
-			raws = h.run(h.send(tea.WindowSizeMsg{Width: 90, Height: 24}))
-			if len(raws) != 2 || raws[0] != termimage.CellSizeQuery || !strings.HasPrefix(raws[1], "\x1b7\x1b[22;2H") {
-				t.Errorf("after a resize, wrote %.40q", raws)
+			h.resize(80, 24)
+			if h.m.gfx.published != gen || h.m.content != content {
+				t.Errorf("generation %d after %d, the screen the same %t", h.m.gfx.published, gen, h.m.content == content)
 			}
 			// Without the cover, its cells are painted over: nothing to draw.
 			h.mirror.setQueue(nil)
-			if raws := h.run(h.send(postedMsg{})); len(raws) != 0 || h.m.gfx.drawn != ([numSlots]placement{}) {
-				t.Errorf("without a cover, drew %q, and drawn = %+v", raws, h.m.gfx.drawn)
+			h.send(postedMsg{})
+			if got := h.overlays(); got != "" || h.m.gfx.published != gen+1 || strings.Contains(h.m.content, "\x1b^") {
+				t.Errorf("without a cover, overlays %q, generation %d after %d", got, h.m.gfx.published, gen)
 			}
 		})
 	}
@@ -280,41 +300,38 @@ func TestCoverHeader(t *testing.T) {
 	}
 }
 
-// TestCoverOverlayReturns draws a header's image again after the help
-// hid and showed it before the overlay's frame came.
+// TestCoverOverlayReturns draws a header's image again once the help
+// that hid it goes.
 func TestCoverOverlayReturns(t *testing.T) {
 	h := newHarness(t, albumArt{catalog.NewPlaceholderSource(0)})
 	h.withCovers(termimage.Sixel, newCoverHost(t))
 	h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
-	if raws := h.covered(); len(raws) != 1 || !strings.Contains(raws[0], "\x1b[3;2H") {
-		t.Fatalf("overlays = %.40q, want the header's", raws)
+	h.covered()
+	if got := h.overlays(); !strings.Contains(got, "\x1b[3;2H") {
+		t.Fatalf("overlays = %.40q, want the header's", got)
 	}
 	h.press("?")
-	raws := h.run(h.press("?"))
-	if len(raws) != 1 || !strings.HasPrefix(raws[0], "\x1b7\x1b[3;2H\x1bP") || strings.Contains(raws[0], "\x1b[22;2H") {
-		t.Errorf("back from the help, drew %.40q, want only the header's cover", raws)
+	if got := h.overlays(); strings.Contains(got, "\x1b[3;2H") || !strings.Contains(got, "\x1b[22;2H") {
+		t.Errorf("over the help, overlays = %.40q, want the bar's alone", got)
+	}
+	h.press("?")
+	if got := h.overlays(); !strings.HasPrefix(got, "\x1b7\x1b[22;2H\x1bP") || !strings.Contains(got, "\x1b[3;2H") {
+		t.Errorf("back from the help, overlays = %.40q, want the bar's and the header's", got)
 	}
 }
 
 // TestCoverOverlayDropped draws no Sixel image over Kitty's placeholders
-// once the protocol changed before the overlay's frame came.
+// once the protocol changed.
 func TestCoverOverlayDropped(t *testing.T) {
 	h := placeholderHarness(t)
 	h.withCovers(termimage.Sixel, newCoverHost(t))
 	h.covered()
-	// A resize schedules the overlay again; Kitty comes before its frame.
-	pending := h.send(tea.WindowSizeMsg{Width: 90, Height: 24})
+	gen := h.m.gfx.published
 	h.m.gfx.env.Override = termimage.Kitty.String()
-	raws := h.run(h.send(uv.CellSizeEvent{Width: 10, Height: 20}))
-	raws = append(raws, h.covered()...)
-	raws = append(raws, h.run(pending)...)
-	for _, raw := range raws {
-		if strings.Contains(raw, "\x1bP0;1;0q") {
-			t.Errorf("drew the Sixel image over Kitty's placeholders: %.40q", raw)
-		}
-	}
-	if h.m.gfx.want != ([numSlots]placement{}) {
-		t.Errorf("want = %+v, want no overlay", h.m.gfx.want)
+	h.send(uv.CellSizeEvent{Width: 10, Height: 20})
+	h.covered()
+	if got := h.overlays(); got != "" || h.m.gfx.published != gen+1 || strings.Contains(h.m.content, "\x1b^") {
+		t.Errorf("over Kitty's placeholders, overlays %.40q, generation %d after %d", got, h.m.gfx.published, gen)
 	}
 }
 
@@ -431,7 +448,7 @@ func TestCoverPlaces(t *testing.T) {
 		p termimage.Protocol
 		// cells are a cover's lines, as the screen shows them.
 		cells [coverRows]string
-		// overlays are drawn over the cells, today a few frames after them.
+		// overlays are drawn over the cells, after the frames that write them.
 		isOverlay bool
 	}{
 		{termimage.Blocks, [coverRows]string{"▀▀▀▀", "▀▀▀▀"}, false},
@@ -448,7 +465,7 @@ func TestCoverPlaces(t *testing.T) {
 			h := newHarness(t, albumArt{catalog.NewPlaceholderSource(0)})
 			h.withCovers(tc.p, newCoverHost(t))
 			h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
-			raws := h.covered()
+			h.covered()
 			// at checks that the cover shows from line y, of the screen's
 			// lines, beside texts.
 			at := func(what string, y int, texts ...string) {
@@ -464,8 +481,8 @@ func TestCoverPlaces(t *testing.T) {
 			at("the bar", 21, "❙❙ Midnight Arcade", "0:41 ")
 			if tc.isOverlay {
 				// Cell 1 of lines 2 and 21 is the terminal's (2, 3) and (2, 22).
-				if all := strings.Join(raws, ""); !strings.Contains(all, "\x1b7\x1b[3;2H") || !strings.Contains(all, "\x1b7\x1b[22;2H") {
-					t.Errorf("overlays = %.80q, want the header's and the bar's", raws)
+				if got := h.overlays(); !strings.Contains(got, "\x1b7\x1b[3;2H") || !strings.Contains(got, "\x1b7\x1b[22;2H") {
+					t.Errorf("overlays = %.80q, want the header's and the bar's", got)
 				}
 			}
 
@@ -473,36 +490,32 @@ func TestCoverPlaces(t *testing.T) {
 			h.resize(44, 24)
 			h.covered()
 			at("the header, 44 wide", 2, "Neon Tide", "Album · ")
-			raws = h.run(h.send(tea.WindowSizeMsg{Width: 43, Height: 24}))
-			raws = append(raws, h.covered()...)
+			h.resize(43, 24)
+			h.covered()
 			lines := strings.Split(h.screen(), "\n")
 			if lines[2] != " Neon Tide" || !strings.HasPrefix(lines[21], " ❙❙ Midnight Arcade") {
 				t.Errorf("43 wide, the header and the bar show\n%q\n%q", lines[2], lines[21])
 			}
-			for _, raw := range raws {
-				if strings.Contains(raw, "\x1b7") {
-					t.Errorf("43 wide, drew %.40q", raw)
-				}
+			if got := h.overlays(); got != "" {
+				t.Errorf("43 wide, drew %.40q", got)
 			}
 
 			// The bar's rule cut: its cover on lines 0 and 1, the header's gone.
-			raws = h.run(h.send(tea.WindowSizeMsg{Width: 80, Height: 3}))
-			raws = append(raws, h.covered()...)
+			h.resize(80, 3)
+			h.covered()
 			at("the bar, 3 high", 0, "❙❙ Midnight Arcade", "0:41 ")
-			if tc.isOverlay && !slices.ContainsFunc(raws, func(raw string) bool { return strings.HasPrefix(raw, "\x1b7\x1b[1;2H") }) {
-				t.Errorf("3 high, overlays = %.40q, want the bar's on line 1", raws)
+			if got := h.overlays(); tc.isOverlay && (!strings.HasPrefix(got, "\x1b7\x1b[1;2H") || strings.Count(got, "\x1b7") != 1) {
+				t.Errorf("3 high, overlays = %.40q, want the bar's on line 1", got)
 			}
 			// The song's line cut too: the cover's second line shows, its
 			// image does not.
-			raws = h.run(h.send(tea.WindowSizeMsg{Width: 80, Height: 2}))
-			raws = append(raws, h.covered()...)
+			h.resize(80, 2)
+			h.covered()
 			if line, _, _ := strings.Cut(h.screen(), "\n"); !strings.HasPrefix(line, " "+tc.cells[1]+" 0:41 ") {
 				t.Errorf("2 high, line 0 is %q", line)
 			}
-			for _, raw := range raws {
-				if strings.Contains(raw, "\x1b7") {
-					t.Errorf("2 high, drew %.40q", raw)
-				}
+			if got := h.overlays(); got != "" {
+				t.Errorf("2 high, drew %.40q", got)
 			}
 		})
 	}

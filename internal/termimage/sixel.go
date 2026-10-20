@@ -10,7 +10,7 @@ import (
 // no per-image quantizing, its maps nor its heap.
 var bayer = [4][4]uint8{{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}}
 
-// sixelImage returns img as a Sixel image, for Overlay to draw, in the 216
+// sixelImage returns img as a Sixel image, for Splice to draw, in the 216
 // colors of a 6×6×6 cube, ordered-dithered.
 func sixelImage(img *image.RGBA) string {
 	w, h := img.Rect.Dx(), img.Rect.Dy()

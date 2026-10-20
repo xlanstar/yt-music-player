@@ -323,12 +323,7 @@ func TestLevel(t *testing.T) {
 	}
 }
 
-func TestOverlay(t *testing.T) {
-	var b strings.Builder
-	Overlay(&b, "IMG", 1, 20)
-	if got, want := b.String(), "\x1b7\x1b[21;2HIMG\x1b8"; got != want || len(got)-3 > OverlayFrame {
-		t.Errorf("Overlay = %q, want %q", got, want)
-	}
+func TestOverlayCells(t *testing.T) {
 	cells := overlayCells(3, 2)
 	if len(cells) != 2 || cells[1] != "\u2800\u2800\u2800" {
 		t.Errorf("overlayCells(3, 2) = %q", cells)

@@ -28,9 +28,6 @@ const (
 	coverMinWidth = 40
 	// probeWait is how long a terminal has to answer the probe.
 	probeWait = time.Second
-	// overlayDelay lets the frame that blanked an overlay's cells out
-	// before the image: two of the renderer's frames, and one more.
-	overlayDelay = 3 * time.Second / fps
 	// numCovers bounds the covers kept: two show, the rest come back.
 	numCovers = 8
 	// offScreenBytes bounds the images kept for covers off screen:
@@ -80,12 +77,10 @@ func (c *cover) size() int { return len(c.Overlay) + len(c.Upload) }
 
 type probeTimeoutMsg struct{}
 
-// overlayMsg draws the overlays of commit gen, if still current.
-type overlayMsg struct{ gen uint64 }
-
 // gfx shows covers, on the UI thread: it detects the protocol, loads
-// and encodes covers off the thread, and sends what the renderer cannot.
-// With no protocol it makes nothing: no loader, no HTTP client.
+// and encodes covers off the thread, uploads Kitty's images and tells out
+// where the overlays go. With no protocol it makes nothing: no loader, no
+// HTTP client.
 type gfx struct {
 	env     termimage.Env
 	replies termimage.Replies
@@ -102,10 +97,17 @@ type gfx struct {
 	covers [numCovers]cover
 	frame  uint64
 	placed [numSlots]placement
-	// drawn are the overlays the terminal shows, want those it should:
-	// while they differ, an overlayMsg of gen will draw them.
-	drawn, want [numSlots]placement
-	gen         uint64
+
+	// out draws the overlays of the frames that wrote their marks; nil
+	// without a terminal.
+	out *termOut
+	// table is the overlays' last table, places what it holds and marks
+	// its marks, by slot and line: a frame whose overlays did not change
+	// keeps them, its lines the same bytes. published is out's last.
+	table     *termimage.Table
+	places    [numSlots]termimage.Placement
+	marks     [numSlots][coverRows]string
+	published uint64
 
 	isReady bool
 	// kittyBase is cover 0's Kitty image ID, a 256-color index (newKittyBase).
@@ -178,13 +180,12 @@ func (g *gfx) detect() bool {
 	return g.caps != was
 }
 
-// resized follows a resize, which repaints every cell: overlays again,
-// and the cell's pixels, which a font's size changes.
+// resized asks the cell's pixels again after a resize: a font's size
+// changes them.
 func (g *gfx) resized() tea.Cmd {
 	if !g.isReady || g.caps.Protocol == termimage.None {
 		return nil
 	}
-	g.drawn, g.want = [numSlots]placement{}, [numSlots]placement{}
 	return tea.Raw(termimage.CellSizeQuery)
 }
 
@@ -256,12 +257,6 @@ func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
 			e.Lines = g.blank
 		}
 		c.Encoded, c.isReady = e, true
-		for s := range g.drawn {
-			if g.drawn[s].key == key {
-				// An overlay encoded again draws again.
-				g.drawn[s], g.want[s] = placement{}, placement{}
-			}
-		}
 	})
 }
 
@@ -277,11 +272,80 @@ func (g *gfx) clip(cut int) {
 	}
 }
 
+// endFrame makes the table of the overlays the render placed, of the
+// generation after out's last if they changed.
+func (g *gfx) endFrame() {
+	var places [numSlots]termimage.Placement
+	for s, p := range g.placed {
+		if c := g.ready(p.key); c != nil && c.Overlay != "" {
+			places[s] = termimage.Placement{Seq: c.Overlay, X: coverX, Y: p.y, Cols: g.cols, Rows: coverRows}
+		}
+	}
+	if places == g.places {
+		return
+	}
+	gen := g.published + 1
+	g.table, g.places = termimage.NewTable(gen, places[:]), places
+	for s, p := range places {
+		for r := range coverRows {
+			g.marks[s][r] = ""
+			if p.Seq != "" {
+				g.marks[s][r] = termimage.Mark(gen, s, r)
+			}
+		}
+	}
+}
+
+// join joins a render's lines into the screen, each line of an overlay
+// with its mark before the overlay's first cell.
+func (g *gfx) join(lines []string) string {
+	n := len(lines)
+	for _, line := range lines {
+		n += len(line)
+	}
+	for s, p := range g.places {
+		if p.Seq != "" {
+			n += coverRows * len(g.marks[s][0])
+		}
+	}
+	var b strings.Builder
+	b.Grow(n)
+	for y, line := range lines {
+		if y > 0 {
+			b.WriteByte('\n')
+		}
+		if mark := g.markOf(y); mark != "" && len(line) > coverX {
+			// Covers start after coverX spaces, a byte each.
+			b.WriteString(line[:coverX])
+			b.WriteString(mark)
+			line = line[coverX:]
+		}
+		b.WriteString(line)
+	}
+	return b.String()
+}
+
+// markOf returns the mark of line y, empty off the overlays.
+func (g *gfx) markOf(y int) string {
+	for s, p := range g.places {
+		if p.Seq != "" && y >= p.Y && y < p.Y+p.Rows {
+			return g.marks[s][y-p.Y]
+		}
+	}
+	return ""
+}
+
 // commit sends, after a render, what the renderer cannot: Kitty's new
-// uploads at once, overlays a few frames later. Both run whatever the
-// protocol, so one changed drops the overlays of the last.
+// uploads, and out the overlays' table if it changed. It runs once an
+// Update at most, as out keeps two tables.
 func (g *gfx) commit() tea.Cmd {
-	cmd := tea.Batch(g.upload(), g.scheduleOverlays())
+	if g.table != nil && g.table.Gen() > g.published {
+		g.published = g.table.Gen()
+		if g.out != nil {
+			g.out.publish(g.table)
+		}
+	}
+	cmd := g.upload()
 	g.trim()
 	return cmd
 }
@@ -297,61 +361,6 @@ func (g *gfx) upload() tea.Cmd {
 	if b.Len() == 0 {
 		return nil
 	}
-	return tea.Raw(b.String())
-}
-
-func (g *gfx) scheduleOverlays() tea.Cmd {
-	var cur [numSlots]placement
-	for s, p := range g.placed {
-		if c := g.ready(p.key); c != nil && c.Overlay != "" {
-			cur[s] = p
-		}
-	}
-	for s := range cur {
-		if cur[s] != g.drawn[s] {
-			// Its cells repaint, wiping the image.
-			g.drawn[s] = placement{}
-		}
-	}
-	if cur == g.want {
-		// Drawn, or scheduled to be.
-		return nil
-	}
-	g.want = cur
-	if cur == g.drawn {
-		return nil
-	}
-	g.gen++
-	gen := g.gen
-	return tea.Tick(overlayDelay, func(time.Time) tea.Msg { return overlayMsg{gen} })
-}
-
-// overlay draws the overlays commit scheduled, unless the screen changed
-// since; the renderer's frame blanked their cells meanwhile.
-func (g *gfx) overlay(msg overlayMsg) tea.Cmd {
-	if msg.gen != g.gen {
-		return nil
-	}
-	var draw [numSlots]*cover
-	size := 0
-	for s, p := range g.want {
-		if c := g.ready(p.key); c != nil && p != g.drawn[s] {
-			draw[s] = c
-			size += len(c.Overlay) + termimage.OverlayFrame
-		}
-	}
-	if size == 0 {
-		g.drawn = g.want
-		return nil
-	}
-	var b strings.Builder
-	b.Grow(size)
-	for s, c := range draw {
-		if c != nil {
-			termimage.Overlay(&b, c.Overlay, coverX, g.want[s].y)
-		}
-	}
-	g.drawn = g.want
 	return tea.Raw(b.String())
 }
 
