@@ -553,14 +553,14 @@ func settleCovers(t *testing.T, g *covers, caps termimage.Caps, posts *poster, r
 }
 
 // mustRequest is art's cover in slot s, rows tall from line y of an
-// 80-cell screen.
+// 80-cell screen, laid out as the parts lay theirs.
 func mustRequest(t *testing.T, g *probe, s slot, y, rows int, art catalog.Art) coverRequest {
 	t.Helper()
-	r, ok := g.request(s, y, rows, 80, art)
-	if !ok {
+	cols := g.coverCols(rows, 80)
+	if cols == 0 {
 		t.Fatalf("no cover %d rows tall", rows)
 	}
-	return r
+	return coverRequest{rect: layBeside(y, cols, rows).cover, art: art, slot: s}
 }
 
 // blankCover is a cover's lines while it loads.

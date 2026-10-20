@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"image"
 	"testing"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/termimage"
@@ -55,34 +54,35 @@ func TestCoverDetect(t *testing.T) {
 	}
 }
 
-// TestCoverRequest sizes a cover from its rows, square in the cell's
-// pixels, and omits it where it would not fit beside the text.
-func TestCoverRequest(t *testing.T) {
-	g := probe{env: termimage.Env{Override: "sixel"}, replies: termimage.Replies{CellW: 10, CellH: 20}}
-	g.detect()
+// TestCoverCols sizes a cover from its rows, square in the cell's
+// pixels, and omits it where it would not fit beside the text, or is no
+// image.
+func TestCoverCols(t *testing.T) {
+	m := &model{probe: probe{env: termimage.Env{Override: "sixel"}, replies: termimage.Replies{CellW: 10, CellH: 20}}}
+	m.probe.detect()
 	for _, tc := range []struct {
 		rows, w int
 		art     catalog.Art
-		want    image.Rectangle
+		want    int
 	}{
-		{2, 80, coverURL, image.Rect(1, 5, 5, 7)},
-		{3, 80, coverURL, image.Rect(1, 5, 7, 8)},
-		{1, 80, coverURL, image.Rect(1, 5, 3, 6)},
+		{2, 80, coverURL, 4},
+		{3, 80, coverURL, 6},
+		{1, 80, coverURL, 2},
 		// 6 cells and 40 beside them.
-		{3, 46, coverURL, image.Rect(1, 5, 7, 8)},
-		{3, 45, coverURL, image.Rectangle{}},
-		{0, 80, coverURL, image.Rectangle{}},
-		{2, 80, "", image.Rectangle{}},
-		{2, 80, "icon:liked", image.Rectangle{}},
+		{3, 46, coverURL, 6},
+		{3, 45, coverURL, 0},
+		{0, 80, coverURL, 0},
+		{2, 80, "", 0},
+		{2, 80, "icon:liked", 0},
 	} {
-		r, ok := g.request(slotBar, 5, tc.rows, tc.w, tc.art)
-		if r.rect != tc.want || ok != (tc.want != image.Rectangle{}) {
-			t.Errorf("%d rows of %q, %d wide: %v, %t; want %v", tc.rows, tc.art, tc.w, r.rect, ok, tc.want)
+		m.width = tc.w
+		if got := m.coverCols(tc.rows, tc.art); got != tc.want {
+			t.Errorf("%d rows of %q, %d wide: %d cells, want %d", tc.rows, tc.art, tc.w, got, tc.want)
 		}
 	}
-	g = probe{env: termimage.Env{Override: "off"}}
-	g.detect()
-	if _, ok := g.request(slotBar, 5, 2, 200, coverURL); ok {
-		t.Error("without a protocol, a cover shows")
+	m.probe = probe{env: termimage.Env{Override: "off"}}
+	m.probe.detect()
+	if got := m.coverCols(2, coverURL); got != 0 {
+		t.Errorf("without a protocol, a cover spans %d cells", got)
 	}
 }

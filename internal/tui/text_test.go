@@ -82,7 +82,7 @@ func TestCellsWidth(t *testing.T) {
 	}
 }
 
-// Cut, padded, spread or wrapped, text takes the cells it is given, by
+// Cut or wrapped, text takes the cells it is given, by
 // either method.
 func TestCellsFit(t *testing.T) {
 	long := "夜に駆ける 👩‍💻👩‍💻 Night 👍🏽 shift ❤️❤️❤️ Cafe\u0301 \x1b[1mbold\x1b[m 群青"
@@ -98,12 +98,6 @@ func TestCellsFit(t *testing.T) {
 					t.Errorf("%s: fit(%q, %d) = %q, %d cells", m.name, s, w, got, gw)
 				case got != s && w > 0 && !strings.HasSuffix(ansi.Strip(got), ellipsis):
 					t.Errorf("%s: fit(%q, %d) = %q, without an ellipsis", m.name, s, w, got)
-				}
-				if got := c.pad(s, w); c.width(got) != w {
-					t.Errorf("%s: pad(%q, %d) = %q, %d cells", m.name, s, w, got, c.width(got))
-				}
-				if got := c.spread(" ", s, "3:47", w); c.width(got) != w+1 {
-					t.Errorf("%s: spread(%q, %d) = %q, %d cells", m.name, s, w, got, c.width(got))
 				}
 			}
 		}

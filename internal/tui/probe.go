@@ -1,10 +1,8 @@
 package tui
 
 import (
-	"image"
 	"slices"
 	"time"
-	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/termimage"
 
 	tea "charm.land/bubbletea/v2"
@@ -98,15 +96,4 @@ func (p *probe) coverCols(rows, w int) int {
 		return cols
 	}
 	return 0
-}
-
-// request returns art's cover for slot s, rows tall from line y's cell
-// coverX, as wide as the terminal draws it square; ok is false where a
-// screen w wide is too narrow for it, or art is no image.
-func (p *probe) request(s slot, y, rows, w int, art catalog.Art) (r coverRequest, ok bool) {
-	cols := p.coverCols(rows, w)
-	if cols == 0 || !art.IsURL() {
-		return coverRequest{}, false
-	}
-	return coverRequest{rect: image.Rect(coverX, y, coverX+cols, y+rows), art: art, slot: s}, true
 }

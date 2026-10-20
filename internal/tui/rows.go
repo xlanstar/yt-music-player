@@ -6,8 +6,8 @@ import (
 	"yt-music-player/locales"
 )
 
-// segment is a cell of a row: text in its style, fitted to width cells
-// (aligned right if isRight), or as it is when width is 0.
+// segment is a cell of a row: text in its style, fitted to width cells,
+// aligned right if isRight.
 type segment struct {
 	text    string
 	width   int
@@ -18,7 +18,7 @@ type segment struct {
 // The columns' widths and the gap between them, in cells; cells measures
 // the glyphs' columns.
 const (
-	gap      = "  "
+	colGap   = 2
 	durWidth = 6 // " 12:34"
 	// Song rows show the artist from this width up, the album from
 	// albumFrom.
@@ -38,38 +38,55 @@ func writeSpaces(b *strings.Builder, n int) {
 	}
 }
 
-// write writes s to b, in style unless plain.
-func (s *segment) write(b *strings.Builder, c *cells, isPlain bool) {
-	text, fill := s.text, s.width
-	if text != "" && s.width > 0 {
-		// Measured once: most text fits.
-		if fill -= c.width(text); fill < 0 {
-			text = c.fit(text, s.width)
-			fill = s.width - c.width(text)
-		}
+// fitted is s's text fitted to its width, and the cells it takes.
+func (s *segment) fitted(c *cells) (string, int) {
+	if s.text == "" {
+		return "", 0
 	}
+	// Measured once: most text fits.
+	text, w := s.text, c.width(s.text)
+	if w > s.width {
+		text = c.fit(text, s.width)
+		w = c.width(text)
+	}
+	return text, w
+}
+
+// draw draws s from cell x of row y of g, and returns the cell after it.
+func (s *segment) draw(g region, x, y int, c *cells) int {
+	text, w := s.fitted(c)
+	at := x
 	if s.isRight {
-		writeSpaces(b, fill)
+		at += s.width - w
 	}
-	if isPlain {
-		b.WriteString(text)
-	} else {
-		s.style.write(b, text)
+	g.putText(at, y, text, w, s.style)
+	return x + s.width
+}
+
+// write writes s's text, plain and padded to its width, to b.
+func (s *segment) write(b *strings.Builder, c *cells) {
+	text, w := s.fitted(c)
+	if s.isRight {
+		writeSpaces(b, s.width-w)
 	}
+	b.WriteString(text)
 	if !s.isRight {
-		writeSpaces(b, fill)
+		writeSpaces(b, s.width-w)
 	}
 }
 
-// row draws it on a line of w cells. The selected row is reversed, behind
-// a marker that shows without colors too.
-func (m *model) row(it item, w int, isSelected bool) string {
+// drawRow draws it on row y of g, a list's, from the screen's left edge
+// to its right. The selected row is one reversed span across, behind a
+// marker that shows without colors too.
+func (m *model) drawRow(g region, y int, it item, isSelected bool) {
 	c := &m.cells
+	w, _ := g.size()
 	if it.kind == itemHeading {
-		return " " + styleHeading.Render(c.fit(it.text, max(w-2, 0)))
+		g.fit(padX, y, it.text, max(w-2*padX, 0), styleHeading)
+		return
 	}
-	// The cursor's column before, a space after.
-	inner := max(w-c.cursor-1, 0)
+	// The cursor's column before, the padding after.
+	inner := max(w-c.cursor-padX, 0)
 	blank := segment{width: c.mark}
 	var segs [8]segment
 	var parts []segment
@@ -91,26 +108,23 @@ func (m *model) row(it item, w int, isSelected bool) string {
 	case itemPlaylist:
 		parts = columns(append(segs[:0], blank), it.playlist.Name, it.playlist.Owner, inner-c.mark)
 	}
+	if !isSelected {
+		x := c.cursor
+		for i := range parts {
+			x = parts[i].draw(g, x, y, c)
+		}
+		return
+	}
 	var b strings.Builder
 	b.Grow(4 * w)
-	if !isSelected {
-		writeSpaces(&b, c.cursor)
-		for i := range parts {
-			parts[i].write(&b, c, false)
-		}
-		return b.String()
-	}
-	b.WriteString(styleSelected.pre)
 	b.WriteString(cursorMark)
 	used := c.cursor
 	for i := range parts {
-		start := b.Len()
-		parts[i].write(&b, c, true)
-		used += c.width(b.String()[start:])
+		parts[i].write(&b, c)
+		used += parts[i].width
 	}
 	writeSpaces(&b, w-used)
-	b.WriteString(styleSelected.post)
-	return b.String()
+	g.putText(0, y, b.String(), max(used, w), styleSelected)
 }
 
 // songSegments lays a song out in w cells: a mark if current, its title,
@@ -128,17 +142,17 @@ func (m *model) songSegments(segs []segment, it *item, w int) []segment {
 	segs = append(segs, segment{text: mark, width: c.mark, style: styleAccent})
 	switch {
 	case rest >= albumFrom:
-		cols := rest - 2*len(gap)
+		cols := rest - 2*colGap
 		tw, aw := cols*45/100, cols*30/100
 		segs = append(segs,
-			segment{text: s.Title, width: tw, style: title}, segment{text: gap},
-			segment{text: s.Artist, width: aw, style: styleMuted}, segment{text: gap},
+			segment{text: s.Title, width: tw, style: title}, segment{width: colGap},
+			segment{text: s.Artist, width: aw, style: styleMuted}, segment{width: colGap},
 			segment{text: s.Album, width: cols - tw - aw, style: styleMuted})
 	case rest >= artistFrom:
-		cols := rest - len(gap)
+		cols := rest - colGap
 		tw := cols * 60 / 100
 		segs = append(segs,
-			segment{text: s.Title, width: tw, style: title}, segment{text: gap},
+			segment{text: s.Title, width: tw, style: title}, segment{width: colGap},
 			segment{text: s.Artist, width: cols - tw, style: styleMuted})
 	default:
 		segs = append(segs, segment{text: s.Title, width: rest, style: title})
@@ -163,8 +177,8 @@ func columns(segs []segment, label, detail string, w int) []segment {
 	if w < artistFrom || detail == "" {
 		return append(segs, segment{text: label, width: w})
 	}
-	lw := (w - len(gap)) * 55 / 100
+	lw := (w - colGap) * 55 / 100
 	return append(segs,
-		segment{text: label, width: lw}, segment{text: gap},
-		segment{text: detail, width: w - lw - len(gap), style: styleMuted})
+		segment{text: label, width: lw}, segment{width: colGap},
+		segment{text: detail, width: w - lw - colGap, style: styleMuted})
 }

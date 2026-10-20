@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	// coverX is the cell covers show from, until the parts lay them out.
-	coverX = 1
 	// coverMinWidth is the narrowest terminal that shows covers.
 	coverMinWidth = 40
 	// numCovers bounds the covers kept: two show, the rest come back.

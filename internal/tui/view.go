@@ -55,39 +55,13 @@ func (m *model) draw(f *frame) {
 	}
 	r := &f.rects
 	if r.body.Dy() > 0 {
-		// drawLines places every hit marked so far: the body's, before the
-		// tabs draw theirs. Transitional, as drawLines is.
-		lines := m.appendBody(make([]string, 0, r.body.Dy()), w, f)
-		m.drawLines(screen, f, lines)
 		m.drawTabs(screen.sub(r.tabs))
+		m.drawBody(screen, f)
 	}
 	if r.banner.Dy() > 0 {
 		m.drawBanner(screen.sub(r.banner))
 	}
 	m.drawBar(screen.sub(r.bar), f)
-}
-
-// drawLines draws lines, the body's: the header's cover's cells, each
-// line after the cover it is beside, and the hits marked on the lines.
-// Transitional, until the pages draw into regions.
-func (m *model) drawLines(screen region, f *frame, lines []string) {
-	body := f.rects.body
-	g := screen.sub(body)
-	// The header claims the first of the covers' places, as it did.
-	hc := f.covers[slotHeader]
-	screen.cover(hc.rect, hc.slot, hc.art)
-	for i, line := range lines {
-		x := 0
-		if y := body.Min.Y + i; hc.art != "" && y >= hc.rect.Min.Y && y < hc.rect.Max.Y {
-			x = hc.rect.Max.X
-		}
-		g.line(x, i, line)
-	}
-	marked := m.scene.hits
-	m.scene.hits = marked[:0]
-	for _, h := range marked {
-		g.hit(h.rect, h)
-	}
 }
 
 // layoutIn is what the screen's layout reads of m.
@@ -166,145 +140,134 @@ func (m *model) drawTabs(g region) {
 	g.fit(0, tabsRule, rule.String(), w, styleMuted)
 }
 
-// appendBody adds f's page, or the help, in exactly the body's lines.
-func (m *model) appendBody(lines []string, w int, f *frame) []string {
-	start, h := len(lines), f.rects.body.Dy()
+// drawBody draws f's page, or the help, in the body.
+func (m *model) drawBody(screen region, f *frame) {
+	body := screen.sub(f.rects.body)
 	if m.isHelp {
-		lines = m.appendHelp(lines, w, h)
-	} else {
-		p := &f.page
-		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
-			m.mark(start, 0, w, hit{kind: hitInput})
-		}
-		lines = m.appendPageHeader(lines, w, &p.header, f.covers[slotHeader].rect)
-		switch {
-		case p.title != "":
-			lines = m.appendMessage(lines, w, p)
-		case p.list != nil:
-			lines = m.appendList(lines, w, f.content.Dy(), p)
-		}
+		m.drawHelp(body)
+		return
 	}
-	if len(lines)-start > h {
-		m.dropHits(start + h)
-		lines = lines[:start+h]
+	if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
+		w, _ := body.size()
+		body.hit(image.Rect(0, 0, w, 1), hit{kind: hitInput})
 	}
-	for len(lines)-start < h {
-		lines = append(lines, "")
+	m.drawHeader(screen.sub(f.header), f)
+	p, content := &f.page, screen.sub(f.content)
+	switch {
+	case p.title != "":
+		m.drawMessage(content, p)
+	case p.list != nil:
+		m.drawList(content, p)
 	}
-	return lines
 }
 
-// appendPageHeader adds a page's header, its lines beside cover after it:
-// the search's input over its status, or a collection's title and
-// subtitle over a blank line.
-func (m *model) appendPageHeader(lines []string, w int, hd *header, cover image.Rectangle) []string {
-	var text [3]string
+// drawHeader draws f's page's header in g: the search's input over its
+// status, or a collection's title and subtitle beside its cover.
+func (m *model) drawHeader(g region, f *frame) {
+	hd := &f.page.header
+	w, _ := g.size()
 	switch hd.kind {
 	case headerSearch:
-		text[0] = m.searchInput()
+		m.drawSearchInput(g)
 		if hd.status != "" {
-			text[1] = styleMuted.Render(" " + hd.status)
+			g.fit(padX, 1, hd.status, w-padX, styleMuted)
 		}
 	case headerCollection:
-		text[0] = " " + styleBold.Render(hd.title)
-		text[1] = " " + styleMuted.Render(hd.subtitle)
+		g.cover(f.head.cover, slotHeader, hd.art)
+		x := f.head.textX
+		g.fit(x, 0, hd.title, w-x, styleBold)
+		g.fit(x, 1, hd.subtitle, w-x, styleMuted)
 	}
-	for i := range hd.rows() {
-		left := w
-		if i < cover.Dy() {
-			left -= cover.Max.X
-		}
-		lines = append(lines, m.cells.fit(text[i], left))
-	}
-	return lines
 }
 
-// searchInput is the search page's input line.
-func (m *model) searchInput() string {
-	prompt := styleKey.Render(" / ")
+// drawSearchInput draws the search's input on g's first row.
+func (m *model) drawSearchInput(g region) {
+	w, _ := g.size()
+	input := [...]piece{{text: "/", paint: styleKey}, {text: m.query, gap: 1}, {}}
 	switch {
 	case m.isTyping:
-		return prompt + m.query + styleAccent.Render(iconCaret)
+		input[2] = piece{text: iconCaret, paint: styleAccent}
 	case m.query == "":
-		return prompt + styleMuted.Render(locales.SearchPlaceholder())
+		input[1] = piece{text: locales.SearchPlaceholder(), paint: styleMuted, gap: 1}
 	}
-	return prompt + m.query
+	g.run(padX, 0, w-padX, input[:])
 }
 
-// appendMessage adds a page's message: its title, detail and hint.
-func (m *model) appendMessage(lines []string, w int, p *page) []string {
+// drawMessage draws a page's message in g: its title, detail and hint.
+func (m *model) drawMessage(g region, p *page) {
+	w, _ := g.size()
 	c := &m.cells
-	lines = append(lines, "", " "+styleBold.Render(c.fit(p.title, w-2)))
+	y, n := 1, w-2*padX
+	g.fit(padX, y, p.title, n, styleBold)
 	if p.detail != "" {
-		for line := range strings.Lines(c.wrap(p.detail, max(w-2, 1))) {
-			lines = append(lines, " "+styleMuted.Render(strings.TrimRight(line, "\n")))
+		for line := range strings.Lines(c.wrap(p.detail, max(n, 1))) {
+			y++
+			g.text(padX, y, strings.TrimSuffix(line, "\n"), styleMuted)
 		}
 	}
 	if p.hint != "" {
-		m.mark(len(lines)+1, 0, w, hit{kind: hitHint})
-		lines = append(lines, "", " "+c.fit(p.hint, w-2))
+		y += 2
+		g.hit(image.Rect(0, y, w, y+1), hit{kind: hitHint})
+		g.fit(padX, y, p.hint, n, paint{})
 	}
-	return lines
 }
 
-// appendList adds the rows of p's list that show in rows lines, which
-// prepare fitted it to.
-func (m *model) appendList(lines []string, w, rows int, p *page) []string {
+// drawList draws in g the rows of p's list it shows, which prepare
+// fitted the list to.
+func (m *model) drawList(g region, p *page) {
 	l := p.list
+	w, rows := g.size()
 	end := min(l.offset+max(rows, 0), p.n)
 	for i := l.offset; i < end; i++ {
+		y := i - l.offset
 		it := p.at(i)
 		if it.kind != itemHeading {
-			m.mark(len(lines), 0, w, hit{kind: hitRow, i: i, list: l})
+			g.hit(image.Rect(0, y, w, y+1), hit{kind: hitRow, i: i, list: l})
 		}
-		lines = append(lines, m.row(it, w, i == l.cursor))
+		m.drawRow(g, y, it, i == l.cursor)
 	}
-	return lines
 }
 
-// appendHelp adds the keys and what they do in h lines, in as many
-// columns as that takes, each as wide as its text.
-func (m *model) appendHelp(lines []string, w, h int) []string {
+// drawHelp draws in g the keys and what they do, in as many columns as
+// its rows take, each as wide as its text.
+func (m *model) drawHelp(g region) {
+	w, h := g.size()
 	c := &m.cells
-	title := c.fit(locales.TuiHelpTitle(), w-2)
-	mouse := c.fit(locales.TuiHelpMouse(), w-c.width(title)-4)
-	if mouse != "" {
-		mouse = "  " + styleMuted.Render(mouse)
-	}
-	lines = append(lines, "", " "+styleBold.Render(title)+mouse)
-	keys := helpKeys
+	tw := g.fit(padX, 1, locales.TuiHelpTitle(), w-2*padX, styleBold)
+	g.fit(padX+tw+2, 1, locales.TuiHelpMouse(), w-tw-2-2*padX, styleMuted)
+	keys := &helpKeys
 	rows := max(h-2, 1)
 	cols := (len(keys) + rows - 1) / rows
 	rows = (len(keys) + cols - 1) / cols
+	var doesWidth [len(helpKeys)]int
 	keyWidth := 0
-	for _, k := range keys {
-		keyWidth = max(keyWidth, c.width(k.keys))
-	}
-	doesWidth := make([]int, cols)
 	for i, k := range keys {
+		keyWidth = max(keyWidth, c.width(k.keys))
 		doesWidth[i/rows] = max(doesWidth[i/rows], c.width(k.does()))
 	}
 	for r := range rows {
-		var b strings.Builder
-		left := w
+		y := 2 + r
+		// The keys stand in from the title, their columns apart.
+		x, lead := 0, padX+2
 		for col := range cols {
 			i := col*rows + r
-			if i >= len(keys) || left <= 0 {
+			if i >= len(keys) || x >= w {
 				break
 			}
-			key := c.fit("   "+c.pad(keys[i].keys, keyWidth)+"  ", left)
-			left -= c.width(key)
-			does := c.fit(keys[i].does(), max(left, 0))
-			if col < cols-1 {
-				does = c.pad(does, min(doesWidth[col], max(left, 0)))
+			kw := c.width(keys[i].keys)
+			key := [...]piece{
+				{text: keys[i].keys, paint: styleKey, gap: lead, w: kw},
+				{gap: keyWidth - kw + 2},
 			}
-			left -= c.width(does)
-			b.WriteString(styleKey.Render(key))
-			b.WriteString(does)
+			x += g.putRun(x, y, w-x, key[:], lead+keyWidth+2)
+			left := w - x
+			dw := g.fit(x, y, keys[i].does(), left, paint{})
+			if col < cols-1 {
+				dw = min(doesWidth[col], max(left, 0))
+			}
+			x, lead = x+dw, 3
 		}
-		lines = append(lines, b.String())
 	}
-	return lines
 }
 
 // helpKey is a line of the help: keys and what they do.
@@ -313,7 +276,7 @@ type helpKey struct {
 	does func() string
 }
 
-var helpKeys = []helpKey{
+var helpKeys = [...]helpKey{
 	{"space", locales.TuiHelpToggle},
 	{"n / p", locales.TuiHelpNext},
 	{"← / →", locales.TuiHelpSeek},

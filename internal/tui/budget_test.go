@@ -22,13 +22,13 @@ func TestBudgetView(t *testing.T) {
 func TestBudgetUpdate(t *testing.T) {
 	t.Run("tick", func(t *testing.T) {
 		h := viewing(t, func(h *harness) { h.mirror.state.Playing = true })
-		// 57 allocs today: the render, and the tick's timer.
-		budget.Allocs(t, 66, 100, func() { h.send(tickMsg{}) })
+		// 39 allocs today: the render, and the tick's timer.
+		budget.Allocs(t, 45, 100, func() { h.send(tickMsg{}) })
 	})
 	t.Run("click", func(t *testing.T) {
 		h := viewing(t, func(*harness) {})
-		// 52 allocs today: the render.
-		budget.Allocs(t, 60, 100, clicking(h))
+		// 34 allocs today: the render.
+		budget.Allocs(t, 39, 100, clicking(h))
 	})
 }
 

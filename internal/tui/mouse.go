@@ -2,7 +2,6 @@ package tui
 
 import (
 	"image"
-	"slices"
 	"time"
 	"yt-music-player/internal/api"
 
@@ -69,19 +68,6 @@ const (
 	hitProgress
 	hitHelp
 )
-
-// mark notes h over cells [x0, x1) of line y, as draw appends lines;
-// drawLines puts it where the line goes.
-func (m *model) mark(y, x0, x1 int, h hit) {
-	h.rect = image.Rect(x0, y, x1, y+1)
-	m.scene.hits = append(m.scene.hits, h)
-}
-
-// dropHits drops the hits marked on lines from line from, as draw cuts
-// them.
-func (m *model) dropHits(from int) {
-	m.scene.hits = slices.DeleteFunc(m.scene.hits, func(h hit) bool { return h.rect.Min.Y >= from })
-}
 
 // hitAt is the hit drawn at (x, y).
 func (m *model) hitAt(x, y int) (hit, bool) {

@@ -67,13 +67,3 @@ func (p paint) Render(text string) string {
 	}
 	return p.pre + text + p.post
 }
-
-// write writes text in the paint's style to b.
-func (p paint) write(b *strings.Builder, text string) {
-	if text == "" {
-		return
-	}
-	b.WriteString(p.pre)
-	b.WriteString(text)
-	b.WriteString(p.post)
-}

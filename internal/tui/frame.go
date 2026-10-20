@@ -16,12 +16,10 @@ type frame struct {
 	// header and content split the body: the page's header, and the rows
 	// of its message or list.
 	header, content image.Rectangle
-	// covers are each slot's cover as laid out, the zero request where
-	// none fits; those wholly on screen show.
-	covers [numSlots]coverRequest
-	// bar is the bar's cover and the song beside it.
-	bar    beside
-	status string
+	// bar and head are the bar's and the page header's covers and the
+	// text beside them, in their own cells.
+	bar, head beside
+	status    string
 }
 
 // prepare makes the frame that draw draws, and changes beforehand what
@@ -41,15 +39,17 @@ func (m *model) prepare() frame {
 		if p.title == "" && p.list != nil {
 			p.list.fit(p.n, f.content.Dy(), p.selectable)
 		}
-		// The header's cover spans its first lines, and is claimed first.
+		// The header's cover spans its first lines.
+		cols := 0
 		if f.header.Dy() >= headerCoverRows {
-			m.layCover(&f, slotHeader, f.header.Min.Y, headerCoverRows, p.header.art)
+			cols = m.coverCols(headerCoverRows, p.header.art)
 		}
+		f.head = layBeside(0, cols, headerCoverRows)
 	}
 	st := m.mirror.State()
 	cols := 0
-	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" && song.Art.IsURL() {
-		cols = m.probe.coverCols(barCoverRows, w)
+	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" {
+		cols = m.coverCols(barCoverRows, song.Art)
 	}
 	f.bar = layBeside(barSong, cols, barCoverRows)
 	if m.link.Connection > 0 {
@@ -59,12 +59,13 @@ func (m *model) prepare() frame {
 	return f
 }
 
-// layCover lays out art's cover for slot s, rows tall from line y, where
-// it fits (probe.request).
-func (m *model) layCover(f *frame, s slot, y, rows int, art catalog.Art) {
-	if r, ok := m.probe.request(s, y, rows, m.width, art); ok {
-		f.covers[s] = r
+// coverCols returns the cells art's cover spans, rows tall: none unless
+// it is an image the terminal shows beside the rest (probe.coverCols).
+func (m *model) coverCols(rows int, art catalog.Art) int {
+	if !art.IsURL() {
+		return 0
 	}
+	return m.probe.coverCols(rows, m.width)
 }
 
 // followQueue keeps the queue's cursor on the current song while it

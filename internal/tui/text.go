@@ -86,33 +86,9 @@ func (c cells) cut(s string, from, to int) string {
 	return b.String()
 }
 
-// pad fits s to w cells and fills the rest with spaces.
-func (c cells) pad(s string, w int) string {
-	s = c.fit(s, w)
-	if n := w - c.width(s); n > 0 {
-		return s + strings.Repeat(" ", n)
-	}
-	return s
-}
-
 // wrap breaks s into lines of at most w cells, between words where it
 // can.
 func (c cells) wrap(s string, w int) string { return c.method.Wrap(s, w, "") }
-
-// spread puts left and right on one line of w cells after prefix, right
-// flush to the end; left is cut first, then right.
-func (c cells) spread(prefix, left, right string, w int) string {
-	rw := c.width(right)
-	if rw >= w {
-		return prefix + c.fit(right, w)
-	}
-	lw := c.width(left)
-	if lw > w-rw-1 {
-		left = c.fit(left, max(w-rw-1, 0))
-		lw = c.width(left)
-	}
-	return prefix + left + strings.Repeat(" ", w-lw-rw) + right
-}
 
 // writeRepeat fills n cells of b with glyph, as many times as it fits,
 // and with spaces in the cells a wide glyph leaves.

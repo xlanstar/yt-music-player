@@ -277,22 +277,6 @@ func (g region) putRun(x, y, n int, ps []piece, total int) int {
 	return at
 }
 
-// line draws s, a line its maker fitted to the cells from x to g's
-// right edge, as text does but unmeasured: it holds those cells. The
-// parts' lines, until they draw into regions.
-func (g region) line(x, y int, s string) {
-	at := g.bounds.Min.Add(image.Pt(x, y))
-	r := canon(image.Rectangle{Min: at, Max: image.Pt(g.bounds.Max.X, at.Y+1)})
-	shown := r.Intersect(g.clip)
-	switch {
-	case s == "" || shown.Empty():
-	case shown != r:
-		g.text(x, y, s, paint{})
-	case !g.s.put(at.Y, span{x: at.X, cells: r.Dx(), text: s}):
-		g.s.overlap(r, 0, false)
-	}
-}
-
 // hit makes r, in g's cells, h's target: h keeps r whole, as a drag's
 // ratio reads it, and its part shown, which clicks hit.
 func (g region) hit(r image.Rectangle, h hit) {
