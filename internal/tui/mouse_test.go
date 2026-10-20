@@ -590,3 +590,17 @@ func TestClickStaleRow(t *testing.T) {
 		t.Errorf("opened %+v from a row of the queue", h.m.opened[tabLibrary])
 	}
 }
+
+// A drag's ratio reads the progress's whole bar, as laid out, though a
+// part of it is cut, which no click hits.
+func TestSeekWholeBar(t *testing.T) {
+	h := placeholderHarness(t)
+	bar := hit{rect: image.Rect(10, 5, 30, 6), shown: image.Rect(10, 5, 20, 6), kind: hitProgress}
+	h.m.scene.hits = []hit{bar}
+	if want := 4.5 / 20 * h.mirror.state.Duration; !h.m.seekAt(14, bar) || h.m.seek.to != want {
+		t.Errorf("cell 4 of 20 seeks to %g, want %g", h.m.seek.to, want)
+	}
+	if _, ok := h.m.hitAt(25, 5); ok {
+		t.Error("a click on the bar's cut part hit it")
+	}
+}

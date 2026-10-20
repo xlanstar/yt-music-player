@@ -137,6 +137,26 @@ func TestRegionText(t *testing.T) {
 	}
 }
 
+// By either method, text cut at either edge fills the cells shown and
+// no more: a wide character or emoji split shows as spaces.
+func TestRegionTextMethods(t *testing.T) {
+	for _, m := range methods {
+		for _, tc := range texts {
+			for x := -6; x <= 10; x++ {
+				s := &scene{}
+				screen := s.reset(10, 1, newCells(m.method))
+				line := "a" + tc.text + "b"
+				w := screen.sub(image.Rect(2, 0, 8, 1)).text(x, 0, line, paint{})
+				shown := min(x+w, 6) - max(x, 0)
+				got := s.cells.width(composed(s))
+				if shown > 0 && got != 2+max(x, 0)+shown || shown <= 0 && got != 0 {
+					t.Errorf("%s: %q from cell %d of 6 shows %q, %d cells", m.name, line, x, composed(s), got)
+				}
+			}
+		}
+	}
+}
+
 // text returns its text's width, shown or not, to lay out what follows.
 func TestRegionTextWidth(t *testing.T) {
 	_, screen := newScene(10, 1)
