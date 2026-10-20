@@ -63,6 +63,29 @@ func (c cells) fit(s string, w int) string {
 	return c.method.Truncate(s, w, ellipsis)
 }
 
+// cut returns cells [from, to) of s, a line that may hold styles: all
+// its styles, and spaces for the cells shown of a wide character the cut
+// splits.
+func (c cells) cut(s string, from, to int) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	at, state := 0, byte(0)
+	for len(s) > 0 {
+		seq, w, n, next := c.method.DecodeSequenceInString(s, state, nil)
+		s, state = s[n:], next
+		lo, hi := max(at, from), min(at+w, to)
+		switch {
+		case w == 0 || lo == at && hi == at+w:
+			// Styles and zero widths go whatever their cells.
+			b.WriteString(seq)
+		case hi > lo:
+			writeSpaces(&b, hi-lo)
+		}
+		at += w
+	}
+	return b.String()
+}
+
 // pad fits s to w cells and fills the rest with spaces.
 func (c cells) pad(s string, w int) string {
 	s = c.fit(s, w)

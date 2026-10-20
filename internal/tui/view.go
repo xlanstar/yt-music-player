@@ -60,7 +60,7 @@ func (m *model) draw(f *frame) {
 	if r.banner.Dy() > 0 {
 		banner, hasKey := m.banner(w)
 		if hasKey {
-			m.mark(hit{y: len(lines), x1: w, kind: hitBanner})
+			m.mark(len(lines), 0, w, hit{kind: hitBanner})
 		}
 		lines = append(lines, banner)
 	}
@@ -107,7 +107,7 @@ func (m *model) appendTabs(lines []string, w int) []string {
 		cw := c.width(cell)
 		c.writeRepeat(&rule, mark, cw)
 		c.writeRepeat(&rule, ruleThin, 1)
-		m.mark(hit{y: y + tabsLine, x0: at, x1: at + cw, kind: hitTab, tab: tab(i)})
+		m.mark(y+tabsLine, at, at+cw, hit{kind: hitTab, tab: tab(i)})
 		at += cw + 1
 	}
 	account := ""
@@ -132,7 +132,7 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 	} else {
 		p := &f.page
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
-			m.mark(hit{y: start, x1: w, kind: hitInput})
+			m.mark(start, 0, w, hit{kind: hitInput})
 		}
 		cover := m.covers.lines(f.covers[slotHeader], m.probe.caps)
 		lines = m.appendPageHeader(lines, w, &p.header, cover)
@@ -200,7 +200,7 @@ func (m *model) appendMessage(lines []string, w int, p *page) []string {
 		}
 	}
 	if p.hint != "" {
-		m.mark(hit{y: len(lines) + 1, x1: w, kind: hitHint})
+		m.mark(len(lines)+1, 0, w, hit{kind: hitHint})
 		lines = append(lines, "", " "+c.fit(p.hint, w-2))
 	}
 	return lines
@@ -214,7 +214,7 @@ func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 	for i := l.offset; i < end; i++ {
 		it := p.at(i)
 		if it.kind != itemHeading {
-			m.mark(hit{y: len(lines), x1: w, kind: hitRow, i: i, list: l})
+			m.mark(len(lines), 0, w, hit{kind: hitRow, i: i, list: l})
 		}
 		lines = append(lines, m.row(it, w, i == l.cursor))
 	}
@@ -357,7 +357,7 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 	if m.notice != "" {
 		right = styleAccent.Render(c.fit(m.notice, max(w*2/3, 1))) + " "
 	} else {
-		m.mark(hit{y: y + barStatus, x0: w - c.width(right), x1: w - 1, kind: hitHelp})
+		m.mark(y+barStatus, w-c.width(right), w-1, hit{kind: hitHelp})
 	}
 	bar[barStatus] = c.spread("", " "+styleMuted.Render(f.status), right, w)
 	return append(lines, bar[:]...)
@@ -386,7 +386,7 @@ func (m *model) progress(st api.State, cover string, x, y, w int) string {
 	if bar < 4 {
 		return cover + " " + elapsed + " / " + total
 	}
-	m.mark(hit{y: y, x0: start, x1: start + bar, kind: hitProgress})
+	m.mark(y, start, start+bar, hit{kind: hitProgress})
 	done := min(int(pos/st.Duration*float64(bar)), bar)
 	var b strings.Builder
 	b.Grow(len(cover) + len(ruleThick)*bar + 64)

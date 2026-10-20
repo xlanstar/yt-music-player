@@ -29,6 +29,8 @@ func TestMain(m *testing.M) {
 	// Only main sets the level: tests would otherwise print every failure
 	// they provoke.
 	zerolog.SetGlobalLevel(zerolog.Disabled)
+	// Drawing over cells drawn is a layout's mistake.
+	panicOnOverlap = true
 	os.Exit(m.Run())
 }
 

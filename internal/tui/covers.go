@@ -49,6 +49,27 @@ type coverRequest struct {
 	slot slot
 }
 
+// coverFrame is what a frame's covers show, by slot, as covers.sync
+// readied them: their lines from their first cell, blank until encoded,
+// and the overlays' marks, a line's each, of the table that places them.
+// It never changes: covers replace lines and marks, never write over them.
+type coverFrame struct {
+	lines [numSlots][]string
+	marks [numSlots][]string
+}
+
+// appendLine appends the line of its cover sp holds, after its mark if
+// an overlay's.
+func (f *coverFrame) appendLine(b []byte, sp *span) []byte {
+	if marks := f.marks[sp.slot]; sp.line < len(marks) {
+		b = append(b, marks[sp.line]...)
+	}
+	if lines := f.lines[sp.slot]; sp.line < len(lines) {
+		return append(b, lines[sp.line]...)
+	}
+	return appendSpaces(b, sp.cells)
+}
+
 // coverKey is a cover as encoded: an image in a protocol over cols×rows
 // cells. The same image at two sizes is two covers.
 type coverKey struct {

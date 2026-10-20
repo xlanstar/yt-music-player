@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"image"
 	"time"
 	"yt-music-player/internal/api"
 
@@ -45,11 +46,12 @@ func (m *model) position(st api.State) float64 {
 	return m.mirror.Position(m.now())
 }
 
-// hit is what render drew on line y, cells [x0, x1), that a click acts on.
+// hit is what a click acts on, drawn over rect: whole as laid out, which
+// a drag's ratio reads, and shown, its part on screen that clicks hit.
 type hit struct {
-	y, x0, x1 int
-	kind      hitKind
-	tab       tab
+	rect, shown image.Rectangle
+	kind        hitKind
+	tab         tab
 	// i is the row's item in list.
 	i    int
 	list *listState
@@ -67,16 +69,21 @@ const (
 	hitHelp
 )
 
-// mark notes a hit as render draws it.
-func (m *model) mark(h hit) { m.hits = append(m.hits, h) }
+// mark notes h over cells [x0, x1) of line y, as render draws it.
+func (m *model) mark(y, x0, x1 int, h hit) {
+	h.rect = image.Rect(x0, y, x1, y+1)
+	h.shown = h.rect
+	m.hits = append(m.hits, h)
+}
 
 // keepHits keeps the hits of lines [from, to), moved up by from, as
 // render cuts its lines.
 func (m *model) keepHits(from, to int) {
 	kept := m.hits[:0]
 	for _, h := range m.hits {
-		if h.y >= from && h.y < to {
-			h.y -= from
+		if y := h.rect.Min.Y; y >= from && y < to {
+			h.rect = h.rect.Sub(image.Pt(0, from))
+			h.shown = h.rect
 			kept = append(kept, h)
 		}
 	}
@@ -86,7 +93,7 @@ func (m *model) keepHits(from, to int) {
 // hitAt is the hit drawn at (x, y).
 func (m *model) hitAt(x, y int) (hit, bool) {
 	for _, h := range m.hits {
-		if h.y == y && x >= h.x0 && x < h.x1 {
+		if image.Pt(x, y).In(h.shown) {
 			return h, true
 		}
 	}
@@ -165,7 +172,7 @@ func (m *model) clickRow(h hit, isDouble bool) {
 // past its ends.
 func (m *model) seekAt(x int, bar hit) bool {
 	st := m.mirror.State()
-	frac := min(max((float64(x-bar.x0)+0.5)/float64(bar.x1-bar.x0), 0), 1)
+	frac := min(max((float64(x-bar.rect.Min.X)+0.5)/float64(bar.rect.Dx()), 0), 1)
 	to := frac * st.Duration
 	if m.seek.isDragging && m.seek.to == to {
 		return false

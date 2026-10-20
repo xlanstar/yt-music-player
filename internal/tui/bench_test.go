@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"image"
 	"testing"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/termimage"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // viewCases are screens as Update renders them: a long queue playing
@@ -160,6 +162,78 @@ func BenchmarkClick(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				click()
+			}
+		})
+	}
+}
+
+// sceneCases are screens of two columns drawn into a scene, a cover at
+// the top left and a hit a row: left to right, right first (spans sorted
+// as they come), and a large terminal's. drawAllocs and composeAllocs are
+// each one's budgets (TestBudgetScene).
+var sceneCases = []struct {
+	name                      string
+	w, h                      int
+	isRightFirst              bool
+	drawAllocs, composeAllocs float64
+}{
+	// 0 and 1 allocs today: the rows keep their spans, compose makes the
+	// screen's string.
+	{"80x24", 80, 24, false, 0, 1},
+	{"80x24-right-first", 80, 24, true, 0, 1},
+	{"240x70", 240, 70, false, 0, 1},
+}
+
+// drawColumns draws a title and an artist a row, in two columns, the
+// right first if isRightFirst.
+func drawColumns(screen region, isRightFirst bool) {
+	w, h := screen.size()
+	left, right := screen.cutLeft(w / 2)
+	right = right.inset(1, 0, 1, 0)
+	cover, left := left.inset(1, 0, 1, 0).cutLeft(5)
+	cover.cover(image.Rect(0, 0, 4, 2), slotHeader, coverURL)
+	for y := range h {
+		if isRightFirst {
+			right.text(0, y, "野見祐二 · Lumen Drive", styleMuted)
+		}
+		left.text(0, y, "猫の恩返し · Midnight", styleBold)
+		if !isRightFirst {
+			right.text(0, y, "野見祐二 · Lumen Drive", styleMuted)
+		}
+		screen.hit(image.Rect(0, y, w, y+1), hit{kind: hitRow, i: y})
+	}
+}
+
+// sceneOf is tc's scene, drawn once, so that its storage has grown.
+func sceneOf(w, h int, isRightFirst bool) *scene {
+	s := &scene{}
+	drawColumns(s.reset(w, h, newCells(ansi.WcWidth)), isRightFirst)
+	s.compose(&coverLines)
+	return s
+}
+
+// BenchmarkSceneDraw draws a screen into a scene: spans measured, cut
+// and kept in order, hits and covers kept.
+func BenchmarkSceneDraw(b *testing.B) {
+	for _, tc := range sceneCases {
+		b.Run(tc.name, func(b *testing.B) {
+			s := sceneOf(tc.w, tc.h, tc.isRightFirst)
+			b.ReportAllocs()
+			for b.Loop() {
+				drawColumns(s.reset(tc.w, tc.h, s.cells), tc.isRightFirst)
+			}
+		})
+	}
+}
+
+// BenchmarkSceneCompose composes a drawn scene into the screen.
+func BenchmarkSceneCompose(b *testing.B) {
+	for _, tc := range sceneCases {
+		b.Run(tc.name, func(b *testing.B) {
+			s := sceneOf(tc.w, tc.h, tc.isRightFirst)
+			b.ReportAllocs()
+			for b.Loop() {
+				sinkContent = s.compose(&coverLines)
 			}
 		})
 	}

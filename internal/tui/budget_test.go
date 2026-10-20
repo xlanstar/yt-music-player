@@ -42,6 +42,18 @@ func TestBudgetClick(t *testing.T) {
 	}
 }
 
+// TestBudgetScene holds drawing a screen into a scene, which keeps its
+// storage, and composing it.
+func TestBudgetScene(t *testing.T) {
+	for _, tc := range sceneCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := sceneOf(tc.w, tc.h, tc.isRightFirst)
+			budget.Allocs(t, tc.drawAllocs, 100, func() { drawColumns(s.reset(tc.w, tc.h, s.cells), tc.isRightFirst) })
+			budget.Allocs(t, tc.composeAllocs, 100, func() { s.compose(&coverLines) })
+		})
+	}
+}
+
 // TestBudgetPost holds a post and its run, as each of remote's events
 // does.
 func TestBudgetPost(t *testing.T) {

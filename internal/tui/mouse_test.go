@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"image"
 	"reflect"
 	"strconv"
 	"strings"
@@ -300,7 +301,7 @@ func TestHitsDrawn(t *testing.T) {
 			got := map[hitKind]int{}
 			for _, x := range h.m.hits {
 				got[x.kind]++
-				span := ansi.Cut(lines[x.y], x.x0, x.x1)
+				span := ansi.Cut(lines[x.shown.Min.Y], x.shown.Min.X, x.shown.Max.X)
 				var want string
 				switch x.kind {
 				case hitTab:
@@ -315,7 +316,7 @@ func TestHitsDrawn(t *testing.T) {
 					}
 					continue
 				case hitProgress:
-					if y, start, n := h.progressBar(); x.y != y || x.x0 != start || x.x1 != start+n {
+					if y, start, n := h.progressBar(); x.rect != image.Rect(start, y, start+n, y+1) || x.shown != x.rect {
 						t.Errorf("the progress's hit is %+v, its bar %d, %d+%d", x, y, start, n)
 					}
 					continue

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -119,6 +120,35 @@ func TestCellsFit(t *testing.T) {
 
 // Rules repeat their glyph by cells, spaces where a wide one no longer
 // fits.
+// cut keeps every style and the cells asked, a wide character split
+// at either edge as spaces, by either method.
+func TestCellsCut(t *testing.T) {
+	sgr := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	lines := []string{"abcdef", "\x1b[1mab\x1b[m\x1b[90mcd\x1b[m"}
+	for _, tc := range texts {
+		lines = append(lines, tc.text, "a"+tc.text+"b")
+	}
+	for _, m := range methods {
+		c := newCells(m.method)
+		for _, line := range lines {
+			w := c.width(line)
+			for from := range w + 1 {
+				for to := from; to <= w+1; to++ {
+					got := c.cut(line, from, to)
+					want := min(to, w) - from
+					if c.width(got) != want || !slices.Equal(sgr.FindAllString(got, -1), sgr.FindAllString(line, -1)) {
+						t.Errorf("%s: cells [%d, %d) of %q are %q, %d cells; want %d and every style",
+							m.name, from, to, line, got, c.width(got), want)
+					}
+				}
+			}
+		}
+	}
+	if got := newCells(ansi.WcWidth).cut("猫の恩返し", 1, 7); got != " の恩 " {
+		t.Errorf("cut %q, want the halves shown as spaces", got)
+	}
+}
+
 func TestCellsRepeat(t *testing.T) {
 	for _, m := range methods {
 		c := newCells(m.method)
