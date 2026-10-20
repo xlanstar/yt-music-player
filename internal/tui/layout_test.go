@@ -104,3 +104,21 @@ func checkLayout(t *testing.T, in layoutIn, r frameRects) {
 		}
 	}
 }
+
+// A cover goes from the padding, its text a gap after it; without one,
+// the text starts at the padding.
+func TestLayBeside(t *testing.T) {
+	for _, tc := range []struct {
+		y, cols, rows int
+		want          beside
+	}{
+		{1, 4, 2, beside{cover: image.Rect(padX, 1, padX+4, 3), textX: padX + 4 + gapX}},
+		{0, 6, 3, beside{cover: image.Rect(padX, 0, padX+6, 3), textX: padX + 6 + gapX}},
+		{1, 0, 2, beside{textX: padX}},
+		{1, 4, 0, beside{textX: padX}},
+	} {
+		if got := layBeside(tc.y, tc.cols, tc.rows); got != tc.want {
+			t.Errorf("layBeside(%d, %d, %d) = %+v, want %+v", tc.y, tc.cols, tc.rows, got, tc.want)
+		}
+	}
+}

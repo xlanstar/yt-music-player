@@ -19,38 +19,38 @@ var viewCases = []struct {
 	prepare func(h *harness)
 	allocs  float64
 }{
-	// 68 allocs today.
+	// 59 allocs today.
 	{"queue-5000", func(h *harness) {
 		songs := longQueue(5000)
 		h.mirror.setQueue(songs)
 		h.mirror.state.Playing, h.mirror.state.Index, h.mirror.state.Current = true, 2500, songs[2500].ID
 		h.mirror.state.Shuffled, h.mirror.state.Repeat = true, api.RepeatAll
-	}, 78},
-	// 67 allocs today, as by runes: the queue in a terminal that knows
+	}, 68},
+	// 58 allocs today, as by runes: the queue in a terminal that knows
 	// mode 2027.
-	{"queue-graphemes", func(h *harness) { h.send(unicodeCore) }, 77},
-	// 65 allocs today.
-	{"library", func(h *harness) { h.press("shift+tab") }, 75},
-	// 63 allocs today.
+	{"queue-graphemes", func(h *harness) { h.send(unicodeCore) }, 67},
+	// 56 allocs today.
+	{"library", func(h *harness) { h.press("shift+tab") }, 64},
+	// 54 allocs today.
 	{"search", func(h *harness) {
 		h.press("/")
 		h.typeText("o")
 		h.loaded()
 		h.press("esc")
-	}, 72},
-	// 90 allocs today.
-	{"help", func(h *harness) { h.press("?") }, 104},
-	// 67 allocs today, as without covers: one, encoded once, costs a
+	}, 62},
+	// 81 allocs today.
+	{"help", func(h *harness) { h.press("?") }, 93},
+	// 58 allocs today, as without covers: one, encoded once, costs a
 	// render nothing.
 	{"queue-cover-kitty", func(h *harness) {
 		h.withCovers(termimage.Kitty, newCoverHost(h.t))
 		h.covered()
-	}, 77},
-	// 67 allocs today.
+	}, 67},
+	// 58 allocs today.
 	{"queue-cover-sixel", func(h *harness) {
 		h.withCovers(termimage.Sixel, newCoverHost(h.t))
 		h.covered()
-	}, 77},
+	}, 67},
 }
 
 // viewing is a screen of tc, rendered once.

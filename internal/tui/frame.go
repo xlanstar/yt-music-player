@@ -19,6 +19,8 @@ type frame struct {
 	// covers are each slot's cover as laid out, the zero request where
 	// none fits; those wholly on screen show.
 	covers [numSlots]coverRequest
+	// bar is the bar's cover and the song beside it.
+	bar    beside
 	status string
 }
 
@@ -45,9 +47,11 @@ func (m *model) prepare() frame {
 		}
 	}
 	st := m.mirror.State()
-	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" {
-		m.layCover(&f, slotBar, f.rects.bar.Min.Y+barSong, barCoverRows, song.Art)
+	cols := 0
+	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" && song.Art.IsURL() {
+		cols = m.probe.coverCols(barCoverRows, w)
 	}
+	f.bar = layBeside(barSong, cols, barCoverRows)
 	if m.link.Connection > 0 {
 		// Before any daemon spoke, its volume is no one's.
 		f.status = m.status(st)

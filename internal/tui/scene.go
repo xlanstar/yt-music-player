@@ -186,21 +186,95 @@ func (g region) inset(l, t, r, b int) region {
 // cells shown, a wide character cut at their edge as spaces. It returns
 // s's width, shown or not.
 func (g region) text(x, y int, s string, p paint) int {
-	c := &g.s.cells
-	w := c.width(s)
+	w := g.s.cells.width(s)
+	g.putText(x, y, s, w, p)
+	return w
+}
+
+// putText draws s, which its caller measured w cells wide, as text does.
+func (g region) putText(x, y int, s string, w int, p paint) {
 	at := g.bounds.Min.Add(image.Pt(x, y))
 	r := image.Rect(at.X, at.Y, at.X+w, at.Y+1)
 	shown := r.Intersect(g.clip)
 	if shown.Empty() {
-		return w
+		return
 	}
 	if shown.Dx() < w {
-		s = c.cut(s, shown.Min.X-at.X, shown.Max.X-at.X)
+		s = g.s.cells.cut(s, shown.Min.X-at.X, shown.Max.X-at.X)
 	}
 	if !g.s.put(shown.Min.Y, span{x: shown.Min.X, cells: shown.Dx(), text: s, paint: p}) {
 		g.s.overlap(shown, 0, false)
 	}
+}
+
+// fit draws s as text does, fitted to n cells as cells.fit fits it, and
+// returns the cells it takes.
+func (g region) fit(x, y int, s string, n int, p paint) int {
+	c := &g.s.cells
+	w := c.width(s)
+	if w > n {
+		s = c.fit(s, n)
+		w = c.width(s)
+	}
+	g.putText(x, y, s, w, p)
 	return w
+}
+
+// piece is text in its paint, w cells wide as measured, gap cells after
+// what comes before it in a run.
+type piece struct {
+	text  string
+	paint paint
+	gap   int
+	w     int
+}
+
+// measure measures each of ps into its w, and returns the cells they
+// take in a run.
+func (c *cells) measure(ps []piece) int {
+	total := 0
+	for i := range ps {
+		ps[i].w = c.width(ps[i].text)
+		total += ps[i].gap + ps[i].w
+	}
+	return total
+}
+
+// run draws ps one after another from cell (x, y), cut together to n
+// cells as cells.fit cuts the line they make: the ellipsis after the
+// cells kept is in the paint of the piece it cuts, plain in a gap. It
+// returns the cells drawn.
+func (g region) run(x, y, n int, ps []piece) int {
+	return g.putRun(x, y, n, ps, g.s.cells.measure(ps))
+}
+
+// putRun draws ps, which their caller measured total cells wide, as run
+// does.
+func (g region) putRun(x, y, n int, ps []piece, total int) int {
+	c := &g.s.cells
+	isCut := total > n
+	if isCut && n <= 0 {
+		return 0
+	}
+	// A run cut keeps the cells before the ellipsis.
+	keep := n - c.width(ellipsis)
+	at := 0
+	for i := range ps {
+		p := &ps[i]
+		start := at + p.gap
+		switch {
+		case !isCut || start+p.w <= keep:
+			g.putText(x+start, y, p.text, p.w, p.paint)
+		case start > keep:
+			return g.text(x+keep, y, ellipsis, paint{}) + keep
+		default:
+			// The space makes fit cut a piece that ends on the run's last
+			// cell, as the pieces after it would.
+			return g.fit(x+start, y, p.text+" ", n-start, p.paint) + start
+		}
+		at = start + p.w
+	}
+	return at
 }
 
 // line draws s, a line its maker fitted to the cells from x to g's

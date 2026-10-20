@@ -291,8 +291,7 @@ func TestCoverLarger(t *testing.T) {
 			uploads++
 		}
 	}
-	f := h.m.prepare()
-	if c := h.m.covers.ready(f.covers[slotBar].key(h.m.probe.caps)); uploads != 2 || c == nil || c.srcPx != 80 {
+	if c := h.m.covers.ready(h.drawnCover(slotBar).key(h.m.probe.caps)); uploads != 2 || c == nil || c.srcPx != 80 {
 		t.Errorf("%d uploads of 80 pixels, want the 64's then the 80's", uploads)
 	}
 }
@@ -321,10 +320,23 @@ func TestCoverHeader(t *testing.T) {
 	if !strings.HasPrefix(lines[2], " "+cells[0]+" ") || !strings.HasPrefix(lines[3], " "+cells[1]+" ") {
 		t.Errorf("the header lacks the cover:\n%q\n%q", lines[2], lines[3])
 	}
-	f := h.m.prepare()
-	if f.covers[slotHeader].rect != image.Rect(1, 2, 5, 4) || f.covers[slotBar].rect != image.Rect(1, 21, 5, 23) {
-		t.Errorf("covers = %+v", f.covers)
+	// The header's claims the first place.
+	if got := h.m.scene.covers; len(got) != 2 || got[0].rect != image.Rect(1, 2, 5, 4) || got[0].slot != slotHeader ||
+		got[1].rect != image.Rect(1, 21, 5, 23) {
+		t.Errorf("covers = %+v", got)
 	}
+}
+
+// drawnCover is the cover the last render drew in slot s.
+func (h *harness) drawnCover(s slot) coverRequest {
+	h.t.Helper()
+	for _, r := range h.m.scene.covers {
+		if r.slot == s {
+			return r
+		}
+	}
+	h.t.Fatalf("no cover in slot %d", s)
+	return coverRequest{}
 }
 
 // TestCoverOverlayReturns draws a header's image again once the help

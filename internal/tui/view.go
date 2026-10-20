@@ -67,8 +67,8 @@ func (m *model) draw(f *frame) {
 		}
 		lines = append(lines, banner)
 	}
-	lines = m.appendBar(lines, w, f)
 	m.drawLines(screen, f, lines)
+	m.drawBar(screen.sub(r.bar), f)
 }
 
 // drawLines draws lines, the parts' from the layout's top, past the
@@ -79,10 +79,8 @@ func (m *model) drawLines(screen region, f *frame, lines []string) {
 	top := f.rects.top()
 	g := screen.sub(image.Rect(0, top, m.width, top+len(lines)))
 	// The header claims the first of the covers' places, as it did.
-	for _, s := range [...]slot{slotHeader, slotBar} {
-		r := f.covers[s]
-		screen.cover(r.rect, r.slot, r.art)
-	}
+	hc := f.covers[slotHeader]
+	screen.cover(hc.rect, hc.slot, hc.art)
 	for i, line := range lines {
 		x := 0
 		for _, r := range f.covers {
@@ -346,17 +344,25 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 	return m.cells.fit(styleWarn.Render(" "+iconWarn+" ")+text, w), hasKey
 }
 
-// appendBar adds the player bar: the current song, its progress, and
-// the status line (shuffle, repeat, volume; a notice, or the help key).
-func (m *model) appendBar(lines []string, w int, f *frame) []string {
+// drawBar draws the player bar in g: a rule, the current song beside its
+// cover, its progress, and the status line (shuffle, repeat, volume; a
+// notice, or the help key).
+func (m *model) drawBar(g region, f *frame) {
 	st := m.mirror.State()
-	y, c := len(lines), &m.cells
-	var bar [barRows]string
-	bar[barRule] = m.rule(w)
+	w, _ := g.size()
+	c := &m.cells
+	g.putText(0, barRule, c.repeat(ruleThin, w), w, styleMuted)
 	song, ok := m.mirror.Song(st.Current)
 	if !ok || st.Current == "" {
-		bar[barSong] = " " + styleMuted.Render(c.fit(locales.TuiNothingPlaying(), w-2))
+		g.fit(padX, barSong, locales.TuiNothingPlaying(), w-2*padX, styleMuted)
 	} else {
+		g.cover(f.bar.cover, slotBar, song.Art)
+		x, end := f.bar.textX, w-padX
+		if m.session.Liked(song.ID) {
+			hw := c.heart - 1 // a song's heart is a space and ♥
+			g.putText(end-hw, barSong, iconLiked, hw, styleAccent)
+			end -= hw + 1
+		}
 		icon := iconPaused
 		switch {
 		case st.Waiting:
@@ -364,64 +370,64 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 		case st.Playing:
 			icon = iconPlaying
 		}
-		heart := ""
-		if m.session.Liked(song.ID) {
-			heart = styleAccent.Render(iconLiked) + " "
-		}
-		title := " " + styleAccent.Render(icon) + " " + styleBold.Render(song.Title)
+		artist := ""
 		if song.Artist != "" {
-			title += styleMuted.Render(separator + song.Artist)
+			artist = separator + song.Artist
 		}
-		// The cover spans the song and its progress, which go after it.
-		x := f.covers[slotBar].rect.Max.X
-		bar[barSong] = c.spread("", title, heart, w-x)
-		bar[barProgress] = m.progress(st, x, y+barProgress, w)
+		g.run(x, barSong, end-x, []piece{
+			{text: icon, paint: styleAccent},
+			{text: song.Title, paint: styleBold, gap: 1},
+			{text: artist, paint: styleMuted},
+		})
+		m.drawProgress(g, st, x, w-padX)
 	}
-	right := keyHint("?", locales.TuiHelp()) + " "
-	if m.notice != "" {
-		right = styleAccent.Render(c.fit(m.notice, max(w*2/3, 1))) + " "
-	} else {
-		m.mark(y+barStatus, w-c.width(right), w-1, hit{kind: hitHelp})
-	}
-	bar[barStatus] = c.spread("", " "+styleMuted.Render(f.status), right, w)
-	return append(lines, bar[:]...)
+	m.drawStatus(g, f.status)
 }
 
-// progress is the current song's time on line y of w cells, from cell
-// x, as a bar between its elapsed and whole length, a space before the
-// end.
-func (m *model) progress(st api.State, x, y, w int) string {
+// drawProgress draws the current song's time on the bar's progress line,
+// from cell x to end: a bar between its elapsed and whole length.
+func (m *model) drawProgress(g region, st api.State, x, end int) {
+	const y = barProgress
 	pos, c := m.position(st), &m.cells
-	elapsed := Clock(pos)
+	x += g.text(x, y, Clock(pos), paint{}) + 1
 	if st.Duration <= 0 {
-		return " " + elapsed
+		return
 	}
 	total := Clock(st.Duration)
-	start := x + 1 + c.width(elapsed) + 1
-	bar := w - start - 1 - c.width(total) - 1
-	if bar < 4 {
-		return " " + elapsed + " / " + total
+	tw := c.width(total)
+	n := end - tw - 1 - x
+	if n < 4 {
+		g.text(x, y, "/", paint{})
+		g.putText(x+2, y, total, tw, paint{})
+		return
 	}
-	m.mark(y, start, start+bar, hit{kind: hitProgress})
-	done := min(int(pos/st.Duration*float64(bar)), bar)
-	var b strings.Builder
-	b.Grow(len(ruleThick)*bar + 64)
-	b.WriteByte(' ')
-	b.WriteString(elapsed)
-	b.WriteByte(' ')
-	c.writeRule(&b, styleAccent, ruleThick, done)
-	c.writeRule(&b, styleMuted, ruleThin, bar-done)
-	b.WriteByte(' ')
-	b.WriteString(total)
-	return b.String()
+	g.hit(image.Rect(x, y, x+n, y+1), hit{kind: hitProgress})
+	done := min(int(pos/st.Duration*float64(n)), n)
+	g.putText(x, y, c.repeat(ruleThick, done), done, styleAccent)
+	g.putText(x+done, y, c.repeat(ruleThin, n-done), n-done, styleMuted)
+	g.putText(end-tw, y, total, tw, paint{})
 }
 
-// rule is a line of w cells, ruled off.
-func (m *model) rule(w int) string {
-	var b strings.Builder
-	b.Grow(len(ruleThin)*w + 16)
-	m.cells.writeRule(&b, styleMuted, ruleThin, w)
-	return b.String()
+// drawStatus draws the bar's status line: status, then right of it a
+// notice, or the help key.
+func (m *model) drawStatus(g region, status string) {
+	const y = barStatus
+	w, _ := g.size()
+	c := &m.cells
+	right := []piece{{text: "?", paint: styleKey}, {text: locales.TuiHelp(), gap: 1}, {gap: padX}}
+	if m.notice != "" {
+		right = []piece{{text: c.fit(m.notice, max(w*2/3, 1)), paint: styleAccent}, {gap: padX}}
+	}
+	rw := c.measure(right)
+	// Too narrow, the right is cut as one with its padding.
+	rx := max(w-rw, 0)
+	g.putRun(rx, y, w-rx, right, rw)
+	if m.notice == "" {
+		g.hit(image.Rect(w-rw, y, w-padX, y+1), hit{kind: hitHelp})
+	}
+	if rx > 0 {
+		g.run(0, y, rx-1, []piece{{text: status, paint: styleMuted, gap: padX}})
+	}
 }
 
 // status says what is on of shuffle and repeat, and the volume.

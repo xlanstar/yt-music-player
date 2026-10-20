@@ -2,6 +2,8 @@ package tui
 
 import (
 	"image"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -171,6 +173,76 @@ func TestRegionTextWidth(t *testing.T) {
 	} {
 		if got := tc.g.text(0, 0, tc.text, paint{}); got != tc.want {
 			t.Errorf("%q in %v: %d cells, want %d", tc.text, tc.g.clip, got, tc.want)
+		}
+	}
+}
+
+// fit draws text fitted as cells.fit fits it, and returns its width.
+func TestRegionFit(t *testing.T) {
+	bold := paint{pre: "\x1b[1m", post: "\x1b[m"}
+	for _, tc := range []struct {
+		text string
+		n    int
+		want string
+	}{
+		{"abc", 3, " \x1b[1mabc\x1b[m"},
+		{"abcd", 3, " \x1b[1mab…\x1b[m"},
+		{"猫の", 3, " \x1b[1m猫…\x1b[m"},
+		{"abc", 0, ""},
+		{"abc", -1, ""},
+	} {
+		s, screen := newScene(10, 1)
+		w := screen.fit(1, 0, tc.text, tc.n, bold)
+		if got := composed(s); got != tc.want || w != s.cells.width(ansi.Strip(got))-1 && got != "" {
+			t.Errorf("%q in %d cells: %q, %d cells; want %q", tc.text, tc.n, got, w, tc.want)
+		}
+	}
+}
+
+// A run cut takes what fit leaves of the line its pieces make, and puts
+// the ellipsis in the paint of the piece cut, by either method.
+func TestRegionRun(t *testing.T) {
+	bold := paint{pre: "\x1b[1m", post: "\x1b[m"}
+	muted := paint{pre: "\x1b[90m", post: "\x1b[m"}
+	for _, m := range methods {
+		c := newCells(m.method)
+		for _, ps := range [][]piece{
+			{{text: "▶", paint: bold}, {text: "Midnight", gap: 1}, {text: " · Lumen", paint: muted}},
+			{{text: "夜に", paint: bold, gap: 1}, {text: "👩‍💻a", gap: 2}, {gap: 1}},
+			{{text: "\x1b[1;36menter\x1b[m Retry"}, {text: "e\u0301❤️", paint: muted, gap: 1}},
+			{{gap: 2}, {text: "x", paint: bold}},
+		} {
+			var line strings.Builder
+			for _, p := range ps {
+				line.WriteString(strings.Repeat(" ", p.gap))
+				line.WriteString(p.paint.Render(p.text))
+			}
+			for n := -1; n <= c.width(line.String())+1; n++ {
+				s := &scene{}
+				w := s.reset(30, 1, c).run(2, 0, n, slices.Clone(ps))
+				got := strings.TrimPrefix(composed(s), "  ")
+				fit := c.fit(line.String(), n)
+				want := strings.TrimRight(ansi.Strip(fit), " ")
+				if ansi.Strip(got) != want || w != c.width(fit) {
+					t.Errorf("%s: %q in %d cells: %q, %d cells; want %q", m.name, line.String(), n, got, w, want)
+				}
+			}
+		}
+	}
+	for _, tc := range []struct {
+		n    int
+		want string
+	}{
+		{9, "\x1b[1mab\x1b[m \x1b[90mcdefgh\x1b[m"},
+		{6, "\x1b[1mab\x1b[m \x1b[90mcd…\x1b[m"},
+		{4, "\x1b[1mab\x1b[m \x1b[90m…\x1b[m"},
+		{3, "\x1b[1mab\x1b[m…"},
+		{2, "\x1b[1ma…\x1b[m"},
+	} {
+		s, screen := newScene(10, 1)
+		screen.run(0, 0, tc.n, []piece{{text: "ab", paint: bold}, {text: "cdefgh", paint: muted, gap: 1}})
+		if got := composed(s); got != tc.want {
+			t.Errorf("cut to %d: %q, want %q", tc.n, got, tc.want)
 		}
 	}
 }

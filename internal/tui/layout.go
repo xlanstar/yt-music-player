@@ -6,6 +6,33 @@ import "image"
 // the player bar, under the banner.
 const minBody = 1
 
+// The parts' spacing, in cells.
+const (
+	// padX keeps a part's text off the screen's sides.
+	padX = 1
+	// gapX keeps text off the cover beside it.
+	gapX = 1
+)
+
+// beside is a part's cover and the text beside it, in the part's cells:
+// the cover from its padding, the text after it.
+type beside struct {
+	// cover is none where empty.
+	cover image.Rectangle
+	// textX is the text's first cell.
+	textX int
+}
+
+// layBeside lays out a cover cols×rows from row y and the text beside
+// it; no cols is no cover, the text from the padding.
+func layBeside(y, cols, rows int) beside {
+	if cols <= 0 || rows <= 0 {
+		return beside{textX: padX}
+	}
+	cover := image.Rect(padX, y, padX+cols, y+rows)
+	return beside{cover: cover, textX: cover.Max.X + gapX}
+}
+
 // layoutIn is what the screen's layout reads: its size, the banner, and
 // the rows the tabs and the player bar take.
 type layoutIn struct {

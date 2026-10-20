@@ -126,6 +126,25 @@ func (c cells) writeRepeat(b *strings.Builder, glyph string, n int) {
 	writeSpaces(b, n)
 }
 
+// rules are ruleThin's and ruleThick's for most lines, which repeat cuts.
+var thinRules, thickRules = strings.Repeat(ruleThin, 256), strings.Repeat(ruleThick, 256)
+
+// repeat is n cells of glyph, as writeRepeat writes them; a rule one cell
+// wide is cut from rules, not made.
+func (c cells) repeat(glyph string, n int) string {
+	switch k := n * len(glyph); {
+	case n <= 0:
+		return ""
+	case glyph == ruleThin && c.thin == 1 && k <= len(thinRules):
+		return thinRules[:k]
+	case glyph == ruleThick && c.thick == 1 && k <= len(thickRules):
+		return thickRules[:k]
+	}
+	var b strings.Builder
+	c.writeRepeat(&b, glyph, n)
+	return b.String()
+}
+
 // glyphWidth is glyph's width; the rules' are measured once per method.
 func (c cells) glyphWidth(glyph string) int {
 	switch glyph {
@@ -135,16 +154,6 @@ func (c cells) glyphWidth(glyph string) int {
 		return c.thick
 	}
 	return c.width(glyph)
-}
-
-// writeRule writes n cells of glyph to b in p's style.
-func (c cells) writeRule(b *strings.Builder, p paint, glyph string, n int) {
-	if n <= 0 {
-		return
-	}
-	b.WriteString(p.pre)
-	c.writeRepeat(b, glyph, n)
-	b.WriteString(p.post)
 }
 
 // Clock says seconds as m:ss, or h:mm:ss from an hour; ytm status says
