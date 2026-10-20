@@ -17,18 +17,28 @@ const probeWait = time.Second
 
 type probeTimeoutMsg struct{}
 
+// probe finds how the terminal shows images, on the UI thread: it asks
+// the terminal unless YTM_IMAGES says, and keeps the caps that size and
+// encode covers.
+type probe struct {
+	env     termimage.Env
+	replies termimage.Replies
+	caps    termimage.Caps
+	isReady bool
+}
+
 // start asks the terminal what it shows, unless YTM_IMAGES says or it
 // shows none; then only the cell's pixels.
-func (g *gfx) start() tea.Cmd {
-	if !termimage.NeedsProbe(g.env) {
-		g.isReady = true
-		if g.detect(); g.caps.Protocol == termimage.None {
+func (p *probe) start() tea.Cmd {
+	if !termimage.NeedsProbe(p.env) {
+		p.isReady = true
+		if p.detect(); p.caps.Protocol == termimage.None {
 			return nil
 		}
 		return tea.Raw(termimage.CellSizeQuery)
 	}
 	return tea.Batch(
-		tea.Raw(termimage.Probe(g.env.Tmux)),
+		tea.Raw(termimage.Probe(p.env.Tmux)),
 		tea.Tick(probeWait, func(time.Time) tea.Msg { return probeTimeoutMsg{} }),
 	)
 }
@@ -37,45 +47,42 @@ func (g *gfx) start() tea.Cmd {
 // covers changing, false for other messages. Covers wait for the device
 // attributes, which a terminal sends after its other answers, or the
 // probe's time.
-func (g *gfx) reply(msg tea.Msg) bool {
+func (p *probe) reply(msg tea.Msg) bool {
 	switch msg := msg.(type) {
 	case uv.KittyGraphicsEvent:
 		if msg.Options.ID != termimage.ProbeID {
 			return false
 		}
-		g.replies.Kitty = string(msg.Payload) == "OK"
+		p.replies.Kitty = string(msg.Payload) == "OK"
 	case uv.CellSizeEvent:
-		g.replies.CellW, g.replies.CellH = msg.Width, msg.Height
+		p.replies.CellW, p.replies.CellH = msg.Width, msg.Height
 	case tea.TerminalVersionMsg:
-		g.replies.Version = msg.Name
+		p.replies.Version = msg.Name
 	case uv.PrimaryDeviceAttributesEvent:
-		g.replies.Sixel = slices.Contains(msg, 4)
-		g.isReady = true
+		p.replies.Sixel = slices.Contains(msg, 4)
+		p.isReady = true
 	case probeTimeoutMsg:
-		g.isReady = true
+		p.isReady = true
 	case tea.ColorProfileMsg:
-		g.env.Colors = msg.Profile >= colorprofile.ANSI256
+		p.env.Colors = msg.Profile >= colorprofile.ANSI256
 	default:
 		return false
 	}
-	return g.isReady && g.detect()
+	return p.isReady && p.detect()
 }
 
 // detect picks the protocol and the cell's pixels, which size covers;
 // it reports a change.
-func (g *gfx) detect() bool {
-	was := g.caps
-	g.caps = termimage.Detect(g.env, g.replies)
-	if g.caps.Protocol != termimage.None && g.art == nil && g.newArt != nil {
-		g.art = g.newArt()
-	}
-	return g.caps != was
+func (p *probe) detect() bool {
+	was := p.caps
+	p.caps = termimage.Detect(p.env, p.replies)
+	return p.caps != was
 }
 
 // resized asks the cell's pixels again after a resize: a font's size
 // changes them.
-func (g *gfx) resized() tea.Cmd {
-	if !g.isReady || g.caps.Protocol == termimage.None {
+func (p *probe) resized() tea.Cmd {
+	if !p.isReady || p.caps.Protocol == termimage.None {
 		return nil
 	}
 	return tea.Raw(termimage.CellSizeQuery)
@@ -83,11 +90,11 @@ func (g *gfx) resized() tea.Cmd {
 
 // coverCols returns the cells a square cover rows tall spans on a screen
 // w wide; 0 where none shows: no protocol, or too narrow beside it.
-func (g *gfx) coverCols(rows, w int) int {
-	if g.caps.Protocol == termimage.None || rows <= 0 {
+func (p *probe) coverCols(rows, w int) int {
+	if p.caps.Protocol == termimage.None || rows <= 0 {
 		return 0
 	}
-	if cols := g.caps.Fit(rows); w >= cols+coverMinWidth {
+	if cols := p.caps.Fit(rows); w >= cols+coverMinWidth {
 		return cols
 	}
 	return 0
@@ -96,8 +103,8 @@ func (g *gfx) coverCols(rows, w int) int {
 // request returns art's cover for slot s, rows tall from line y's cell
 // coverX, as wide as the terminal draws it square; ok is false where a
 // screen w wide is too narrow for it, or art is no image.
-func (g *gfx) request(s slot, y, rows, w int, art catalog.Art) (r coverRequest, ok bool) {
-	cols := g.coverCols(rows, w)
+func (p *probe) request(s slot, y, rows, w int, art catalog.Art) (r coverRequest, ok bool) {
+	cols := p.coverCols(rows, w)
 	if cols == 0 || !art.IsURL() {
 		return coverRequest{}, false
 	}

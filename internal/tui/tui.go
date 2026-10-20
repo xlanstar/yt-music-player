@@ -4,7 +4,7 @@
 // search, the library) sit over the player bar.
 //
 // Covers show in the player bar and over an album or playlist where the
-// terminal shows images (package termimage, gfx): Kitty's placeholders and
+// terminal shows images (package termimage; probe, covers): Kitty's placeholders and
 // half blocks are text. Sixel and iTerm2 images go over blank cells, which
 // carry marks: termOut, the terminal Bubble Tea writes to, draws an image
 // right after each frame that wrote its marks, so after each that wiped it.
@@ -104,7 +104,9 @@ type app struct {
 func newApp(cfg Config, out *termOut) *app {
 	posts := newPoster()
 	m := newModel(deps{})
-	m.gfx = gfx{env: termimage.EnvFrom(os.Getenv), kittyBase: newKittyBase(), post: posts.post, out: out, newArt: func() *artwork.Loader {
+	env := termimage.EnvFrom(os.Getenv)
+	m.probe = probe{env: env}
+	m.covers = covers{tmux: env.Tmux, kittyBase: newKittyBase(), post: posts.post, out: out, newArt: func() *artwork.Loader {
 		dir, _ := artwork.DefaultDir()
 		return artwork.New(artwork.Options{Post: posts.post, Dir: dir, MemoryBytes: artMemory, Workers: artWorkers})
 	}}
@@ -144,5 +146,5 @@ func (a *app) close() string {
 	a.m.loader.Stop()
 	a.sup.Close()
 	a.m.quiet.Stop()
-	return a.m.gfx.close()
+	return a.m.covers.close()
 }

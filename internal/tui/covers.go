@@ -72,21 +72,17 @@ type cover struct {
 // size is the bytes of c's images: an overlay, or an upload not sent.
 func (c *cover) size() int { return len(c.Overlay) + len(c.Upload) }
 
-// gfx shows covers, on the UI thread: it detects the protocol, loads
-// and encodes covers off the thread, uploads Kitty's images and tells out
-// where the overlays go. With no protocol it makes nothing: no loader, no
-// HTTP client.
-type gfx struct {
-	env     termimage.Env
-	replies termimage.Replies
-	caps    termimage.Caps
-
+// covers readies the covers a frame shows, on the UI thread: it loads
+// and encodes them off the thread, keeps them by key, uploads Kitty's
+// images and tells out where the overlays go. It makes no loader, no
+// HTTP client, until a cover is wanted.
+type covers struct {
 	post   func(func())
 	newArt func() *artwork.Loader
 	art    *artwork.Loader
 
-	covers [numCovers]cover
-	frame  uint64
+	cache [numCovers]cover
+	frame uint64
 
 	// out draws the overlays of the frames that wrote their marks; nil
 	// without a terminal.
@@ -99,7 +95,8 @@ type gfx struct {
 	marks     [numSlots][]string
 	published uint64
 
-	isReady bool
+	// tmux passes images through tmux to its terminal.
+	tmux bool
 	// kittyBase is cover 0's Kitty image ID, a 256-color index (newKittyBase).
 	kittyBase uint8
 	// hasUploads keeps Kitty cleanup enabled even after uploaded covers are evicted.
@@ -114,44 +111,47 @@ func newKittyBase() uint8 {
 }
 
 // beginFrame starts a frame's covers, before want.
-func (g *gfx) beginFrame() {
-	g.frame++
-	if g.art != nil {
-		g.art.NextFrame()
+func (cs *covers) beginFrame() {
+	cs.frame++
+	if cs.art != nil {
+		cs.art.NextFrame()
 	}
 }
 
-// key is r's cover in the terminal's protocol, at r's size.
-func (g *gfx) key(r coverRequest) coverKey {
-	return coverKey{url: string(r.art), caps: g.caps, cols: r.rect.Dx(), rows: r.rect.Dy()}
+// coverKey is r's cover in caps' protocol, at r's size.
+func (r coverRequest) key(caps termimage.Caps) coverKey {
+	return coverKey{url: string(r.art), caps: caps, cols: r.rect.Dx(), rows: r.rect.Dy()}
 }
 
 // want readies r's cover, as shown this frame: it claims the cover's
 // place, and encodes the image once loaded, again once a larger one came.
-func (g *gfx) want(r coverRequest) {
-	key := g.key(r)
-	i := g.claim(key)
-	c := &g.covers[i]
-	c.frame = g.frame
+func (cs *covers) want(r coverRequest, caps termimage.Caps) {
+	key := r.key(caps)
+	i := cs.claim(key)
+	c := &cs.cache[i]
+	c.frame = cs.frame
+	if cs.art == nil && cs.newArt != nil {
+		cs.art = cs.newArt()
+	}
 	// Get may give another size while this one loads: a larger one, once
 	// it came, encodes again.
-	if px := max(g.caps.Pixels(key.cols, key.rows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
-		if img := g.art.Get(key.url, px); img != nil && img.RGBA.Rect.Dx() > c.srcPx {
+	if px := max(caps.Pixels(key.cols, key.rows)); c.srcPx < px && !c.job.IsRunning() && cs.art != nil {
+		if img := cs.art.Get(key.url, px); img != nil && img.RGBA.Rect.Dx() > c.srcPx {
 			c.srcPx = img.RGBA.Rect.Dx()
-			g.encode(c, img.RGBA, g.kittyBase+uint8(i)) //nolint:gosec // i < numCovers
+			cs.encode(c, img.RGBA, cs.kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
 	}
 }
 
 // lines returns the lines of r's cover from cell 0: blank until encoded,
 // or unless want readied it this frame; none without r.
-func (g *gfx) lines(r coverRequest) []string {
+func (cs *covers) lines(r coverRequest, caps termimage.Caps) []string {
 	if r.art == "" {
 		return nil
 	}
-	key := g.key(r)
-	for i := range g.covers {
-		if c := &g.covers[i]; c.key == key && c.frame == g.frame {
+	key := r.key(caps)
+	for i := range cs.cache {
+		if c := &cs.cache[i]; c.key == key && c.frame == cs.frame {
 			return c.Lines
 		}
 	}
@@ -164,18 +164,18 @@ func blankLines(cols, rows int) []string {
 }
 
 // claim returns key's cover, or the one shown longest ago, taken for it.
-func (g *gfx) claim(key coverKey) int {
+func (cs *covers) claim(key coverKey) int {
 	oldest := 0
-	for i := range g.covers {
-		c := &g.covers[i]
+	for i := range cs.cache {
+		c := &cs.cache[i]
 		if c.key == key {
 			return i
 		}
-		if c.frame < g.covers[oldest].frame {
+		if c.frame < cs.cache[oldest].frame {
 			oldest = i
 		}
 	}
-	c := &g.covers[oldest]
+	c := &cs.cache[oldest]
 	c.job.Stop()
 	*c = cover{key: key}
 	c.Lines = blankLines(key.cols, key.rows)
@@ -185,9 +185,9 @@ func (g *gfx) claim(key coverKey) int {
 // encode encodes img for c, at the size of c's key, off the UI thread.
 // The job drops its result once c is claimed again or trimmed: c then
 // holds another key, or none.
-func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
-	key, tmux := c.key, g.env.Tmux
-	job.Run(&c.job, g.post, func(context.Context) (termimage.Encoded, error) {
+func (cs *covers) encode(c *cover, img *image.RGBA, id uint8) {
+	key, tmux := c.key, cs.tmux
+	job.Run(&c.job, cs.post, func(context.Context) (termimage.Encoded, error) {
 		e, err := termimage.Encode(img, key.caps, key.cols, key.rows, id, tmux)
 		indent := strings.Repeat(" ", coverX)
 		for i, line := range e.Lines {
@@ -203,41 +203,41 @@ func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
 	})
 }
 
-// place makes the table of the overlays of covers, which want readied,
+// place makes the table of the overlays of reqs, which want readied,
 // wholly on screen, of the generation after out's last if they changed.
-func (g *gfx) place(covers []coverRequest, screen image.Rectangle) {
+func (cs *covers) place(reqs []coverRequest, caps termimage.Caps, screen image.Rectangle) {
 	var places [numSlots]termimage.Placement
-	for _, r := range covers {
+	for _, r := range reqs {
 		if r.art == "" || !r.rect.In(screen) {
 			continue
 		}
-		if c := g.ready(g.key(r)); c != nil && c.Overlay != "" {
+		if c := cs.ready(r.key(caps)); c != nil && c.Overlay != "" {
 			places[r.slot] = termimage.Placement{
 				Seq: c.Overlay, X: r.rect.Min.X, Y: r.rect.Min.Y, Cols: r.rect.Dx(), Rows: r.rect.Dy(),
 			}
 		}
 	}
-	if places == g.places {
+	if places == cs.places {
 		return
 	}
-	gen := g.published + 1
-	g.table, g.places = termimage.NewTable(gen, places[:]), places
+	gen := cs.published + 1
+	cs.table, cs.places = termimage.NewTable(gen, places[:]), places
 	for s, p := range places {
-		g.marks[s] = g.marks[s][:0]
+		cs.marks[s] = cs.marks[s][:0]
 		for r := range p.Rows {
-			g.marks[s] = append(g.marks[s], termimage.Mark(gen, s, r))
+			cs.marks[s] = append(cs.marks[s], termimage.Mark(gen, s, r))
 		}
 	}
 }
 
 // join joins a render's lines into the screen, each line of an overlay
 // with its mark before the overlay's first cell.
-func (g *gfx) join(lines []string) string {
+func (cs *covers) join(lines []string) string {
 	n := len(lines)
 	for _, line := range lines {
 		n += len(line)
 	}
-	for _, marks := range g.marks {
+	for _, marks := range cs.marks {
 		for _, mark := range marks {
 			n += len(mark)
 		}
@@ -248,7 +248,7 @@ func (g *gfx) join(lines []string) string {
 		if y > 0 {
 			b.WriteByte('\n')
 		}
-		if mark, x := g.markOf(y); mark != "" && len(line) > x {
+		if mark, x := cs.markOf(y); mark != "" && len(line) > x {
 			// The cells before a cover are spaces, a byte each.
 			b.WriteString(line[:x])
 			b.WriteString(mark)
@@ -261,10 +261,10 @@ func (g *gfx) join(lines []string) string {
 
 // markOf returns the mark of line y and the cell it goes before; empty
 // off the overlays.
-func (g *gfx) markOf(y int) (mark string, x int) {
-	for s, p := range g.places {
+func (cs *covers) markOf(y int) (mark string, x int) {
+	for s, p := range cs.places {
 		if p.Seq != "" && y >= p.Y && y < p.Y+p.Rows {
-			return g.marks[s][y-p.Y], p.X
+			return cs.marks[s][y-p.Y], p.X
 		}
 	}
 	return "", 0
@@ -273,24 +273,24 @@ func (g *gfx) markOf(y int) (mark string, x int) {
 // commit sends, after a render, what the renderer cannot: Kitty's new
 // uploads, and out the overlays' table if it changed. It runs once an
 // Update at most, as out keeps two tables.
-func (g *gfx) commit() tea.Cmd {
-	if g.table != nil && g.table.Gen() > g.published {
-		g.published = g.table.Gen()
-		if g.out != nil {
-			g.out.publish(g.table)
+func (cs *covers) commit() tea.Cmd {
+	if cs.table != nil && cs.table.Gen() > cs.published {
+		cs.published = cs.table.Gen()
+		if cs.out != nil {
+			cs.out.publish(cs.table)
 		}
 	}
-	cmd := g.upload()
-	g.trim()
+	cmd := cs.upload()
+	cs.trim()
 	return cmd
 }
 
-func (g *gfx) upload() tea.Cmd {
+func (cs *covers) upload() tea.Cmd {
 	var b strings.Builder
-	for i := range g.covers {
-		if c := &g.covers[i]; c.Upload != "" && c.frame == g.frame {
+	for i := range cs.cache {
+		if c := &cs.cache[i]; c.Upload != "" && c.frame == cs.frame {
 			b.WriteString(c.Upload)
-			c.Upload, g.hasUploads = "", true
+			c.Upload, cs.hasUploads = "", true
 		}
 	}
 	if b.Len() == 0 {
@@ -301,33 +301,33 @@ func (g *gfx) upload() tea.Cmd {
 
 // trim drops covers not shown, the oldest first, once their images take
 // more than offScreenBytes; they encode again when shown.
-func (g *gfx) trim() {
+func (cs *covers) trim() {
 	total := 0
-	for i := range g.covers {
-		total += g.covers[i].size()
+	for i := range cs.cache {
+		total += cs.cache[i].size()
 	}
 	for total > offScreenBytes {
 		oldest := -1
-		for i := range g.covers {
-			c := &g.covers[i]
-			isDroppable := c.frame != g.frame && c.size() > 0
-			if isDroppable && (oldest < 0 || c.frame < g.covers[oldest].frame) {
+		for i := range cs.cache {
+			c := &cs.cache[i]
+			isDroppable := c.frame != cs.frame && c.size() > 0
+			if isDroppable && (oldest < 0 || c.frame < cs.cache[oldest].frame) {
 				oldest = i
 			}
 		}
 		if oldest < 0 {
 			return
 		}
-		c := &g.covers[oldest]
+		c := &cs.cache[oldest]
 		total -= c.size()
 		c.job.Stop()
 		*c = cover{}
 	}
 }
 
-func (g *gfx) ready(key coverKey) *cover {
-	for i := range g.covers {
-		if c := &g.covers[i]; c.key == key && c.isReady {
+func (cs *covers) ready(key coverKey) *cover {
+	for i := range cs.cache {
+		if c := &cs.cache[i]; c.key == key && c.isReady {
 			return c
 		}
 	}
@@ -335,12 +335,12 @@ func (g *gfx) ready(key coverKey) *cover {
 }
 
 // isBusy reports covers loading or encoding, for tests to wait on.
-func (g *gfx) isBusy() bool {
-	if g.art != nil && g.art.Loading() {
+func (cs *covers) isBusy() bool {
+	if cs.art != nil && cs.art.Loading() {
 		return true
 	}
-	for i := range g.covers {
-		if g.covers[i].job.IsRunning() {
+	for i := range cs.cache {
+		if cs.cache[i].job.IsRunning() {
 			return true
 		}
 	}
@@ -348,16 +348,16 @@ func (g *gfx) isBusy() bool {
 }
 
 // close stops the loads and returns what frees the terminal's images.
-func (g *gfx) close() string {
-	if g.art != nil {
-		g.art.Close()
+func (cs *covers) close() string {
+	if cs.art != nil {
+		cs.art.Close()
 	}
 	var b strings.Builder
-	for i := range g.covers {
-		g.covers[i].job.Stop()
-		if g.hasUploads {
+	for i := range cs.cache {
+		cs.cache[i].job.Stop()
+		if cs.hasUploads {
 			// q=2: an id never sent is no error.
-			b.WriteString(termimage.KittyDelete(g.kittyBase+uint8(i), g.env.Tmux))
+			b.WriteString(termimage.KittyDelete(cs.kittyBase+uint8(i), cs.tmux))
 		}
 	}
 	return b.String()

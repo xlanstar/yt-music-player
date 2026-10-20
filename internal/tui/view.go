@@ -70,7 +70,7 @@ func (m *model) draw(f *frame) {
 		m.keepHits(cut, len(lines))
 		lines = lines[cut:]
 	}
-	m.content = m.gfx.join(lines)
+	m.content = m.covers.join(lines)
 }
 
 // layoutIn is what the screen's layout reads of m.
@@ -134,7 +134,7 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
-		cover := m.gfx.lines(f.covers[slotHeader])
+		cover := m.covers.lines(f.covers[slotHeader], m.probe.caps)
 		lines = m.appendPageHeader(lines, w, &p.header, cover)
 		switch {
 		case p.title != "":
@@ -349,7 +349,7 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 		}
 		// The cover spans the song and its progress.
 		r := f.covers[slotBar]
-		cover, x := m.gfx.lines(r), r.rect.Max.X
+		cover, x := m.covers.lines(r, m.probe.caps), r.rect.Max.X
 		bar[barSong] = c.spread(coverLine(cover, 0), title, heart, w-x)
 		bar[barProgress] = m.progress(st, coverLine(cover, 1), x, y+barProgress, w)
 	}

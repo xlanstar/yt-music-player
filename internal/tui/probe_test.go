@@ -3,7 +3,6 @@ package tui
 import (
 	"image"
 	"testing"
-	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/termimage"
 
@@ -13,11 +12,7 @@ import (
 )
 
 func TestCoverDetect(t *testing.T) {
-	made := 0
-	g := gfx{env: termimage.Env{Term: "foot"}, newArt: func() *artwork.Loader {
-		made++
-		return nil
-	}}
+	g := probe{env: termimage.Env{Term: "foot"}}
 	if g.start() == nil {
 		t.Fatal("start asked nothing")
 	}
@@ -26,9 +21,6 @@ func TestCoverDetect(t *testing.T) {
 	}
 	if !g.reply(uv.PrimaryDeviceAttributesEvent{62, 4}) || g.caps.Protocol != termimage.Sixel || g.coverCols(2, 80) != 4 {
 		t.Errorf("caps = %+v, cols %d; want Sixel of 4 columns", g.caps, g.coverCols(2, 80))
-	}
-	if made != 1 {
-		t.Errorf("made %d loaders, want 1", made)
 	}
 	if g.reply(probeTimeoutMsg{}) {
 		t.Error("the probe's wait changed what detected")
@@ -39,15 +31,15 @@ func TestCoverDetect(t *testing.T) {
 	}
 
 	// The Linux console shows no images, and would print the probe.
-	g, made = gfx{env: termimage.Env{Term: "linux"}, newArt: g.newArt}, 0
+	g = probe{env: termimage.Env{Term: "linux"}}
 	if cmd := g.start(); cmd != nil {
 		t.Error("on the Linux console, start wrote the probe")
 	}
-	if !g.isReady || g.caps.Protocol != termimage.None || made != 0 {
-		t.Errorf("on the Linux console, ready %t, caps = %+v, %d loaders", g.isReady, g.caps, made)
+	if !g.isReady || g.caps.Protocol != termimage.None {
+		t.Errorf("on the Linux console, ready %t, caps = %+v", g.isReady, g.caps)
 	}
 
-	g = gfx{env: termimage.Env{Term: "xterm-256color"}}
+	g = probe{env: termimage.Env{Term: "xterm-256color"}}
 	g.reply(tea.ColorProfileMsg{Profile: colorprofile.TrueColor})
 	if !g.reply(probeTimeoutMsg{}) || g.caps.Protocol != termimage.Blocks {
 		t.Errorf("unanswered, caps = %+v, want Blocks", g.caps)
@@ -66,7 +58,7 @@ func TestCoverDetect(t *testing.T) {
 // TestCoverRequest sizes a cover from its rows, square in the cell's
 // pixels, and omits it where it would not fit beside the text.
 func TestCoverRequest(t *testing.T) {
-	g := gfx{env: termimage.Env{Override: "sixel"}, replies: termimage.Replies{CellW: 10, CellH: 20}}
+	g := probe{env: termimage.Env{Override: "sixel"}, replies: termimage.Replies{CellW: 10, CellH: 20}}
 	g.detect()
 	for _, tc := range []struct {
 		rows, w int
@@ -88,7 +80,7 @@ func TestCoverRequest(t *testing.T) {
 			t.Errorf("%d rows of %q, %d wide: %v, %t; want %v", tc.rows, tc.art, tc.w, r.rect, ok, tc.want)
 		}
 	}
-	g = gfx{env: termimage.Env{Override: "off"}}
+	g = probe{env: termimage.Env{Override: "off"}}
 	g.detect()
 	if _, ok := g.request(slotBar, 5, 2, 200, coverURL); ok {
 		t.Error("without a protocol, a cover shows")

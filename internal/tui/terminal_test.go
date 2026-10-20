@@ -58,8 +58,8 @@ func runTermAnswering(t *testing.T, h *harness, answers string) *program {
 		t.Fatal(err)
 	}
 	tm := &program{t: t, h: h, out: newTermOut(outW), ran: make(chan struct{}), read: make(chan struct{}), grew: make(chan struct{}, 1)}
-	h.m.gfx.out = tm.out
-	if g := &h.m.gfx; g.table != nil {
+	h.m.covers.out = tm.out
+	if g := &h.m.covers; g.table != nil {
 		// Published before there was a terminal.
 		tm.out.publish(g.table)
 	}
@@ -343,7 +343,7 @@ func TestTermBlockedWriter(t *testing.T) {
 	play(red)
 	h.covered()
 	var redSeq, blueSeq string
-	for _, c := range h.m.gfx.covers {
+	for _, c := range h.m.covers.cache {
 		switch c.key.url {
 		case coverURL:
 			redSeq = c.Overlay
@@ -391,7 +391,7 @@ func TestTermIdleTicks(t *testing.T) {
 	h := placeholderHarness(t)
 	h.withCovers(termimage.Sixel, newCoverHost(t))
 	h.covered()
-	gen := h.m.gfx.published
+	gen := h.m.covers.published
 	tm := runTerm(t, h)
 	at := tm.frameWith("\x1bP", 0)
 	for range 5 {
@@ -409,8 +409,8 @@ func TestTermIdleTicks(t *testing.T) {
 		at = tm.frameWith("", at)
 	}
 	tm.do(func() {
-		if h.m.gfx.published != gen {
-			t.Errorf("generation %d, want %d", h.m.gfx.published, gen)
+		if h.m.covers.published != gen {
+			t.Errorf("generation %d, want %d", h.m.covers.published, gen)
 		}
 	})
 	v := replay(t, tm.quit(), barCover)

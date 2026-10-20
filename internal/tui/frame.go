@@ -27,7 +27,7 @@ type frame struct {
 // the overlays' table.
 func (m *model) prepare() frame {
 	m.followQueue()
-	m.gfx.beginFrame()
+	m.covers.beginFrame()
 	f := frame{rects: layout(m.layoutIn())}
 	w := m.width
 	if w <= 0 || m.height <= 0 {
@@ -49,7 +49,7 @@ func (m *model) prepare() frame {
 	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" {
 		m.wantCover(&f, slotBar, f.rects.bar.Min.Y+barSong, barCoverRows, song.Art)
 	}
-	m.gfx.place(f.covers[:], image.Rect(0, 0, w, m.height))
+	m.covers.place(f.covers[:], m.probe.caps, image.Rect(0, 0, w, m.height))
 	if m.link.Connection > 0 {
 		// Before any daemon spoke, its volume is no one's.
 		f.status = m.status(st)
@@ -58,16 +58,16 @@ func (m *model) prepare() frame {
 }
 
 // wantCover lays out art's cover for slot s, rows tall from line y, where
-// it fits (gfx.request), and readies it if wholly on screen: a cover cut
+// it fits (probe.request), and readies it if wholly on screen: a cover cut
 // shows blank, its text where it was.
 func (m *model) wantCover(f *frame, s slot, y, rows int, art catalog.Art) {
-	r, ok := m.gfx.request(s, y, rows, m.width, art)
+	r, ok := m.probe.request(s, y, rows, m.width, art)
 	if !ok {
 		return
 	}
 	f.covers[s] = r
 	if r.rect.In(image.Rect(0, 0, m.width, m.height)) {
-		m.gfx.want(r)
+		m.covers.want(r, m.probe.caps)
 	}
 }
 

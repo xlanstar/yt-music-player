@@ -210,9 +210,9 @@ func TestWidthMethodSwitch(t *testing.T) {
 	h := placeholderHarness(t)
 	h.mirror.setQueue(emojiSongs)
 	h.send(postedMsg{})
-	byRunes, frame := h.m.content, h.m.gfx.frame
+	byRunes, frame := h.m.content, h.m.covers.frame
 	h.send(unicodeCore)
-	if h.m.gfx.frame == frame {
+	if h.m.covers.frame == frame {
 		t.Fatal("the answer rendered nothing")
 	}
 	if h.m.cells != newCells(ansi.GraphemeWidth) {
@@ -228,8 +228,8 @@ func TestWidthMethodSwitch(t *testing.T) {
 	if h.m.content != fresh.m.content {
 		t.Errorf("after the answer:\n%s\nwant, as by graphemes from the start:\n%s", h.screen(), fresh.screen())
 	}
-	frame = h.m.gfx.frame
-	if h.send(unicodeCore); h.m.gfx.frame != frame {
+	frame = h.m.covers.frame
+	if h.send(unicodeCore); h.m.covers.frame != frame {
 		t.Error("the same answer again rendered the screen again")
 	}
 }

@@ -115,7 +115,8 @@ type model struct {
 	notice    string
 	noticeSeq uint64
 
-	gfx gfx
+	probe  probe
+	covers covers
 	// quiet gives the heap back once Update rests.
 	quiet quiet.GC
 
@@ -152,7 +153,7 @@ func newModel(d deps) *model {
 }
 
 // Init implements tea.Model: it asks the terminal how it shows images.
-func (m *model) Init() tea.Cmd { return m.gfx.start() }
+func (m *model) Init() tea.Cmd { return m.probe.start() }
 
 // View implements tea.Model: the screen Update rendered last.
 func (m *model) View() tea.View {
@@ -180,7 +181,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		cmd = m.gfx.resized()
+		cmd = m.probe.resized()
 	case tea.FocusMsg:
 		m.isBlurred = false
 		m.sup.Foreground()
@@ -227,7 +228,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	default:
 		// The terminal's answers about images, or nothing.
-		if !m.gfx.reply(msg) {
+		if !m.probe.reply(msg) {
 			return m, nil
 		}
 	}
@@ -244,7 +245,7 @@ func (m *model) settle(cmd tea.Cmd) tea.Cmd {
 	m.syncLoad()
 	m.render()
 	m.quiet.Note()
-	cmds := []tea.Cmd{cmd, m.gfx.commit()}
+	cmds := []tea.Cmd{cmd, m.covers.commit()}
 	if m.isNoticeNew {
 		m.isNoticeNew = false
 		seq := m.noticeSeq

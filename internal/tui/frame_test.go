@@ -194,7 +194,7 @@ type coverState struct {
 }
 
 func (h *harness) drawState() drawState {
-	g := &h.m.gfx
+	g := &h.m.covers
 	s := drawState{
 		lists:      [3]listState{h.m.queue, h.m.search, h.m.library},
 		collection: h.m.collection,
@@ -204,8 +204,8 @@ func (h *harness) drawState() drawState {
 		loading:    g.art != nil && g.art.Loading(),
 		published:  g.published,
 	}
-	for i := range g.covers {
-		c := &g.covers[i]
+	for i := range g.cache {
+		c := &g.cache[i]
 		s.covers[i] = coverState{c.key, c.frame, c.srcPx, c.isReady, c.job.IsRunning()}
 	}
 	return s
@@ -219,7 +219,7 @@ type drawn struct {
 }
 
 func (h *harness) drawn() drawn {
-	return drawn{h.m.content, append([]hit(nil), h.m.hits...), h.m.gfx.table}
+	return drawn{h.m.content, append([]hit(nil), h.m.hits...), h.m.covers.table}
 }
 
 // Drawing a prepared frame changes nothing it read, starts nothing, and
