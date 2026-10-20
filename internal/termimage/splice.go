@@ -12,8 +12,8 @@ const markStart = "\x1b^ytm;"
 // stringEnd is ST, which ends a mark.
 const stringEnd = "\x1b\\"
 
-// A frame's end, which overlays go before: the synchronized output's, else
-// showing the cursor, which would flicker over them.
+// A frame's end, which overlays go before: the synchronized output's, and
+// before it showing the cursor, which would flicker over them.
 const (
 	syncEnd    = "\x1b[?2026l"
 	cursorShow = "\x1b[?25h"
@@ -94,10 +94,10 @@ func FrameGen(frame []byte) (gen uint64, ok bool) {
 // draws only where it fits a w×h screen (Placement.fits).
 func Splice(dst, frame []byte, t *Table, w, h int) []byte {
 	end := len(frame)
-	switch {
-	case bytes.HasSuffix(frame, []byte(syncEnd)):
+	if bytes.HasSuffix(frame, []byte(syncEnd)) {
 		end -= len(syncEnd)
-	case bytes.HasSuffix(frame, []byte(cursorShow)):
+	}
+	if bytes.HasSuffix(frame[:end], []byte(cursorShow)) {
 		end -= len(cursorShow)
 	}
 	var drawn uint64

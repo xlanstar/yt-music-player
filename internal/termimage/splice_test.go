@@ -58,7 +58,12 @@ func TestSplice(t *testing.T) {
 		{
 			"a slot once, in slot order",
 			Mark(5, 1, 0) + "⠀" + Mark(5, 0, 0) + "⠀" + Mark(5, 1, 1) + "⠀\x1b[?25h\x1b[?2026l", tab, 80, 24,
-			"⠀⠀⠀\x1b[?25h" + bar + head + "\x1b[?2026l",
+			"⠀⠀⠀" + bar + head + "\x1b[?25h\x1b[?2026l",
+		},
+		{
+			"showing the cursor, not hiding it",
+			"\x1b[?2026h\x1b[?25l" + Mark(5, 0, 0) + "⠀\x1b[?2026l", tab, 80, 24,
+			"\x1b[?2026h\x1b[?25l⠀" + bar + "\x1b[?2026l",
 		},
 		{"another generation", Mark(4, 0, 0) + "⠀", tab, 80, 24, "⠀"},
 		{"no table", Mark(5, 0, 0) + "⠀", nil, 80, 24, "⠀"},
