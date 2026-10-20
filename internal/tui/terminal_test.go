@@ -207,6 +207,11 @@ func waitLocked(t *testing.T, fn string) {
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		n := runtime.Stack(buf, true)
+		if n == len(buf) {
+			// Cut: the goroutine may be past the end.
+			buf = make([]byte, 2*len(buf))
+			continue
+		}
 		for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
 			if strings.Contains(g, "[sync.Mutex.Lock") && strings.Contains(g, fn) {
 				return
