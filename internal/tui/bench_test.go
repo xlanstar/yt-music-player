@@ -25,13 +25,13 @@ var viewCases = []struct {
 	}, 86},
 	// 72 allocs today.
 	{"library", func(h *harness) { h.press("shift+tab") }, 83},
-	// 71 allocs today.
+	// 70 allocs today.
 	{"search", func(h *harness) {
 		h.press("/")
 		h.typeText("o")
 		h.loaded()
 		h.press("esc")
-	}, 82},
+	}, 81},
 	// 98 allocs today.
 	{"help", func(h *harness) { h.press("?") }, 113},
 	// 74 allocs today, as without covers: one, encoded once, costs a
