@@ -4,10 +4,10 @@
 // search, the library) sit over the player bar.
 //
 // Covers show in the player bar and over an album or playlist where the
-// terminal shows images (package termimage; probe, covers): Kitty's
-// placeholders and half blocks are text. Sixel and iTerm2 images go over blank cells, which
-// carry marks: termOut, the terminal Bubble Tea writes to, draws an image
-// right after each frame that wrote its marks, so after each that wiped it.
+// terminal shows images (package termimage): Kitty's placeholders and half
+// blocks are text. Sixel and iTerm2 images go over blank cells, which carry
+// marks: termOut, the terminal Bubble Tea writes to, draws an image right
+// after each frame that wrote its marks, so after each that wiped it.
 //
 // Update is the UI thread: the session, the loader, the catalog and the
 // Mirror are touched there only. Other goroutines post funcs, which queue
@@ -15,11 +15,16 @@
 // must not. termOut runs on Bubble Tea's renderer, reading the overlays'
 // tables Update publishes.
 //
-// Update renders once per message that changed something: prepare lays
-// the screen out, makes the page and scrolls its list into a frame,
-// which draw only reads into the scene, through regions (scene.go); the
-// covers drawn are readied (covers.sync) and the scene composes the
-// screen View returns. Keys and clicks read the model afresh, never a
+// Update renders once per message that changed something. prepare lays the
+// screen out into a frame: layout places the parts by the rows each takes
+// (layout.go), the page is made, its list scrolled to the rows it gets, and
+// each part's cover sized beside its text. draw only reads the frame into
+// the scene (scene.go): each part draws in its region, in its own cells,
+// which only regions place on the screen; a cover is a rect and an image,
+// its protocol the covers' (covers.go, probe.go). covers.sync readies the
+// covers drawn, a table placing the overlays among them, and the scene
+// composes the screen View returns; settle then publishes the table to
+// termOut, once per Update. Keys and clicks read the model afresh, never a
 // frame. Only a song playing in a focused terminal ticks, once a second.
 //
 // Lines measure text as Bubble Tea's renderer does (cells): by rune, by
