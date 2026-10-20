@@ -242,6 +242,8 @@ var namedKeys = map[string]tea.Key{
 	"right":     {Code: tea.KeyRight},
 	"home":      {Code: tea.KeyHome},
 	"end":       {Code: tea.KeyEnd},
+	"pgup":      {Code: tea.KeyPgUp},
+	"pgdown":    {Code: tea.KeyPgDown},
 	"space":     {Code: tea.KeySpace, Text: " "},
 	"ctrl+c":    {Code: 'c', Mod: tea.ModCtrl},
 	"ctrl+u":    {Code: 'u', Mod: tea.ModCtrl},

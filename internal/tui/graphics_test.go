@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"io"
 	"net/http"
@@ -26,32 +27,50 @@ import (
 
 const coverURL = "https://lh3.googleusercontent.com/cover=w120-h120"
 
-// coverHost serves a red PNG of 128 pixels for every URL, counting the
-// requests.
+// coverHost serves a red PNG of 128 pixels for every URL, or the PNG of
+// pngs for a URL that holds its key, counting the requests; once hold is
+// set, after it closes.
 type coverHost struct {
 	png   []byte
+	pngs  map[string][]byte
+	hold  chan struct{}
 	calls atomic.Int32
 }
 
 func newCoverHost(t testing.TB) *coverHost {
 	t.Helper()
+	return &coverHost{png: colorPNG(t, color.RGBA{220, 30, 40, 255})}
+}
+
+// colorPNG is a PNG of 128 pixels of c.
+func colorPNG(t testing.TB, c color.RGBA) []byte {
+	t.Helper()
 	m := image.NewRGBA(image.Rect(0, 0, 128, 128))
 	for i := 0; i < len(m.Pix); i += 4 {
-		copy(m.Pix[i:], []byte{220, 30, 40, 255})
+		copy(m.Pix[i:], []byte{c.R, c.G, c.B, c.A})
 	}
 	var b bytes.Buffer
 	if err := png.Encode(&b, m); err != nil {
 		t.Fatal(err)
 	}
-	return &coverHost{png: b.Bytes()}
+	return b.Bytes()
 }
 
-func (c *coverHost) RoundTrip(*http.Request) (*http.Response, error) {
+func (c *coverHost) RoundTrip(r *http.Request) (*http.Response, error) {
 	c.calls.Add(1)
+	if c.hold != nil {
+		<-c.hold
+	}
+	b := c.png
+	for k, png := range c.pngs {
+		if strings.Contains(r.URL.String(), k) {
+			b = png
+		}
+	}
 	return &http.Response{
 		StatusCode:    http.StatusOK,
-		Body:          io.NopCloser(bytes.NewReader(c.png)),
-		ContentLength: int64(len(c.png)),
+		Body:          io.NopCloser(bytes.NewReader(b)),
+		ContentLength: int64(len(b)),
 		Header:        http.Header{},
 	}, nil
 }
