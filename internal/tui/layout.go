@@ -68,9 +68,6 @@ func layout(in layoutIn) frameRects {
 	return r
 }
 
-// top is the first row drawn: the tabs', else the banner's.
-func (r *frameRects) top() int { return min(r.tabs.Min.Y, r.banner.Min.Y) }
-
 // band is n rows of w cells from row y. Unlike image.Rect it keeps y as
 // the top when n is 0.
 func band(w, y, n int) image.Rectangle {

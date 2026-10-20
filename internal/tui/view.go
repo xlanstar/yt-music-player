@@ -54,39 +54,32 @@ func (m *model) draw(f *frame) {
 		return
 	}
 	r := &f.rects
-	// Lines go top to bottom from r.top(), the hits' y with them.
-	lines := make([]string, 0, h+barRows)
 	if r.body.Dy() > 0 {
-		lines = m.appendTabs(lines, w)
-		lines = m.appendBody(lines, w, f)
+		// drawLines places every hit marked so far: the body's, before the
+		// tabs draw theirs. Transitional, as drawLines is.
+		lines := m.appendBody(make([]string, 0, r.body.Dy()), w, f)
+		m.drawLines(screen, f, lines)
+		m.drawTabs(screen.sub(r.tabs))
 	}
 	if r.banner.Dy() > 0 {
-		banner, hasKey := m.banner(w)
-		if hasKey {
-			m.mark(len(lines), 0, w, hit{kind: hitBanner})
-		}
-		lines = append(lines, banner)
+		m.drawBanner(screen.sub(r.banner))
 	}
-	m.drawLines(screen, f, lines)
 	m.drawBar(screen.sub(r.bar), f)
 }
 
-// drawLines draws lines, the parts' from the layout's top, past the
-// screen's on one too short for the bar: the covers' cells, each line
-// after the cover it is beside, and the hits marked on the lines.
-// Transitional, until the parts draw into regions.
+// drawLines draws lines, the body's: the header's cover's cells, each
+// line after the cover it is beside, and the hits marked on the lines.
+// Transitional, until the pages draw into regions.
 func (m *model) drawLines(screen region, f *frame, lines []string) {
-	top := f.rects.top()
-	g := screen.sub(image.Rect(0, top, m.width, top+len(lines)))
+	body := f.rects.body
+	g := screen.sub(body)
 	// The header claims the first of the covers' places, as it did.
 	hc := f.covers[slotHeader]
 	screen.cover(hc.rect, hc.slot, hc.art)
 	for i, line := range lines {
 		x := 0
-		for _, r := range f.covers {
-			if y := top + i; r.art != "" && y >= r.rect.Min.Y && y < r.rect.Max.Y {
-				x = r.rect.Max.X
-			}
+		if y := body.Min.Y + i; hc.art != "" && y >= hc.rect.Min.Y && y < hc.rect.Max.Y {
+			x = hc.rect.Max.X
 		}
 		g.line(x, i, line)
 	}
@@ -107,33 +100,31 @@ func (m *model) layoutIn() layoutIn {
 	}
 }
 
-// appendTabs adds the app's name, the tabs and the account, over a rule
-// that marks the shown tab.
-func (m *model) appendTabs(lines []string, w int) []string {
-	y, c := len(lines), &m.cells
-	var top, rule strings.Builder
-	at := 0
+// drawTabs draws in g the app's name, the tabs and the account, over a
+// rule that marks the shown tab.
+func (m *model) drawTabs(g region) {
+	const y = tabsLine
+	w, _ := g.size()
+	c := &m.cells
+	var left [numTabs + 2]piece
+	n, gap := 0, 0
 	if w >= 60 {
-		name := " " + appName + "  "
-		styleAccentB.write(&top, name)
-		at = c.width(name)
-		c.writeRepeat(&rule, ruleThin, at)
+		left[n] = piece{text: appName, paint: styleAccentB, gap: padX}
+		n, gap = n+1, 2
 	}
+	first := n
 	labels := [numTabs]string{tabQueue: locales.Queue(), tabSearch: locales.NavSearch(), tabLibrary: locales.NavLibrary()}
 	for i, label := range labels {
-		cell := " " + label + " "
-		style, mark := paint{}, ruleThin
+		style := paint{}
 		if tab(i) == m.tab {
-			style, mark = styleAccentB, ruleThick
+			style = styleAccentB
 		}
-		style.write(&top, cell)
-		top.WriteByte(' ')
-		cw := c.width(cell)
-		c.writeRepeat(&rule, mark, cw)
-		c.writeRepeat(&rule, ruleThin, 1)
-		m.mark(y+tabsLine, at, at+cw, hit{kind: hitTab, tab: tab(i)})
-		at += cw + 1
+		left[n] = piece{text: " " + label + " ", paint: style, gap: gap}
+		n, gap = n+1, 1
 	}
+	left[n] = piece{gap: 1}
+	n++
+	at := c.measure(left[:n])
 	account := ""
 	switch {
 	case m.session.IsSignedIn():
@@ -141,11 +132,38 @@ func (m *model) appendTabs(lines []string, w int) []string {
 	case m.isSignedOut():
 		account = locales.CliSignedOut()
 	}
-	var tabs [tabsRows]string
-	tabs[tabsLine] = c.spread("", top.String(), styleMuted.Render(c.fit(account, max(w-at-2, 0))+" "), w)
+	right := [...]piece{{text: c.fit(account, max(w-at-2, 0)), paint: styleMuted}, {gap: padX}}
+	rw := c.measure(right[:])
+	rx := max(w-rw, 0)
+	g.putRun(rx, y, w-rx, right[:], rw)
+	if rx > 0 {
+		g.putRun(0, y, rx-1, left[:n], at)
+	}
+	// The rule runs thin, thick under the shown tab.
+	var rule strings.Builder
+	x, thin := 0, 0
+	for i := range left[:n] {
+		p := &left[i]
+		x += p.gap
+		if i < first || i >= first+int(numTabs) {
+			thin += p.gap + p.w
+			x += p.w
+			continue
+		}
+		t := tab(i - first)
+		g.hit(image.Rect(x, y, x+p.w, y+1), hit{kind: hitTab, tab: t})
+		mark := ruleThin
+		if t == m.tab {
+			mark = ruleThick
+		}
+		c.writeRepeat(&rule, ruleThin, thin+p.gap)
+		c.writeRepeat(&rule, mark, p.w)
+		thin = 0
+		x += p.w
+	}
+	c.writeRepeat(&rule, ruleThin, thin)
 	c.writeRepeat(&rule, ruleThin, w-at)
-	tabs[tabsRule] = styleMuted.Render(c.fit(rule.String(), w))
-	return append(lines, tabs[:]...)
+	g.fit(0, tabsRule, rule.String(), w, styleMuted)
 }
 
 // appendBody adds f's page, or the help, in exactly the body's lines.
@@ -317,14 +335,23 @@ var helpKeys = []helpKey{
 // keyHint shows a key and what it does.
 func keyHint(key, does string) string { return styleKey.Render(key) + " " + does }
 
-// banner is the line that says how the daemon is when it is not
-// connected, with the key that helps, if any (hasKey); "" when connected.
-func (m *model) banner(w int) (line string, hasKey bool) {
-	var text string
+// drawBanner draws in g how the daemon is when it is not connected,
+// with the key that helps, if any, which a click presses.
+func (m *model) drawBanner(g region) {
+	w, _ := g.size()
+	text, hasKey := m.bannerText()
+	if hasKey {
+		g.hit(image.Rect(0, 0, w, 1), hit{kind: hitBanner})
+	}
+	g.run(padX, 0, w-padX, []piece{{text: iconWarn, paint: styleWarn}, {text: text, gap: 1}})
+}
+
+// bannerText says how the daemon is when it is not connected, with the
+// key that helps, if any (hasKey).
+func (m *model) bannerText() (text string, hasKey bool) {
 	l := m.link
 	switch l.Health {
 	case remote.Connected:
-		return "", false
 	case remote.Connecting:
 		text = locales.TuiConnecting()
 	case remote.Reconnecting:
@@ -341,7 +368,7 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 	case remote.FrontendOutdated:
 		text = locales.TuiFrontendOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
 	}
-	return m.cells.fit(styleWarn.Render(" "+iconWarn+" ")+text, w), hasKey
+	return text, hasKey
 }
 
 // drawBar draws the player bar in g: a rule, the current song beside its
