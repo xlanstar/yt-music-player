@@ -189,27 +189,25 @@ func (g *gfx) resized() tea.Cmd {
 	return tea.Raw(termimage.CellSizeQuery)
 }
 
-// beginFrame starts a render's placements.
+// beginFrame starts a frame's covers, before want.
 func (g *gfx) beginFrame() {
 	g.frame++
-	g.placed = [numSlots]placement{}
 	if g.art != nil {
 		g.art.NextFrame()
 	}
 }
 
-// show places art's cover in slot s from line y of a screen w cells wide,
-// and returns its lines, blank until it is ready, each after a space, and
-// the cells they take; without a cover, empty lines and 0.
-func (g *gfx) show(s slot, w, y int, art catalog.Art) (lines [coverRows]string, x int) {
+// want readies art's cover for a screen w cells wide, as shown this
+// frame: it claims the cover's place, and encodes the image once loaded,
+// again once a larger one came. It reports whether the cover shows.
+func (g *gfx) want(art catalog.Art, w int) bool {
 	if g.caps.Protocol == termimage.None || w < g.cols+coverMinWidth || !art.IsURL() {
-		return lines, 0
+		return false
 	}
 	key := coverKey{url: string(art), caps: g.caps}
 	i := g.claim(key)
 	c := &g.covers[i]
 	c.frame = g.frame
-	g.placed[s] = placement{key: key, y: y}
 	// Get may give another size while this one loads: a larger one, once
 	// it came, encodes again.
 	if px := max(g.caps.Pixels(g.cols, coverRows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
@@ -218,7 +216,22 @@ func (g *gfx) show(s slot, w, y int, art catalog.Art) (lines [coverRows]string, 
 			g.encode(c, img.RGBA, g.kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
 	}
-	if c.isReady {
+	return true
+}
+
+// unplace starts a draw's placements.
+func (g *gfx) unplace() { g.placed = [numSlots]placement{} }
+
+// show places art's cover, which want readied, in slot s from line y,
+// and returns its lines, blank until it is ready, each after a space, and
+// the cells they take; without art, empty lines and 0.
+func (g *gfx) show(s slot, y int, art catalog.Art) (lines [coverRows]string, x int) {
+	if art == "" {
+		return lines, 0
+	}
+	key := coverKey{url: string(art), caps: g.caps}
+	g.placed[s] = placement{key: key, y: y}
+	if c := g.ready(key); c != nil {
 		return [coverRows]string(c.Lines), coverX + g.cols
 	}
 	return [coverRows]string(g.blank), coverX + g.cols

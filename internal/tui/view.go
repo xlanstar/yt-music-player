@@ -29,24 +29,29 @@ const (
 // appName is the app's name, untranslated.
 const appName = "YT Music Player"
 
-// render draws the screen into m.content: the tabs, the shown page, the
-// daemon's health when it is not connected, and the player bar at the
-// bottom; m.hits, what a click acts on. Lists draw only their visible
-// rows, so a long queue costs no more than a short one.
+// render prepares the screen's frame and draws it.
 func (m *model) render() {
+	f := m.prepare()
+	m.draw(&f)
+}
+
+// draw draws f into m.content, and m.hits, what a click acts on, changing
+// nothing else: the tabs, the page, the daemon's health unless connected,
+// the player bar. Lists draw only their visible rows.
+func (m *model) draw(f *frame) {
 	w, h := m.width, m.height
 	m.hits = m.hits[:0]
-	m.gfx.beginFrame()
+	m.gfx.unplace()
 	if w <= 0 || h <= 0 {
 		m.content = ""
 		return
 	}
-	r := layout(m.layoutIn())
+	r := &f.rects
 	// Lines go top to bottom from r.top(), the hits' y with them.
 	lines := make([]string, 0, h+barRows)
 	if r.body.Dy() > 0 {
 		lines = m.appendTabs(lines, w)
-		lines = m.appendBody(lines, w, r.body.Dy())
+		lines = m.appendBody(lines, w, f)
 	}
 	if r.banner.Dy() > 0 {
 		banner, hasKey := m.banner(w)
@@ -55,7 +60,7 @@ func (m *model) render() {
 		}
 		lines = append(lines, banner)
 	}
-	lines = m.appendBar(lines, w)
+	lines = m.appendBar(lines, w, f)
 	if cut := -r.top(); cut > 0 {
 		// Too short for the bar: its last lines.
 		m.keepHits(cut, len(lines))
@@ -119,27 +124,23 @@ func (m *model) appendTabs(lines []string, w int) []string {
 	return append(lines, tabs[:]...)
 }
 
-// appendBody adds the shown page, or the help, in exactly h lines.
-func (m *model) appendBody(lines []string, w, h int) []string {
-	start := len(lines)
+// appendBody adds f's page, or the help, in exactly the body's lines.
+func (m *model) appendBody(lines []string, w int, f *frame) []string {
+	start, h := len(lines), f.rects.body.Dy()
 	if m.isHelp {
 		lines = m.appendHelp(lines, w, h)
 	} else {
-		p := m.page()
+		p := &f.page
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
-		var cover [coverRows]string
-		if h >= coverRows && p.header.rows() >= coverRows {
-			cover, _ = m.gfx.show(slotHeader, w, start, p.header.art)
-		}
+		cover, _ := m.gfx.show(slotHeader, start, f.art[slotHeader])
 		lines = m.appendPageHeader(lines, w, &p.header, &cover)
-		rows := h - p.header.rows()
 		switch {
 		case p.title != "":
-			lines = m.appendMessage(lines, w, &p)
+			lines = m.appendMessage(lines, w, p)
 		case p.list != nil:
-			lines = m.appendList(lines, w, rows, &p)
+			lines = m.appendList(lines, w, f.content.Dy(), p)
 		}
 	}
 	if len(lines)-start > h {
@@ -204,10 +205,10 @@ func (m *model) appendMessage(lines []string, w int, p *page) []string {
 	return lines
 }
 
-// appendList adds the rows of p's list that show in rows lines.
+// appendList adds the rows of p's list that show in rows lines, which
+// prepare fitted it to.
 func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 	l := p.list
-	l.fit(p.n, rows, p.selectable)
 	end := min(l.offset+max(rows, 0), p.n)
 	for i := l.offset; i < end; i++ {
 		it := p.at(i)
@@ -320,7 +321,7 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 
 // appendBar adds the player bar: the current song, its progress, and
 // the status line (shuffle, repeat, volume; a notice, or the help key).
-func (m *model) appendBar(lines []string, w int) []string {
+func (m *model) appendBar(lines []string, w int, f *frame) []string {
 	st := m.mirror.State()
 	y := len(lines)
 	var bar [barRows]string
@@ -345,7 +346,7 @@ func (m *model) appendBar(lines []string, w int) []string {
 			title += styleMuted.Render(" · " + song.Artist)
 		}
 		// The cover spans the song and its progress.
-		cover, x := m.gfx.show(slotBar, w, y+barSong, song.Art)
+		cover, x := m.gfx.show(slotBar, y+barSong, f.art[slotBar])
 		bar[barSong] = spread(cover[0], title, heart, w-x)
 		bar[barProgress] = m.progress(st, cover[1], x, y+barProgress, w)
 	}
@@ -355,12 +356,7 @@ func (m *model) appendBar(lines []string, w int) []string {
 	} else {
 		m.mark(hit{y: y + barStatus, x0: w - width(right), x1: w - 1, kind: hitHelp})
 	}
-	status := ""
-	if m.link.Connection > 0 {
-		// Before any daemon spoke, its volume is no one's.
-		status = m.status(st)
-	}
-	bar[barStatus] = spread("", " "+styleMuted.Render(status), right, w)
+	bar[barStatus] = spread("", " "+styleMuted.Render(f.status), right, w)
 	return append(lines, bar[:]...)
 }
 

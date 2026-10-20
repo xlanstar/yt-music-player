@@ -15,8 +15,11 @@
 // must not. termOut runs on Bubble Tea's renderer, reading the overlays'
 // tables Update publishes.
 //
-// Update renders once per message that changed something; View returns
-// it. Only a song playing in a focused terminal ticks, once a second.
+// Update renders once per message that changed something: prepare lays
+// the screen out, makes the page, scrolls its list and readies the
+// covers into a frame, which draw only reads into the screen View
+// returns. Keys and clicks read the model afresh, never a frame. Only a
+// song playing in a focused terminal ticks, once a second.
 package tui
 
 import (

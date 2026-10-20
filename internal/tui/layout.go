@@ -49,3 +49,12 @@ func (r *frameRects) top() int { return min(r.tabs.Min.Y, r.banner.Min.Y) }
 func band(w, y, n int) image.Rectangle {
 	return image.Rectangle{Min: image.Pt(0, y), Max: image.Pt(w, y+n)}
 }
+
+// splitBody splits the body: the page's header on its first headerRows,
+// as many as fit, and its message or list in the rows left.
+func splitBody(body image.Rectangle, headerRows int) (header, content image.Rectangle) {
+	y := min(body.Min.Y+max(headerRows, 0), body.Max.Y)
+	header = image.Rectangle{Min: body.Min, Max: image.Pt(body.Max.X, y)}
+	content = image.Rectangle{Min: image.Pt(body.Min.X, y), Max: body.Max}
+	return header, content
+}

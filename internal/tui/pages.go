@@ -111,9 +111,6 @@ func (m *model) queuePage() page {
 		return page{title: locales.TuiQueueEmpty(), detail: locales.TuiQueueEmptyHint()}
 	}
 	st := m.mirror.State()
-	if m.queueFollows {
-		m.queue.cursor = st.Index
-	}
 	return page{list: &m.queue, n: len(queue), at: func(i int) item {
 		id := queue[i]
 		song, ok := m.mirror.Song(id)
