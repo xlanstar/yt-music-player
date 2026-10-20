@@ -26,6 +26,13 @@ const (
 	barRows
 )
 
+// barCoverRows is the bar's cover's height: the song and its progress.
+const barCoverRows = barProgress - barSong + 1
+
+// headerCoverRows is a page header's cover's height: a collection's title
+// and subtitle.
+const headerCoverRows = 2
+
 // appName is the app's name, untranslated.
 const appName = "YT Music Player"
 
@@ -41,7 +48,6 @@ func (m *model) render() {
 func (m *model) draw(f *frame) {
 	w, h := m.width, m.height
 	m.hits = m.hits[:0]
-	m.gfx.unplace()
 	if w <= 0 || h <= 0 {
 		m.content = ""
 		return
@@ -64,10 +70,8 @@ func (m *model) draw(f *frame) {
 	if cut := -r.top(); cut > 0 {
 		// Too short for the bar: its last lines.
 		m.keepHits(cut, len(lines))
-		m.gfx.clip(cut)
 		lines = lines[cut:]
 	}
-	m.gfx.endFrame()
 	m.content = m.gfx.join(lines)
 }
 
@@ -134,8 +138,8 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
-		cover, _ := m.gfx.show(slotHeader, start, f.art[slotHeader])
-		lines = m.appendPageHeader(lines, w, &p.header, &cover)
+		cover := m.gfx.lines(f.covers[slotHeader])
+		lines = m.appendPageHeader(lines, w, &p.header, cover)
 		switch {
 		case p.title != "":
 			lines = m.appendMessage(lines, w, p)
@@ -156,7 +160,7 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 // appendPageHeader adds a page's header, each of its first lines after
 // its cover's: the search's input over its status, or a collection's
 // title and subtitle over a blank line.
-func (m *model) appendPageHeader(lines []string, w int, hd *header, cover *[coverRows]string) []string {
+func (m *model) appendPageHeader(lines []string, w int, hd *header, cover []string) []string {
 	var text [3]string
 	switch hd.kind {
 	case headerSearch:
@@ -170,7 +174,7 @@ func (m *model) appendPageHeader(lines []string, w int, hd *header, cover *[cove
 	}
 	for i := range hd.rows() {
 		line := text[i]
-		if i < coverRows {
+		if i < len(cover) {
 			line = cover[i] + line
 		}
 		lines = append(lines, fit(line, w))
@@ -346,9 +350,10 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 			title += styleMuted.Render(" · " + song.Artist)
 		}
 		// The cover spans the song and its progress.
-		cover, x := m.gfx.show(slotBar, y+barSong, f.art[slotBar])
-		bar[barSong] = spread(cover[0], title, heart, w-x)
-		bar[barProgress] = m.progress(st, cover[1], x, y+barProgress, w)
+		r := f.covers[slotBar]
+		cover, x := m.gfx.lines(r), r.rect.Max.X
+		bar[barSong] = spread(coverLine(cover, 0), title, heart, w-x)
+		bar[barProgress] = m.progress(st, coverLine(cover, 1), x, y+barProgress, w)
 	}
 	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
@@ -358,6 +363,14 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 	}
 	bar[barStatus] = spread("", " "+styleMuted.Render(f.status), right, w)
 	return append(lines, bar[:]...)
+}
+
+// coverLine is a cover's line i, empty past its lines.
+func coverLine(lines []string, i int) string {
+	if i < len(lines) {
+		return lines[i]
+	}
+	return ""
 }
 
 // progress is the current song's time on line y of w cells, after cover,

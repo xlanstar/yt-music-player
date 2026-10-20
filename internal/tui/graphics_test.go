@@ -159,7 +159,7 @@ func (h *harness) overlays() string {
 func placeholders(t testing.TB, id uint8) []string {
 	t.Helper()
 	m := image.NewRGBA(image.Rect(0, 0, 1, 1))
-	e, err := termimage.Encode(m, termimage.Caps{Protocol: termimage.Kitty}, 4, coverRows, id, false)
+	e, err := termimage.Encode(m, termimage.Caps{Protocol: termimage.Kitty}, 4, 2, id, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,8 @@ func TestCoverLarger(t *testing.T) {
 			uploads++
 		}
 	}
-	if c := h.m.gfx.ready(h.m.gfx.placed[slotBar].key); uploads != 2 || c == nil || c.srcPx != 80 {
+	f := h.m.prepare()
+	if c := h.m.gfx.ready(h.m.gfx.key(f.covers[slotBar])); uploads != 2 || c == nil || c.srcPx != 80 {
 		t.Errorf("%d uploads of 80 pixels, want the 64's then the 80's", uploads)
 	}
 }
@@ -314,8 +315,9 @@ func TestCoverHeader(t *testing.T) {
 	if !strings.HasPrefix(lines[2], " "+cells[0]+" ") || !strings.HasPrefix(lines[3], " "+cells[1]+" ") {
 		t.Errorf("the header lacks the cover:\n%q\n%q", lines[2], lines[3])
 	}
-	if h.m.gfx.placed[slotHeader].y != 2 || h.m.gfx.placed[slotBar].y != 21 {
-		t.Errorf("placed = %+v", h.m.gfx.placed)
+	f := h.m.prepare()
+	if f.covers[slotHeader].rect != image.Rect(1, 2, 5, 4) || f.covers[slotBar].rect != image.Rect(1, 21, 5, 23) {
+		t.Errorf("covers = %+v", f.covers)
 	}
 }
 
@@ -380,8 +382,8 @@ func TestCoverDetect(t *testing.T) {
 	if g.reply(uv.CellSizeEvent{Width: 9, Height: 18}) || g.reply(tea.TerminalVersionMsg{Name: "foot(1.20)"}) {
 		t.Error("covers changed before the device attributes")
 	}
-	if !g.reply(uv.PrimaryDeviceAttributesEvent{62, 4}) || g.caps.Protocol != termimage.Sixel || g.cols != 4 {
-		t.Errorf("caps = %+v, cols %d; want Sixel of 4 columns", g.caps, g.cols)
+	if !g.reply(uv.PrimaryDeviceAttributesEvent{62, 4}) || g.caps.Protocol != termimage.Sixel || g.coverCols(2, 80) != 4 {
+		t.Errorf("caps = %+v, cols %d; want Sixel of 4 columns", g.caps, g.coverCols(2, 80))
 	}
 	if made != 1 {
 		t.Errorf("made %d loaders, want 1", made)
@@ -390,8 +392,8 @@ func TestCoverDetect(t *testing.T) {
 		t.Error("the probe's wait changed what detected")
 	}
 	// A larger font makes covers narrower.
-	if !g.reply(uv.CellSizeEvent{Width: 20, Height: 20}) || g.cols != 2 {
-		t.Errorf("cols = %d after square cells, want 2", g.cols)
+	if !g.reply(uv.CellSizeEvent{Width: 20, Height: 20}) || g.coverCols(2, 80) != 2 {
+		t.Errorf("cols = %d after square cells, want 2", g.coverCols(2, 80))
 	}
 
 	// The Linux console shows no images, and would print the probe.
@@ -446,7 +448,7 @@ func TestCoverEvicts(t *testing.T) {
 	g.detect()
 	for i := range numCovers + 2 {
 		g.beginFrame()
-		g.want(catalog.Art(fmt.Sprintf("https://x/%d", i)), 80)
+		g.want(coverRequest{rect: image.Rect(1, 0, 5, 2), art: catalog.Art(fmt.Sprintf("https://x/%d", i))})
 	}
 	seen := map[string]bool{}
 	for _, c := range g.covers {
@@ -466,14 +468,14 @@ func TestCoverPlaces(t *testing.T) {
 	for _, tc := range []struct {
 		p termimage.Protocol
 		// cells are a cover's lines, as the screen shows them.
-		cells [coverRows]string
+		cells [2]string
 		// overlays are drawn over the cells, after the frames that write them.
 		isOverlay bool
 	}{
-		{termimage.Blocks, [coverRows]string{"▀▀▀▀", "▀▀▀▀"}, false},
-		{termimage.Kitty, [coverRows]string{}, false},
-		{termimage.Sixel, [coverRows]string{blank, blank}, true},
-		{termimage.ITerm2, [coverRows]string{blank, blank}, true},
+		{termimage.Blocks, [2]string{"▀▀▀▀", "▀▀▀▀"}, false},
+		{termimage.Kitty, [2]string{}, false},
+		{termimage.Sixel, [2]string{blank, blank}, true},
+		{termimage.ITerm2, [2]string{blank, blank}, true},
 	} {
 		t.Run(tc.p.String(), func(t *testing.T) {
 			if tc.p == termimage.Kitty {

@@ -19,10 +19,8 @@ import (
 )
 
 const (
-	// coverRows is a cover's height: the player bar's song and progress,
-	// a collection's title and subtitle.
-	coverRows = 2
-	// coverX is the cell covers show from, after a space.
+	// coverX is the cell covers show from: their lines start with as many
+	// spaces, until draw places covers by their cells.
 	coverX = 1
 	// coverMinWidth is the narrowest terminal that shows covers.
 	coverMinWidth = 40
@@ -48,20 +46,24 @@ const (
 	numSlots
 )
 
-// coverKey is a cover in a protocol, at the size of coverRows cells.
+// coverRequest is a cover a part of the screen shows: art's image over
+// rect's cells, in slot. Its zero value is none.
+type coverRequest struct {
+	rect image.Rectangle
+	art  catalog.Art
+	slot slot
+}
+
+// coverKey is a cover as encoded: an image in a protocol over cols×rows
+// cells. The same image at two sizes is two covers.
 type coverKey struct {
-	url  string
-	caps termimage.Caps
+	url        string
+	caps       termimage.Caps
+	cols, rows int
 }
 
-// placement is a cover a render placed on line y; its zero value is none.
-type placement struct {
-	key coverKey
-	y   int
-}
-
-// cover is a cover encoded for the terminal, or being encoded; its
-// Upload goes once sent.
+// cover is a cover encoded for the terminal, or being encoded, its Lines
+// blank meanwhile; its Upload goes once sent.
 type cover struct {
 	termimage.Encoded
 	key   coverKey
@@ -85,10 +87,6 @@ type gfx struct {
 	env     termimage.Env
 	replies termimage.Replies
 	caps    termimage.Caps
-	// cols is a cover's width, caps.Fit(coverRows).
-	cols int
-	// blank is a cover's lines while it loads.
-	blank []string
 
 	post   func(func())
 	newArt func() *artwork.Loader
@@ -96,7 +94,6 @@ type gfx struct {
 
 	covers [numCovers]cover
 	frame  uint64
-	placed [numSlots]placement
 
 	// out draws the overlays of the frames that wrote their marks; nil
 	// without a terminal.
@@ -106,7 +103,7 @@ type gfx struct {
 	// keeps them, its lines the same bytes. published is out's last.
 	table     *termimage.Table
 	places    [numSlots]termimage.Placement
-	marks     [numSlots][coverRows]string
+	marks     [numSlots][]string
 	published uint64
 
 	isReady bool
@@ -167,13 +164,11 @@ func (g *gfx) reply(msg tea.Msg) bool {
 	return g.isReady && g.detect()
 }
 
-// detect picks the protocol and sizes covers to the cell, and the blank
-// they show while loading; it reports a change.
+// detect picks the protocol and the cell's pixels, which size covers;
+// it reports a change.
 func (g *gfx) detect() bool {
 	was := g.caps
 	g.caps = termimage.Detect(g.env, g.replies)
-	g.cols = g.caps.Fit(coverRows)
-	g.blank = slices.Repeat([]string{strings.Repeat(" ", coverX+g.cols)}, coverRows)
 	if g.caps.Protocol != termimage.None && g.art == nil && g.newArt != nil {
 		g.art = g.newArt()
 	}
@@ -197,47 +192,72 @@ func (g *gfx) beginFrame() {
 	}
 }
 
-// want readies art's cover for a screen w cells wide, as shown this
-// frame: it claims the cover's place, and encodes the image once loaded,
-// again once a larger one came. It reports whether the cover shows.
-func (g *gfx) want(art catalog.Art, w int) bool {
-	if g.caps.Protocol == termimage.None || w < g.cols+coverMinWidth || !art.IsURL() {
-		return false
+// coverCols returns the cells a square cover rows tall spans on a screen
+// w wide; 0 where none shows: no protocol, or too narrow beside it.
+func (g *gfx) coverCols(rows, w int) int {
+	if g.caps.Protocol == termimage.None || rows <= 0 {
+		return 0
 	}
-	key := coverKey{url: string(art), caps: g.caps}
+	if cols := g.caps.Fit(rows); w >= cols+coverMinWidth {
+		return cols
+	}
+	return 0
+}
+
+// request returns art's cover for slot s, rows tall from line y's cell
+// coverX, as wide as the terminal draws it square; ok is false where a
+// screen w wide is too narrow for it, or art is no image.
+func (g *gfx) request(s slot, y, rows, w int, art catalog.Art) (r coverRequest, ok bool) {
+	cols := g.coverCols(rows, w)
+	if cols == 0 || !art.IsURL() {
+		return coverRequest{}, false
+	}
+	return coverRequest{rect: image.Rect(coverX, y, coverX+cols, y+rows), art: art, slot: s}, true
+}
+
+// key is r's cover in the terminal's protocol, at r's size.
+func (g *gfx) key(r coverRequest) coverKey {
+	return coverKey{url: string(r.art), caps: g.caps, cols: r.rect.Dx(), rows: r.rect.Dy()}
+}
+
+// want readies r's cover, as shown this frame: it claims the cover's
+// place, and encodes the image once loaded, again once a larger one came.
+func (g *gfx) want(r coverRequest) {
+	key := g.key(r)
 	i := g.claim(key)
 	c := &g.covers[i]
 	c.frame = g.frame
 	// Get may give another size while this one loads: a larger one, once
 	// it came, encodes again.
-	if px := max(g.caps.Pixels(g.cols, coverRows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
+	if px := max(g.caps.Pixels(key.cols, key.rows)); c.srcPx < px && !c.job.IsRunning() && g.art != nil {
 		if img := g.art.Get(key.url, px); img != nil && img.RGBA.Rect.Dx() > c.srcPx {
 			c.srcPx = img.RGBA.Rect.Dx()
 			g.encode(c, img.RGBA, g.kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
 	}
-	return true
 }
 
-// unplace starts a draw's placements.
-func (g *gfx) unplace() { g.placed = [numSlots]placement{} }
-
-// show places art's cover, which want readied, in slot s from line y,
-// and returns its lines, blank until it is ready, each after a space, and
-// the cells they take; without art, empty lines and 0.
-func (g *gfx) show(s slot, y int, art catalog.Art) (lines [coverRows]string, x int) {
-	if art == "" {
-		return lines, 0
+// lines returns the lines of r's cover, which want readied, from cell 0:
+// blank until it is encoded; none without r.
+func (g *gfx) lines(r coverRequest) []string {
+	if r.art == "" {
+		return nil
 	}
-	key := coverKey{url: string(art), caps: g.caps}
-	g.placed[s] = placement{key: key, y: y}
-	if c := g.ready(key); c != nil {
-		return [coverRows]string(c.Lines), coverX + g.cols
+	key := g.key(r)
+	for i := range g.covers {
+		if c := &g.covers[i]; c.key == key {
+			return c.Lines
+		}
 	}
-	return [coverRows]string(g.blank), coverX + g.cols
+	return nil
 }
 
-// claim returns key's cover, or the one placed longest ago, taken for it.
+// blankLines are the lines of a cover of cols×rows cells while it loads.
+func blankLines(cols, rows int) []string {
+	return slices.Repeat([]string{strings.Repeat(" ", coverX+cols)}, rows)
+}
+
+// claim returns key's cover, or the one shown longest ago, taken for it.
 func (g *gfx) claim(key coverKey) int {
 	oldest := 0
 	for i := range g.covers {
@@ -252,46 +272,43 @@ func (g *gfx) claim(key coverKey) int {
 	c := &g.covers[oldest]
 	c.job.Stop()
 	*c = cover{key: key}
+	c.Lines = blankLines(key.cols, key.rows)
 	return oldest
 }
 
-// encode encodes img for c off the UI thread.
+// encode encodes img for c, at the size of c's key, off the UI thread.
+// The job drops its result once c is claimed again or trimmed: c then
+// holds another key, or none.
 func (g *gfx) encode(c *cover, img *image.RGBA, id uint8) {
-	key, cols, tmux := c.key, g.cols, g.env.Tmux
+	key, tmux := c.key, g.env.Tmux
 	job.Run(&c.job, g.post, func(context.Context) (termimage.Encoded, error) {
-		e, err := termimage.Encode(img, key.caps, cols, coverRows, id, tmux)
+		e, err := termimage.Encode(img, key.caps, key.cols, key.rows, id, tmux)
+		indent := strings.Repeat(" ", coverX)
 		for i, line := range e.Lines {
-			e.Lines[i] = " " + line
+			e.Lines[i] = indent + line
 		}
 		return e, err
 	}, func(e termimage.Encoded, err error) {
 		if err != nil {
 			log.Debug().Err(err).Stringer("protocol", key.caps.Protocol).Msg("tui: cover not encoded")
-			e.Lines = g.blank
+			e.Lines = blankLines(key.cols, key.rows)
 		}
 		c.Encoded, c.isReady = e, true
 	})
 }
 
-// clip moves the placements up by cut lines, as render cuts its top,
-// and drops those cut.
-func (g *gfx) clip(cut int) {
-	for s := range g.placed {
-		p := &g.placed[s]
-		p.y -= cut
-		if p.y < 0 {
-			*p = placement{}
-		}
-	}
-}
-
-// endFrame makes the table of the overlays the render placed, of the
-// generation after out's last if they changed.
-func (g *gfx) endFrame() {
+// place makes the table of the overlays of covers, which want readied,
+// wholly on screen, of the generation after out's last if they changed.
+func (g *gfx) place(covers []coverRequest, screen image.Rectangle) {
 	var places [numSlots]termimage.Placement
-	for s, p := range g.placed {
-		if c := g.ready(p.key); c != nil && c.Overlay != "" {
-			places[s] = termimage.Placement{Seq: c.Overlay, X: coverX, Y: p.y, Cols: g.cols, Rows: coverRows}
+	for _, r := range covers {
+		if r.art == "" || !r.rect.In(screen) {
+			continue
+		}
+		if c := g.ready(g.key(r)); c != nil && c.Overlay != "" {
+			places[r.slot] = termimage.Placement{
+				Seq: c.Overlay, X: r.rect.Min.X, Y: r.rect.Min.Y, Cols: r.rect.Dx(), Rows: r.rect.Dy(),
+			}
 		}
 	}
 	if places == g.places {
@@ -300,11 +317,9 @@ func (g *gfx) endFrame() {
 	gen := g.published + 1
 	g.table, g.places = termimage.NewTable(gen, places[:]), places
 	for s, p := range places {
-		for r := range coverRows {
-			g.marks[s][r] = ""
-			if p.Seq != "" {
-				g.marks[s][r] = termimage.Mark(gen, s, r)
-			}
+		g.marks[s] = g.marks[s][:0]
+		for r := range p.Rows {
+			g.marks[s] = append(g.marks[s], termimage.Mark(gen, s, r))
 		}
 	}
 }
@@ -316,9 +331,9 @@ func (g *gfx) join(lines []string) string {
 	for _, line := range lines {
 		n += len(line)
 	}
-	for s, p := range g.places {
-		if p.Seq != "" {
-			n += coverRows * len(g.marks[s][0])
+	for _, marks := range g.marks {
+		for _, mark := range marks {
+			n += len(mark)
 		}
 	}
 	var b strings.Builder
@@ -327,25 +342,26 @@ func (g *gfx) join(lines []string) string {
 		if y > 0 {
 			b.WriteByte('\n')
 		}
-		if mark := g.markOf(y); mark != "" && len(line) > coverX {
-			// Covers start after coverX spaces, a byte each.
-			b.WriteString(line[:coverX])
+		if mark, x := g.markOf(y); mark != "" && len(line) > x {
+			// The cells before a cover are spaces, a byte each.
+			b.WriteString(line[:x])
 			b.WriteString(mark)
-			line = line[coverX:]
+			line = line[x:]
 		}
 		b.WriteString(line)
 	}
 	return b.String()
 }
 
-// markOf returns the mark of line y, empty off the overlays.
-func (g *gfx) markOf(y int) string {
+// markOf returns the mark of line y and the cell it goes before; empty
+// off the overlays.
+func (g *gfx) markOf(y int) (mark string, x int) {
 	for s, p := range g.places {
 		if p.Seq != "" && y >= p.Y && y < p.Y+p.Rows {
-			return g.marks[s][y-p.Y]
+			return g.marks[s][y-p.Y], p.X
 		}
 	}
-	return ""
+	return "", 0
 }
 
 // commit sends, after a render, what the renderer cannot: Kitty's new

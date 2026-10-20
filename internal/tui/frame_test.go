@@ -215,12 +215,11 @@ func (h *harness) drawState() drawState {
 type drawn struct {
 	content string
 	hits    []hit
-	placed  [numSlots]placement
 	table   *termimage.Table
 }
 
 func (h *harness) drawn() drawn {
-	return drawn{h.m.content, append([]hit(nil), h.m.hits...), h.m.gfx.placed, h.m.gfx.table}
+	return drawn{h.m.content, append([]hit(nil), h.m.hits...), h.m.gfx.table}
 }
 
 // Drawing a prepared frame changes nothing it read, starts nothing, and

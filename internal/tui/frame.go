@@ -16,14 +16,15 @@ type frame struct {
 	// header and content split the body: the page's header, and the rows
 	// of its message or list.
 	header, content image.Rectangle
-	// art is each slot's cover, empty where none shows.
-	art    [numSlots]catalog.Art
+	// covers are each slot's cover, the zero request where none shows.
+	covers [numSlots]coverRequest
 	status string
 }
 
 // prepare makes the frame that draw draws, and changes beforehand what
 // drawing would: the queue's cursor following the current song, the
-// list scrolled to the rows that show, the memos, the covers' loads.
+// list scrolled to the rows that show, the memos, the covers' loads and
+// the overlays' table.
 func (m *model) prepare() frame {
 	m.followQueue()
 	m.gfx.beginFrame()
@@ -40,19 +41,29 @@ func (m *model) prepare() frame {
 			p.list.fit(p.n, f.content.Dy(), p.selectable)
 		}
 		// The header's cover spans its first lines, and is claimed first.
-		if body.Dy() >= coverRows && p.header.rows() >= coverRows && m.gfx.want(p.header.art, w) {
-			f.art[slotHeader] = p.header.art
+		if f.header.Dy() >= headerCoverRows {
+			m.wantCover(&f, slotHeader, f.header.Min.Y, headerCoverRows, p.header.art)
 		}
 	}
 	st := m.mirror.State()
-	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" && m.gfx.want(song.Art, w) {
-		f.art[slotBar] = song.Art
+	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" {
+		m.wantCover(&f, slotBar, f.rects.bar.Min.Y+barSong, barCoverRows, song.Art)
 	}
+	m.gfx.place(f.covers[:], image.Rect(0, 0, w, m.height))
 	if m.link.Connection > 0 {
 		// Before any daemon spoke, its volume is no one's.
 		f.status = m.status(st)
 	}
 	return f
+}
+
+// wantCover readies art's cover for slot s, rows tall from line y, where
+// it shows (gfx.request).
+func (m *model) wantCover(f *frame, s slot, y, rows int, art catalog.Art) {
+	if r, ok := m.gfx.request(s, y, rows, m.width, art); ok {
+		m.gfx.want(r)
+		f.covers[s] = r
+	}
 }
 
 // followQueue keeps the queue's cursor on the current song while it
