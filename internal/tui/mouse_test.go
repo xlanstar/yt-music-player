@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/remote"
+	"yt-music-player/internal/termimage"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -383,5 +385,176 @@ func TestClickShortTerminal(t *testing.T) {
 	h.clickOn("? Help")
 	if !h.m.isHelp {
 		t.Error("a click on the moved ? Help did nothing")
+	}
+}
+
+// tabAt is where the tab named label shows: a space either side.
+func tabAt(label string) func(h *harness) (y, x0, x1 int) {
+	return func(h *harness) (y, x0, x1 int) {
+		cell := " " + label + " "
+		x0, y = h.find(cell)
+		return y, x0, x0 + ansi.StringWidth(cell)
+	}
+}
+
+// textAt is where text shows.
+func textAt(text string) func(h *harness) (y, x0, x1 int) {
+	return func(h *harness) (y, x0, x1 int) {
+		x0, y = h.find(text)
+		return y, x0, x0 + ansi.StringWidth(text)
+	}
+}
+
+// lineAt is the whole line where text shows.
+func lineAt(text string) func(h *harness) (y, x0, x1 int) {
+	return func(h *harness) (y, x0, x1 int) {
+		_, y = h.find(text)
+		return y, 0, h.m.width
+	}
+}
+
+// progressAt is where the progress's bar shows.
+func progressAt(h *harness) (y, x0, x1 int) {
+	y, x0, n := h.progressBar()
+	return y, x0, x0 + n
+}
+
+// TestClickEdges clicks each target on its first and last cells, which
+// act, and on the cells either side of it, which do not.
+func TestClickEdges(t *testing.T) {
+	onTab := func(want tab) func(*harness, tea.Cmd) bool {
+		return func(h *harness, _ tea.Cmd) bool { return h.m.tab == want }
+	}
+	selects := func(text string) func(*harness, tea.Cmd) bool {
+		return func(h *harness, _ tea.Cmd) bool { return strings.Contains(h.selectedLine(), text) }
+	}
+	seeks := func(h *harness, _ tea.Cmd) bool {
+		h.send(tea.MouseReleaseMsg{Button: tea.MouseLeft})
+		calls := h.ctl.take()
+		return len(calls) == 1 && strings.HasPrefix(calls[0], "Seek ")
+	}
+	showsHelp := func(h *harness, _ tea.Cmd) bool { return h.m.isHelp }
+	unresponsive := func(h *harness) { h.m.setLink(remote.Link{Health: remote.Unresponsive, Connection: 1}) }
+	cases := []struct {
+		name    string
+		prepare func(h *harness)
+		// at is the target's cells [x0, x1) on line y, as the screen shows it.
+		at func(h *harness) (y, x0, x1 int)
+		// acted reports that the click, which returned cmd, acted.
+		acted func(h *harness, cmd tea.Cmd) bool
+	}{
+		{"tab-queue", func(h *harness) { h.press("shift+tab") }, tabAt("Queue"), onTab(tabQueue)},
+		{"tab-search", nil, tabAt("Search"), onTab(tabSearch)},
+		{"tab-library", nil, tabAt("Library"), onTab(tabLibrary)},
+		{"tab-queue-narrow", func(h *harness) {
+			h.resize(44, 14)
+			h.press("shift+tab")
+		}, tabAt("Queue"), onTab(tabQueue)},
+		{"row", nil, lineAt("Paper Moons"), selects("Paper Moons")},
+		{"row-scrolled", func(h *harness) {
+			h.mirror.setQueue(longQueue(300))
+			h.send(postedMsg{})
+			h.press("end")
+		}, lineAt("Song 282 "), selects("Song 282 ")},
+		{"progress", nil, progressAt, seeks},
+		{"progress-cover", func(h *harness) {
+			h.withCovers(termimage.Blocks, newCoverHost(h.t))
+			h.covered()
+		}, progressAt, seeks},
+		{"help", nil, textAt("? Help"), showsHelp},
+		{"banner", unresponsive, lineAt("isn’t responding"), func(h *harness, _ tea.Cmd) bool {
+			return reflect.DeepEqual(h.sup.calls, []string{"Restart"})
+		}},
+		{"hint", func(h *harness) {
+			h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
+			h.press("shift+tab")
+		}, lineAt("Open the Desktop app"), func(_ *harness, cmd tea.Cmd) bool { return cmd != nil }},
+		{"input", func(h *harness) { h.press("tab") }, lineAt("Search songs"), func(h *harness, _ tea.Cmd) bool {
+			return h.m.isTyping
+		}},
+		// The bar's top cut: what is left moved up.
+		{"short-progress", func(h *harness) { h.resize(80, 2) }, progressAt, seeks},
+		{"short-help", func(h *harness) { h.resize(80, 2) }, textAt("? Help"), showsHelp},
+		{"short-banner-progress", func(h *harness) {
+			unresponsive(h)
+			h.resize(80, 3)
+		}, progressAt, seeks},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			setup := func() *harness {
+				h := placeholderHarness(t)
+				if tc.prepare != nil {
+					tc.prepare(h)
+				}
+				h.send(postedMsg{})
+				return h
+			}
+			h := setup()
+			y, x0, x1 := tc.at(h)
+			type probe struct {
+				x    int
+				want bool
+			}
+			probes := []probe{{x0, true}, {x1 - 1, true}}
+			if x0 > 0 {
+				probes = append(probes, probe{x0 - 1, false})
+			}
+			if x1 < h.m.width {
+				probes = append(probes, probe{x1, false})
+			}
+			for _, p := range probes {
+				h := setup()
+				if got := tc.acted(h, h.click(p.x, y)); got != p.want {
+					t.Errorf("a click on (%d, %d) of [%d, %d) acted %t, want %t:\n%s", p.x, y, x0, x1, got, p.want, h.screen())
+				}
+			}
+		})
+	}
+}
+
+// TestSeekCells seeks to the middle of the cell clicked, a share of the
+// whole bar however much of the bar shows, and a drag past either end to
+// that end.
+func TestSeekCells(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(h *harness)
+	}{
+		{"wide", nil},
+		{"narrow", func(h *harness) { h.resize(44, 14) }},
+		{"short", func(h *harness) { h.resize(80, 2) }},
+		{"cover", func(h *harness) {
+			h.withCovers(termimage.Blocks, newCoverHost(h.t))
+			h.covered()
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := placeholderHarness(t)
+			if tc.prepare != nil {
+				tc.prepare(h)
+			}
+			h.send(postedMsg{})
+			y, start, n := h.progressBar()
+			dur := h.mirror.state.Duration
+			seek := func(cells float64) string { return fmt.Sprintf("Seek %g", cells/float64(n)*dur) }
+			release := func(x, y int) { h.send(tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft}) }
+			for _, p := range []struct {
+				x    int
+				want string
+			}{{start, seek(0.5)}, {start + n/2, seek(float64(n/2) + 0.5)}, {start + n - 1, seek(float64(n) - 0.5)}} {
+				h.click(p.x, y)
+				release(p.x, y)
+				h.wantCalls(fmt.Sprintf("a click on cell %d of %d", p.x-start, n), p.want)
+			}
+			h.click(start+1, y)
+			h.send(tea.MouseMotionMsg{X: start - 5, Y: y + 1, Button: tea.MouseLeft})
+			release(start-5, y+1)
+			h.wantCalls("a drag past the start", "Seek 0")
+			h.click(start+1, y)
+			h.send(tea.MouseMotionMsg{X: start + n + 5, Y: max(y-1, 0), Button: tea.MouseLeft})
+			release(start+n+5, max(y-1, 0))
+			h.wantCalls("a drag past the end", fmt.Sprintf("Seek %g", dur))
+		})
 	}
 }
