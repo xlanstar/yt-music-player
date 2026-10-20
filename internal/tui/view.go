@@ -118,16 +118,11 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 			m.mark(hit{y: start, x1: w, kind: hitInput})
 		}
 		var cover [coverRows]string
-		if h >= coverRows && len(p.header) >= coverRows {
-			cover, _ = m.gfx.show(slotHeader, w, start, p.art)
+		if h >= coverRows && p.header.rows() >= coverRows {
+			cover, _ = m.gfx.show(slotHeader, w, start, p.header.art)
 		}
-		for i, line := range p.header {
-			if i < coverRows {
-				line = cover[i] + line
-			}
-			lines = append(lines, fit(line, w))
-		}
-		rows := h - len(p.header)
+		lines = m.appendPageHeader(lines, w, &p.header, &cover)
+		rows := h - p.header.rows()
 		switch {
 		case p.title != "":
 			lines = m.appendMessage(lines, w, &p)
@@ -143,6 +138,43 @@ func (m *model) appendBody(lines []string, w, h int) []string {
 		lines = append(lines, "")
 	}
 	return lines
+}
+
+// appendPageHeader adds a page's header, each of its first lines after
+// its cover's: the search's input over its status, or a collection's
+// title and subtitle over a blank line.
+func (m *model) appendPageHeader(lines []string, w int, hd *header, cover *[coverRows]string) []string {
+	var text [3]string
+	switch hd.kind {
+	case headerSearch:
+		text[0] = m.searchInput()
+		if hd.status != "" {
+			text[1] = styleMuted.Render(" " + hd.status)
+		}
+	case headerCollection:
+		text[0] = " " + styleBold.Render(hd.title)
+		text[1] = " " + styleMuted.Render(hd.subtitle)
+	}
+	for i := range hd.rows() {
+		line := text[i]
+		if i < coverRows {
+			line = cover[i] + line
+		}
+		lines = append(lines, fit(line, w))
+	}
+	return lines
+}
+
+// searchInput is the search page's input line.
+func (m *model) searchInput() string {
+	prompt := styleKey.Render(" / ")
+	switch {
+	case m.isTyping:
+		return prompt + m.query + styleAccent.Render("█")
+	case m.query == "":
+		return prompt + styleMuted.Render(locales.SearchPlaceholder())
+	}
+	return prompt + m.query
 }
 
 // appendMessage adds a page's message: its title, detail and hint.

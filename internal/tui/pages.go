@@ -33,11 +33,39 @@ type item struct {
 	isCurrent bool
 }
 
-// page is what the body shows: header lines, then a message or a list.
+// headerKind is what a page's header is; its zero value is none.
+type headerKind uint8
+
+const (
+	// headerSearch is the search's input over its status.
+	headerSearch headerKind = iota + 1
+	// headerCollection is a collection's title and subtitle beside its art.
+	headerCollection
+)
+
+// header is a page's top as data: what it says, not how it looks.
+type header struct {
+	title, subtitle string
+	// status says new results are coming, under the search's input.
+	status string
+	art    catalog.Art
+	kind   headerKind
+}
+
+// rows is how many lines h takes, with the blank one under it.
+func (h *header) rows() int {
+	switch h.kind {
+	case headerSearch:
+		return 2
+	case headerCollection:
+		return 3
+	}
+	return 0
+}
+
+// page is what the body shows: its header, then a message or a list.
 type page struct {
-	header []string
-	// art is the cover beside the header's first two lines.
-	art catalog.Art
+	header header
 
 	// A message, when title is set; enter calls retry, if set.
 	title, detail, hint string
@@ -97,7 +125,7 @@ func (m *model) queuePage() page {
 }
 
 func (m *model) searchPage() page {
-	p := page{header: []string{m.searchInput(), ""}}
+	p := page{header: header{kind: headerSearch}}
 	query := strings.TrimSpace(m.query)
 	found := m.loader.Found()
 	results := found.Results
@@ -117,7 +145,7 @@ func (m *model) searchPage() page {
 		}
 		// The last results stay while new ones come, so the page does
 		// not blink empty at every key.
-		p.header[1] = styleMuted.Render(" " + locales.Searching())
+		p.header.status = locales.Searching()
 	}
 	if results.IsEmpty() {
 		p.title, p.detail = locales.SearchNone(query), locales.SearchNoneHint()
@@ -148,18 +176,6 @@ func (m *model) searchPage() page {
 		}
 	}
 	return p
-}
-
-// searchInput is the search page's input line.
-func (m *model) searchInput() string {
-	prompt := styleKey.Render(" / ")
-	switch {
-	case m.isTyping:
-		return prompt + m.query + styleAccent.Render("█")
-	case m.query == "":
-		return prompt + styleMuted.Render(locales.SearchPlaceholder())
-	}
-	return prompt + m.query
 }
 
 func (m *model) libraryPage() page {
@@ -262,18 +278,17 @@ func (m *model) collectionPage(o opened) page {
 	default:
 		subtitle = locales.AutoPlaylistSongs(len(songs))
 	}
-	header := []string{" " + styleBold.Render(title), " " + styleMuted.Render(subtitle), ""}
+	hd := header{kind: headerCollection, title: title, subtitle: subtitle, art: art}
 	if len(songs) == 0 {
 		empty := locales.NothingHereYet()
 		detail := ""
 		if o.kind == itemLiked {
 			detail = locales.LikedEmpty()
 		}
-		return page{header: header, art: art, title: empty, detail: detail}
+		return page{header: hd, title: empty, detail: detail}
 	}
 	return page{
-		header: header,
-		art:    art,
+		header: hd,
 		list:   &m.collection[m.tab],
 		n:      1 + len(songs),
 		at: func(i int) item {
