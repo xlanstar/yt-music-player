@@ -43,7 +43,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `quiet`: the heap back to the OS once builds (Desktop), Update (TUI) or the loop (ytmd) stop.
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's service (player, playback, account, engine and `daemon.json` on the loop; serves `api` over `ipc`).
 - `tui`: `ytm`'s player in the terminal (Bubble Tea, Lip Gloss); `Update` is the UI thread, where posted funcs run as one message; screens are golden files in `testdata/` (`-update` rewrites them).
-- `termimage`: images in a terminal (Kitty's Unicode placeholders, iTerm2, Sixel, half blocks): detection, encoders and the marks that splice overlays into frames, no I/O; the TUI's covers (`tui/graphics.go`, `tui/termout.go`: the terminal Bubble Tea writes to).
+- `termimage`: images in a terminal (Kitty's Unicode placeholders, iTerm2, Sixel, half blocks): detection, encoders and the marks that splice overlays into frames, no I/O; the TUI's covers (`tui/probe.go`: detection; `tui/covers.go`: loads, encodes, the overlays' tables; `tui/termout.go`: the terminal Bubble Tea writes to).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
 - `artwork`: thumbnail loader with memory and disk caches.
 - `httpclient`: a process's HTTP client, tuned for YouTube's hosts.
