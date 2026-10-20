@@ -75,12 +75,14 @@ func kittyUpload(img *image.RGBA, id uint8, cols, rows int, tmux bool) string {
 
 // kittyCells returns the lines of Unicode placeholders that show image id
 // over cols×rows cells; its id is their 256-color foreground, which a
-// renderer keeps where it would lower a true color.
+// renderer keeps where it would lower a true color. A cell names its row,
+// column and the id's top byte, 0, without which iTerm2 draws nothing.
 func kittyCells(id uint8, cols, rows int) []string {
 	lines := make([]string, rows)
 	var b strings.Builder
 	for y := range rows {
-		b.Grow(len("\x1b[38;5;255m") + cols*8 + len("\x1b[39m"))
+		// A placeholder is 4 bytes, the first 108 diacritics 2 each.
+		b.Grow(len("\x1b[38;5;255m") + cols*10 + len("\x1b[39m"))
 		b.WriteString("\x1b[38;5;")
 		writeInt(&b, int(id))
 		b.WriteByte('m')
@@ -88,6 +90,7 @@ func kittyCells(id uint8, cols, rows int) []string {
 			b.WriteRune(kitty.Placeholder)
 			b.WriteRune(kitty.Diacritic(y))
 			b.WriteRune(kitty.Diacritic(x))
+			b.WriteRune(kitty.Diacritic(0))
 		}
 		b.WriteString("\x1b[39m")
 		lines[y] = b.String()

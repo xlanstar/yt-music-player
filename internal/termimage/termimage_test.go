@@ -249,13 +249,21 @@ func TestKittyUpload(t *testing.T) {
 }
 
 func TestKittyCells(t *testing.T) {
+	// Row, column, then the id's most significant byte, 0 (U+0305).
 	got := kittyCells(176, 2, 2)
 	want := []string{
-		"\x1b[38;5;176m\U0010EEEE\u0305\u0305\U0010EEEE\u0305\u030D\x1b[39m",
-		"\x1b[38;5;176m\U0010EEEE\u030D\u0305\U0010EEEE\u030D\u030D\x1b[39m",
+		"\x1b[38;5;176m\U0010EEEE\u0305\u0305\u0305\U0010EEEE\u0305\u030D\u0305\x1b[39m",
+		"\x1b[38;5;176m\U0010EEEE\u030D\u0305\u0305\U0010EEEE\u030D\u030D\u0305\x1b[39m",
 	}
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("kittyCells =\n%q\nwant\n%q", got, want)
+	}
+	// Grown once per line: the estimate holds the widest cover's.
+	for _, cols := range []int{1, 16, 108} {
+		line := kittyCells(255, cols, 1)[0]
+		if est := len("\x1b[38;5;255m") + cols*10 + len("\x1b[39m"); len(line) != est {
+			t.Errorf("%d cells: %d bytes, the estimate %d", cols, len(line), est)
+		}
 	}
 }
 
@@ -372,13 +380,13 @@ func TestEncodeSums(t *testing.T) {
 		sums [Kitty + 1]string
 	}{
 		{"gradient80", cover(80), 20, [...]string{
-			Blocks: "d1e64e169d46f538", Sixel: "343e976c25efcaf7", ITerm2: "3bcca26318e23f62", Kitty: "e00e2efb84bb30c3",
+			Blocks: "d1e64e169d46f538", Sixel: "343e976c25efcaf7", ITerm2: "3bcca26318e23f62", Kitty: "68866d53e7a0fb4c",
 		}},
 		{"real80", realCover(t, 80), 20, [...]string{
-			Blocks: "404ec4b09c29f316", Sixel: "62802fe888d9f4e1", ITerm2: "5152465f37ec7013", Kitty: "848e929691682f8e",
+			Blocks: "404ec4b09c29f316", Sixel: "62802fe888d9f4e1", ITerm2: "5152465f37ec7013", Kitty: "c923d277f3ce3352",
 		}},
 		{"real256", realCover(t, 256), 64, [...]string{
-			Blocks: "874f47f73e9bce53", Sixel: "d3605d8659e8c7ae", ITerm2: "e46e083df4c59e58", Kitty: "31bd35b5370a8b43",
+			Blocks: "874f47f73e9bce53", Sixel: "d3605d8659e8c7ae", ITerm2: "e46e083df4c59e58", Kitty: "a642242a8db9e9ae",
 		}},
 	}
 	for _, src := range sources {
