@@ -106,8 +106,9 @@ func (m *model) drawTabs(g region) {
 	case m.isSignedOut():
 		account = locales.CliSignedOut()
 	}
-	right := [...]piece{{text: c.fit(account, max(w-at-2, 0)), paint: styleMuted}, {gap: padX}}
-	rw := c.measure(right[:])
+	account, aw := c.fitted(account, max(w-at-2, 0))
+	right := [...]piece{{text: account, paint: styleMuted, w: aw}, {gap: padX}}
+	rw := aw + padX
 	rx := max(w-rw, 0)
 	g.putRun(rx, y, w-rx, right[:], rw)
 	if rx > 0 {
@@ -137,7 +138,11 @@ func (m *model) drawTabs(g region) {
 	}
 	c.writeRepeat(&rule, ruleThin, thin)
 	c.writeRepeat(&rule, ruleThin, w-at)
-	g.fit(0, tabsRule, rule.String(), w, styleMuted)
+	if at <= w {
+		g.putText(0, tabsRule, rule.String(), w, styleMuted)
+	} else {
+		g.fit(0, tabsRule, rule.String(), w, styleMuted)
+	}
 }
 
 // drawBody draws f's page, or the help, in the body.
@@ -404,11 +409,15 @@ func (m *model) drawStatus(g region, status string) {
 	const y = barStatus
 	w, _ := g.size()
 	c := &m.cells
-	right := []piece{{text: "?", paint: styleKey}, {text: locales.TuiHelp(), gap: 1}, {gap: padX}}
+	var right []piece
+	rw := 0
 	if m.notice != "" {
-		right = []piece{{text: c.fit(m.notice, max(w*2/3, 1)), paint: styleAccent}, {gap: padX}}
+		notice, nw := c.fitted(m.notice, max(w*2/3, 1))
+		right, rw = []piece{{text: notice, paint: styleAccent, w: nw}, {gap: padX}}, nw+padX
+	} else {
+		right = []piece{{text: "?", paint: styleKey}, {text: locales.TuiHelp(), gap: 1}, {gap: padX}}
+		rw = c.measure(right)
 	}
-	rw := c.measure(right)
 	// Too narrow, the right is cut as one with its padding.
 	rx := max(w-rw, 0)
 	g.putRun(rx, y, w-rx, right, rw)

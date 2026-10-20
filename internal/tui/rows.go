@@ -38,23 +38,9 @@ func writeSpaces(b *strings.Builder, n int) {
 	}
 }
 
-// fitted is s's text fitted to its width, and the cells it takes.
-func (s *segment) fitted(c *cells) (string, int) {
-	if s.text == "" {
-		return "", 0
-	}
-	// Measured once: most text fits.
-	text, w := s.text, c.width(s.text)
-	if w > s.width {
-		text = c.fit(text, s.width)
-		w = c.width(text)
-	}
-	return text, w
-}
-
 // draw draws s from cell x of row y of g, and returns the cell after it.
 func (s *segment) draw(g region, x, y int, c *cells) int {
-	text, w := s.fitted(c)
+	text, w := c.fitted(s.text, s.width)
 	at := x
 	if s.isRight {
 		at += s.width - w
@@ -65,7 +51,7 @@ func (s *segment) draw(g region, x, y int, c *cells) int {
 
 // write writes s's text, plain and padded to its width, to b.
 func (s *segment) write(b *strings.Builder, c *cells) {
-	text, w := s.fitted(c)
+	text, w := c.fitted(s.text, s.width)
 	if s.isRight {
 		writeSpaces(b, s.width-w)
 	}

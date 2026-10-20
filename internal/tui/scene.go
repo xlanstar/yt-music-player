@@ -210,12 +210,7 @@ func (g region) putText(x, y int, s string, w int, p paint) {
 // fit draws s as text does, fitted to n cells as cells.fit fits it, and
 // returns the cells it takes.
 func (g region) fit(x, y int, s string, n int, p paint) int {
-	c := &g.s.cells
-	w := c.width(s)
-	if w > n {
-		s = c.fit(s, n)
-		w = c.width(s)
-	}
+	s, w := g.s.cells.fitted(s, n)
 	g.putText(x, y, s, w, p)
 	return w
 }

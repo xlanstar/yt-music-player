@@ -63,6 +63,17 @@ func (c cells) fit(s string, w int) string {
 	return c.method.Truncate(s, w, ellipsis)
 }
 
+// fitted is s fitted to w cells, as fit fits it, and its width; s is
+// measured once if it fits.
+func (c cells) fitted(s string, w int) (string, int) {
+	sw := c.width(s)
+	if sw > w {
+		s = c.fit(s, w)
+		sw = c.width(s)
+	}
+	return s, sw
+}
+
 // cut returns cells [from, to) of s, a line that may hold styles: all
 // its styles, and spaces for the cells shown of a wide character the cut
 // splits.
