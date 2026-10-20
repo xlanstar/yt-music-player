@@ -56,6 +56,7 @@ func TestDetect(t *testing.T) {
 		{"sixel without its cell", Env{Term: "foot", Colors: true}, Replies{Sixel: true}, Blocks},
 		{"tmux in kitty", Env{Tmux: true, Kitty: true, Colors: true}, Replies{Sixel: true, Version: "tmux 3.5"}, Kitty},
 		{"tmux in iterm2", Env{Tmux: true, TermProgram: "tmux", LCTerminal: "iTerm2", Colors: true}, cell, Blocks},
+		{"tmux in a new iterm2", Env{Tmux: true, TermProgram: "tmux", LCTerminal: "iTerm2", Colors: true}, Replies{Kitty: true, Version: "tmux 3.5"}, Blocks},
 		{"tmux with sixel", Env{Tmux: true}, Replies{Sixel: true, CellW: 9, CellH: 18}, Sixel},
 		{"colors only", Env{Term: "xterm-256color", Colors: true}, Replies{}, Blocks},
 		{"sixteen colors", Env{Term: "xterm"}, Replies{}, None},
@@ -74,6 +75,62 @@ func TestDetect(t *testing.T) {
 				t.Errorf("Detect = %+v, lost the replies", got)
 			}
 		})
+	}
+}
+
+// TestDetectITerm2 shows covers in iTerm2 as Kitty's placeholders from
+// 3.7.5, which draws an image sent again under its id.
+func TestDetectITerm2(t *testing.T) {
+	iTerm2 := Env{TermProgram: "iTerm.app", LCTerminal: "iTerm2", Colors: true}
+	tests := []struct {
+		version string
+		want    Protocol
+	}{
+		{"iTerm2 3.7.5", Kitty},
+		{"iTerm2 3.7.6", Kitty},
+		{"iTerm2 3.7.10", Kitty},
+		{"iTerm2 3.7.7beta1", Kitty},
+		{"iTerm2 3.8", Kitty},
+		{"iTerm2 4", Kitty},
+		{"iTerm2 3.7.20261001-nightly", Kitty},
+		{"iTerm2 3.8.20260101-nightly", Kitty},
+		{"iTerm2  3.7.5 ", Kitty},
+		{"iTerm2 3.7.4", ITerm2},
+		{"iTerm2 3.7.5beta2", ITerm2},
+		{"iTerm2 3.6.9", ITerm2},
+		{"iTerm2 3.5.14", ITerm2},
+		{"iTerm2 2.9.20", ITerm2},
+		{"iTerm2 3.7.20260901-nightly", ITerm2},
+		{"iTerm2 3.6.20261001-nightly", ITerm2},
+		{"iTerm2", ITerm2},
+		{"iTerm2 beta", ITerm2},
+		{"iTerm2 3.7.", ITerm2},
+		{"iTerm2 99999999999999999999.0.0", ITerm2},
+		{"", ITerm2},
+		{"WezTerm 3.7.5", ITerm2},
+	}
+	for _, tc := range tests {
+		if got := Detect(iTerm2, Replies{Kitty: true, Version: tc.version}).Protocol; got != tc.want {
+			t.Errorf("%q: Detect = %v, want %v", tc.version, got, tc.want)
+		}
+	}
+	// Placeholders need the query answered, and 256 colors for their ids.
+	fixed := Replies{Kitty: true, Version: "iTerm2 3.7.6"}
+	for _, tc := range []struct {
+		name string
+		env  Env
+		r    Replies
+		want Protocol
+	}{
+		{"query unanswered", iTerm2, Replies{Version: "iTerm2 3.7.6"}, ITerm2},
+		{"sixteen colors", Env{TermProgram: "iTerm.app"}, fixed, ITerm2},
+		{"over ssh", Env{LCTerminal: "iTerm2", Colors: true}, fixed, Kitty},
+		{"by its name alone", Env{Colors: true}, fixed, Kitty},
+		{"override", Env{Override: "iterm2", TermProgram: "iTerm.app", Colors: true}, fixed, ITerm2},
+	} {
+		if got := Detect(tc.env, tc.r).Protocol; got != tc.want {
+			t.Errorf("%s: Detect = %v, want %v", tc.name, got, tc.want)
+		}
 	}
 }
 

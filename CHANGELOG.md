@@ -4,6 +4,10 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ## [Unreleased]
 
+### Changed
+
+- In `ytm`, iTerm2 3.7.5 and later show covers as Kitty's placeholders, text the terminal keeps, so covers are never redrawn and never vanish.
+
 ### Fixed
 
 - After an update, music keeps playing even while another window or `ytm` is slow to let go of the old background player.

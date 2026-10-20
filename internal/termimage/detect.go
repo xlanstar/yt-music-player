@@ -1,6 +1,7 @@
 package termimage
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -116,7 +117,63 @@ func isPlain(term string) bool { return term == "dumb" || term == "linux" }
 // terminals speaking its graphics lack (WezTerm, Konsole).
 func hasPlaceholders(e Env, version string) bool {
 	return strings.HasPrefix(version, "kitty") || strings.HasPrefix(version, "ghostty") ||
-		e.Kitty || e.Ghostty || e.Term == "xterm-kitty" || e.Term == "xterm-ghostty"
+		e.Kitty || e.Ghostty || e.Term == "xterm-kitty" || e.Term == "xterm-ghostty" ||
+		hasITerm2Placeholders(version)
+}
+
+// minITerm2 is the first iTerm2 whose placeholders show the image sent
+// again under their id, as covers do when they reuse one; older ones keep
+// the first.
+var minITerm2 = [3]int{3, 7, 5}
+
+// minITerm2Nightly is the first nightly with minITerm2's fix, whose patch
+// is its date.
+const minITerm2Nightly = 20260919
+
+// hasITerm2Placeholders reports XTVERSION's iTerm2 at least minITerm2:
+// "iterm2 3.7.10", a later release's beta ("iterm2 3.7.7beta1") or nightly;
+// minITerm2's own betas, and versions that do not parse, are older.
+func hasITerm2Placeholders(version string) bool {
+	rest, ok := strings.CutPrefix(version, "iterm2")
+	if !ok {
+		return false
+	}
+	got, rest, ok := parseVersion(strings.TrimSpace(rest))
+	if !ok {
+		return false
+	}
+	if got[2] >= 10_000_000 && got[0] == minITerm2[0] && got[1] == minITerm2[1] {
+		return got[2] >= minITerm2Nightly
+	}
+	switch slices.Compare(got[:], minITerm2[:]) {
+	case 1:
+		return true
+	case 0:
+		return rest == ""
+	}
+	return false
+}
+
+// parseVersion reads "major.minor.patch" off s's start, a missing minor or
+// patch 0, and returns what follows it.
+func parseVersion(s string) (v [3]int, rest string, ok bool) {
+	for i := range v {
+		if i > 0 {
+			if s, ok = strings.CutPrefix(s, "."); !ok {
+				return v, s, true
+			}
+		}
+		n := 0
+		for n < len(s) && '0' <= s[n] && s[n] <= '9' {
+			n++
+		}
+		x, err := strconv.Atoi(s[:n])
+		if err != nil {
+			return v, s, false
+		}
+		v[i], s = x, s[n:]
+	}
+	return v, s, true
 }
 
 func isITerm2(e Env, version string) bool {
