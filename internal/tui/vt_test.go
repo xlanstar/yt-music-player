@@ -26,16 +26,18 @@ type vt struct {
 	top, bot int
 	noWrap   bool
 	// graphemes: text is measured by grapheme (mode 2027), else by rune.
-	graphemes  bool
-	pending    bool
-	alt        bool
-	last       string
-	inFrame    bool
-	touched    [][]bool
-	images     []vtImage
-	wroteAfter bool
-	frames     []vtFrame
-	mainImages int
+	graphemes bool
+	pending   bool
+	// isCursorShown follows mode 25, shown until hidden.
+	isCursorShown bool
+	alt           bool
+	last          string
+	inFrame       bool
+	touched       [][]bool
+	images        []vtImage
+	wroteAfter    bool
+	frames        []vtFrame
+	mainImages    int
 }
 
 // vtImage is an image drawn at a cell, from 0.
@@ -50,12 +52,15 @@ type vtFrame struct {
 	cells [][]string
 	// wroteAfter reports cells written after an image.
 	wroteAfter bool
+	// cursor is where the cursor ended, if isCursorShown.
+	cursor        image.Point
+	isCursorShown bool
 	// text is the frame as written, for failures.
 	text string
 }
 
 func newVT(w, h int) *vt {
-	v := &vt{}
+	v := &vt{isCursorShown: true}
 	v.resize(w, h)
 	return v
 }
@@ -194,7 +199,8 @@ func (v *vt) write(b string) error {
 				cells[y] = slices.Clone(row)
 			}
 			v.frames = append(v.frames, vtFrame{
-				touched: v.touched, images: v.images, cells: cells, wroteAfter: v.wroteAfter, text: b[frameStart:i],
+				touched: v.touched, images: v.images, cells: cells, wroteAfter: v.wroteAfter,
+				cursor: image.Pt(v.x, v.y), isCursorShown: v.isCursorShown, text: b[frameStart:i],
 			})
 		}
 	}
@@ -362,6 +368,8 @@ func (v *vt) mode(cmd ansi.Cmd, params ansi.Params) error {
 		switch p.Param(0) {
 		case 7:
 			v.noWrap = !set
+		case 25:
+			v.isCursorShown = set
 		case 2027:
 			v.graphemes = set
 		case 1049:

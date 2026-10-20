@@ -12,6 +12,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 - After an update, music keeps playing even while another window or `ytm` is slow to let go of the old background player.
 - In `ytm`, covers in iTerm2, WezTerm and Sixel terminals no longer vanish beside wide characters, such as a Japanese song title, a moment after showing.
+- In `ytm`, the search box types at the terminal's own cursor, so input methods (Chinese, Japanese) show their candidates beside it rather than elsewhere on the screen.
 - In `ytm`, rows whose titles hold emoji such as 👩‍💻, 👍🏽 or ❤️ no longer run past the window's edge or out of line with the others in terminals that count such emoji by character, such as Terminal or any over SSH.
 
 ## [0.2.0] - 2026-10-19

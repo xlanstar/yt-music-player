@@ -307,6 +307,32 @@ func TestRegionTransforms(t *testing.T) {
 	}
 }
 
+// TestRegionCursor puts the cursor where a region's cell is, if shown;
+// the last drawn wins.
+func TestRegionCursor(t *testing.T) {
+	s, screen := newScene(10, 6)
+	// Two cells right and one above the screen, cut by its right edge.
+	g := screen.sub(image.Rect(2, -1, 14, 4))
+	for _, tc := range []struct {
+		x, y int
+		want image.Point
+		ok   bool
+	}{
+		{0, 1, image.Pt(2, 0), true},
+		{7, 3, image.Pt(9, 2), true},
+		{8, 3, image.Point{}, false},
+		{0, 0, image.Point{}, false},
+		{0, 5, image.Point{}, false},
+		{-1, 1, image.Point{}, false},
+	} {
+		s.hasCursor = false
+		g.cursor(tc.x, tc.y)
+		if s.hasCursor != tc.ok || tc.ok && s.cursor != tc.want {
+			t.Errorf("cursor(%d, %d) at %v, shown %t; want %v, %t", tc.x, tc.y, s.cursor, s.hasCursor, tc.want, tc.ok)
+		}
+	}
+}
+
 // coverLines is a cover frame of the bar's 4×2 cover: an overlay, marked.
 var coverLines = coverFrame{
 	lines: [numSlots][]string{slotBar: {"AAAA", "BBBB"}},
@@ -408,9 +434,10 @@ func TestSceneReset(t *testing.T) {
 	screen.text(0, 0, "a", paint{})
 	screen.hit(image.Rect(0, 0, 1, 1), hit{kind: hitTab})
 	screen.cover(image.Rect(2, 0, 4, 2), slotBar, coverURL)
+	screen.cursor(1, 1)
 	screen = s.reset(10, 4, s.cells)
-	if len(s.hits) != 0 || len(s.covers) != 0 || composed(s) != "" {
-		t.Errorf("reset kept %d hits, %d covers, %q", len(s.hits), len(s.covers), composed(s))
+	if len(s.hits) != 0 || len(s.covers) != 0 || s.hasCursor || composed(s) != "" {
+		t.Errorf("reset kept %d hits, %d covers, cursor %t, %q", len(s.hits), len(s.covers), s.hasCursor, composed(s))
 	}
 	screen.text(0, 1, "b", paint{})
 	if got := composed(s); got != "\nb" {

@@ -9,6 +9,8 @@ import (
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/remote"
 	"yt-music-player/internal/termimage"
+
+	tea "charm.land/bubbletea/v2"
 )
 
 // The screens' layout as it is, to hold while render changes: each golden
@@ -38,6 +40,39 @@ func TestSearchTyping(t *testing.T) {
 	// Typed on, the last results show until the new ones come.
 	h.typeText(" x")
 	h.golden("search-refining")
+}
+
+// TestSearchCursor shows the terminal's cursor after the query while
+// typing, which an input method's window follows; screen draws it as █.
+func TestSearchCursor(t *testing.T) {
+	h := placeholderHarness(t)
+	cursor := func() *tea.Cursor { return h.m.View().Cursor }
+	if c := cursor(); c != nil {
+		t.Fatalf("browsing, the cursor shows at %v", c.Position)
+	}
+	h.press("/")
+	h.typeText("月の")
+	if c := cursor(); c == nil || c.Position != (tea.Position{X: 7, Y: tabsRows}) {
+		t.Fatalf("typing, the cursor is %v; want after the query, (7, %d)", c, tabsRows)
+	}
+	// Cut, the query ends in an ellipsis, which the cursor sits on.
+	h.typeText(strings.Repeat("x", 80))
+	if !strings.Contains(h.m.content, "x…") {
+		t.Errorf("the query is not cut:\n%s", h.screen())
+	}
+	if c := cursor(); c == nil || c.X != h.m.width-1 {
+		t.Errorf("past the edge, the cursor is %v; want on the last cell", c)
+	}
+	// No input shows, no cursor: the body has no rows.
+	h.resize(80, barRows)
+	if c := cursor(); c != nil {
+		t.Errorf("without the input, the cursor shows at %v", c.Position)
+	}
+	h.resize(80, 24)
+	h.press("esc")
+	if c := cursor(); c != nil {
+		t.Errorf("done typing, the cursor shows at %v", c.Position)
+	}
 }
 
 // Every size of the queue: the columns a row shows, the app's name, the

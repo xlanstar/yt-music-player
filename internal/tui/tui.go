@@ -23,7 +23,8 @@
 // which only regions place on the screen; a cover is a rect and an image,
 // its protocol the covers' (covers.go, probe.go). covers.sync readies the
 // covers drawn, a table placing the overlays among them, and the scene
-// composes the screen View returns; settle then publishes the table to
+// composes the screen View returns, with the terminal's cursor where the
+// search's input placed it, if typing; settle then publishes the table to
 // termOut, once per Update. Keys and clicks read the model afresh, never a
 // frame. Only a song playing in a focused terminal ticks, once a second.
 //

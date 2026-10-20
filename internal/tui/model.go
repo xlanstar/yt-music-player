@@ -164,6 +164,9 @@ func (m *model) View() tea.View {
 	// Cell motion reports motion only while a button is held: a drag of
 	// the progress, not every move of the pointer.
 	v.MouseMode = tea.MouseModeCellMotion
+	if s := &m.scene; s.hasCursor {
+		v.Cursor = tea.NewCursor(s.cursor.X, s.cursor.Y)
+	}
 	return v
 }
 

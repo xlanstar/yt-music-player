@@ -31,8 +31,6 @@ const (
 	// iconCurrent marks the current song's row.
 	iconCurrent = "♪"
 	iconWarn    = "!"
-	// iconCaret is the search input's cursor.
-	iconCaret = "█"
 	// cursorMark is the selected row's cursor, which shows without
 	// colors too.
 	cursorMark = "▸"

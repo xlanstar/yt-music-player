@@ -286,10 +286,18 @@ func (h *harness) loaded() {
 func (h *harness) resize(w, ht int) { h.send(tea.WindowSizeMsg{Width: w, Height: ht}) }
 
 // screen is the screen without styles, its lines' trailing spaces cut:
-// what a terminal without colors shows.
+// what a terminal without colors shows, its cursor as a block.
 func (h *harness) screen() string {
-	plain := ansi.Strip(h.m.View().Content)
-	lines := strings.Split(plain, "\n")
+	v := h.m.View()
+	lines := strings.Split(ansi.Strip(v.Content), "\n")
+	if c := v.Cursor; c != nil {
+		for len(lines) <= c.Y {
+			lines = append(lines, "")
+		}
+		cl, line := h.m.cells, lines[c.Y]
+		line += strings.Repeat(" ", max(c.X+1-cl.width(line), 0))
+		lines[c.Y] = cl.cut(line, 0, c.X) + "\u2588" + cl.cut(line, c.X+1, cl.width(line))
+	}
 	for i, line := range lines {
 		lines[i] = strings.TrimRight(line, " ")
 	}

@@ -63,7 +63,7 @@ func TestCellsWidth(t *testing.T) {
 			}
 		}
 		// The glyphs are measured, not assumed: each prints.
-		for _, g := range []string{iconPlaying, iconPaused, iconWaiting, iconPlayAll, iconLiked, iconCurrent, iconWarn, iconCaret, ruleThin, ruleThick, ellipsis} {
+		for _, g := range []string{iconPlaying, iconPaused, iconWaiting, iconPlayAll, iconLiked, iconCurrent, iconWarn, ruleThin, ruleThick, ellipsis} {
 			if c.width(g) < 1 {
 				t.Errorf("%s: %q measures %d cells", m.name, g, c.width(g))
 			}

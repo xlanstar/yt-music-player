@@ -301,6 +301,62 @@ func TestTermWideLine(t *testing.T) {
 	}
 }
 
+// TestTermCursor shows the terminal's cursor on the search input's cell
+// while typing, after the covers drawn: the bar's wide line repaints, and
+// its cover is drawn, every frame.
+func TestTermCursor(t *testing.T) {
+	h := placeholderHarness(t)
+	h.withCovers(termimage.Sixel, newCoverHost(t))
+	song := h.mirror.songs[h.mirror.state.Current]
+	song.Title = "夜明けのアーケード"
+	h.mirror.songs[song.ID] = song
+	h.mirror.state.Playing = true
+	tm := runTerm(t, h)
+	at := tm.frameWith("\x1bP", 0)
+	tm.p.Send(keyMsg("/"))
+	at = tm.frameWith(ansi.SetModeTextCursorEnable, at)
+	for _, r := range "月の" {
+		tm.p.Send(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	at = tm.frameWith("の", at)
+	tm.do(func() { h.clock = h.clock.Add(time.Second) })
+	at = tm.frameWith("", at)
+	tm.p.Send(keyMsg("esc"))
+	tm.frameWith(ansi.ResetModeTextCursorEnable, at)
+	v := replay(t, tm.quit(), barCover)
+
+	input := func(x int) image.Point { return image.Pt(x, tabsRows) }
+	var shows, typed, hides int
+	for i, f := range v.frames {
+		switch {
+		case strings.Contains(f.text, ansi.SetModeTextCursorEnable):
+			shows++
+			overlay := strings.Index(f.text, "\x1b7\x1b[22;2H")
+			if overlay < 0 || overlay > strings.Index(f.text, ansi.SetModeTextCursorEnable) {
+				t.Errorf("frame %d showed the cursor before drawing the cover:\n%q", i, f.text)
+			}
+			if !f.isCursorShown || f.cursor != input(3) {
+				t.Errorf("frame %d left the cursor at %v, shown %t; want %v", i, f.cursor, f.isCursorShown, input(3))
+			}
+		case shows == 0:
+		case strings.Contains(f.text, ansi.ResetModeTextCursorEnable):
+			hides++
+			if f.isCursorShown {
+				t.Errorf("frame %d, done typing, shows the cursor", i)
+			}
+		case hides == 0 && strings.Contains(strings.Join(f.cells[tabsRows], ""), "月の"):
+			typed++
+			if !f.isCursorShown || f.cursor != input(7) || len(f.images) != 1 {
+				t.Errorf("frame %d left the cursor at %v, shown %t, drew %d covers; want %v, the cover",
+					i, f.cursor, f.isCursorShown, len(f.images), input(7))
+			}
+		}
+	}
+	if shows != 1 || typed < 2 || hides != 1 {
+		t.Errorf("%d frames showed the cursor, %d typed, %d hid it; want 1, the query's and the tick's, 1", shows, typed, hides)
+	}
+}
+
 // TestTermCoverPaused shows a cover encoded while the song is paused:
 // nothing else changes, yet a frame writes its marks.
 func TestTermCoverPaused(t *testing.T) {

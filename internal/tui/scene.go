@@ -35,6 +35,9 @@ type scene struct {
 	// covers are the covers drawn, in the order drawn, which claims their
 	// places (and Kitty's image ids).
 	covers []coverRequest
+	// cursor is where the terminal shows its cursor, if hasCursor.
+	cursor    image.Point
+	hasCursor bool
 	// buf is the last screen composed, its array the next's.
 	buf []byte
 }
@@ -51,7 +54,7 @@ func (s *scene) reset(w, h int, c cells) region {
 	for y := range s.rows {
 		s.rows[y] = s.rows[y][:0]
 	}
-	s.hits, s.covers = s.hits[:0], s.covers[:0]
+	s.hits, s.covers, s.hasCursor = s.hits[:0], s.covers[:0], false
 	screen := image.Rect(0, 0, w, h)
 	return region{s: s, bounds: screen, clip: screen}
 }
@@ -279,6 +282,15 @@ func (g region) hit(r image.Rectangle, h hit) {
 	h.shown = h.rect.Intersect(g.clip)
 	if !h.shown.Empty() {
 		g.s.hits = append(g.s.hits, h)
+	}
+}
+
+// cursor shows the terminal's cursor at cell (x, y), in g's cells, if
+// shown: where typing goes, which an input method's window follows.
+func (g region) cursor(x, y int) {
+	at := g.bounds.Min.Add(image.Pt(x, y))
+	if at.In(g.clip) {
+		g.s.cursor, g.s.hasCursor = at, true
 	}
 }
 

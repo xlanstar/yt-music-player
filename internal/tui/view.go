@@ -185,17 +185,21 @@ func (m *model) drawHeader(g region, f *frame) {
 	}
 }
 
-// drawSearchInput draws the search's input on g's first row.
+// drawSearchInput draws the search's input on g's first row, and while
+// typing the cursor after the query, or on its ellipsis if cut.
 func (m *model) drawSearchInput(g region) {
 	w, _ := g.size()
-	input := [...]piece{{text: "/", paint: styleKey}, {text: m.query, gap: 1}, {}}
-	switch {
-	case m.isTyping:
-		input[2] = piece{text: iconCaret, paint: styleAccent}
-	case m.query == "":
-		input[1] = piece{text: locales.SearchPlaceholder(), paint: styleMuted, gap: 1}
+	input := [...]piece{{text: "/", paint: styleKey}, {text: m.query, gap: 1}}
+	if !m.isTyping {
+		if m.query == "" {
+			input[1] = piece{text: locales.SearchPlaceholder(), paint: styleMuted, gap: 1}
+		}
+		g.run(padX, 0, w-padX, input[:])
+		return
 	}
-	g.run(padX, 0, w-padX, input[:])
+	// The run keeps the cursor's cell, as it cuts the query.
+	n := g.putRun(padX, 0, w-padX, input[:], m.cells.measure(input[:])+1)
+	g.cursor(min(padX+n, w-1), 0)
 }
 
 // drawMessage draws a page's message in g: its title, detail and hint.
