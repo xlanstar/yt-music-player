@@ -362,7 +362,7 @@ func TestClickShortTerminal(t *testing.T) {
 	h.clickOn("Library")
 	_, y := h.find("Open the Desktop app")
 	// The body ends above the hint: the bar's rule shows on its line.
-	h.resize(80, y+barLines)
+	h.resize(80, y+barRows)
 	if cmd := h.click(5, y); cmd != nil || h.opened != 0 {
 		t.Error("a click where a cut hint was opened the Desktop")
 	}

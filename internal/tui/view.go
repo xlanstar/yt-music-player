@@ -10,13 +10,20 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// The screen's fixed parts, in lines.
+// The tabs' lines, top to bottom; tabsRows counts them.
 const (
-	headerLines = 2 // the tabs and their rule
-	barLines    = 4 // the player bar's rule, song, progress and status
-	// minBody is the least body worth showing; a shorter terminal shows
-	// only the player bar.
-	minBody = 1
+	tabsLine = iota // the app's name, the tabs and the account
+	tabsRule        // the rule that marks the shown tab
+	tabsRows
+)
+
+// The player bar's lines, top to bottom; barRows counts them.
+const (
+	barRule     = iota
+	barSong     // the current song, beside its cover
+	barProgress // its progress, beside its cover
+	barStatus   // shuffle, repeat and volume; a notice, or the help key
+	barRows
 )
 
 // appName is the app's name, untranslated.
@@ -34,21 +41,22 @@ func (m *model) render() {
 		m.content = ""
 		return
 	}
-	lines := make([]string, 0, h+barLines)
-	banner, hasKey := m.banner(w)
-	body := m.bodyHeight()
-	if body >= minBody {
-		lines = m.appendHeader(lines, w)
-		lines = m.appendBody(lines, w, body)
+	r := layout(m.layoutIn())
+	// Lines go top to bottom from r.top(), the hits' y with them.
+	lines := make([]string, 0, h+barRows)
+	if r.body.Dy() > 0 {
+		lines = m.appendTabs(lines, w)
+		lines = m.appendBody(lines, w, r.body.Dy())
 	}
-	if banner != "" {
+	if r.banner.Dy() > 0 {
+		banner, hasKey := m.banner(w)
 		if hasKey {
 			m.mark(hit{y: len(lines), x1: w, kind: hitBanner})
 		}
 		lines = append(lines, banner)
 	}
 	lines = m.appendBar(lines, w)
-	if cut := len(lines) - h; cut > 0 {
+	if cut := -r.top(); cut > 0 {
 		// Too short for the bar: its last lines.
 		m.keepHits(cut, len(lines))
 		m.gfx.clip(cut)
@@ -58,18 +66,20 @@ func (m *model) render() {
 	m.content = m.gfx.join(lines)
 }
 
-// bodyHeight is how many lines the page has.
-func (m *model) bodyHeight() int {
-	h := m.height - headerLines - barLines
-	if m.link.Health != remote.Connected {
-		h--
+// layoutIn is what the screen's layout reads of m.
+func (m *model) layoutIn() layoutIn {
+	return layoutIn{
+		w: m.width, h: m.height,
+		hasBanner: m.link.Health != remote.Connected,
+		tabsRows:  tabsRows,
+		barRows:   barRows,
 	}
-	return h
 }
 
-// appendHeader adds the app's name, the tabs and the account, over a rule
+// appendTabs adds the app's name, the tabs and the account, over a rule
 // that marks the shown tab.
-func (m *model) appendHeader(lines []string, w int) []string {
+func (m *model) appendTabs(lines []string, w int) []string {
+	y := len(lines)
 	var top, rule strings.Builder
 	at := 0
 	if w >= 60 {
@@ -90,7 +100,7 @@ func (m *model) appendHeader(lines []string, w int) []string {
 		cw := width(cell)
 		rule.WriteString(strings.Repeat(mark, cw))
 		rule.WriteString("─")
-		m.mark(hit{y: len(lines), x0: at, x1: at + cw, kind: hitTab, tab: tab(i)})
+		m.mark(hit{y: y + tabsLine, x0: at, x1: at + cw, kind: hitTab, tab: tab(i)})
 		at += cw + 1
 	}
 	account := ""
@@ -100,11 +110,13 @@ func (m *model) appendHeader(lines []string, w int) []string {
 	case m.isSignedOut():
 		account = locales.CliSignedOut()
 	}
-	line := spread("", top.String(), styleMuted.Render(fit(account, max(w-at-2, 0))+" "), w)
+	var tabs [tabsRows]string
+	tabs[tabsLine] = spread("", top.String(), styleMuted.Render(fit(account, max(w-at-2, 0))+" "), w)
 	if at < w {
 		rule.WriteString(strings.Repeat("─", w-at))
 	}
-	return append(lines, line, styleMuted.Render(fit(rule.String(), w)))
+	tabs[tabsRule] = styleMuted.Render(fit(rule.String(), w))
+	return append(lines, tabs[:]...)
 }
 
 // appendBody adds the shown page, or the help, in exactly h lines.
@@ -310,10 +322,12 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 // the status line (shuffle, repeat, volume; a notice, or the help key).
 func (m *model) appendBar(lines []string, w int) []string {
 	st := m.mirror.State()
-	lines = append(lines, styleMuted.Render(strings.Repeat("─", w)))
+	y := len(lines)
+	var bar [barRows]string
+	bar[barRule] = styleMuted.Render(strings.Repeat("─", w))
 	song, ok := m.mirror.Song(st.Current)
 	if !ok || st.Current == "" {
-		lines = append(lines, " "+styleMuted.Render(fit(locales.TuiNothingPlaying(), w-2)), "")
+		bar[barSong] = " " + styleMuted.Render(fit(locales.TuiNothingPlaying(), w-2))
 	} else {
 		icon := "❙❙"
 		switch {
@@ -331,22 +345,23 @@ func (m *model) appendBar(lines []string, w int) []string {
 			title += styleMuted.Render(" · " + song.Artist)
 		}
 		// The cover spans the song and its progress.
-		cover, x := m.gfx.show(slotBar, w, len(lines), song.Art)
-		lines = append(lines, spread(cover[0], title, heart, w-x))
-		lines = append(lines, m.progress(st, cover[1], x, len(lines), w))
+		cover, x := m.gfx.show(slotBar, w, y+barSong, song.Art)
+		bar[barSong] = spread(cover[0], title, heart, w-x)
+		bar[barProgress] = m.progress(st, cover[1], x, y+barProgress, w)
 	}
 	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
 		right = styleAccent.Render(fit(m.notice, max(w*2/3, 1))) + " "
 	} else {
-		m.mark(hit{y: len(lines), x0: w - width(right), x1: w - 1, kind: hitHelp})
+		m.mark(hit{y: y + barStatus, x0: w - width(right), x1: w - 1, kind: hitHelp})
 	}
 	status := ""
 	if m.link.Connection > 0 {
 		// Before any daemon spoke, its volume is no one's.
 		status = m.status(st)
 	}
-	return append(lines, spread("", " "+styleMuted.Render(status), right, w))
+	bar[barStatus] = spread("", " "+styleMuted.Render(status), right, w)
+	return append(lines, bar[:]...)
 }
 
 // progress is the current song's time on line y of w cells, after cover,

@@ -395,9 +395,9 @@ func (m *model) browseKey(s string) (ok bool, cmd tea.Cmd) {
 	case "down":
 		m.moveBy(1)
 	case "pgup":
-		m.moveBy(-max(m.bodyHeight()-1, 1))
+		m.moveBy(-m.pageRows())
 	case "pgdown":
-		m.moveBy(max(m.bodyHeight()-1, 1))
+		m.moveBy(m.pageRows())
 	case "home":
 		m.moveBy(math.MinInt / 2)
 	case "end":
@@ -498,6 +498,11 @@ func (m *model) openDesktopCmd() tea.Cmd {
 // isSignedOut reports that the daemon says no one is signed in.
 func (m *model) isSignedOut() bool {
 	return m.states.State(session.AccountRes).State == fetchstate.SignedOut
+}
+
+// pageRows is how far PgUp and PgDn move: the body's lines but one.
+func (m *model) pageRows() int {
+	return max(layout(m.layoutIn()).body.Dy()-1, 1)
 }
 
 // moveBy moves the shown list's cursor by delta items, over headings.
