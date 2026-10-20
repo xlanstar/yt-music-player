@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -79,18 +80,7 @@ func (c *coverHost) RoundTrip(r *http.Request) (*http.Response, error) {
 // current song's from host.
 func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 	h.t.Helper()
-	posts := h.m.posts
-	h.m.gfx = gfx{
-		env:       termimage.Env{Override: p.String()},
-		replies:   termimage.Replies{CellW: 10, CellH: 20},
-		kittyBase: 176,
-		post:      posts.post,
-		newArt: func() *artwork.Loader {
-			return artwork.New(artwork.Options{
-				Post: posts.post, Client: &http.Client{Transport: host}, MemoryBytes: artMemory, Workers: 1,
-			})
-		},
-	}
+	h.m.gfx = coverGfx(p, host, h.m.posts.post)
 	want := []string{termimage.CellSizeQuery}
 	if p == termimage.None {
 		want = nil
@@ -102,6 +92,22 @@ func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 	song := h.mirror.songs[h.mirror.state.Current]
 	song.Art = coverURL
 	h.mirror.songs[song.ID] = song
+}
+
+// coverGfx shows covers as YTM_IMAGES=p says, of 10×20-pixel cells, from
+// host; post runs on the UI thread what its loads and encodes bring.
+func coverGfx(p termimage.Protocol, host *coverHost, post func(func())) gfx {
+	return gfx{
+		env:       termimage.Env{Override: p.String()},
+		replies:   termimage.Replies{CellW: 10, CellH: 20},
+		kittyBase: 176,
+		post:      post,
+		newArt: func() *artwork.Loader {
+			return artwork.New(artwork.Options{
+				Post: post, Client: &http.Client{Transport: host}, MemoryBytes: artMemory, Workers: 1,
+			})
+		},
+	}
 }
 
 // covered settles until the page and the covers shown loaded and encoded,
@@ -539,5 +545,367 @@ func TestCoverPlaces(t *testing.T) {
 				t.Errorf("2 high, drew %.40q", got)
 			}
 		})
+	}
+}
+
+// startCovers is coverGfx started, closed when t ends, its posts run when
+// the test says.
+func startCovers(t *testing.T, p termimage.Protocol, host *coverHost) (*gfx, *poster) {
+	t.Helper()
+	posts := newPoster()
+	g := coverGfx(p, host, posts.post)
+	g.start()
+	t.Cleanup(func() { g.close() })
+	return &g, posts
+}
+
+// showFrame readies reqs as a frame's covers, places their overlays on an
+// 80×24 screen and commits them; it returns Kitty's uploads.
+func showFrame(g *gfx, reqs ...coverRequest) string {
+	g.beginFrame()
+	for _, r := range reqs {
+		g.want(r)
+	}
+	g.place(reqs, image.Rect(0, 0, 80, 24))
+	if cmd := g.commit(); cmd != nil {
+		return fmt.Sprint(cmd().(tea.RawMsg).Msg)
+	}
+	return ""
+}
+
+// settleCovers shows reqs frame after frame until they loaded and
+// encoded, and returns Kitty's uploads meanwhile.
+func settleCovers(t *testing.T, g *gfx, posts *poster, reqs ...coverRequest) string {
+	t.Helper()
+	var uploads strings.Builder
+	deadline := time.After(5 * time.Second)
+	for {
+		uploads.WriteString(showFrame(g, reqs...))
+		if !g.isBusy() {
+			return uploads.String()
+		}
+		select {
+		case <-posts.wake:
+			posts.run()
+		case <-deadline:
+			t.Fatal("covers never encoded")
+		}
+	}
+}
+
+// mustRequest is art's cover in slot s, rows tall from line y of an
+// 80-cell screen.
+func mustRequest(t *testing.T, g *gfx, s slot, y, rows int, art catalog.Art) coverRequest {
+	t.Helper()
+	r, ok := g.request(s, y, rows, 80, art)
+	if !ok {
+		t.Fatalf("no cover %d rows tall", rows)
+	}
+	return r
+}
+
+// blankCover is a cover's lines while it loads, from cell 0.
+func blankCover(cols, rows int) []string {
+	return slices.Repeat([]string{strings.Repeat(" ", coverX+cols)}, rows)
+}
+
+// TestCoverRequest sizes a cover from its rows, square in the cell's
+// pixels, and omits it where it would not fit beside the text.
+func TestCoverRequest(t *testing.T) {
+	g := gfx{env: termimage.Env{Override: "sixel"}, replies: termimage.Replies{CellW: 10, CellH: 20}}
+	g.detect()
+	for _, tc := range []struct {
+		rows, w int
+		art     catalog.Art
+		want    image.Rectangle
+	}{
+		{2, 80, coverURL, image.Rect(1, 5, 5, 7)},
+		{3, 80, coverURL, image.Rect(1, 5, 7, 8)},
+		{1, 80, coverURL, image.Rect(1, 5, 3, 6)},
+		// 6 cells and 40 beside them.
+		{3, 46, coverURL, image.Rect(1, 5, 7, 8)},
+		{3, 45, coverURL, image.Rectangle{}},
+		{0, 80, coverURL, image.Rectangle{}},
+		{2, 80, "", image.Rectangle{}},
+		{2, 80, "icon:liked", image.Rectangle{}},
+	} {
+		r, ok := g.request(slotBar, 5, tc.rows, tc.w, tc.art)
+		if r.rect != tc.want || ok != (tc.want != image.Rectangle{}) {
+			t.Errorf("%d rows of %q, %d wide: %v, %t; want %v", tc.rows, tc.art, tc.w, r.rect, ok, tc.want)
+		}
+	}
+	g = gfx{env: termimage.Env{Override: "off"}}
+	g.detect()
+	if _, ok := g.request(slotBar, 5, 2, 200, coverURL); ok {
+		t.Error("without a protocol, a cover shows")
+	}
+}
+
+// TestCoverSizes keeps one image at two sizes as two covers, each blank
+// at its own size while it loads, then encoded at it.
+func TestCoverSizes(t *testing.T) {
+	host := newCoverHost(t)
+	host.hold = make(chan struct{})
+	g, posts := startCovers(t, termimage.Sixel, host)
+	header := mustRequest(t, g, slotHeader, 2, 3, coverURL)
+	bar := mustRequest(t, g, slotBar, 21, 2, coverURL)
+	showFrame(g, header, bar)
+	if got := g.lines(header); !slices.Equal(got, blankCover(6, 3)) {
+		t.Errorf("the header's blank is %q", got)
+	}
+	if got := g.lines(bar); !slices.Equal(got, blankCover(4, 2)) {
+		t.Errorf("the bar's blank is %q", got)
+	}
+	close(host.hold)
+	settleCovers(t, g, posts, header, bar)
+	for _, tc := range []struct {
+		r          coverRequest
+		cols, rows int
+		raster     string
+	}{
+		{header, 6, 3, "\"1;1;60;60#"},
+		{bar, 4, 2, "\"1;1;40;36#"},
+	} {
+		c := g.ready(g.key(tc.r))
+		if c == nil {
+			t.Fatalf("%d×%d not encoded", tc.cols, tc.rows)
+		}
+		lines := slices.Repeat([]string{" " + strings.Repeat("\u2800", tc.cols)}, tc.rows)
+		if !slices.Equal(g.lines(tc.r), lines) || !strings.Contains(c.Overlay, tc.raster) {
+			t.Errorf("%d×%d: lines %q, overlay %.30q", tc.cols, tc.rows, g.lines(tc.r), c.Overlay)
+		}
+	}
+	if g.ready(g.key(header)) == g.ready(g.key(bar)) {
+		t.Error("one cover holds both sizes")
+	}
+}
+
+// TestCoverResizeStaleJob shows the size asked last: a cell resize while
+// an encode runs leaves the old size's result to its own cover, and the
+// new size shows blank until its own comes.
+func TestCoverResizeStaleJob(t *testing.T) {
+	h := placeholderHarness(t)
+	h.withCovers(termimage.Sixel, newCoverHost(t))
+	g := &h.m.gfx
+	encoding := func(cols int) bool {
+		for i := range g.covers {
+			if c := &g.covers[i]; c.key.cols == cols && c.job.IsRunning() {
+				return true
+			}
+		}
+		return false
+	}
+	h.send(postedMsg{})
+	deadline := time.After(5 * time.Second)
+	for !encoding(4) {
+		select {
+		case <-h.m.posts.wake:
+			h.send(postedMsg{})
+		case <-deadline:
+			t.Fatal("never encoded")
+		}
+	}
+	// The bar's song is line 21, its cover 4 cells, blank meanwhile.
+	songLine := func() string { return strings.Split(h.screen(), "\n")[21] }
+	if line := songLine(); !strings.HasPrefix(line, strings.Repeat(" ", 6)+"❙❙") {
+		t.Fatalf("loading, the bar is %q", line)
+	}
+	// Cells of 16×20: covers 3 cells wide. The 4's result waits.
+	h.send(uv.CellSizeEvent{Width: 16, Height: 20})
+	if line := songLine(); !strings.HasPrefix(line, strings.Repeat(" ", 5)+"❙❙") {
+		t.Errorf("resized while loading, the bar is %q, want 3 blank cells", line)
+	}
+	h.covered()
+	if line := songLine(); !strings.HasPrefix(line, " \u2800\u2800\u2800 ❙❙") {
+		t.Errorf("encoded, the bar is %q, want 3 cells", line)
+	}
+	if got := h.overlays(); !strings.HasPrefix(got, "\x1b7\x1b[22;2H\x1bP0;1;0q\"1;1;48;36#") || strings.Count(got, "\x1b7") != 1 {
+		t.Errorf("overlays = %.60q, want the 3 cells'", got)
+	}
+	for i := range g.covers {
+		c := &g.covers[i]
+		if c.isReady && !strings.Contains(c.Overlay, fmt.Sprintf("\"1;1;%d;", c.key.cols*c.key.caps.CellW)) {
+			t.Errorf("the cover of %d cells of %d pixels holds %.30q", c.key.cols, c.key.caps.CellW, c.Overlay)
+		}
+	}
+}
+
+// TestCoverStaleJob drops an encode's result once its cover was taken
+// for another image, of another size, while it ran: the cover shows its
+// own blank, then its own image, whichever result comes first.
+func TestCoverStaleJob(t *testing.T) {
+	posted := make(chan func(), 2)
+	g := gfx{
+		env:     termimage.Env{Override: "sixel"},
+		replies: termimage.Replies{CellW: 10, CellH: 20},
+		post:    func(fn func()) { posted <- fn },
+	}
+	g.detect()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
+	a := coverKey{url: "https://x/a", caps: g.caps, cols: 4, rows: 2}
+	b := coverKey{url: "https://x/b", caps: g.caps, cols: 6, rows: 3}
+	// encodingA returns the cover, the oldest, that encodes a, and a's
+	// result, waiting to run.
+	encodingA := func() (*cover, func()) {
+		g.covers = [numCovers]cover{}
+		i := g.claim(a)
+		for k := range g.covers {
+			g.covers[k].frame = 1
+		}
+		c := &g.covers[i]
+		c.frame = 0
+		g.encode(c, img, 0)
+		return c, <-posted
+	}
+
+	c, aDone := encodingA()
+	if g.claim(b); c.key != b {
+		t.Fatalf("b took cover %+v, want a's", c.key)
+	}
+	aDone()
+	if c.isReady || c.Overlay != "" || !slices.Equal(c.Lines, blankCover(6, 3)) {
+		t.Errorf("taken by b, the cover shows %q, want b's blank", c.Lines)
+	}
+	for _, isAFirst := range []bool{true, false} {
+		c, aDone := encodingA()
+		g.claim(b)
+		g.encode(c, img, 0)
+		bDone := <-posted
+		if isAFirst {
+			aDone()
+			bDone()
+		} else {
+			bDone()
+			aDone()
+		}
+		if c.key != b || !c.isReady || !strings.Contains(c.Overlay, "\"1;1;60;60#") || len(c.Lines) != 3 {
+			t.Errorf("a's result first %t: the cover holds %.30q, %d lines; want b's", isAFirst, c.Overlay, len(c.Lines))
+		}
+	}
+}
+
+// kittyUpload matches an upload's image ID and cells.
+var kittyUpload = regexp.MustCompile(`,i=(\d+),c=(\d+),r=(\d+),`)
+
+// TestCoverKittyIDs gives each cover its place's image ID whatever its
+// size: one image at two sizes is two images, and a place taken for
+// another cover uploads it under the same ID, replacing the image no
+// longer shown.
+func TestCoverKittyIDs(t *testing.T) {
+	g, posts := startCovers(t, termimage.Kitty, newCoverHost(t))
+	// uploaded is each ID's last upload's cells.
+	uploaded := map[uint8][2]int{}
+	for n := range numCovers + 3 {
+		art := catalog.Art(fmt.Sprintf("https://lh3.googleusercontent.com/cover%d=w120-h120", n))
+		reqs := []coverRequest{mustRequest(t, g, slotHeader, 2, 3, art), mustRequest(t, g, slotBar, 21, 2, art)}
+		for _, m := range kittyUpload.FindAllStringSubmatch(settleCovers(t, g, posts, reqs...), -1) {
+			id, _ := strconv.Atoi(m[1])
+			cols, _ := strconv.Atoi(m[2])
+			rows, _ := strconv.Atoi(m[3])
+			uploaded[uint8(id)] = [2]int{cols, rows}
+		}
+		var ids [2]uint8
+		for k, r := range reqs {
+			i := slices.IndexFunc(g.covers[:], func(c cover) bool { return c.key == g.key(r) })
+			if i < 0 {
+				t.Fatalf("cover %d: no place holds %+v", n, g.key(r))
+			}
+			id := g.kittyBase + uint8(i)
+			ids[k] = id
+			cols, rows := r.rect.Dx(), r.rect.Dy()
+			e, err := termimage.Encode(image.NewRGBA(image.Rect(0, 0, 1, 1)), g.caps, cols, rows, id, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for row, line := range e.Lines {
+				e.Lines[row] = " " + line
+			}
+			if got := g.lines(r); !slices.Equal(got, e.Lines) {
+				t.Errorf("cover %d, %d×%d: shows another image than %d", n, cols, rows, id)
+			}
+			if uploaded[id] != [2]int{cols, rows} {
+				t.Errorf("cover %d, %d×%d: image %d's last upload is %v", n, cols, rows, id, uploaded[id])
+			}
+		}
+		if ids[0] == ids[1] {
+			t.Errorf("cover %d: both sizes are image %d", n, ids[0])
+		}
+	}
+	for id := range uploaded {
+		if id < g.kittyBase || id >= g.kittyBase+numCovers {
+			t.Errorf("uploaded image %d, past the %d places from %d", id, numCovers, g.kittyBase)
+		}
+	}
+}
+
+// TestCoverGenStable keeps the overlays' table, its generation and the
+// marks' bytes while covers of any size stay put and wholly on screen;
+// a change makes the next generation.
+func TestCoverGenStable(t *testing.T) {
+	g, posts := startCovers(t, termimage.Sixel, newCoverHost(t))
+	header := mustRequest(t, g, slotHeader, 2, 3, coverURL)
+	bar := mustRequest(t, g, slotBar, 21, 2, coverURL)
+	settleCovers(t, g, posts, header, bar)
+	lines := slices.Repeat([]string{" " + strings.Repeat("\u2800", 6) + " text"}, 24)
+	table, gen, screen := g.table, g.published, g.join(lines)
+	for range 3 {
+		showFrame(g, header, bar)
+	}
+	if g.table != table || g.published != gen || g.join(lines) != screen {
+		t.Errorf("unchanged, generation %d after %d", g.published, gen)
+	}
+	if p := g.places[slotHeader]; p.X != 1 || p.Y != 2 || p.Cols != 6 || p.Rows != 3 {
+		t.Errorf("the header's overlay is at %d,%d, %d×%d; want 1,2, 6×3", p.X, p.Y, p.Cols, p.Rows)
+	}
+	if p := g.places[slotBar]; p.X != 1 || p.Y != 21 || p.Cols != 4 || p.Rows != 2 {
+		t.Errorf("the bar's overlay is at %d,%d, %d×%d; want 1,21, 4×2", p.X, p.Y, p.Cols, p.Rows)
+	}
+	for y, line := range strings.Split(screen, "\n") {
+		var want string
+		switch {
+		case y >= 2 && y < 5:
+			want = termimage.Mark(gen, int(slotHeader), y-2)
+		case y >= 21 && y < 23:
+			want = termimage.Mark(gen, int(slotBar), y-21)
+		}
+		if got := strings.Count(line, "\x1b^"); want == "" && got != 0 || want != "" && !strings.HasPrefix(line, " "+want+"\u2800") {
+			t.Errorf("line %d is %q, want mark %q", y, line, want)
+		}
+	}
+
+	// Its top cut, the bar's cover draws no image.
+	cut := bar
+	cut.rect = cut.rect.Sub(image.Pt(0, 22))
+	showFrame(g, header, cut)
+	if g.published != gen+1 || g.places[slotBar] != (termimage.Placement{}) || g.places[slotHeader].Seq == "" {
+		t.Errorf("the bar's cover cut, generation %d after %d, places %+v", g.published, gen, g.places)
+	}
+	showFrame(g, header, bar)
+	if g.published != gen+2 || g.places[slotBar].Y != 21 {
+		t.Errorf("the bar's cover back, generation %d after %d", g.published, gen)
+	}
+}
+
+// TestCoverTrimSizes trims each size of an image as a cover of its own:
+// the size not shown goes, the one shown stays.
+func TestCoverTrimSizes(t *testing.T) {
+	var g gfx
+	half := termimage.Encoded{Overlay: strings.Repeat("x", offScreenBytes/2)}
+	for i, k := range []struct {
+		cols, rows int
+		frame      uint64
+	}{{4, 2, 3}, {6, 3, 1}, {2, 1, 2}} {
+		g.covers[i] = cover{Encoded: half, key: coverKey{url: coverURL, cols: k.cols, rows: k.rows}, frame: k.frame}
+	}
+	g.frame = 3
+	g.trim()
+	var kept []int
+	for _, c := range g.covers {
+		if c.Overlay != "" {
+			kept = append(kept, c.key.cols)
+		}
+	}
+	if !slices.Equal(kept, []int{4, 2}) {
+		t.Errorf("kept the covers %v cells wide, want 4 (shown) and 2", kept)
 	}
 }
