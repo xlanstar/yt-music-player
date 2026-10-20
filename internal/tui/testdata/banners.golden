@@ -1,0 +1,147 @@
+--- connecting
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! Connecting to the background player…
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+                                                                         ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! Connecting to the background player…
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+                                 ? Help
+--- reconnecting
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! The background player stopped. Starting it again…
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+ Volume 40%                                                              ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! The background player stopped. Start…
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+ Volume 40%                      ? Help
+--- unresponsive
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! The background player isn’t responding.  R Restart
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+ Volume 40%                                                              ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! The background player isn’t respondi…
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+ Volume 40%                      ? Help
+--- unavailable
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! Can’t reach the background player.  R Retry  Log: /logs/ytmd.log
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+ Volume 40%                                                              ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! Can’t reach the background player.  …
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+ Volume 40%                      ? Help
+--- daemon-outdated
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! The background player (0.3.0) is older than ytm (0.4.0). Update YT Music Pla…
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+ Volume 40%                                                              ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! The background player (0.3.0) is old…
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+ Volume 40%                      ? Help
+--- daemon-incompatible
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! The background player (0.3.0) is older than ytm (0.4.0). Update YT Music Pla…
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+ Volume 40%                                                              ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! The background player (0.3.0) is old…
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+ Volume 40%                      ? Help
+--- frontend-outdated
+=== 80×9, 9 lines
+ YT Music Player   Queue   Search   Library                          Lan (@lan)
+──────────────────━━━━━━━───────────────────────────────────────────────────────
+ ▸ ♪ Midnight Arcade              Lumen Drive         Neon Tide          3:47 ♥
+     Satellite Hearts             Lumen Drive         Neon Tide          4:05
+ ! The background player (0.3.0) is newer than ytm (0.4.0) and doesn’t understa…
+────────────────────────────────────────────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive                                             ♥
+ 0:41 ━━━━━━━━━━━━──────────────────────────────────────────────────────── 3:47
+                                                                         ? Help
+=== 40×9, 9 lines
+ Queue   Search   Library    Lan (@lan)
+━━━━━━━─────────────────────────────────
+ ▸ ♪ Midnight Arca…  Lumen Dri…  3:47 ♥
+     Satellite Hea…  Lumen Dri…  4:05
+ ! The background player (0.3.0) is new…
+────────────────────────────────────────
+ ❙❙ Midnight Arcade · Lumen Drive     ♥
+ 0:41 ━━━━━─────────────────────── 3:47
+                                 ? Help

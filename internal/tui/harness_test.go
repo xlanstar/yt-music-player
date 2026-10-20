@@ -295,24 +295,44 @@ func (h *harness) screen() string {
 // golden compares the screen with testdata/name.golden; -update writes it.
 func (h *harness) golden(name string) {
 	h.t.Helper()
-	got := h.screen()
+	goldenText(h.t, name, h.screen())
+}
+
+// goldenText compares got, one screen or several, with
+// testdata/name.golden; -update writes it.
+func goldenText(t testing.TB, name, got string) {
+	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
 	if *update {
 		if err := os.MkdirAll("testdata", 0o750); err != nil {
-			h.t.Fatal(err)
+			t.Fatal(err)
 		}
 		if err := os.WriteFile(path, []byte(got), 0o600); err != nil {
-			h.t.Fatal(err)
+			t.Fatal(err)
 		}
 		return
 	}
 	want, err := os.ReadFile(path)
 	if err != nil {
-		h.t.Fatalf("%v (run with -update)", err)
+		t.Fatalf("%v (run with -update)", err)
 	}
 	if got != string(want) {
-		h.t.Errorf("screen %s differs (-update rewrites it)\ngot:\n%s\nwant:\n%s", name, got, want)
+		t.Errorf("screen %s differs (-update rewrites it)\ngot:\n%s\nwant:\n%s", name, got, want)
 	}
+}
+
+// screens are the screen at each of sizes, each under a line that names
+// its size and the lines it fills, for one golden file of a screen's sizes.
+func (h *harness) screens(sizes ...[2]int) string {
+	h.t.Helper()
+	var b strings.Builder
+	for _, s := range sizes {
+		h.resize(s[0], s[1])
+		screen := h.screen()
+		fmt.Fprintf(&b, "=== %d×%d, %d lines\n", s[0], s[1], strings.Count(screen, "\n"))
+		b.WriteString(screen)
+	}
+	return b.String()
 }
 
 // screenHas fails unless the screen shows each of texts.
