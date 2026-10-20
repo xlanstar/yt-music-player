@@ -73,6 +73,10 @@ func (c Caps) Pixels(cols, rows int) (w, h int) {
 	w, h = cols*cw, rows*ch
 	if c.Protocol == Sixel {
 		// Sixel pixels are the cells': a smaller image would not fill them.
+		// Its bands are 6 pixels, which a terminal paints whole, past the cells.
+		if h >= 6 {
+			h -= h % 6
+		}
 		return w, h
 	}
 	if side := max(w, h); side > maxPixels {

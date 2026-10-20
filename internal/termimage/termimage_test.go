@@ -142,7 +142,8 @@ func TestPixels(t *testing.T) {
 		{Caps{Protocol: Kitty, CellW: 20, CellH: 40}, 80, 80},
 		{Caps{Protocol: Kitty, CellW: 100, CellH: 200}, 256, 256},
 		{Caps{Protocol: ITerm2}, 40, 40},
-		{Caps{Protocol: Sixel, CellW: 100, CellH: 200}, 400, 400},
+		{Caps{Protocol: Sixel, CellW: 100, CellH: 200}, 400, 396},
+		{Caps{Protocol: Sixel, CellW: 10, CellH: 2}, 40, 4},
 	}
 	for _, tc := range tests {
 		if w, h := tc.caps.Pixels(4, 2); w != tc.w || h != tc.h {
@@ -376,13 +377,13 @@ func TestEncodeSums(t *testing.T) {
 		sums [Kitty + 1]string
 	}{
 		{"gradient80", cover(80), 20, [...]string{
-			Blocks: "d1e64e169d46f538", Sixel: "337678556959195d", ITerm2: "3bcca26318e23f62", Kitty: "e00e2efb84bb30c3",
+			Blocks: "d1e64e169d46f538", Sixel: "343e976c25efcaf7", ITerm2: "3bcca26318e23f62", Kitty: "e00e2efb84bb30c3",
 		}},
 		{"real80", realCover(t, 80), 20, [...]string{
-			Blocks: "404ec4b09c29f316", Sixel: "e00c4b8b5ae6087d", ITerm2: "5152465f37ec7013", Kitty: "848e929691682f8e",
+			Blocks: "404ec4b09c29f316", Sixel: "62802fe888d9f4e1", ITerm2: "5152465f37ec7013", Kitty: "848e929691682f8e",
 		}},
 		{"real256", realCover(t, 256), 64, [...]string{
-			Blocks: "874f47f73e9bce53", Sixel: "32c2319514da40db", ITerm2: "e46e083df4c59e58", Kitty: "31bd35b5370a8b43",
+			Blocks: "874f47f73e9bce53", Sixel: "d3605d8659e8c7ae", ITerm2: "e46e083df4c59e58", Kitty: "31bd35b5370a8b43",
 		}},
 	}
 	for _, src := range sources {

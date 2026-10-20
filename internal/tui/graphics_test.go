@@ -201,7 +201,7 @@ func TestKittyBase(t *testing.T) {
 // TestCoverOverlays draws Sixel's and iTerm2's images over blank cells.
 func TestCoverOverlays(t *testing.T) {
 	for p, seq := range map[termimage.Protocol]string{
-		termimage.Sixel:  "\x1bP0;1;0q\"1;1;40;40#",
+		termimage.Sixel:  "\x1bP0;1;0q\"1;1;40;36#",
 		termimage.ITerm2: "\x1b]1337;File=inline=1;",
 	} {
 		t.Run(p.String(), func(t *testing.T) {
