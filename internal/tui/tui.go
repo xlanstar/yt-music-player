@@ -20,6 +20,10 @@
 // covers into a frame, which draw only reads into the screen View
 // returns. Keys and clicks read the model afresh, never a frame. Only a
 // song playing in a focused terminal ticks, once a second.
+//
+// Lines measure text as Bubble Tea's renderer does (cells): by rune, by
+// grapheme once the terminal says it knows mode 2027, which renders every
+// line again.
 package tui
 
 import (

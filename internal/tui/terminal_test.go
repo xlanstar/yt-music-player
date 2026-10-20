@@ -42,6 +42,13 @@ type program struct {
 // runTerm runs h's model on an 80×24 terminal, until the test ends.
 func runTerm(t *testing.T, h *harness) *program {
 	t.Helper()
+	return runTermAnswering(t, h, "")
+}
+
+// runTermAnswering is runTerm on a terminal that sends answers, such as
+// a mode's report, before it reports mode 2026.
+func runTermAnswering(t *testing.T, h *harness, answers string) *program {
+	t.Helper()
 	inR, inW, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -107,7 +114,7 @@ func runTerm(t *testing.T, h *harness) *program {
 			t.Errorf("%d frames' tables were gone", n)
 		}
 	})
-	if _, err := io.WriteString(inW, "\x1b[?2026;2$y"); err != nil {
+	if _, err := io.WriteString(inW, answers+"\x1b[?2026;2$y"); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -557,5 +564,50 @@ func TestTermASCIILines(t *testing.T) {
 	}
 	if beside < 8 {
 		t.Errorf("%d frames wrote beside the covers, not over them; want most", beside)
+	}
+}
+
+// TestTermWidthMethod replays emoji titles on a terminal that measures
+// as the renderer was told to: by rune, or by grapheme once it answered
+// mode 2027. Every line fits the screen, the songs' lengths line up.
+func TestTermWidthMethod(t *testing.T) {
+	for _, tc := range []struct {
+		name, answers string
+		method        ansi.Method
+	}{
+		{"wcwidth", "", ansi.WcWidth},
+		{"graphemes", "\x1b[?2027;2$y", ansi.GraphemeWidth},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := placeholderHarness(t)
+			songs := append(slices.Clone(emojiSongs), wideSongs...)
+			h.mirror.setQueue(songs)
+			h.mirror.state.Playing = true
+			h.send(postedMsg{})
+			h.press("down", "down")
+			written := runTermAnswering(t, h, tc.answers).quit()
+			// The renderer sets mode 2027 where it measures graphemes.
+			setsMode := strings.Contains(written, ansi.SetModeUnicodeCore)
+			if h.m.cells.method != tc.method || setsMode != (tc.method == ansi.GraphemeWidth) {
+				t.Fatalf("measured by %v, mode 2027 set: %t; want %v", h.m.cells.method, setsMode, tc.method)
+			}
+			v := replay(t, written)
+			if got := v.screen(); got != h.screen() {
+				t.Errorf("the terminal shows\n%s\nwant\n%s", got, h.screen())
+			}
+			var cols []int
+			for _, row := range v.cells[tabsRows : tabsRows+len(songs)] {
+				colon := -1
+				for x, c := range row {
+					if c == ":" {
+						colon = x
+					}
+				}
+				cols = append(cols, colon)
+			}
+			if slices.ContainsFunc(cols, func(x int) bool { return x != cols[0] }) {
+				t.Errorf("songs' lengths end at cells %v:\n%s", cols, v.screen())
+			}
+		})
 	}
 }

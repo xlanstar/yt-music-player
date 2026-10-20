@@ -20,11 +20,13 @@ import (
 type vt struct {
 	w, h int
 	// cells are the alternate screen's: a grapheme, "" right of a wide one.
-	cells      [][]string
-	x, y       int
-	saved      image.Point
-	top, bot   int
-	noWrap     bool
+	cells    [][]string
+	x, y     int
+	saved    image.Point
+	top, bot int
+	noWrap   bool
+	// graphemes: text is measured by grapheme (mode 2027), else by rune.
+	graphemes  bool
 	pending    bool
 	alt        bool
 	last       string
@@ -160,8 +162,17 @@ func (v *vt) write(b string) error {
 	var state byte
 	frameStart := 0
 	for i := 0; i < len(b); {
-		seq, width, n, next := ansi.DecodeSequenceWc(b[i:], state, p)
+		decode := ansi.DecodeSequenceWc[string]
+		if v.graphemes {
+			decode = ansi.DecodeSequence[string]
+		}
+		seq, width, n, next := decode(b[i:], state, p)
 		state = next
+		if n == 1 && seq[0] > 0x1f && seq[0] < 0x7f && i+1 < len(b) && b[i+1] >= 0xc0 {
+			// As the renderer does: a letter takes the marks after it.
+			seq, width = ansi.FirstGraphemeCluster(b[i:], v.method())
+			n = len(seq)
+		}
 		if width > 0 {
 			v.print(seq, width)
 		} else if err := v.control(seq, p); err != nil {
@@ -228,6 +239,14 @@ func (v *vt) control(seq string, p *ansi.Parser) error {
 		return fmt.Errorf("unknown %q", seq)
 	}
 	return nil
+}
+
+// method is how v measures text.
+func (v *vt) method() ansi.Method {
+	if v.graphemes {
+		return ansi.GraphemeWidth
+	}
+	return ansi.WcWidth
 }
 
 func (v *vt) image() {
@@ -324,7 +343,7 @@ func (v *vt) csi(cmd ansi.Cmd, params ansi.Params) error {
 		v.moveTo(0, 0)
 	case 'b':
 		for range n(0) {
-			v.print(v.last, max(ansi.StringWidthWc(v.last), 1))
+			v.print(v.last, max(v.method().StringWidth(v.last), 1))
 		}
 	case 'm', 't', 'n', 'c', 'g':
 	default:
@@ -343,6 +362,8 @@ func (v *vt) mode(cmd ansi.Cmd, params ansi.Params) error {
 		switch p.Param(0) {
 		case 7:
 			v.noWrap = !set
+		case 2027:
+			v.graphemes = set
 		case 1049:
 			v.alt = set
 			if set {

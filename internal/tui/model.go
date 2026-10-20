@@ -148,7 +148,7 @@ type clearNoticeMsg struct{ seq uint64 }
 type openedDesktopMsg struct{ err error }
 
 func newModel(d deps) *model {
-	return &model{deps: d, cells: newCells(ansi.GraphemeWidth), queueFollows: true}
+	return &model{deps: d, cells: newCells(ansi.WcWidth), queueFollows: true}
 }
 
 // Init implements tea.Model: it asks the terminal how it shows images.
@@ -171,6 +171,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case postedMsg:
 		m.posts.run()
+	case tea.ModeReportMsg:
+		// The renderer measures text by the terminal's answer (mode
+		// 2027), and so must every line.
+		var ok bool
+		if m.cells, ok = m.cells.afterReport(msg); !ok {
+			return m, nil
+		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		cmd = m.gfx.resized()

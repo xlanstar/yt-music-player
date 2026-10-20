@@ -4,12 +4,14 @@ import (
 	"strconv"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
 // cells measures, cuts and wraps text, which may hold styles, in a
-// terminal's cells by one width method. The model keeps one, which every
-// width of a frame goes through.
+// terminal's cells as Bubble Tea's renderer does: by rune (wcwidth), by
+// grapheme once the terminal knows mode 2027 (afterReport). The model
+// keeps one, which every width of a frame goes through.
 type cells struct {
 	method ansi.Method
 	// The columns rows give glyphs, measured once per method: the
@@ -29,12 +31,37 @@ func newCells(method ansi.Method) cells {
 	return c
 }
 
+// afterReport returns the cells the renderer measures by once the
+// terminal answered r, and whether they changed: Bubble Tea v2.1.0
+// measures graphemes once the terminal knows mode 2027, set or not, and
+// never goes back.
+func (c cells) afterReport(r tea.ModeReportMsg) (cells, bool) {
+	if r.Mode != ansi.ModeUnicodeCore || c.method == ansi.GraphemeWidth {
+		return c, false
+	}
+	switch r.Value {
+	case ansi.ModeReset, ansi.ModeSet, ansi.ModePermanentlySet:
+		return newCells(ansi.GraphemeWidth), true
+	}
+	return c, false
+}
+
 // width is s's width in cells.
 func (c cells) width(s string) int { return c.method.StringWidth(s) }
 
 // fit cuts s to w cells, ending it with an ellipsis when cut; a wide
 // character is never split.
-func (c cells) fit(s string, w int) string { return c.method.Truncate(s, w, ellipsis) }
+func (c cells) fit(s string, w int) string {
+	if c.width(s) <= w {
+		return s
+	}
+	if c.method != ansi.GraphemeWidth && ansi.StringWidth(s) <= w {
+		// Truncate keeps s whole where its graphemes fit, whatever its
+		// method (x/ansi v0.11.9); spaces past the cut make them not.
+		s += strings.Repeat(" ", w+1)
+	}
+	return c.method.Truncate(s, w, ellipsis)
+}
 
 // pad fits s to w cells and fills the rest with spaces.
 func (c cells) pad(s string, w int) string {

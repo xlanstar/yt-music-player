@@ -9,8 +9,9 @@ import (
 )
 
 // viewCases are screens as Update renders them: a long queue playing
-// (which draws only the rows that show), the library, search results, the
-// help and the queue with covers. allocs is each one's budget (TestBudgetView).
+// (which draws only the rows that show), the queue measured by grapheme,
+// the library, search results, the help and the queue with covers.
+// allocs is each one's budget (TestBudgetView).
 var viewCases = []struct {
 	name    string
 	prepare func(h *harness)
@@ -23,6 +24,9 @@ var viewCases = []struct {
 		h.mirror.state.Playing, h.mirror.state.Index, h.mirror.state.Current = true, 2500, songs[2500].ID
 		h.mirror.state.Shuffled, h.mirror.state.Repeat = true, api.RepeatAll
 	}, 78},
+	// 67 allocs today, as by runes: the queue in a terminal that knows
+	// mode 2027.
+	{"queue-graphemes", func(h *harness) { h.send(unicodeCore) }, 77},
 	// 65 allocs today.
 	{"library", func(h *harness) { h.press("shift+tab") }, 75},
 	// 63 allocs today.

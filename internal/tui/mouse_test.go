@@ -528,6 +528,11 @@ func TestSeekCells(t *testing.T) {
 			h.withCovers(termimage.Blocks, newCoverHost(h.t))
 			h.covered()
 		}},
+		{"emoji", func(h *harness) { h.mirror.setQueue(emojiSongs) }},
+		{"emoji by graphemes", func(h *harness) {
+			h.send(unicodeCore)
+			h.mirror.setQueue(emojiSongs)
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := placeholderHarness(t)
