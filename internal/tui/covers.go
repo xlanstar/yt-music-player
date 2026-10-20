@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	// coverX is the cell covers show from: their lines start with as many
-	// spaces, until draw places covers by their cells.
+	// coverX is the cell covers show from, until the parts lay them out.
 	coverX = 1
 	// coverMinWidth is the narrowest terminal that shows covers.
 	coverMinWidth = 40
@@ -131,12 +130,22 @@ func newKittyBase() uint8 {
 	return 1 + rand.N[uint8](256-numCovers)
 }
 
-// beginFrame starts a frame's covers, before want.
-func (cs *covers) beginFrame() {
+// sync readies the covers drawn, wholly on a w×h screen, and returns
+// what they show: it claims each's place, loads and encodes its image,
+// and makes the overlays' table, of the generation after out's last if
+// it changed. Drawn in another order, covers take other places.
+func (cs *covers) sync(reqs []coverRequest, caps termimage.Caps, w, h int) coverFrame {
 	cs.frame++
 	if cs.art != nil {
 		cs.art.NextFrame()
 	}
+	var f coverFrame
+	for _, r := range reqs {
+		f.lines[r.slot] = cs.want(r, caps).Lines
+	}
+	cs.place(reqs, caps, w, h)
+	f.marks = cs.marks
+	return f
 }
 
 // coverKey is r's cover in caps' protocol, at r's size.
@@ -146,7 +155,7 @@ func (r coverRequest) key(caps termimage.Caps) coverKey {
 
 // want readies r's cover, as shown this frame: it claims the cover's
 // place, and encodes the image once loaded, again once a larger one came.
-func (cs *covers) want(r coverRequest, caps termimage.Caps) {
+func (cs *covers) want(r coverRequest, caps termimage.Caps) *cover {
 	key := r.key(caps)
 	i := cs.claim(key)
 	c := &cs.cache[i]
@@ -162,26 +171,12 @@ func (cs *covers) want(r coverRequest, caps termimage.Caps) {
 			cs.encode(c, img.RGBA, cs.kittyBase+uint8(i)) //nolint:gosec // i < numCovers
 		}
 	}
-}
-
-// lines returns the lines of r's cover from cell 0: blank until encoded,
-// or unless want readied it this frame; none without r.
-func (cs *covers) lines(r coverRequest, caps termimage.Caps) []string {
-	if r.art == "" {
-		return nil
-	}
-	key := r.key(caps)
-	for i := range cs.cache {
-		if c := &cs.cache[i]; c.key == key && c.frame == cs.frame {
-			return c.Lines
-		}
-	}
-	return blankLines(key.cols, key.rows)
+	return c
 }
 
 // blankLines are the lines of a cover of cols×rows cells while it loads.
 func blankLines(cols, rows int) []string {
-	return slices.Repeat([]string{strings.Repeat(" ", coverX+cols)}, rows)
+	return slices.Repeat([]string{strings.Repeat(" ", cols)}, rows)
 }
 
 // claim returns key's cover, or the one shown longest ago, taken for it.
@@ -209,12 +204,7 @@ func (cs *covers) claim(key coverKey) int {
 func (cs *covers) encode(c *cover, img *image.RGBA, id uint8) {
 	key, tmux := c.key, cs.tmux
 	job.Run(&c.job, cs.post, func(context.Context) (termimage.Encoded, error) {
-		e, err := termimage.Encode(img, key.caps, key.cols, key.rows, id, tmux)
-		indent := strings.Repeat(" ", coverX)
-		for i, line := range e.Lines {
-			e.Lines[i] = indent + line
-		}
-		return e, err
+		return termimage.Encode(img, key.caps, key.cols, key.rows, id, tmux)
 	}, func(e termimage.Encoded, err error) {
 		if err != nil {
 			log.Debug().Err(err).Stringer("protocol", key.caps.Protocol).Msg("tui: cover not encoded")
@@ -225,11 +215,14 @@ func (cs *covers) encode(c *cover, img *image.RGBA, id uint8) {
 }
 
 // place makes the table of the overlays of reqs, which want readied,
-// wholly on screen, of the generation after out's last if they changed.
-func (cs *covers) place(reqs []coverRequest, caps termimage.Caps, screen image.Rectangle) {
+// wholly on a w×h screen and above its last line, where a Sixel image
+// would scroll it: those below keep their blank cells. A new table is
+// of the generation after out's last, its marks new slices.
+func (cs *covers) place(reqs []coverRequest, caps termimage.Caps, w, h int) {
 	var places [numSlots]termimage.Placement
 	for _, r := range reqs {
-		if r.art == "" || !r.rect.In(screen) {
+		isShown := r.rect.In(image.Rect(0, 0, w, h)) && r.rect.Max.Y < h
+		if r.art == "" || !isShown {
 			continue
 		}
 		if c := cs.ready(r.key(caps)); c != nil && c.Overlay != "" {
@@ -244,51 +237,11 @@ func (cs *covers) place(reqs []coverRequest, caps termimage.Caps, screen image.R
 	gen := cs.published + 1
 	cs.table, cs.places = termimage.NewTable(gen, places[:]), places
 	for s, p := range places {
-		cs.marks[s] = cs.marks[s][:0]
+		cs.marks[s] = nil
 		for r := range p.Rows {
 			cs.marks[s] = append(cs.marks[s], termimage.Mark(gen, s, r))
 		}
 	}
-}
-
-// join joins a render's lines into the screen, each line of an overlay
-// with its mark before the overlay's first cell.
-func (cs *covers) join(lines []string) string {
-	n := len(lines)
-	for _, line := range lines {
-		n += len(line)
-	}
-	for _, marks := range cs.marks {
-		for _, mark := range marks {
-			n += len(mark)
-		}
-	}
-	var b strings.Builder
-	b.Grow(n)
-	for y, line := range lines {
-		if y > 0 {
-			b.WriteByte('\n')
-		}
-		if mark, x := cs.markOf(y); mark != "" && len(line) > x {
-			// The cells before a cover are spaces, a byte each.
-			b.WriteString(line[:x])
-			b.WriteString(mark)
-			line = line[x:]
-		}
-		b.WriteString(line)
-	}
-	return b.String()
-}
-
-// markOf returns the mark of line y and the cell it goes before; empty
-// off the overlays.
-func (cs *covers) markOf(y int) (mark string, x int) {
-	for s, p := range cs.places {
-		if p.Seq != "" && y >= p.Y && y < p.Y+p.Rows {
-			return cs.marks[s][y-p.Y], p.X
-		}
-	}
-	return "", 0
 }
 
 // commit sends, after a render, what the renderer cannot: Kitty's new

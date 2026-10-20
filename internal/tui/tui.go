@@ -4,8 +4,8 @@
 // search, the library) sit over the player bar.
 //
 // Covers show in the player bar and over an album or playlist where the
-// terminal shows images (package termimage; probe, covers): Kitty's placeholders and
-// half blocks are text. Sixel and iTerm2 images go over blank cells, which
+// terminal shows images (package termimage; probe, covers): Kitty's
+// placeholders and half blocks are text. Sixel and iTerm2 images go over blank cells, which
 // carry marks: termOut, the terminal Bubble Tea writes to, draws an image
 // right after each frame that wrote its marks, so after each that wiped it.
 //
@@ -16,10 +16,11 @@
 // tables Update publishes.
 //
 // Update renders once per message that changed something: prepare lays
-// the screen out, makes the page, scrolls its list and readies the
-// covers into a frame, which draw only reads into the screen View
-// returns. Keys and clicks read the model afresh, never a frame. Only a
-// song playing in a focused terminal ticks, once a second.
+// the screen out, makes the page and scrolls its list into a frame,
+// which draw only reads into the scene, through regions (scene.go); the
+// covers drawn are readied (covers.sync) and the scene composes the
+// screen View returns. Keys and clicks read the model afresh, never a
+// frame. Only a song playing in a focused terminal ticks, once a second.
 //
 // Lines measure text as Bubble Tea's renderer does (cells): by rune, by
 // grapheme once the terminal says it knows mode 2027, which renders every

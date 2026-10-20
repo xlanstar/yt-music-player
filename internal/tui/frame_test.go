@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -211,15 +212,17 @@ func (h *harness) drawState() drawState {
 	return s
 }
 
-// drawn is what a draw makes.
+// drawn is what a draw makes: the scene, composed without its covers'
+// lines, its hits and its covers.
 type drawn struct {
 	content string
 	hits    []hit
-	table   *termimage.Table
+	covers  []coverRequest
 }
 
 func (h *harness) drawn() drawn {
-	return drawn{h.m.content, append([]hit(nil), h.m.hits...), h.m.covers.table}
+	sc := &h.m.scene
+	return drawn{sc.compose(&coverFrame{}), slices.Clone(sc.hits), slices.Clone(sc.covers)}
 }
 
 // Drawing a prepared frame changes nothing it read, starts nothing, and

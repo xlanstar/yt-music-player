@@ -2,6 +2,7 @@ package tui
 
 import (
 	"image"
+	"slices"
 	"time"
 	"yt-music-player/internal/api"
 
@@ -69,32 +70,25 @@ const (
 	hitHelp
 )
 
-// mark notes h over cells [x0, x1) of line y, as render draws it.
+// mark notes h over cells [x0, x1) of line y, as draw appends lines;
+// drawLines puts it where the line goes.
 func (m *model) mark(y, x0, x1 int, h hit) {
 	h.rect = image.Rect(x0, y, x1, y+1)
-	h.shown = h.rect
-	m.hits = append(m.hits, h)
+	m.scene.hits = append(m.scene.hits, h)
 }
 
-// keepHits keeps the hits of lines [from, to), moved up by from, as
-// render cuts its lines.
-func (m *model) keepHits(from, to int) {
-	kept := m.hits[:0]
-	for _, h := range m.hits {
-		if y := h.rect.Min.Y; y >= from && y < to {
-			h.rect = h.rect.Sub(image.Pt(0, from))
-			h.shown = h.rect
-			kept = append(kept, h)
-		}
-	}
-	m.hits = kept
+// dropHits drops the hits marked on lines from line from, as draw cuts
+// them.
+func (m *model) dropHits(from int) {
+	m.scene.hits = slices.DeleteFunc(m.scene.hits, func(h hit) bool { return h.rect.Min.Y >= from })
 }
 
 // hitAt is the hit drawn at (x, y).
 func (m *model) hitAt(x, y int) (hit, bool) {
-	for _, h := range m.hits {
-		if image.Pt(x, y).In(h.shown) {
-			return h, true
+	hits := m.scene.hits
+	for i := range hits {
+		if image.Pt(x, y).In(hits[i].shown) {
+			return hits[i], true
 		}
 	}
 	return hit{}, false
@@ -186,9 +180,10 @@ func (m *model) drag(x int) bool {
 	if !m.seek.isDragging {
 		return false
 	}
-	for _, h := range m.hits {
-		if h.kind == hitProgress {
-			return m.seekAt(x, h)
+	hits := m.scene.hits
+	for i := range hits {
+		if hits[i].kind == hitProgress {
+			return m.seekAt(x, hits[i])
 		}
 	}
 	return false

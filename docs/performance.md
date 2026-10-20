@@ -45,12 +45,13 @@ Numbers from `scripts/footprint.sh -daemon` (`perf/footprint-daemon-baseline.txt
 
 - Detected off, nothing is made: no `artwork` loader, no HTTP client. The covers link `net/http`, TLS and the decoders into ytm (6.4 → ≈9.7 MB on darwin/arm64, built `-trimpath -ldflags='-s -w'`); fetching them in ytmd instead would save ytm 2 MB of binary but keep connections and a cache in the process that never quits.
 - `artwork` decodes JPEG and PNG, what the URLs it makes serve; WebP's decoder (100 KB) comes with MyGo's `ui`, which registers it in the Desktop, and stays out of ytm.
-- Covers are fetched at their cells' pixels (artwork's bucket: 80 for 4×2 Retina cells), 2 workers, keeping 64 KB of decoded pixels besides those shown (`artMemory`). They encode off the UI thread, once per cover and size, each line after a space, which renders pass as a prefix: a frame with a cover allocates as one without (`TestBudgetView`).
+- Covers are fetched at their cells' pixels (artwork's bucket: 80 for 4×2 Retina cells), 2 workers, keeping 64 KB of decoded pixels besides those shown (`artMemory`). They encode off the UI thread, once per cover and size; the scene composes their lines in their cells: a frame with a cover allocates as one without (`TestBudgetView`).
 - Each protocol keeps what it needs again: Kitty's upload goes once, the terminal keeping the pixels under 8 recycled ids (from a random base, so two ytm in a terminal keep theirs); an overlay keeps its Sixel or JPEG for after a repaint, half blocks their lines. Covers off screen keep 64 KB of these, unsent uploads too (`offScreenBytes`).
 - Sixel and iTerm2 images go again only after a frame that wrote over them: each of their lines carries a mark (a PM) in its first cell, which the renderer writes only with that cell, and `termOut` adds the images whose marks a frame carried before its end (`termimage.Splice`, 0 allocs). No timer: an idle screen writes nothing.
 - A line with a wide character (a Japanese title) is repainted whole in every frame (ultraviolet's `lineHasDrift`), its image too: once a second while playing, up to 30 times a second while scrolling. At 80 pixels an image is 6.6 KB of Sixel or 2.1 of iTerm2, at 160 20.9 or 4.6.
 - Without synchronized output (mode 2026, which Bubble Tea asks for neither over SSH nor in Apple's Terminal), such an image may flicker as its line repaints.
 - The encoders are `termimage`'s, not x/ansi's, which box every pixel through `At` and, for Sixel, quantize with maps and pull in a bitset module. For 80 pixels: Sixel 3 allocs and ~40 µs (one pass per band), a Kitty upload 1, without zlib, whose state outweighs a cover, iTerm2's JPEG 8, image/jpeg's. `fill` keeps a cover already the size.
+- A render's scene keeps its spans from frame to frame: drawing allocates nothing, composing the screen's one string (`TestBudgetScene`).
 - `internal/quiet` frees the heap 3 s after Update last ran, as it does after the Desktop's last build.
 
 ## Audio

@@ -16,18 +16,17 @@ type frame struct {
 	// header and content split the body: the page's header, and the rows
 	// of its message or list.
 	header, content image.Rectangle
-	// covers are each slot's cover, the zero request where none shows.
+	// covers are each slot's cover as laid out, the zero request where
+	// none fits; those wholly on screen show.
 	covers [numSlots]coverRequest
 	status string
 }
 
 // prepare makes the frame that draw draws, and changes beforehand what
 // drawing would: the queue's cursor following the current song, the
-// list scrolled to the rows that show, the memos, the covers' loads and
-// the overlays' table.
+// list scrolled to the rows that show, the memos.
 func (m *model) prepare() frame {
 	m.followQueue()
-	m.covers.beginFrame()
 	f := frame{rects: layout(m.layoutIn())}
 	w := m.width
 	if w <= 0 || m.height <= 0 {
@@ -42,14 +41,13 @@ func (m *model) prepare() frame {
 		}
 		// The header's cover spans its first lines, and is claimed first.
 		if f.header.Dy() >= headerCoverRows {
-			m.wantCover(&f, slotHeader, f.header.Min.Y, headerCoverRows, p.header.art)
+			m.layCover(&f, slotHeader, f.header.Min.Y, headerCoverRows, p.header.art)
 		}
 	}
 	st := m.mirror.State()
 	if song, ok := m.mirror.Song(st.Current); ok && st.Current != "" {
-		m.wantCover(&f, slotBar, f.rects.bar.Min.Y+barSong, barCoverRows, song.Art)
+		m.layCover(&f, slotBar, f.rects.bar.Min.Y+barSong, barCoverRows, song.Art)
 	}
-	m.covers.place(f.covers[:], m.probe.caps, image.Rect(0, 0, w, m.height))
 	if m.link.Connection > 0 {
 		// Before any daemon spoke, its volume is no one's.
 		f.status = m.status(st)
@@ -57,17 +55,11 @@ func (m *model) prepare() frame {
 	return f
 }
 
-// wantCover lays out art's cover for slot s, rows tall from line y, where
-// it fits (probe.request), and readies it if wholly on screen: a cover cut
-// shows blank, its text where it was.
-func (m *model) wantCover(f *frame, s slot, y, rows int, art catalog.Art) {
-	r, ok := m.probe.request(s, y, rows, m.width, art)
-	if !ok {
-		return
-	}
-	f.covers[s] = r
-	if r.rect.In(image.Rect(0, 0, m.width, m.height)) {
-		m.covers.want(r, m.probe.caps)
+// layCover lays out art's cover for slot s, rows tall from line y, where
+// it fits (probe.request).
+func (m *model) layCover(f *frame, s slot, y, rows int, art catalog.Art) {
+	if r, ok := m.probe.request(s, y, rows, m.width, art); ok {
+		f.covers[s] = r
 	}
 }
 

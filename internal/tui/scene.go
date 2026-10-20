@@ -61,7 +61,11 @@ func (s *scene) reset(w, h int, c cells) region {
 // added.
 func (s *scene) put(y int, sp span) (ok bool) {
 	i, ok := s.free(y, sp.x, sp.cells)
-	if ok {
+	switch {
+	case !ok:
+	case i == len(s.rows[y]):
+		s.rows[y] = append(s.rows[y], sp)
+	default:
 		s.rows[y] = slices.Insert(s.rows[y], i, sp)
 	}
 	return ok
@@ -198,6 +202,22 @@ func (g region) text(x, y int, s string, p paint) int {
 		g.s.overlap(shown, 0, false)
 	}
 	return w
+}
+
+// line draws s, a line its maker fitted to the cells from x to g's
+// right edge, as text does but unmeasured: it holds those cells. The
+// parts' lines, until they draw into regions.
+func (g region) line(x, y int, s string) {
+	at := g.bounds.Min.Add(image.Pt(x, y))
+	r := image.Rect(at.X, at.Y, g.bounds.Max.X, at.Y+1)
+	shown := r.Intersect(g.clip)
+	switch {
+	case s == "" || shown.Empty():
+	case shown != r:
+		g.text(x, y, s, paint{})
+	case !g.s.put(at.Y, span{x: at.X, cells: r.Dx(), text: s}):
+		g.s.overlap(r, 0, false)
+	}
 }
 
 // hit makes r, in g's cells, h's target: h keeps r whole, as a drag's

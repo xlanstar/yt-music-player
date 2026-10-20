@@ -124,8 +124,9 @@ type model struct {
 	cells   cells
 	memo    memo
 	content string
-	// hits reuse storage for content's click targets to avoid per-frame allocations.
-	hits []hit
+	// scene is the last screen drawn, with its click targets; it keeps
+	// its storage from frame to frame.
+	scene scene
 
 	tab    tab
 	isHelp bool

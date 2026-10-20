@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"image"
 	"math"
 	"strings"
 	"yt-music-player/internal/api"
@@ -34,20 +35,22 @@ const headerCoverRows = 2
 // appName is the app's name, untranslated.
 const appName = "YT Music Player"
 
-// render prepares the screen's frame and draws it.
+// render prepares the screen's frame, draws it into the scene, readies
+// the covers drawn and composes the screen.
 func (m *model) render() {
 	f := m.prepare()
 	m.draw(&f)
+	cf := m.covers.sync(m.scene.covers, m.probe.caps, m.width, m.height)
+	m.content = m.scene.compose(&cf)
 }
 
-// draw draws f into m.content, and m.hits, what a click acts on, changing
+// draw draws f into m.scene, with the hits a click acts on, changing
 // nothing else: the tabs, the page, the daemon's health unless connected,
 // the player bar. Lists draw only their visible rows.
 func (m *model) draw(f *frame) {
 	w, h := m.width, m.height
-	m.hits = m.hits[:0]
+	screen := m.scene.reset(w, h, m.cells)
 	if w <= 0 || h <= 0 {
-		m.content = ""
 		return
 	}
 	r := &f.rects
@@ -65,12 +68,35 @@ func (m *model) draw(f *frame) {
 		lines = append(lines, banner)
 	}
 	lines = m.appendBar(lines, w, f)
-	if cut := -r.top(); cut > 0 {
-		// Too short for the bar: its last lines.
-		m.keepHits(cut, len(lines))
-		lines = lines[cut:]
+	m.drawLines(screen, f, lines)
+}
+
+// drawLines draws lines, the parts' from the layout's top, past the
+// screen's on one too short for the bar: the covers' cells, each line
+// after the cover it is beside, and the hits marked on the lines.
+// Transitional, until the parts draw into regions.
+func (m *model) drawLines(screen region, f *frame, lines []string) {
+	top := f.rects.top()
+	g := screen.sub(image.Rect(0, top, m.width, top+len(lines)))
+	// The header claims the first of the covers' places, as it did.
+	for _, s := range [...]slot{slotHeader, slotBar} {
+		r := f.covers[s]
+		screen.cover(r.rect, r.slot, r.art)
 	}
-	m.content = m.covers.join(lines)
+	for i, line := range lines {
+		x := 0
+		for _, r := range f.covers {
+			if y := top + i; r.art != "" && y >= r.rect.Min.Y && y < r.rect.Max.Y {
+				x = r.rect.Max.X
+			}
+		}
+		g.line(x, i, line)
+	}
+	marked := m.scene.hits
+	m.scene.hits = marked[:0]
+	for _, h := range marked {
+		g.hit(h.rect, h)
+	}
 }
 
 // layoutIn is what the screen's layout reads of m.
@@ -134,8 +160,7 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 		if m.tab == tabSearch && m.opened[tabSearch].kind == 0 && !m.isTyping {
 			m.mark(start, 0, w, hit{kind: hitInput})
 		}
-		cover := m.covers.lines(f.covers[slotHeader], m.probe.caps)
-		lines = m.appendPageHeader(lines, w, &p.header, cover)
+		lines = m.appendPageHeader(lines, w, &p.header, f.covers[slotHeader].rect)
 		switch {
 		case p.title != "":
 			lines = m.appendMessage(lines, w, p)
@@ -144,7 +169,7 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 		}
 	}
 	if len(lines)-start > h {
-		m.keepHits(0, start+h)
+		m.dropHits(start + h)
 		lines = lines[:start+h]
 	}
 	for len(lines)-start < h {
@@ -153,10 +178,10 @@ func (m *model) appendBody(lines []string, w int, f *frame) []string {
 	return lines
 }
 
-// appendPageHeader adds a page's header, each of its first lines after
-// its cover's: the search's input over its status, or a collection's
-// title and subtitle over a blank line.
-func (m *model) appendPageHeader(lines []string, w int, hd *header, cover []string) []string {
+// appendPageHeader adds a page's header, its lines beside cover after it:
+// the search's input over its status, or a collection's title and
+// subtitle over a blank line.
+func (m *model) appendPageHeader(lines []string, w int, hd *header, cover image.Rectangle) []string {
 	var text [3]string
 	switch hd.kind {
 	case headerSearch:
@@ -169,11 +194,11 @@ func (m *model) appendPageHeader(lines []string, w int, hd *header, cover []stri
 		text[1] = " " + styleMuted.Render(hd.subtitle)
 	}
 	for i := range hd.rows() {
-		line := text[i]
-		if i < len(cover) {
-			line = cover[i] + line
+		left := w
+		if i < cover.Dy() {
+			left -= cover.Max.X
 		}
-		lines = append(lines, m.cells.fit(line, w))
+		lines = append(lines, m.cells.fit(text[i], left))
 	}
 	return lines
 }
@@ -347,11 +372,10 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 		if song.Artist != "" {
 			title += styleMuted.Render(separator + song.Artist)
 		}
-		// The cover spans the song and its progress.
-		r := f.covers[slotBar]
-		cover, x := m.covers.lines(r, m.probe.caps), r.rect.Max.X
-		bar[barSong] = c.spread(coverLine(cover, 0), title, heart, w-x)
-		bar[barProgress] = m.progress(st, coverLine(cover, 1), x, y+barProgress, w)
+		// The cover spans the song and its progress, which go after it.
+		x := f.covers[slotBar].rect.Max.X
+		bar[barSong] = c.spread("", title, heart, w-x)
+		bar[barProgress] = m.progress(st, x, y+barProgress, w)
 	}
 	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
@@ -363,34 +387,25 @@ func (m *model) appendBar(lines []string, w int, f *frame) []string {
 	return append(lines, bar[:]...)
 }
 
-// coverLine is a cover's line i, empty past its lines.
-func coverLine(lines []string, i int) string {
-	if i < len(lines) {
-		return lines[i]
-	}
-	return ""
-}
-
-// progress is the current song's time on line y of w cells, after cover,
-// x cells wide, as a bar between its elapsed and whole length, a space
-// before the end.
-func (m *model) progress(st api.State, cover string, x, y, w int) string {
+// progress is the current song's time on line y of w cells, from cell
+// x, as a bar between its elapsed and whole length, a space before the
+// end.
+func (m *model) progress(st api.State, x, y, w int) string {
 	pos, c := m.position(st), &m.cells
 	elapsed := Clock(pos)
 	if st.Duration <= 0 {
-		return cover + " " + elapsed
+		return " " + elapsed
 	}
 	total := Clock(st.Duration)
 	start := x + 1 + c.width(elapsed) + 1
 	bar := w - start - 1 - c.width(total) - 1
 	if bar < 4 {
-		return cover + " " + elapsed + " / " + total
+		return " " + elapsed + " / " + total
 	}
 	m.mark(y, start, start+bar, hit{kind: hitProgress})
 	done := min(int(pos/st.Duration*float64(bar)), bar)
 	var b strings.Builder
-	b.Grow(len(cover) + len(ruleThick)*bar + 64)
-	b.WriteString(cover)
+	b.Grow(len(ruleThick)*bar + 64)
 	b.WriteByte(' ')
 	b.WriteString(elapsed)
 	b.WriteByte(' ')

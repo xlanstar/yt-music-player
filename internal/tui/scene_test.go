@@ -155,6 +155,28 @@ func TestRegionTextWidth(t *testing.T) {
 	}
 }
 
+// line draws a line fitted to the rest of its row, which it holds; cut
+// on the left, it measures and cuts as text does.
+func TestRegionLine(t *testing.T) {
+	s, screen := newScene(10, 3)
+	lines := screen.sub(image.Rect(0, -1, 10, 2))
+	lines.line(0, 0, "cut")
+	lines.line(0, 1, "one")
+	lines.line(2, 2, "two")
+	lines.line(0, 3, "below")
+	screen.sub(image.Rect(-2, 2, 8, 3)).line(0, 0, "abcd")
+	if got, want := composed(s), "one\n  two\ncd"; got != want {
+		t.Errorf("composed %q, want %q", got, want)
+	}
+	if sp := s.rows[1][0]; sp.x != 2 || sp.cells != 8 {
+		t.Errorf("the line holds %d cells from %d, want the row's 8 from 2", sp.cells, sp.x)
+	}
+	if sp := s.rows[2][0]; sp.cells != 2 {
+		t.Errorf("the line cut holds %d cells, want 2", sp.cells)
+	}
+	wantPanic(t, "text after a line", func() { screen.text(8, 1, "x", paint{}) })
+}
+
 // Two columns side by side, each its own padding, draw in any order.
 func TestSceneColumns(t *testing.T) {
 	s, screen := newScene(24, 3)
@@ -204,7 +226,7 @@ func TestRegionTransforms(t *testing.T) {
 		t.Errorf("covers %+v, want one on (2, 1)–(6, 3)", s.covers)
 	}
 	m := &model{}
-	m.hits = s.hits
+	m.scene.hits = s.hits
 	for _, tc := range []struct {
 		x, y int
 		want hitKind

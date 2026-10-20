@@ -299,7 +299,7 @@ func TestHitsDrawn(t *testing.T) {
 			h := viewing(t, tc.prepare)
 			lines := strings.Split(h.screen(), "\n")
 			got := map[hitKind]int{}
-			for _, x := range h.m.hits {
+			for _, x := range h.m.scene.hits {
 				got[x.kind]++
 				span := ansi.Cut(lines[x.shown.Min.Y], x.shown.Min.X, x.shown.Max.X)
 				var want string
