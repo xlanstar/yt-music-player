@@ -57,12 +57,17 @@ func (m *model) prepare() frame {
 	return f
 }
 
-// wantCover readies art's cover for slot s, rows tall from line y, where
-// it shows (gfx.request).
+// wantCover lays out art's cover for slot s, rows tall from line y, where
+// it fits (gfx.request), and readies it if wholly on screen: a cover cut
+// shows blank, its text where it was.
 func (m *model) wantCover(f *frame, s slot, y, rows int, art catalog.Art) {
-	if r, ok := m.gfx.request(s, y, rows, m.width, art); ok {
+	r, ok := m.gfx.request(s, y, rows, m.width, art)
+	if !ok {
+		return
+	}
+	f.covers[s] = r
+	if r.rect.In(image.Rect(0, 0, m.width, m.height)) {
 		m.gfx.want(r)
-		f.covers[s] = r
 	}
 }
 

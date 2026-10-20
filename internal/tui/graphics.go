@@ -237,19 +237,19 @@ func (g *gfx) want(r coverRequest) {
 	}
 }
 
-// lines returns the lines of r's cover, which want readied, from cell 0:
-// blank until it is encoded; none without r.
+// lines returns the lines of r's cover from cell 0: blank until encoded,
+// or unless want readied it this frame; none without r.
 func (g *gfx) lines(r coverRequest) []string {
 	if r.art == "" {
 		return nil
 	}
 	key := g.key(r)
 	for i := range g.covers {
-		if c := &g.covers[i]; c.key == key {
+		if c := &g.covers[i]; c.key == key && c.frame == g.frame {
 			return c.Lines
 		}
 	}
-	return nil
+	return blankLines(key.cols, key.rows)
 }
 
 // blankLines are the lines of a cover of cols×rows cells while it loads.

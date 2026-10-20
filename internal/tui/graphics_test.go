@@ -467,8 +467,8 @@ func TestCoverEvicts(t *testing.T) {
 
 // TestCoverPlaces shows each protocol's covers from cell 1, after a
 // space and before one: on an album's title and subtitle, and on the
-// bar's song and progress. A terminal narrower than a cover and
-// coverMinWidth shows none, and a short one moves the bar's up.
+// bar's song and progress; none narrower than a cover and coverMinWidth.
+// A short terminal moves the bar's up, blank once cut.
 func TestCoverPlaces(t *testing.T) {
 	blank := strings.Repeat("\u2800", 4)
 	for _, tc := range []struct {
@@ -534,11 +534,11 @@ func TestCoverPlaces(t *testing.T) {
 			if got := h.overlays(); tc.isOverlay && (!strings.HasPrefix(got, "\x1b7\x1b[1;2H") || strings.Count(got, "\x1b7") != 1) {
 				t.Errorf("3 high, overlays = %.40q, want the bar's on line 1", got)
 			}
-			// The song's line cut too: the cover's second line shows, its
-			// image does not.
+			// The song's line cut too: a cover cut shows blank, where it
+			// was.
 			h.resize(80, 2)
 			h.covered()
-			if line, _, _ := strings.Cut(h.screen(), "\n"); !strings.HasPrefix(line, " "+tc.cells[1]+" 0:41 ") {
+			if line, _, _ := strings.Cut(h.screen(), "\n"); !strings.HasPrefix(line, strings.Repeat(" ", 6)+"0:41 ") {
 				t.Errorf("2 high, line 0 is %q", line)
 			}
 			if got := h.overlays(); got != "" {
