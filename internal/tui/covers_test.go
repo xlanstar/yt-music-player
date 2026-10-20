@@ -79,7 +79,7 @@ func (c *coverHost) RoundTrip(r *http.Request) (*http.Response, error) {
 // current song's from host.
 func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 	h.t.Helper()
-	h.m.probe, h.m.covers = coverGfx(p, host, h.m.posts.post)
+	h.m.probe, h.m.covers = testCovers(p, host, h.m.posts.post)
 	want := []string{termimage.CellSizeQuery}
 	if p == termimage.None {
 		want = nil
@@ -93,9 +93,9 @@ func (h *harness) withCovers(p termimage.Protocol, host *coverHost) {
 	h.mirror.songs[song.ID] = song
 }
 
-// coverGfx shows covers as YTM_IMAGES=p says, of 10×20-pixel cells, from
+// testCovers shows covers as YTM_IMAGES=p says, of 10×20-pixel cells, from
 // host; post runs on the UI thread what its loads and encodes bring.
-func coverGfx(p termimage.Protocol, host *coverHost, post func(func())) (probe, covers) {
+func testCovers(p termimage.Protocol, host *coverHost, post func(func())) (probe, covers) {
 	return probe{
 		env:     termimage.Env{Override: p.String()},
 		replies: termimage.Replies{CellW: 10, CellH: 20},
@@ -510,12 +510,12 @@ func TestCoverPlaces(t *testing.T) {
 	}
 }
 
-// startCovers is coverGfx started, closed when t ends, its posts run when
+// startCovers is testCovers started, closed when t ends, its posts run when
 // the test says.
 func startCovers(t *testing.T, p termimage.Protocol, host *coverHost) (*probe, *covers, *poster) {
 	t.Helper()
 	posts := newPoster()
-	pr, g := coverGfx(p, host, posts.post)
+	pr, g := testCovers(p, host, posts.post)
 	pr.start()
 	t.Cleanup(func() { g.close() })
 	return &pr, &g, posts
