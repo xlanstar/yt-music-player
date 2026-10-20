@@ -558,3 +558,29 @@ func TestSeekCells(t *testing.T) {
 		})
 	}
 }
+
+// A selected row clicked again, drawn before its list changed, plays
+// nothing once gone: past the queue's end, or with another page shown.
+func TestClickStaleRow(t *testing.T) {
+	h := viewing(t, viewCases[0].prepare)
+	x, y := h.find("Song 2490 ")
+	h.click(x, y)
+	h.mirror.setQueue(longQueue(10))
+	h.clock = h.clock.Add(time.Second)
+	h.click(x, y)
+	h.wantCalls("a click on a selected row gone")
+	if !strings.Contains(h.selectedLine(), "Song 9 ") {
+		t.Errorf("selected %q, want the queue's last song", h.selectedLine())
+	}
+
+	h = viewing(t, viewCases[0].prepare)
+	x, y = h.find("Song 2490 ")
+	h.click(x, y)
+	h.m.tab = tabLibrary
+	h.clock = h.clock.Add(time.Second)
+	h.click(x, y)
+	h.wantCalls("a click on the queue's selected row under the library")
+	if h.m.opened[tabLibrary].kind != 0 {
+		t.Errorf("opened %+v from a row of the queue", h.m.opened[tabLibrary])
+	}
+}

@@ -140,7 +140,8 @@ func (m *model) click(ms tea.Mouse) (ok bool, cmd tea.Cmd) {
 }
 
 // clickRow selects row h, and plays or opens it if it was selected
-// already or double-clicked.
+// already or double-clicked. A row drawn before the page changed, no
+// longer on its list, plays nothing; the next fit moves its selection.
 func (m *model) clickRow(h hit, isDouble bool) {
 	wasTyping := m.isTyping
 	m.isTyping = false
@@ -152,8 +153,12 @@ func (m *model) clickRow(h hit, isDouble bool) {
 	if wasTyping || !isSelected && !isDouble {
 		return
 	}
+	p := m.page()
+	if p.list != h.list || p.title != "" || h.i < 0 || h.i >= p.n || !p.selectable(h.i) {
+		return
+	}
 	m.lastClick.hasActed = true
-	m.activate()
+	m.activateOn(&p)
 }
 
 // seekAt drags the progress, drawn at bar, to cell x; a drag goes on

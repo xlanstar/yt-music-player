@@ -521,6 +521,11 @@ func (m *model) moveBy(delta int) {
 // album or playlist, or retries what failed.
 func (m *model) activate() bool {
 	p := m.page()
+	return m.activateOn(&p)
+}
+
+// activateOn activates what p, the shown page, selects.
+func (m *model) activateOn(p *page) bool {
 	if p.retry != nil {
 		p.retry()
 		return true
