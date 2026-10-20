@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"image"
+	"slices"
 	"strings"
 	"testing"
 	"yt-music-player/internal/api"
@@ -11,6 +13,7 @@ import (
 	"yt-music-player/internal/termimage"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // The screens' layout as it is, to hold while render changes: each golden
@@ -170,4 +173,98 @@ func TestCollectionHeader(t *testing.T) {
 	h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
 	h.covered()
 	goldenText(t, "album-wide", h.screens([2]int{51, 12}, [2]int{80, 12}))
+}
+
+// Every screen stays inside the terminal at every size up to 90×26, by
+// either width method: its lines, hits, covers, overlays and cursor.
+// Drawing over cells drawn panics (panicOnOverlap).
+func TestScreensFit(t *testing.T) {
+	album := func(p termimage.Protocol) func(h *harness) {
+		return func(h *harness) {
+			h.withCovers(p, newCoverHost(h.t))
+			h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
+		}
+	}
+	for _, tc := range []struct {
+		name    string
+		prepare func(h *harness)
+	}{
+		{"wide-queue", func(h *harness) {
+			h.withCovers(termimage.Sixel, newCoverHost(h.t))
+			h.mirror.setQueue(append(slices.Clone(wideSongs), emojiSongs...))
+			h.mirror.state.Playing = true
+			h.send(postedMsg{})
+			h.press("down", "l")
+		}},
+		{"help", func(h *harness) { h.press("?") }},
+		{"typing", func(h *harness) {
+			h.press("/")
+			h.typeText("夜明けのアーケード")
+		}},
+		{"notice", func(h *harness) {
+			h.m.say("夜明けのアーケード, a notice longer than most")
+			// Rendered, not run: the notice's end would wait for it.
+			h.send(postedMsg{})
+		}},
+		{"banner", func(h *harness) { h.m.setLink(remote.Link{Health: remote.Unavailable, Connection: 1}) }},
+		{"album-sixel", album(termimage.Sixel)},
+		{"album-kitty", album(termimage.Kitty)},
+		{"album-blocks", album(termimage.Blocks)},
+	} {
+		for _, method := range []string{"wcwidth", "graphemes"} {
+			t.Run(tc.name+"-"+method, func(t *testing.T) {
+				h := newHarness(t, wideAlbum{catalog.NewPlaceholderSource(0)})
+				if method == "graphemes" {
+					h.send(unicodeCore)
+				}
+				tc.prepare(h)
+				h.covered()
+				for w := range 91 {
+					for ht := range 27 {
+						h.resize(w, ht)
+						h.covered()
+						checkFits(t, h)
+					}
+				}
+			})
+		}
+	}
+}
+
+// checkFits fails unless what h's last render drew is inside its screen,
+// the overlays above its last line.
+func checkFits(t *testing.T, h *harness) {
+	t.Helper()
+	w, ht := h.m.width, h.m.height
+	screen := image.Rect(0, 0, w, ht)
+	if h.m.content != "" {
+		lines := strings.Split(h.m.content, "\n")
+		if len(lines) > ht {
+			t.Fatalf("%d×%d: %d lines", w, ht, len(lines))
+		}
+		for y, line := range lines {
+			if lw := h.m.cells.width(line); lw > w {
+				t.Fatalf("%d×%d: line %d is %d cells: %q", w, ht, y, lw, ansi.Strip(line))
+			}
+		}
+	}
+	s := &h.m.scene
+	for _, x := range s.hits {
+		if x.shown.Empty() || !x.shown.In(screen) {
+			t.Fatalf("%d×%d: a hit shows at %v", w, ht, x.shown)
+		}
+	}
+	for _, r := range s.covers {
+		if !r.rect.In(screen) {
+			t.Fatalf("%d×%d: a cover at %v", w, ht, r.rect)
+		}
+	}
+	if s.hasCursor && !s.cursor.In(screen) {
+		t.Fatalf("%d×%d: the cursor at %v", w, ht, s.cursor)
+	}
+	for _, p := range h.m.covers.places {
+		if r := image.Rect(p.X, p.Y, p.X+p.Cols, p.Y+p.Rows); p.Seq != "" && !r.In(image.Rect(0, 0, w, ht-1)) {
+			t.Fatalf("%d×%d: an overlay at %v", w, ht, r)
+		}
+	}
 }
