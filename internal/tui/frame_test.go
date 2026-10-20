@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"errors"
+	"image"
 	"reflect"
 	"slices"
 	"strings"
@@ -126,8 +127,8 @@ func TestPrepareFitRowsDrawn(t *testing.T) {
 		name    string
 		prepare func(h *harness)
 	}{
-		{"queue-5000", viewCases[0].prepare},
-		{"search", viewCases[2].prepare},
+		{"queue-5000", viewCase("queue-5000")},
+		{"search", viewCase("search")},
 		{"album", func(h *harness) {
 			h.press("down")
 			h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
@@ -144,6 +145,54 @@ func TestPrepareFitRowsDrawn(t *testing.T) {
 					h.resize(80, ht)
 					checkListDrawn(t, h)
 				}
+			}
+		})
+	}
+}
+
+// Prepare lays the page's header and the covers out: the header's rows
+// by its kind, as many as the body has; a cover only where its rows fit
+// and 40 cells are left beside it.
+func TestPrepareSubLayout(t *testing.T) {
+	noCover := beside{textX: padX}
+	withCover := func(y int) beside {
+		return beside{cover: image.Rect(padX, y, padX+4, y+2), textX: padX + 4 + gapX}
+	}
+	album := func(h *harness) {
+		h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
+		h.covered()
+	}
+	for _, tc := range []struct {
+		name            string
+		w, h            int
+		prepare         func(h *harness)
+		header, content [2]int
+		head, bar       beside
+	}{
+		{"queue", 80, 24, func(*harness) {}, [2]int{2, 2}, [2]int{2, 20}, noCover, withCover(barSong)},
+		{"search", 80, 24, viewCase("search"), [2]int{2, 4}, [2]int{4, 20}, noCover, withCover(barSong)},
+		{"album", 80, 24, album, [2]int{2, 5}, [2]int{5, 20}, withCover(0), withCover(barSong)},
+		// Two body rows hold the header's cover; one doesn't.
+		{"album-2-rows", 80, 8, album, [2]int{2, 4}, [2]int{4, 4}, withCover(0), withCover(barSong)},
+		{"album-1-row", 80, 7, album, [2]int{2, 3}, [2]int{3, 3}, noCover, withCover(barSong)},
+		{"album-44", 44, 24, album, [2]int{2, 5}, [2]int{5, 20}, withCover(0), withCover(barSong)},
+		{"album-43", 43, 24, album, [2]int{2, 5}, [2]int{5, 20}, noCover, noCover},
+		{"nothing-playing", 80, 24, func(h *harness) {
+			h.mirror.state.Current = ""
+		}, [2]int{2, 2}, [2]int{2, 20}, noCover, noCover},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t, albumArt{catalog.NewPlaceholderSource(0)})
+			h.withCovers(termimage.Sixel, newCoverHost(t))
+			tc.prepare(h)
+			h.resize(tc.w, tc.h)
+			f := h.m.prepare()
+			if f.header != band(tc.w, tc.header[0], tc.header[1]-tc.header[0]) ||
+				f.content != band(tc.w, tc.content[0], tc.content[1]-tc.content[0]) {
+				t.Errorf("header %v, content %v", f.header, f.content)
+			}
+			if f.head != tc.head || f.bar != tc.bar {
+				t.Errorf("head %+v, bar %+v; want %+v, %+v", f.head, f.bar, tc.head, tc.bar)
 			}
 		})
 	}
@@ -235,11 +284,11 @@ func TestDrawTwice(t *testing.T) {
 		// src is the album's source, if not the placeholder's.
 		src catalog.Source
 	}{
-		{"queue-5000", viewCases[0].prepare, nil},
-		{"library", viewCases[1].prepare, nil},
-		{"search", viewCases[2].prepare, nil},
-		{"help", viewCases[3].prepare, nil},
-		{"queue-cover-sixel", viewCases[5].prepare, nil},
+		{"queue-5000", viewCase("queue-5000"), nil},
+		{"library", viewCase("library"), nil},
+		{"search", viewCase("search"), nil},
+		{"help", viewCase("help"), nil},
+		{"queue-cover-sixel", viewCase("queue-cover-sixel"), nil},
 		{"album-covers-loading", func(h *harness) {
 			host := newCoverHost(h.t)
 			host.hold = make(chan struct{})

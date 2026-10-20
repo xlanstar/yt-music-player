@@ -287,7 +287,7 @@ func TestHitsDrawn(t *testing.T) {
 		prepare func(h *harness)
 		want    map[hitKind]int
 	}{
-		{"queue-5000", viewCases[0].prepare, map[hitKind]int{hitTab: 3, hitRow: 18, hitProgress: 1, hitHelp: 1}},
+		{"queue-5000", viewCase("queue-5000"), map[hitKind]int{hitTab: 3, hitRow: 18, hitProgress: 1, hitHelp: 1}},
 		{"signed-out", func(h *harness) {
 			h.m.session.ApplyAccount(api.AccountEvent{SignedIn: false})
 			h.m.setLink(remote.Link{Health: remote.Unresponsive, Connection: 1})
@@ -342,7 +342,7 @@ func TestHitsDrawn(t *testing.T) {
 
 // Every row of a long queue that shows selects its own song.
 func TestClickRows(t *testing.T) {
-	h := viewing(t, viewCases[0].prepare)
+	h := viewing(t, viewCase("queue-5000"))
 	_, top := h.find("Song 2483 ")
 	for y := top; y < top+18; y++ {
 		h.clock = h.clock.Add(time.Second)
@@ -568,7 +568,7 @@ func TestSeekCells(t *testing.T) {
 // A selected row clicked again, drawn before its list changed, plays
 // nothing once gone: past the queue's end, or with another page shown.
 func TestClickStaleRow(t *testing.T) {
-	h := viewing(t, viewCases[0].prepare)
+	h := viewing(t, viewCase("queue-5000"))
 	x, y := h.find("Song 2490 ")
 	h.click(x, y)
 	h.mirror.setQueue(longQueue(10))
@@ -579,7 +579,7 @@ func TestClickStaleRow(t *testing.T) {
 		t.Errorf("selected %q, want the queue's last song", h.selectedLine())
 	}
 
-	h = viewing(t, viewCases[0].prepare)
+	h = viewing(t, viewCase("queue-5000"))
 	x, y = h.find("Song 2490 ")
 	h.click(x, y)
 	h.m.tab = tabLibrary

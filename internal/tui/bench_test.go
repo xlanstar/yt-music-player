@@ -53,6 +53,16 @@ var viewCases = []struct {
 	}, 38},
 }
 
+// viewCase is viewCases' prepare of the case named name.
+func viewCase(name string) func(h *harness) {
+	for _, tc := range viewCases {
+		if tc.name == name {
+			return tc.prepare
+		}
+	}
+	panic("tui: no view case " + name)
+}
+
 // viewing is a screen of tc, rendered once.
 func viewing(tb testing.TB, prepare func(h *harness)) *harness {
 	h := placeholderHarness(tb)
@@ -121,7 +131,7 @@ var clickCases = []struct {
 	allocs  float64
 }{
 	// 0 allocs today.
-	{"row-queue-5000", viewCases[0].prepare, func(h *harness) [2]tea.Mouse {
+	{"row-queue-5000", viewCase("queue-5000"), func(h *harness) [2]tea.Mouse {
 		_, y := h.find("Song 2490 ")
 		return [2]tea.Mouse{leftAt(10, y), leftAt(10, y+1)}
 	}, 0},
