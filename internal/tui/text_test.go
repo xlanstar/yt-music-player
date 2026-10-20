@@ -70,7 +70,7 @@ func TestCellsWidth(t *testing.T) {
 		}
 		want := cells{
 			method: m.method,
-			cursor: m.method.StringWidth(cursorMark),
+			cursor: 1 + m.method.StringWidth(cursorMark),
 			mark:   1 + max(m.method.StringWidth(iconCurrent), m.method.StringWidth(iconPlayAll), m.method.StringWidth(iconLiked)),
 			heart:  1 + m.method.StringWidth(iconLiked),
 			thin:   m.method.StringWidth(ruleThin),

@@ -15,8 +15,8 @@ import (
 type cells struct {
 	method ansi.Method
 	// The columns rows give glyphs, measured once per method: the
-	// selected row's cursor, a row's mark (♪, ▶ or ♥, and a space) and a
-	// song's heart (a space and ♥).
+	// selected row's cursor (▸ and a space), a row's mark (♪, ▶ or ♥,
+	// and a space) and a song's heart (a space and ♥).
 	cursor, mark, heart int
 	// thin and thick are ruleThin's and ruleThick's widths.
 	thin, thick int
@@ -24,7 +24,7 @@ type cells struct {
 
 func newCells(method ansi.Method) cells {
 	c := cells{method: method}
-	c.cursor = c.width(cursorMark)
+	c.cursor = c.width(cursorMark) + 1
 	c.mark = max(c.width(iconCurrent), c.width(iconPlayAll), c.width(iconLiked)) + 1
 	c.heart = 1 + c.width(iconLiked)
 	c.thin, c.thick = c.width(ruleThin), c.width(ruleThick)

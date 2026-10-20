@@ -35,7 +35,7 @@ const (
 	iconCaret = "█"
 	// cursorMark is the selected row's cursor, which shows without
 	// colors too.
-	cursorMark = " ▸ "
+	cursorMark = "▸"
 	// ruleThin rules lines off; ruleThick marks the shown tab and the
 	// progress made.
 	ruleThin  = "─"

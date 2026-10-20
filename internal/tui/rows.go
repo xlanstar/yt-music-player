@@ -71,8 +71,8 @@ func (m *model) drawRow(g region, y int, it item, isSelected bool) {
 		g.fit(padX, y, it.text, max(w-2*padX, 0), styleHeading)
 		return
 	}
-	// The cursor's column before, the padding after.
-	inner := max(w-c.cursor-padX, 0)
+	// The padding and the cursor's column before, the padding after.
+	inner := max(w-padX-c.cursor-padX, 0)
 	blank := segment{width: c.mark}
 	var segs [8]segment
 	var parts []segment
@@ -95,7 +95,7 @@ func (m *model) drawRow(g region, y int, it item, isSelected bool) {
 		parts = columns(append(segs[:0], blank), it.playlist.Name, it.playlist.Owner, inner-c.mark)
 	}
 	if !isSelected {
-		x := c.cursor
+		x := padX + c.cursor
 		for i := range parts {
 			x = parts[i].draw(g, x, y, c)
 		}
@@ -103,8 +103,10 @@ func (m *model) drawRow(g region, y int, it item, isSelected bool) {
 	}
 	var b strings.Builder
 	b.Grow(4 * w)
+	writeSpaces(&b, padX)
 	b.WriteString(cursorMark)
-	used := c.cursor
+	b.WriteByte(' ')
+	used := padX + c.cursor
 	for i := range parts {
 		parts[i].write(&b, c)
 		used += parts[i].width
