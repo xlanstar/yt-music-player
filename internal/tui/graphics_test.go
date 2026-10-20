@@ -21,6 +21,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/colorprofile"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const coverURL = "https://lh3.googleusercontent.com/cover=w120-h120"
@@ -417,5 +418,92 @@ func TestCoverEvicts(t *testing.T) {
 	}
 	if seen["https://x/0"] || seen["https://x/1"] || !seen["https://x/9"] {
 		t.Errorf("kept %v, want the last %d", seen, numCovers)
+	}
+}
+
+// TestCoverPlaces shows each protocol's covers from cell 1, after a
+// space and before one: on an album's title and subtitle, and on the
+// bar's song and progress. A terminal narrower than a cover and
+// coverMinWidth shows none, and a short one moves the bar's up.
+func TestCoverPlaces(t *testing.T) {
+	blank := strings.Repeat("\u2800", 4)
+	for _, tc := range []struct {
+		p termimage.Protocol
+		// cells are a cover's lines, as the screen shows them.
+		cells [coverRows]string
+		// overlays are drawn over the cells, today a few frames after them.
+		isOverlay bool
+	}{
+		{termimage.Blocks, [coverRows]string{"▀▀▀▀", "▀▀▀▀"}, false},
+		{termimage.Kitty, [coverRows]string{}, false},
+		{termimage.Sixel, [coverRows]string{blank, blank}, true},
+		{termimage.ITerm2, [coverRows]string{blank, blank}, true},
+	} {
+		t.Run(tc.p.String(), func(t *testing.T) {
+			if tc.p == termimage.Kitty {
+				for r, line := range placeholders(t, 176) {
+					tc.cells[r] = ansi.Strip(line)
+				}
+			}
+			h := newHarness(t, albumArt{catalog.NewPlaceholderSource(0)})
+			h.withCovers(tc.p, newCoverHost(t))
+			h.m.open(opened{kind: itemAlbum, id: catalog.Placeholder().Albums[0].ID})
+			raws := h.covered()
+			// at checks that the cover shows from line y, of the screen's
+			// lines, beside texts.
+			at := func(what string, y int, texts ...string) {
+				t.Helper()
+				lines := strings.Split(h.screen(), "\n")
+				for r, text := range texts {
+					if want := " " + tc.cells[r] + " " + text; !strings.HasPrefix(lines[y+r], want) {
+						t.Errorf("%s: line %d is %q, want %q first", what, y+r, lines[y+r], want)
+					}
+				}
+			}
+			at("the header", 2, "Neon Tide", "Album · ")
+			at("the bar", 21, "❙❙ Midnight Arcade", "0:41 ")
+			if tc.isOverlay {
+				// Cell 1 of lines 2 and 21 is the terminal's (2, 3) and (2, 22).
+				if all := strings.Join(raws, ""); !strings.Contains(all, "\x1b7\x1b[3;2H") || !strings.Contains(all, "\x1b7\x1b[22;2H") {
+					t.Errorf("overlays = %.80q, want the header's and the bar's", raws)
+				}
+			}
+
+			// 4 cells and 40: covers show.
+			h.resize(44, 24)
+			h.covered()
+			at("the header, 44 wide", 2, "Neon Tide", "Album · ")
+			raws = h.run(h.send(tea.WindowSizeMsg{Width: 43, Height: 24}))
+			raws = append(raws, h.covered()...)
+			lines := strings.Split(h.screen(), "\n")
+			if lines[2] != " Neon Tide" || !strings.HasPrefix(lines[21], " ❙❙ Midnight Arcade") {
+				t.Errorf("43 wide, the header and the bar show\n%q\n%q", lines[2], lines[21])
+			}
+			for _, raw := range raws {
+				if strings.Contains(raw, "\x1b7") {
+					t.Errorf("43 wide, drew %.40q", raw)
+				}
+			}
+
+			// The bar's rule cut: its cover on lines 0 and 1, the header's gone.
+			raws = h.run(h.send(tea.WindowSizeMsg{Width: 80, Height: 3}))
+			raws = append(raws, h.covered()...)
+			at("the bar, 3 high", 0, "❙❙ Midnight Arcade", "0:41 ")
+			if tc.isOverlay && !slices.ContainsFunc(raws, func(raw string) bool { return strings.HasPrefix(raw, "\x1b7\x1b[1;2H") }) {
+				t.Errorf("3 high, overlays = %.40q, want the bar's on line 1", raws)
+			}
+			// The song's line cut too: the cover's second line shows, its
+			// image does not.
+			raws = h.run(h.send(tea.WindowSizeMsg{Width: 80, Height: 2}))
+			raws = append(raws, h.covered()...)
+			if line, _, _ := strings.Cut(h.screen(), "\n"); !strings.HasPrefix(line, " "+tc.cells[1]+" 0:41 ") {
+				t.Errorf("2 high, line 0 is %q", line)
+			}
+			for _, raw := range raws {
+				if strings.Contains(raw, "\x1b7") {
+					t.Errorf("2 high, drew %.40q", raw)
+				}
+			}
+		})
 	}
 }
