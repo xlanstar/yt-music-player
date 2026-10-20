@@ -15,12 +15,11 @@ type segment struct {
 	style   paint
 }
 
-// The columns' widths and the gap between them, in cells.
+// The columns' widths and the gap between them, in cells; cells measures
+// the glyphs' columns.
 const (
-	gap        = "  "
-	durWidth   = 6 // " 12:34"
-	heartWidth = 2
-	markWidth  = 2 // "♪ "
+	gap      = "  "
+	durWidth = 6 // " 12:34"
 	// Song rows show the artist from this width up, the album from
 	// albumFrom.
 	artistFrom = 24
@@ -40,11 +39,14 @@ func writeSpaces(b *strings.Builder, n int) {
 }
 
 // write writes s to b, in style unless plain.
-func (s *segment) write(b *strings.Builder, isPlain bool) {
-	text, fill := s.text, 0
-	if s.width > 0 {
-		text = fit(text, s.width)
-		fill = s.width - width(text)
+func (s *segment) write(b *strings.Builder, c *cells, isPlain bool) {
+	text, fill := s.text, s.width
+	if text != "" && s.width > 0 {
+		// Measured once: most text fits.
+		if fill -= c.width(text); fill < 0 {
+			text = c.fit(text, s.width)
+			fill = s.width - c.width(text)
+		}
 	}
 	if s.isRight {
 		writeSpaces(b, fill)
@@ -62,46 +64,49 @@ func (s *segment) write(b *strings.Builder, isPlain bool) {
 // row draws it on a line of w cells. The selected row is reversed, behind
 // a marker that shows without colors too.
 func (m *model) row(it item, w int, isSelected bool) string {
+	c := &m.cells
 	if it.kind == itemHeading {
-		return " " + styleHeading.Render(fit(it.text, max(w-2, 0)))
+		return " " + styleHeading.Render(c.fit(it.text, max(w-2, 0)))
 	}
-	// " ▸ " before, a space after.
-	inner := max(w-4, 0)
+	// The cursor's column before, a space after.
+	inner := max(w-c.cursor-1, 0)
+	blank := segment{width: c.mark}
 	var segs [8]segment
 	var parts []segment
 	switch it.kind {
 	case itemSong:
 		parts = m.songSegments(segs[:0], &it, inner)
 	case itemPlayAll:
-		parts = append(segs[:0], segment{text: "▶ ", style: styleAccent},
-			segment{text: locales.PlayAll(), width: max(inner-markWidth, 1), style: styleAccent})
+		parts = append(segs[:0], segment{text: iconPlayAll, width: c.mark, style: styleAccent},
+			segment{text: locales.PlayAll(), width: max(inner-c.mark, 1), style: styleAccent})
 	case itemLiked:
-		parts = columns(append(segs[:0], segment{text: "♥ ", style: styleAccent}), locales.LikedMusic(), it.text, inner-markWidth)
+		liked := segment{text: iconLiked, width: c.mark, style: styleAccent}
+		parts = columns(append(segs[:0], liked), locales.LikedMusic(), it.text, inner-c.mark)
 	case itemAlbum:
 		detail := it.album.Artist
 		if it.album.Year > 0 {
-			detail += " · " + strconv.Itoa(it.album.Year)
+			detail += separator + strconv.Itoa(it.album.Year)
 		}
-		parts = columns(append(segs[:0], segment{text: "  "}), it.album.Title, detail, inner-markWidth)
+		parts = columns(append(segs[:0], blank), it.album.Title, detail, inner-c.mark)
 	case itemPlaylist:
-		parts = columns(append(segs[:0], segment{text: "  "}), it.playlist.Name, it.playlist.Owner, inner-markWidth)
+		parts = columns(append(segs[:0], blank), it.playlist.Name, it.playlist.Owner, inner-c.mark)
 	}
 	var b strings.Builder
 	b.Grow(4 * w)
 	if !isSelected {
-		b.WriteString("   ")
+		writeSpaces(&b, c.cursor)
 		for i := range parts {
-			parts[i].write(&b, false)
+			parts[i].write(&b, c, false)
 		}
 		return b.String()
 	}
 	b.WriteString(styleSelected.pre)
-	b.WriteString(" ▸ ")
-	used := 3
+	b.WriteString(cursorMark)
+	used := c.cursor
 	for i := range parts {
 		start := b.Len()
-		parts[i].write(&b, true)
-		used += width(b.String()[start:])
+		parts[i].write(&b, c, true)
+		used += c.width(b.String()[start:])
 	}
 	writeSpaces(&b, w-used)
 	b.WriteString(styleSelected.post)
@@ -111,16 +116,16 @@ func (m *model) row(it item, w int, isSelected bool) string {
 // songSegments lays a song out in w cells: a mark if current, its title,
 // artist and album as room allows, its length and a heart if liked.
 func (m *model) songSegments(segs []segment, it *item, w int) []segment {
-	s := &it.song
-	mark, title := "  ", paint{}
+	s, c := &it.song, &m.cells
+	mark, title := "", paint{}
 	if it.isCurrent {
-		mark, title = "♪ ", styleAccent
+		mark, title = iconCurrent, styleAccent
 	}
-	rest := w - markWidth - durWidth - heartWidth
+	rest := w - c.mark - durWidth - c.heart
 	if rest < 1 {
 		return append(segs, segment{text: s.Title, width: max(w, 1), style: title})
 	}
-	segs = append(segs, segment{text: mark, style: styleAccent})
+	segs = append(segs, segment{text: mark, width: c.mark, style: styleAccent})
 	switch {
 	case rest >= albumFrom:
 		cols := rest - 2*len(gap)
@@ -142,13 +147,13 @@ func (m *model) songSegments(segs []segment, it *item, w int) []segment {
 	if s.Seconds > 0 {
 		dur = Clock(float64(s.Seconds))
 	}
-	heart := "  "
+	heart := ""
 	if m.session.Liked(s.ID) {
-		heart = " ♥"
+		heart = iconLiked
 	}
 	return append(segs,
 		segment{text: dur, width: durWidth, isRight: true, style: styleMuted},
-		segment{text: heart, style: styleAccent})
+		segment{text: heart, width: c.heart, isRight: true, style: styleAccent})
 }
 
 // columns lays out a label and its detail in w cells, as a song's title

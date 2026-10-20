@@ -315,7 +315,7 @@ func albumLine(album catalog.Album, songs []catalog.Song) string {
 	if album.Year > 0 {
 		parts = append(parts, strconv.Itoa(album.Year))
 	}
-	return strings.Join(parts, " · ") + " " + length(songs)
+	return strings.Join(parts, separator) + " " + length(songs)
 }
 
 // playlistLine is a playlist's line under its name.

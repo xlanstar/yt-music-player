@@ -20,7 +20,7 @@ func (h *harness) find(text string) (x, y int) {
 	h.t.Helper()
 	for y, line := range strings.Split(h.screen(), "\n") {
 		if before, _, ok := strings.Cut(line, text); ok {
-			return ansi.StringWidth(before), y
+			return h.m.cells.width(before), y
 		}
 	}
 	h.t.Fatalf("the screen lacks %q:\n%s", text, h.screen())
@@ -52,7 +52,7 @@ func (h *harness) progressBar() (y, start, n int) {
 		if strings.Trim(bar, "━─") != "" {
 			continue
 		}
-		return y, ansi.StringWidth(line[:i]), ansi.StringWidth(bar)
+		return y, h.m.cells.width(line[:i]), h.m.cells.width(bar)
 	}
 	h.t.Fatalf("no progress on the screen:\n%s", h.screen())
 	return 0, 0, 0

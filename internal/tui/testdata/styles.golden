@@ -1,10 +1,10 @@
 === selected
 \e[1;91m YT Music Player  \e[m\e[1;91m Queue \e[m  Search   Library          \e[90mLan (@lan) \e[m
 \e[90m──────────────────━━━━━━━───────────────────────────────────────\e[m
-   \e[91m♪ \e[m\e[91mMidnight Arcade\e[m       \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m3:47\e[m\e[91m ♥\e[m
-   \e[91m  \e[mSatellite Hearts      \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m4:05\e[m\e[91m  \e[m
+   \e[91m♪\e[m \e[91mMidnight Arcade\e[m       \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m3:47\e[m \e[91m♥\e[m
+     Satellite Hearts      \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m4:05\e[m
 \e[7m ▸   Paper Moons           Ivy Calder     Paper Moons    3:12   \e[m
-   \e[91m  \e[mSlow Burn Summer      \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:34\e[m\e[91m  \e[m
+     Slow Burn Summer      \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:34\e[m
 \e[90m────────────────────────────────────────────────────────────────\e[m
  \e[91m❙❙\e[m \e[1mMidnight Arcade\e[m\e[90m · Lumen Drive\e[m                             \e[91m♥\e[m
  0:41 \e[91m━━━━━━━━━\e[m\e[90m───────────────────────────────────────────\e[m 3:47
@@ -12,10 +12,10 @@
 === playing
 \e[1;91m YT Music Player  \e[m\e[1;91m Queue \e[m  Search   Library          \e[90mLan (@lan) \e[m
 \e[90m──────────────────━━━━━━━───────────────────────────────────────\e[m
-   \e[91m♪ \e[m\e[91mMidnight Arcade\e[m       \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m3:47\e[m\e[91m ♥\e[m
+   \e[91m♪\e[m \e[91mMidnight Arcade\e[m       \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m3:47\e[m \e[91m♥\e[m
 \e[7m ▸   Satellite Hearts      Lumen Drive    Neon Tide      4:05   \e[m
-   \e[91m  \e[mPaper Moons           \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:12\e[m\e[91m  \e[m
-   \e[91m  \e[mSlow Burn Summer      \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:34\e[m\e[91m  \e[m
+     Paper Moons           \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:12\e[m
+     Slow Burn Summer      \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:34\e[m
 \e[90m────────────────────────────────────────────────────────────────\e[m
  \e[91m▶\e[m \e[1mMidnight Arcade\e[m\e[90m · Lumen Drive\e[m                              \e[91m♥\e[m
  0:41 \e[91m━━━━━━━━━\e[m\e[90m───────────────────────────────────────────\e[m 3:47
@@ -24,8 +24,8 @@
 \e[1;91m YT Music Player  \e[m\e[1;91m Queue \e[m  Search   Library          \e[90mLan (@lan) \e[m
 \e[90m──────────────────━━━━━━━───────────────────────────────────────\e[m
 \e[7m ▸ ♪ Midnight Arcade       Lumen Drive    Neon Tide      3:47 ♥ \e[m
-   \e[91m  \e[mSatellite Hearts      \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m4:05\e[m\e[91m  \e[m
-   \e[91m  \e[mPaper Moons           \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:12\e[m\e[91m  \e[m
+     Satellite Hearts      \e[90mLumen Drive\e[m    \e[90mNeon Tide\e[m      \e[90m4:05\e[m
+     Paper Moons           \e[90mIvy Calder\e[m     \e[90mPaper Moons\e[m    \e[90m3:12\e[m
 \e[1;33m ! \e[mThe background player isn’t responding.  \e[1;36mR\e[m Restart
 \e[90m────────────────────────────────────────────────────────────────\e[m
  \e[91m❙❙\e[m \e[1mMidnight Arcade\e[m\e[90m · Lumen Drive\e[m                             \e[91m♥\e[m

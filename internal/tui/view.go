@@ -6,8 +6,6 @@ import (
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/remote"
 	"yt-music-player/locales"
-
-	"charm.land/lipgloss/v2"
 )
 
 // The tabs' lines, top to bottom; tabsRows counts them.
@@ -88,27 +86,27 @@ func (m *model) layoutIn() layoutIn {
 // appendTabs adds the app's name, the tabs and the account, over a rule
 // that marks the shown tab.
 func (m *model) appendTabs(lines []string, w int) []string {
-	y := len(lines)
+	y, c := len(lines), &m.cells
 	var top, rule strings.Builder
 	at := 0
 	if w >= 60 {
 		name := " " + appName + "  "
 		styleAccentB.write(&top, name)
-		at = width(name)
-		rule.WriteString(strings.Repeat("─", at))
+		at = c.width(name)
+		c.writeRepeat(&rule, ruleThin, at)
 	}
 	labels := [numTabs]string{tabQueue: locales.Queue(), tabSearch: locales.NavSearch(), tabLibrary: locales.NavLibrary()}
 	for i, label := range labels {
 		cell := " " + label + " "
-		style, mark := paint{}, "─"
+		style, mark := paint{}, ruleThin
 		if tab(i) == m.tab {
-			style, mark = styleAccentB, "━"
+			style, mark = styleAccentB, ruleThick
 		}
 		style.write(&top, cell)
 		top.WriteByte(' ')
-		cw := width(cell)
-		rule.WriteString(strings.Repeat(mark, cw))
-		rule.WriteString("─")
+		cw := c.width(cell)
+		c.writeRepeat(&rule, mark, cw)
+		c.writeRepeat(&rule, ruleThin, 1)
 		m.mark(hit{y: y + tabsLine, x0: at, x1: at + cw, kind: hitTab, tab: tab(i)})
 		at += cw + 1
 	}
@@ -120,11 +118,9 @@ func (m *model) appendTabs(lines []string, w int) []string {
 		account = locales.CliSignedOut()
 	}
 	var tabs [tabsRows]string
-	tabs[tabsLine] = spread("", top.String(), styleMuted.Render(fit(account, max(w-at-2, 0))+" "), w)
-	if at < w {
-		rule.WriteString(strings.Repeat("─", w-at))
-	}
-	tabs[tabsRule] = styleMuted.Render(fit(rule.String(), w))
+	tabs[tabsLine] = c.spread("", top.String(), styleMuted.Render(c.fit(account, max(w-at-2, 0))+" "), w)
+	c.writeRepeat(&rule, ruleThin, w-at)
+	tabs[tabsRule] = styleMuted.Render(c.fit(rule.String(), w))
 	return append(lines, tabs[:]...)
 }
 
@@ -177,7 +173,7 @@ func (m *model) appendPageHeader(lines []string, w int, hd *header, cover []stri
 		if i < len(cover) {
 			line = cover[i] + line
 		}
-		lines = append(lines, fit(line, w))
+		lines = append(lines, m.cells.fit(line, w))
 	}
 	return lines
 }
@@ -187,7 +183,7 @@ func (m *model) searchInput() string {
 	prompt := styleKey.Render(" / ")
 	switch {
 	case m.isTyping:
-		return prompt + m.query + styleAccent.Render("█")
+		return prompt + m.query + styleAccent.Render(iconCaret)
 	case m.query == "":
 		return prompt + styleMuted.Render(locales.SearchPlaceholder())
 	}
@@ -196,15 +192,16 @@ func (m *model) searchInput() string {
 
 // appendMessage adds a page's message: its title, detail and hint.
 func (m *model) appendMessage(lines []string, w int, p *page) []string {
-	lines = append(lines, "", " "+styleBold.Render(fit(p.title, w-2)))
+	c := &m.cells
+	lines = append(lines, "", " "+styleBold.Render(c.fit(p.title, w-2)))
 	if p.detail != "" {
-		for line := range strings.Lines(lipgloss.Wrap(p.detail, max(w-2, 1), "")) {
+		for line := range strings.Lines(c.wrap(p.detail, max(w-2, 1))) {
 			lines = append(lines, " "+styleMuted.Render(strings.TrimRight(line, "\n")))
 		}
 	}
 	if p.hint != "" {
 		m.mark(hit{y: len(lines) + 1, x1: w, kind: hitHint})
-		lines = append(lines, "", " "+fit(p.hint, w-2))
+		lines = append(lines, "", " "+c.fit(p.hint, w-2))
 	}
 	return lines
 }
@@ -227,8 +224,9 @@ func (m *model) appendList(lines []string, w, rows int, p *page) []string {
 // appendHelp adds the keys and what they do in h lines, in as many
 // columns as that takes, each as wide as its text.
 func (m *model) appendHelp(lines []string, w, h int) []string {
-	title := fit(locales.TuiHelpTitle(), w-2)
-	mouse := fit(locales.TuiHelpMouse(), w-width(title)-4)
+	c := &m.cells
+	title := c.fit(locales.TuiHelpTitle(), w-2)
+	mouse := c.fit(locales.TuiHelpMouse(), w-c.width(title)-4)
 	if mouse != "" {
 		mouse = "  " + styleMuted.Render(mouse)
 	}
@@ -239,27 +237,27 @@ func (m *model) appendHelp(lines []string, w, h int) []string {
 	rows = (len(keys) + cols - 1) / cols
 	keyWidth := 0
 	for _, k := range keys {
-		keyWidth = max(keyWidth, width(k.keys))
+		keyWidth = max(keyWidth, c.width(k.keys))
 	}
 	doesWidth := make([]int, cols)
 	for i, k := range keys {
-		doesWidth[i/rows] = max(doesWidth[i/rows], width(k.does()))
+		doesWidth[i/rows] = max(doesWidth[i/rows], c.width(k.does()))
 	}
 	for r := range rows {
 		var b strings.Builder
 		left := w
-		for c := range cols {
-			i := c*rows + r
+		for col := range cols {
+			i := col*rows + r
 			if i >= len(keys) || left <= 0 {
 				break
 			}
-			key := fit("   "+pad(keys[i].keys, keyWidth)+"  ", left)
-			left -= width(key)
-			does := fit(keys[i].does(), max(left, 0))
-			if c < cols-1 {
-				does = pad(does, min(doesWidth[c], max(left, 0)))
+			key := c.fit("   "+c.pad(keys[i].keys, keyWidth)+"  ", left)
+			left -= c.width(key)
+			does := c.fit(keys[i].does(), max(left, 0))
+			if col < cols-1 {
+				does = c.pad(does, min(doesWidth[col], max(left, 0)))
 			}
-			left -= width(does)
+			left -= c.width(does)
 			b.WriteString(styleKey.Render(key))
 			b.WriteString(does)
 		}
@@ -320,48 +318,48 @@ func (m *model) banner(w int) (line string, hasKey bool) {
 	case remote.FrontendOutdated:
 		text = locales.TuiFrontendOutdated(l.Daemon.Hello.Version, l.Daemon.Version)
 	}
-	return fit(styleWarn.Render(" ! ")+text, w), hasKey
+	return m.cells.fit(styleWarn.Render(" "+iconWarn+" ")+text, w), hasKey
 }
 
 // appendBar adds the player bar: the current song, its progress, and
 // the status line (shuffle, repeat, volume; a notice, or the help key).
 func (m *model) appendBar(lines []string, w int, f *frame) []string {
 	st := m.mirror.State()
-	y := len(lines)
+	y, c := len(lines), &m.cells
 	var bar [barRows]string
-	bar[barRule] = styleMuted.Render(strings.Repeat("─", w))
+	bar[barRule] = m.rule(w)
 	song, ok := m.mirror.Song(st.Current)
 	if !ok || st.Current == "" {
-		bar[barSong] = " " + styleMuted.Render(fit(locales.TuiNothingPlaying(), w-2))
+		bar[barSong] = " " + styleMuted.Render(c.fit(locales.TuiNothingPlaying(), w-2))
 	} else {
-		icon := "❙❙"
+		icon := iconPaused
 		switch {
 		case st.Waiting:
-			icon = "…"
+			icon = iconWaiting
 		case st.Playing:
-			icon = "▶"
+			icon = iconPlaying
 		}
 		heart := ""
 		if m.session.Liked(song.ID) {
-			heart = styleAccent.Render("♥") + " "
+			heart = styleAccent.Render(iconLiked) + " "
 		}
 		title := " " + styleAccent.Render(icon) + " " + styleBold.Render(song.Title)
 		if song.Artist != "" {
-			title += styleMuted.Render(" · " + song.Artist)
+			title += styleMuted.Render(separator + song.Artist)
 		}
 		// The cover spans the song and its progress.
 		r := f.covers[slotBar]
 		cover, x := m.gfx.lines(r), r.rect.Max.X
-		bar[barSong] = spread(coverLine(cover, 0), title, heart, w-x)
+		bar[barSong] = c.spread(coverLine(cover, 0), title, heart, w-x)
 		bar[barProgress] = m.progress(st, coverLine(cover, 1), x, y+barProgress, w)
 	}
 	right := keyHint("?", locales.TuiHelp()) + " "
 	if m.notice != "" {
-		right = styleAccent.Render(fit(m.notice, max(w*2/3, 1))) + " "
+		right = styleAccent.Render(c.fit(m.notice, max(w*2/3, 1))) + " "
 	} else {
-		m.mark(hit{y: y + barStatus, x0: w - width(right), x1: w - 1, kind: hitHelp})
+		m.mark(hit{y: y + barStatus, x0: w - c.width(right), x1: w - 1, kind: hitHelp})
 	}
-	bar[barStatus] = spread("", " "+styleMuted.Render(f.status), right, w)
+	bar[barStatus] = c.spread("", " "+styleMuted.Render(f.status), right, w)
 	return append(lines, bar[:]...)
 }
 
@@ -377,21 +375,38 @@ func coverLine(lines []string, i int) string {
 // x cells wide, as a bar between its elapsed and whole length, a space
 // before the end.
 func (m *model) progress(st api.State, cover string, x, y, w int) string {
-	pos := m.position(st)
+	pos, c := m.position(st), &m.cells
 	elapsed := Clock(pos)
 	if st.Duration <= 0 {
 		return cover + " " + elapsed
 	}
 	total := Clock(st.Duration)
-	start := x + 1 + width(elapsed) + 1
-	bar := w - start - 1 - width(total) - 1
+	start := x + 1 + c.width(elapsed) + 1
+	bar := w - start - 1 - c.width(total) - 1
 	if bar < 4 {
 		return cover + " " + elapsed + " / " + total
 	}
 	m.mark(hit{y: y, x0: start, x1: start + bar, kind: hitProgress})
 	done := min(int(pos/st.Duration*float64(bar)), bar)
-	return cover + " " + elapsed + " " + styleAccent.Render(strings.Repeat("━", done)) +
-		styleMuted.Render(strings.Repeat("─", bar-done)) + " " + total
+	var b strings.Builder
+	b.Grow(len(cover) + len(ruleThick)*bar + 64)
+	b.WriteString(cover)
+	b.WriteByte(' ')
+	b.WriteString(elapsed)
+	b.WriteByte(' ')
+	c.writeRule(&b, styleAccent, ruleThick, done)
+	c.writeRule(&b, styleMuted, ruleThin, bar-done)
+	b.WriteByte(' ')
+	b.WriteString(total)
+	return b.String()
+}
+
+// rule is a line of w cells, ruled off.
+func (m *model) rule(w int) string {
+	var b strings.Builder
+	b.Grow(len(ruleThin)*w + 16)
+	m.cells.writeRule(&b, styleMuted, ruleThin, w)
+	return b.String()
 }
 
 // status says what is on of shuffle and repeat, and the volume.
@@ -412,7 +427,7 @@ func (m *model) status(st api.State) string {
 	}
 	parts[n] = m.volumeText(st)
 	n++
-	return strings.Join(parts[:n], " · ")
+	return strings.Join(parts[:n], separator)
 }
 
 func (m *model) volumeText(st api.State) string {

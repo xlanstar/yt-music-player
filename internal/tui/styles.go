@@ -19,6 +19,33 @@ var (
 	styleHeading  = paintOf(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.BrightBlack))
 )
 
+// The icons and the pieces of rules and lines. Their widths come from the
+// frame's cells, never assumed one cell: ▶, ♥, ━ and ─ are East Asian
+// Ambiguous.
+const (
+	iconPlaying = "▶"
+	iconPaused  = "❙❙"
+	iconWaiting = "…"
+	iconPlayAll = "▶"
+	iconLiked   = "♥"
+	// iconCurrent marks the current song's row.
+	iconCurrent = "♪"
+	iconWarn    = "!"
+	// iconCaret is the search input's cursor.
+	iconCaret = "█"
+	// cursorMark is the selected row's cursor, which shows without
+	// colors too.
+	cursorMark = " ▸ "
+	// ruleThin rules lines off; ruleThick marks the shown tab and the
+	// progress made.
+	ruleThin  = "─"
+	ruleThick = "━"
+	// separator goes between the parts of a line: an artist, a year.
+	separator = " · "
+	// ellipsis ends text cut to fit.
+	ellipsis = "…"
+)
+
 // paint is a Lip Gloss style as the escape sequences around its text,
 // rendered once: a screen paints hundreds of cells, and rendering a
 // style parses it anew each time. Text painted is one line, without

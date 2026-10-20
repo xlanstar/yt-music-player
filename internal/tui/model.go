@@ -19,6 +19,7 @@ import (
 	"yt-music-player/locales"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // The model's times and steps.
@@ -118,6 +119,8 @@ type model struct {
 	// quiet gives the heap back once Update rests.
 	quiet quiet.GC
 
+	// cells measures text as the renderer does.
+	cells   cells
 	memo    memo
 	content string
 	// hits reuse storage for content's click targets to avoid per-frame allocations.
@@ -145,7 +148,7 @@ type clearNoticeMsg struct{ seq uint64 }
 type openedDesktopMsg struct{ err error }
 
 func newModel(d deps) *model {
-	return &model{deps: d, queueFollows: true}
+	return &model{deps: d, cells: newCells(ansi.GraphemeWidth), queueFollows: true}
 }
 
 // Init implements tea.Model: it asks the terminal how it shows images.

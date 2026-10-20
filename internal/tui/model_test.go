@@ -507,7 +507,7 @@ func TestWideTitles(t *testing.T) {
 	h.resize(60, 12)
 	h.golden("queue-wide-titles")
 	for line := range strings.Lines(h.screen()) {
-		if w := width(strings.TrimRight(line, "\n")); w > 60 {
+		if w := h.m.cells.width(strings.TrimRight(line, "\n")); w > 60 {
 			t.Errorf("a line %d cells wide: %q", w, line)
 		}
 	}
