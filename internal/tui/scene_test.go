@@ -184,6 +184,7 @@ func TestRegionLine(t *testing.T) {
 	lines.line(0, 1, "one")
 	lines.line(2, 2, "two")
 	lines.line(0, 3, "below")
+	lines.line(12, 1, "past")
 	screen.sub(image.Rect(-2, 2, 8, 3)).line(0, 0, "abcd")
 	if got, want := composed(s), "one\n  two\ncd"; got != want {
 		t.Errorf("composed %q, want %q", got, want)

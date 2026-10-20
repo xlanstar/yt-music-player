@@ -28,7 +28,6 @@ type span struct {
 // overlap, the hits and the covers wholly shown, which compose joins once
 // covers.sync readied them. It keeps its storage from frame to frame.
 type scene struct {
-	w, h  int
 	cells cells
 	// rows are each row's spans, by x.
 	rows [][]span
@@ -44,7 +43,7 @@ type scene struct {
 // screen's region.
 func (s *scene) reset(w, h int, c cells) region {
 	w, h = max(w, 0), max(h, 0)
-	s.w, s.h, s.cells = w, h, c
+	s.cells = c
 	if h > cap(s.rows) {
 		s.rows = slices.Grow(s.rows[:cap(s.rows)], h-cap(s.rows))
 	}
@@ -209,7 +208,7 @@ func (g region) text(x, y int, s string, p paint) int {
 // parts' lines, until they draw into regions.
 func (g region) line(x, y int, s string) {
 	at := g.bounds.Min.Add(image.Pt(x, y))
-	r := image.Rect(at.X, at.Y, g.bounds.Max.X, at.Y+1)
+	r := canon(image.Rectangle{Min: at, Max: image.Pt(g.bounds.Max.X, at.Y+1)})
 	shown := r.Intersect(g.clip)
 	switch {
 	case s == "" || shown.Empty():
