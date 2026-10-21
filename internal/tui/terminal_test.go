@@ -547,7 +547,11 @@ func TestTermQuit(t *testing.T) {
 	tm := runTerm(t, h)
 	tm.frameWith("\x1bP", 0)
 	all := tm.quit()
-	_, after, ok := strings.Cut(all[strings.LastIndex(all, "\x1b[?2026h"):], "\x1b[?1049l")
+	_, lastFrame, ok := strings.CutLast(all, "\x1b[?2026h")
+	if !ok {
+		t.Fatalf("wrote no synchronized frame: %q", all)
+	}
+	_, after, ok := strings.Cut(lastFrame, "\x1b[?1049l")
 	if !ok || strings.Contains(after, "\x1b7") {
 		t.Errorf("after the alternate screen, wrote %q", after)
 	}

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -191,11 +190,11 @@ func placeholderHarness(t testing.TB) *harness {
 	t.Helper()
 	src := catalog.NewPlaceholderSource(0)
 	h := newHarness(t, src)
-	user, err := src.Account(context.Background())
+	user, err := src.Account(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	lib, err := src.Library(context.Background())
+	lib, err := src.Library(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -201,7 +201,7 @@ func TestWidthMethods(t *testing.T) {
 						t.Errorf("%d wide: a line of %d cells: %q", w, lw, line)
 					}
 				}
-				if cols := lengthColumns(c, h.screen(), len(songs)); slices.ContainsFunc(cols, func(x int) bool { return x != cols[0] }) {
+				if cols := lengthColumns(t, c, h.screen(), len(songs)); slices.ContainsFunc(cols, func(x int) bool { return x != cols[0] }) {
 					t.Errorf("%d wide: songs' lengths end at cells %v:\n%s", w, cols, h.screen())
 				}
 			}
@@ -211,11 +211,16 @@ func TestWidthMethods(t *testing.T) {
 
 // lengthColumns returns the cell of the last colon of the first n rows
 // under the tabs: where each song's length shows.
-func lengthColumns(c cells, screen string, n int) []int {
+func lengthColumns(t *testing.T, c cells, screen string, n int) []int {
+	t.Helper()
 	lines := strings.Split(screen, "\n")[tabsRows : tabsRows+n]
 	cols := make([]int, len(lines))
 	for i, line := range lines {
-		cols[i] = c.width(line[:strings.LastIndex(line, ":")])
+		before, _, ok := strings.CutLast(line, ":")
+		if !ok {
+			t.Fatalf("row %d shows no length: %q", i, line)
+		}
+		cols[i] = c.width(before)
 	}
 	return cols
 }
