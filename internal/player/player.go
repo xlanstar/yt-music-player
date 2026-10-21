@@ -30,13 +30,17 @@ const (
 // Repeat is what plays after a song or the queue ends.
 type Repeat uint8
 
-// Repeat modes, in CycleRepeat order.
+// Repeat modes, in CycleRepeat order. Their values are daemon.json's
+// "repeat" too: add new ones only at the end, never reorder.
 const (
 	RepeatOff Repeat = iota
 	RepeatAll
 	RepeatOne
 	repeatModes
 )
+
+// Valid reports whether r is a repeat mode, as one read from a file may not.
+func (r Repeat) Valid() bool { return r < repeatModes }
 
 // Player is the playback state. Exported fields are plain values so UI
 // controls can bind to them; the queue changes only through methods.

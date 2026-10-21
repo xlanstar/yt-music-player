@@ -271,3 +271,15 @@ func TestLen(t *testing.T) {
 		t.Error("an empty queue is not empty")
 	}
 }
+
+// The modes' values are daemon.json's: changing one misreads saved files.
+func TestRepeatValues(t *testing.T) {
+	for _, tc := range []struct{ mode, value Repeat }{{RepeatOff, 0}, {RepeatAll, 1}, {RepeatOne, 2}} {
+		if tc.mode != tc.value || !tc.mode.Valid() {
+			t.Errorf("mode %d, want %d and valid", tc.mode, tc.value)
+		}
+	}
+	if repeatModes.Valid() || Repeat(255).Valid() {
+		t.Error("a value past the modes is valid")
+	}
+}
