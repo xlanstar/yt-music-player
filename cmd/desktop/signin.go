@@ -22,7 +22,7 @@ func (a *app) accountButton(c *ui.Context) {
 			return
 		}
 		signIn := pill(c, "sign-in", nil, locales.SignIn(), pillOpts{style: pillLight, size: pillMedium}).
-			Padding(0, th.Space(4)).Margin(0, 0, 0, th.Space(1.5))
+			Margin(0, 0, 0, th.Space(1.5))
 		if signIn.Clicked() {
 			a.openSignIn()
 		}

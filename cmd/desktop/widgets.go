@@ -340,7 +340,7 @@ func sectionHeader(c *ui.Context, key any, eyebrowText, title, action string) bo
 			heading(c, title, th.Type.Section, 2).SingleLine()
 		})
 		if action != "" {
-			clicked = pill(c, key, nil, action, pillOpts{style: pillGhost, size: pillMedium}).Height(32).Clicked()
+			clicked = pill(c, key, nil, action, pillOpts{style: pillGhost, size: pillMedium}).Clicked()
 		}
 	})
 	return clicked
