@@ -147,6 +147,8 @@ type client struct {
 	frames chan api.Frame
 	// events are those received while waiting for a reply.
 	events []api.Event
+	// ahead are the parts of the last reply, which came before it.
+	ahead []*api.Ahead
 }
 
 // connect greets the Service as a front-end of role and Proto; a
@@ -234,15 +236,20 @@ func (c *client) send(cl api.Call) uint32 {
 	return c.nextID
 }
 
-// reply waits for the reply to id, keeping the events before it.
+// reply waits for the reply to id, its parts joined and kept in ahead,
+// keeping the events before it.
 func (c *client) reply(id uint32) api.Reply {
 	c.t.Helper()
+	c.ahead = nil
 	for {
 		f := c.next()
 		switch {
 		case f.Event != nil:
 			c.events = append(c.events, *f.Event)
+		case f.Reply != nil && f.ID == id && f.Reply.Ahead != nil:
+			c.ahead = append(c.ahead, f.Reply.Ahead)
 		case f.Reply != nil && f.ID == id:
+			f.Reply.Join(c.ahead)
 			return *f.Reply
 		case f.Reply != nil:
 			c.t.Fatalf("reply to %d while waiting for %d's", f.ID, id)

@@ -19,6 +19,8 @@ type daemon struct {
 	// answer returns the reply to a call, nil for none. Unset, it replies
 	// with no result.
 	answer func(*api.Call) *api.Reply
+	// ahead returns the parts of a call's reply, sent before it.
+	ahead func(*api.Call) []*api.Ahead
 	// greeted runs once it greeted a connection; it may send events.
 	greeted func(*ipc.Conn)
 	// then runs after a call's reply went; it may send events.
@@ -75,6 +77,11 @@ func (d *daemon) serve(ctx context.Context, conn *ipc.Conn) {
 		reply := &api.Reply{}
 		if d.answer != nil {
 			reply = d.answer(f.Call)
+		}
+		if reply != nil && d.ahead != nil {
+			for _, a := range d.ahead(f.Call) {
+				_ = conn.Send(api.Frame{ID: f.ID, Reply: &api.Reply{Ahead: a}})
+			}
 		}
 		if reply != nil {
 			_ = conn.Send(api.Frame{ID: f.ID, Reply: reply})

@@ -7,7 +7,6 @@ import (
 	"yt-music-player/internal/account"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
-	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/version"
 )
@@ -18,12 +17,14 @@ import (
 const jumpSlack = 1
 
 const (
-	// songsPerFrame bounds the songs of an event (about 70 KB): gob keeps a
-	// connection's buffer as large as the largest frame it sent.
+	// songsPerFrame bounds the songs of an event, or the items of a reply's
+	// part (about 70 KB): gob keeps a connection's buffer as large as the
+	// largest frame it sent.
 	songsPerFrame = 256
-	// maxSongFrames bounds a list's frames, so that a snapshot's two lists
-	// fill at most half a connection's queue, whose overflow closes it.
-	maxSongFrames = ipc.QueueLen / 4
+	// maxSongFrames bounds the frames of an event's songs, or about those
+	// of a reply's parts, an eighth of a connection's queue (ipc.QueueLen),
+	// whose overflow closes it.
+	maxSongFrames = 16
 )
 
 // sentState is what the subscribers were last told, to send only what
@@ -190,7 +191,7 @@ func (s *Service) snapshot() []api.Frame {
 }
 
 // carry moves the songs of ev too many for one frame into events of songs
-// alone, appended to ahead, to go first: every Proto 1 front-end keeps them.
+// alone, appended to ahead, to go first: every front-end keeps them.
 func carry(ahead []api.Frame, ev *api.Event) []api.Frame {
 	if len(ev.Songs) > songsPerFrame {
 		ahead = chunk(ahead, ev.Songs, queuedSongs)

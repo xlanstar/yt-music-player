@@ -1,11 +1,15 @@
 package daemon
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -366,6 +370,67 @@ func TestCatalogRequests(t *testing.T) {
 	}
 }
 
+// Replies too long for one frame come in parts of their lists, ahead of
+// the reply, all with the request's ID.
+func TestLongReplies(t *testing.T) {
+	h := newHarness(t, Options{})
+	c := h.connect(false)
+	liked := catalogtest.Decoded(1000)
+	id := c.send(api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: catalog.LikedID}})
+	h.src.Next(t, nil, "playlist", catalog.LikedID).Reply <- catalogtest.Reply{
+		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids(liked)}, Songs: liked,
+	}
+	r := c.reply(id)
+	if r.Playlist == nil || !slices.Equal(r.Playlist.Playlist.Songs, ids(liked)) || !reflect.DeepEqual(r.Playlist.Songs, liked) {
+		t.Errorf("playlist reply %+v", r.Playlist)
+	}
+	wantParts(t, c.ahead, 4)
+
+	lib := catalog.Library{Songs: songs(300), Albums: []catalog.Album{{ID: "MPREb_1"}}}
+	id = c.send(api.Call{Method: api.MethodLibrary})
+	h.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: lib}
+	if r := c.reply(id); r.Library == nil || !reflect.DeepEqual(*r.Library, lib) {
+		t.Errorf("library reply %+v", r.Library)
+	}
+	wantParts(t, c.ahead, 3)
+}
+
+// wantParts fails unless ahead are n parts of at most songsPerFrame items.
+func wantParts(t *testing.T, ahead []*api.Ahead, n int) {
+	t.Helper()
+	if len(ahead) != n {
+		t.Errorf("%d parts ahead, want %d", len(ahead), n)
+	}
+	for i, a := range ahead {
+		if items := len(a.Songs) + len(a.Albums) + len(a.Artists) + len(a.Playlists); items == 0 || items > songsPerFrame {
+			t.Errorf("part %d of %d items", i, items)
+		}
+	}
+}
+
+// failing is a connection that closed after its first frame.
+type failing struct{ sent int }
+
+func (f *failing) Send(api.Frame) error {
+	f.sent++
+	if f.sent > 1 {
+		return ipc.ErrClosed
+	}
+	return nil
+}
+
+// A reply's parts stop at the first that fails to send: the connection
+// closed, and the rest would fail too, each logged.
+func TestReplyAheadStops(t *testing.T) {
+	out := &failing{}
+	c := &conn{out: out}
+	r := &api.Reply{Playlist: &api.PlaylistReply{Songs: songs(5000)}}
+	c.replyAhead(1, r.Split(songsPerFrame, maxSongFrames), r)
+	if out.sent != 2 {
+		t.Errorf("%d sends, want 2", out.sent)
+	}
+}
+
 func TestCancel(t *testing.T) {
 	h := newHarness(t, Options{})
 	c := h.connect(false)
@@ -429,6 +494,114 @@ func TestBackpressure(t *testing.T) {
 		}
 	}
 	c.ping()
+}
+
+// A subscriber that stops reading keeps its connection while what a
+// front-end asks at most at once waits for it: a queue's songs, the
+// library, Liked music and a long playlist. Replies past the queue's
+// bound close it.
+func TestBackpressureReplies(t *testing.T) {
+	h := newHarness(t, Options{})
+	ours, theirs := net.Pipe()
+	go h.svc.Serve(theirs)
+	t.Cleanup(func() { _ = ours.Close() })
+	const pid = 80
+	enc := gob.NewEncoder(ours)
+	send := func(f api.Frame) {
+		t.Helper()
+		if err := enc.Encode(&f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send(api.Frame{Hello: &api.Hello{Proto: api.Proto, Version: "1.2.3", Role: api.RoleDesktop, Subscribe: true, PID: pid}})
+	// A byte read: the writer took the hello and snapshot of an empty
+	// queue, and waits for the rest of them to be read.
+	var first [1]byte
+	if _, err := io.ReadFull(ours, first[:]); err != nil {
+		t.Fatal(err)
+	}
+	long := songs(5000)
+	h.connect(false).call(api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: ids(long), Songs: long}})
+	lib := catalog.Library{Songs: long, Albums: make([]catalog.Album, 100), Artists: make([]catalog.Artist, 100), Playlists: make([]catalog.Playlist, 100)}
+	playlist := func(id uint32, list string) {
+		t.Helper()
+		send(api.Frame{ID: id, Call: &api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: list}}})
+		h.src.Next(t, nil, "playlist", list).Reply <- catalogtest.Reply{Playlist: catalog.Playlist{ID: list, Songs: ids(long)}, Songs: long}
+	}
+	send(api.Frame{ID: 1, Call: &api.Call{Method: api.MethodLibrary}})
+	h.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: lib}
+	playlist(2, catalog.LikedID)
+	playlist(3, "PLlong")
+	// Each reply was sent with its parts, or the connection closed.
+	stuck := func() *conn {
+		for c := range h.svc.conns {
+			if c.hello.PID == pid {
+				return c
+			}
+		}
+		return nil
+	}
+	h.until("answered", func() bool { c := stuck(); return c == nil || len(c.calls) == 0 })
+
+	// All of it comes, then nothing closes.
+	dec := gob.NewDecoder(io.MultiReader(bytes.NewReader(first[:]), ours))
+	frames, ahead, replies := 0, map[uint32][]*api.Ahead{}, map[uint32]*api.Reply{}
+	for len(replies) < 3 {
+		var f api.Frame
+		if err := dec.Decode(&f); err != nil {
+			t.Fatalf("closed after %d frames: %v", frames, err)
+		}
+		frames++
+		switch {
+		case f.Reply != nil && f.Reply.Ahead != nil:
+			ahead[f.ID] = append(ahead[f.ID], f.Reply.Ahead)
+		case f.Reply != nil:
+			f.Reply.Join(ahead[f.ID])
+			replies[f.ID] = f.Reply
+		}
+	}
+	if r := replies[1].Library; r == nil || len(r.Songs)+len(r.Albums)+len(r.Artists)+len(r.Playlists) != 5300 {
+		t.Errorf("library reply %+v", replies[1].Err)
+	}
+	for _, id := range []uint32{2, 3} {
+		if r := replies[id].Playlist; r == nil || len(r.Songs) != len(long) {
+			t.Errorf("playlist reply %d: %+v", id, replies[id].Err)
+		}
+	}
+	t.Logf("%d frames waited", frames)
+
+	// Replies past the queue's bound close it. The writer, taking the
+	// queue whole, may hold a batch besides: 2*QueueLen frames at most.
+	isClosed := func() bool {
+		var gone bool
+		h.do(func() { gone = stuck() == nil })
+		return gone
+	}
+	const most = 2*ipc.QueueLen/17 + 1
+	for id := uint32(4); !isClosed(); id++ {
+		if id == 4+most {
+			t.Fatalf("still open after %d replies", most)
+		}
+		list := "PL" + strconv.Itoa(int(id))
+		if enc.Encode(&api.Frame{ID: id, Call: &api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: list}}}) != nil {
+			break // it closed meanwhile
+		}
+		// The call reaches the source, unless the connection closed first.
+		deadline := time.After(wait)
+		for isAnswered := false; !isAnswered && !isClosed(); {
+			select {
+			case call := <-h.src.Calls:
+				if call.Kind != "playlist" || call.ID != list {
+					t.Fatalf("asked for %s %q, want playlist %q", call.Kind, call.ID, list)
+				}
+				call.Reply <- catalogtest.Reply{Playlist: catalog.Playlist{ID: list, Songs: ids(long)}, Songs: long}
+				isAnswered = true
+			case <-time.After(10 * time.Millisecond):
+			case <-deadline:
+				t.Fatalf("no request for playlist %q", list)
+			}
+		}
+	}
 }
 
 func TestAccount(t *testing.T) {

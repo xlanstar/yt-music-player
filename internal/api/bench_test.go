@@ -33,12 +33,26 @@ var encodeCases = []struct {
 		ids, songs := songs5000()
 		return &Frame{Event: &Event{Queue: &Queue{IDs: ids}, Songs: songs}}
 	}, 0.1}, // 0 allocs today.
-	{"playlist-5000", func() *Frame {
-		ids, songs := songs5000()
-		list := testPlaylist()
-		list.Songs = ids
-		return &Frame{ID: 9, Reply: &Reply{Playlist: &PlaylistReply{Playlist: list, Songs: songs}}}
+	// A playlist of 5000 as ytmd replies: 16 parts of 313 songs, then the
+	// playlist with its IDs.
+	{"part-313", func() *Frame {
+		ahead, _ := splitPlaylist5000()
+		return &Frame{ID: 9, Reply: &Reply{Ahead: ahead[0]}}
 	}, 0.1}, // 0 allocs today.
+	{"playlist-5000", func() *Frame {
+		_, r := splitPlaylist5000()
+		return &Frame{ID: 9, Reply: r}
+	}, 0.1}, // 0 allocs today.
+}
+
+// splitPlaylist5000 is a reply of a playlist of 5000 songs, split as ytmd
+// does (daemon's songsPerFrame and maxSongFrames).
+func splitPlaylist5000() ([]*Ahead, *Reply) {
+	ids, songs := songs5000()
+	list := testPlaylist()
+	list.Songs = ids
+	r := &Reply{Playlist: &PlaylistReply{Playlist: list, Songs: songs}}
+	return r.Split(256, 16), r
 }
 
 // steadyEncoder is an encoder that has sent f's types, writing into a
@@ -110,5 +124,91 @@ func BenchmarkCleanCredentials(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		sinkString = CleanCredentials(cookieHeader)
+	}
+}
+
+// partCases are long replies, sent in parts of 256 items, or more so that a
+// reply takes about 16 (daemon's songsPerFrame and maxSongFrames). split
+// and join hold each one's allocations (TestBudgetSplit, TestBudgetJoin).
+var partCases = []struct {
+	name        string
+	reply       func() *Reply
+	split, join float64
+}{
+	// 2 allocs today: the parts and their list; 1: the songs.
+	{"playlist-5000", func() *Reply {
+		ids, songs := songs5000()
+		list := testPlaylist()
+		list.Songs = ids
+		return &Reply{Playlist: &PlaylistReply{Playlist: list, Songs: songs}}
+	}, 2, 1},
+	// 2 allocs today; 4: each list.
+	{"library-2000", func() *Reply { return &Reply{Library: longLibrary(2000, 2000, 2000, 2000)} }, 2, 5},
+}
+
+var sinkAhead []*Ahead
+
+// unsplit returns what puts back r's lists, to Split again.
+func unsplit(r *Reply) func() {
+	l, whole := r.lists(), *r
+	songs, albums, artists, playlists := value(l.songs), value(l.albums), value(l.artists), value(l.playlists)
+	return func() {
+		*r = whole
+		set(l.songs, songs)
+		set(l.albums, albums)
+		set(l.artists, artists)
+		set(l.playlists, playlists)
+	}
+}
+
+func value[T any](list *[]T) []T {
+	if list == nil {
+		return nil
+	}
+	return *list
+}
+
+func set[T any](list *[]T, v []T) {
+	if list != nil {
+		*list = v
+	}
+}
+
+// unjoin empties r's lists, as Split leaves them, to Join again.
+func unjoin(r *Reply) {
+	l := r.lists()
+	empty(l.songs)
+	empty(l.albums)
+	empty(l.artists)
+	empty(l.playlists)
+}
+
+func empty[T any](list *[]T) { set(list, nil) }
+
+func BenchmarkSplit(b *testing.B) {
+	for _, tc := range partCases {
+		b.Run(tc.name, func(b *testing.B) {
+			r := tc.reply()
+			undo := unsplit(r)
+			b.ReportAllocs()
+			for b.Loop() {
+				undo()
+				sinkAhead = r.Split(256, 16)
+			}
+		})
+	}
+}
+
+func BenchmarkJoin(b *testing.B) {
+	for _, tc := range partCases {
+		b.Run(tc.name, func(b *testing.B) {
+			r := tc.reply()
+			ahead := r.Split(256, 16)
+			b.ReportAllocs()
+			for b.Loop() {
+				r.Join(ahead)
+				unjoin(r)
+			}
+		})
 	}
 }

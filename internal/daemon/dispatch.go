@@ -172,7 +172,7 @@ func (s *Service) control(cl *api.Call) error {
 }
 
 // fetch asks the source off the loop; a request canceled meanwhile gets
-// no reply.
+// no reply. A long one goes in parts (api.Reply.Split).
 func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 	s.cancelCall(c, id)
 	ctx, cancel := context.WithCancel(s.ctx)
@@ -183,13 +183,14 @@ func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 		if ctx.Err() != nil {
 			return
 		}
+		ahead := r.Split(songsPerFrame, maxSongFrames)
 		s.post(func() {
 			if ctx.Err() != nil {
 				return
 			}
 			delete(c.calls, id)
 			cancel()
-			c.reply(id, r)
+			c.replyAhead(id, ahead, r)
 		})
 	}()
 }

@@ -93,6 +93,8 @@ type pending struct {
 	// ctx is a Go's; stop stops watching it.
 	ctx  context.Context
 	stop func() bool
+	// ahead are the parts of a long reply come so far (api.Ahead).
+	ahead []*api.Ahead
 }
 
 type result struct {
@@ -190,8 +192,11 @@ func (c *Client) read(l *link) {
 			c.sup.heard()
 		}
 		switch {
+		case f.Reply != nil && f.Reply.Ahead != nil:
+			c.keepAhead(l, f.ID, f.Reply.Ahead)
 		case f.Reply != nil:
 			if p := c.take(l, f.ID); p != nil {
+				f.Reply.Join(p.ahead)
 				c.finish(p, f.Reply, f.Reply.Err.Err())
 			}
 		case f.Event != nil:
@@ -212,6 +217,16 @@ func (c *Client) drop(l *link, err error) {
 	log.Debug().Err(err).Uint64("link", l.n).Int("pending", len(calls)).Msg("remote: disconnected")
 	for _, p := range calls {
 		c.finish(p, nil, api.ErrDisconnected)
+	}
+}
+
+// keepAhead keeps a part of call id's reply until the rest comes; a call
+// no longer pending, canceled say, drops it.
+func (c *Client) keepAhead(l *link, id uint32, a *api.Ahead) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if p := l.pending[id]; p != nil {
+		p.ahead = append(p.ahead, a)
 	}
 }
 

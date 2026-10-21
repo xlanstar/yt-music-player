@@ -65,10 +65,10 @@ func TestStatusJSONShapes(t *testing.T) {
 		want   string
 	}{
 		{"stopped", nil, exitStopped, `{"running":false}` + "\n"},
-		{"incompatible", incompatible, exitFailed, `{"running":true,"version":"2.0.0","proto":2,"compatible":false}` + "\n"},
+		{"incompatible", incompatible, exitFailed, `{"running":true,"version":"2.0.0","proto":3,"compatible":false}` + "\n"},
 		{
 			"idle", idle, exitOK,
-			`{"running":true,"version":"0.3.0","proto":1,"compatible":true,"state":"idle","position":0,"duration":0,"volume":100,"muted":false,"repeat":"all","shuffle":false,"song":null,"queue":{"index":0,"length":0},"account":{"signedIn":false,"name":""}}` + "\n",
+			`{"running":true,"version":"0.3.0","proto":2,"compatible":true,"state":"idle","position":0,"duration":0,"volume":100,"muted":false,"repeat":"all","shuffle":false,"song":null,"queue":{"index":0,"length":0},"account":{"signedIn":false,"name":""}}` + "\n",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

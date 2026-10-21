@@ -247,7 +247,7 @@ func TestIncompatibleDaemon(t *testing.T) {
 		if code := w.run(t, "version"); code != exitOK {
 			t.Errorf("exit %d", code)
 		}
-		want := "ytm 1.0.0 (proto 1)\nytmd 2.0.0 (proto 2)\n"
+		want := "ytm 1.0.0 (proto 2)\nytmd 2.0.0 (proto 3)\n"
 		if got := w.stdout.String(); got != want {
 			t.Errorf("stdout %q, want %q", got, want)
 		}
@@ -259,7 +259,7 @@ func TestVersion(t *testing.T) {
 	if code := w.run(t, "version"); code != exitOK {
 		t.Errorf("exit %d", code)
 	}
-	if got, want := w.stdout.String(), "ytm 1.0.0 (proto 1)\n"; got != want {
+	if got, want := w.stdout.String(), "ytm 1.0.0 (proto 2)\n"; got != want {
 		t.Errorf("stdout %q, want %q", got, want)
 	}
 }

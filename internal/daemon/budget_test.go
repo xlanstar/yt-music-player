@@ -10,6 +10,7 @@ import (
 	"weak"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/budget"
+	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 )
 
@@ -132,10 +133,79 @@ func TestBudgetLiveConn(t *testing.T) {
 	h.do(func() {}) // its unregister
 	live := (with - liveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 193 KB today, mostly gob's buffer for the snapshot's event, the songs
-	// gone ahead (carry): with them, 2754.
+	// 200 KB today, mostly gob's buffer for the snapshot's event, the songs
+	// gone ahead (carry), 10 the queue's frames: with them, 2754.
 	if live > 222 {
 		t.Errorf("%d KB live, budget 222", live)
+	}
+}
+
+// TestBudgetLiveReply holds the heap a connection keeps once it got a reply
+// of 5000 liked songs: with the connection, less once it closed.
+func TestBudgetLiveReply(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	h := newHarness(t, Options{})
+	ours, theirs := net.Pipe()
+	served := make(chan struct{})
+	go func() {
+		h.svc.Serve(theirs)
+		close(served)
+	}()
+	fetchLiked(t, h, ours)
+	go io.Copy(io.Discard, ours) //nolint:errcheck // ends as the pipe closes
+	with := liveHeap()
+	_ = ours.Close()
+	<-served
+	h.do(func() {}) // its unregister
+	live := (with - liveHeap()) / 1024
+	t.Logf("%d KB live", live)
+	// 145 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
+	// 5000 in 16); the reply whole, 1435.
+	if live > 160 {
+		t.Errorf("%d KB live, budget 160", live)
+	}
+}
+
+// fetchLiked greets the daemon over nc and fetches Liked music, which the
+// source answers with 5000 songs, reading frames up to its reply, then a
+// ping's; the decoder and songs go with it, so that only the daemon's side
+// stays.
+func fetchLiked(t *testing.T, h *harness, nc net.Conn) {
+	t.Helper()
+	liked := catalogtest.Decoded(5000)
+	enc, dec := gob.NewEncoder(nc), gob.NewDecoder(nc)
+	hello := api.Hello{Proto: api.Proto, Version: "1.2.3", Role: api.RoleTUI, PID: 79}
+	call := api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: catalog.LikedID}}
+	for _, f := range []api.Frame{{Hello: &hello}, {ID: 1, Call: &call}} {
+		if err := enc.Encode(&f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.src.Next(t, nil, "playlist", catalog.LikedID).Reply <- catalogtest.Reply{
+		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids(liked)}, Songs: liked,
+	}
+	readReply(t, dec, 1)
+	// A round trip more lets the fetch's goroutine, which held the reply,
+	// end: on one P it may not have yet.
+	if err := enc.Encode(&api.Frame{ID: 2, Call: &api.Call{Method: api.MethodPing}}); err != nil {
+		t.Fatal(err)
+	}
+	readReply(t, dec, 2)
+}
+
+// readReply reads frames up to the whole reply to id.
+func readReply(t *testing.T, dec *gob.Decoder, id uint32) {
+	t.Helper()
+	for {
+		var f api.Frame
+		if err := dec.Decode(&f); err != nil {
+			t.Fatal(err)
+		}
+		if f.ID == id && f.Reply != nil && f.Reply.Ahead == nil {
+			return
+		}
 	}
 }
 

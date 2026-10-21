@@ -24,7 +24,7 @@ import (
 
 // Proto is the protocol's version, sent in Hello. Peers of different
 // Protos exchange only the bootstrap messages.
-const Proto uint16 = 1
+const Proto uint16 = 2
 
 // Frame is one message on the socket; exactly one of Hello, Call, Reply,
 // Cancel and Event is set.
@@ -67,7 +67,8 @@ type Call struct {
 }
 
 // Reply answers a Call: Err, or at most one result. Methods without a
-// result reply with neither.
+// result reply with neither. A long result's lists may come first, in
+// Replies of the request's ID with Ahead alone.
 type Reply struct {
 	Err      *Error
 	Results  *catalog.Results
@@ -78,6 +79,7 @@ type Reply struct {
 	Account  *catalog.Account
 	Library  *catalog.Library
 	Status   *Status
+	Ahead    *Ahead
 }
 
 // Event is what changed in the daemon, sent to subscribed connections:

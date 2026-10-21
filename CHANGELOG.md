@@ -8,7 +8,8 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 - The app and `ytm` download covers as WebP, about a third smaller at the same sharpness, so pages fill sooner and the cover cache holds more.
 - In `ytm`, iTerm2 3.7.5 and later show covers as Kitty's placeholders, text the terminal keeps, so covers are never redrawn and never vanish.
-- The background player uses less memory: it fetches your library and liked songs only once the app or `ytm` opens, and keeps about 2.5 MB less for each open window or `ytm` when thousands of songs are liked or queued.
+- The background player uses less memory: it fetches your library and liked songs only once the app or `ytm` opens, and keeps about 2.5 MB less for each open window or `ytm` when thousands of songs are liked or queued, and 1.3 MB less once one opened a playlist of thousands.
+- After updating while the background player of 0.2.0 still runs (started at login, say), `ytm`'s commands, such as `ytm play` or `ytm status`, refuse to work, saying so, until the app or the `ytm` player opens or `ytm daemon restart` runs.
 
 ### Fixed
 

@@ -13,8 +13,9 @@ import (
 
 // QueueLen is how many frames a Conn holds for a peer that reads slower
 // than they come; one more closes the connection, and the peer, connecting
-// again, gets a full snapshot.
-const QueueLen = 64
+// again, gets a full snapshot. Replies count: twice what a front-end waits
+// for at most at once, a queue's songs, its library and two long lists.
+const QueueLen = 128
 
 var (
 	// ErrClosed is returned by a Conn closed by Close or Shutdown.

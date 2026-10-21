@@ -114,6 +114,61 @@ func TestSourceReplies(t *testing.T) {
 	})
 }
 
+// A reply in parts reaches its caller whole; one canceled or failed
+// midway leaves nothing behind.
+func TestReplyInParts(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newDaemon("1.0.0")
+		songs := []catalog.Song{song("a"), song("b"), song("c"), song("d")}
+		playlist := catalog.Playlist{ID: "PL", Songs: []string{"a", "b", "c", "d"}}
+		d.answer = func(c *api.Call) *api.Reply {
+			switch c.Method {
+			case api.MethodPlaylist:
+				return &api.Reply{Playlist: &api.PlaylistReply{Playlist: playlist, Songs: songs[3:]}}
+			case api.MethodSearch:
+				return &api.Reply{Err: &api.Error{Code: api.CodeSignedOut}}
+			}
+			return nil
+		}
+		d.ahead = func(c *api.Call) []*api.Ahead {
+			if c.Method == api.MethodHome {
+				return nil
+			}
+			return []*api.Ahead{{Songs: songs[:1]}, {Songs: songs[1:3]}}
+		}
+		f := newFront()
+		attach(t, f, d)
+		pl, got, err := f.client.Playlist(t.Context(), "PL")
+		if err != nil || !reflect.DeepEqual(pl, playlist) || !reflect.DeepEqual(got, songs) {
+			t.Errorf("Playlist = %+v, %+v, %v", pl, got, err)
+		}
+		if _, err := f.client.Search(t.Context(), "q"); !errors.Is(err, catalog.ErrSignedOut) {
+			t.Errorf("Search = %v, want its error", err)
+		}
+
+		// Canceled after its first part, the call ends; the rest drops.
+		ctx, cancel := context.WithCancel(t.Context())
+		errs := make(chan error, 1)
+		go func() {
+			_, err := f.client.Home(ctx)
+			errs <- err
+		}()
+		synctest.Wait()
+		d.send(api.Frame{ID: 3, Reply: &api.Reply{Ahead: &api.Ahead{Songs: songs}}})
+		synctest.Wait()
+		cancel()
+		if err := <-errs; !errors.Is(err, context.Canceled) {
+			t.Errorf("Home = %v, want canceled", err)
+		}
+		d.send(api.Frame{ID: 3, Reply: &api.Reply{Ahead: &api.Ahead{Songs: songs}}})
+		d.send(api.Frame{ID: 3, Reply: &api.Reply{Home: &catalog.Home{}}})
+		pl, got, err = f.client.Playlist(t.Context(), "PL")
+		if err != nil || pl.ID != "PL" || !reflect.DeepEqual(got, songs) {
+			t.Errorf("Playlist after = %+v, %+v, %v", pl, got, err)
+		}
+	})
+}
+
 func TestCallCanceled(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		d := newDaemon("1.0.0")

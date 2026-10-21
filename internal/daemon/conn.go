@@ -30,13 +30,28 @@ type conn struct {
 	calls map[uint32]func()
 }
 
-func (c *conn) send(f api.Frame) {
+// send sends f; false if it failed, as every later send will: the
+// connection closed.
+func (c *conn) send(f api.Frame) bool {
 	if err := c.out.Send(f); err != nil {
 		log.Debug().Int("pid", c.hello.PID).Err(err).Msg("send")
+		return false
 	}
+	return true
 }
 
 func (c *conn) reply(id uint32, r *api.Reply) { c.send(api.Frame{ID: id, Reply: r}) }
+
+// replyAhead sends r after the parts that go ahead of it, up to the first
+// send that fails.
+func (c *conn) replyAhead(id uint32, ahead []*api.Ahead, r *api.Reply) {
+	for _, a := range ahead {
+		if !c.send(api.Frame{ID: id, Reply: &api.Reply{Ahead: a}}) {
+			return
+		}
+	}
+	c.reply(id, r)
+}
 
 func (c *conn) fail(id uint32, err error) { c.reply(id, &api.Reply{Err: api.Encode(err)}) }
 

@@ -28,3 +28,29 @@ func TestBudgetCleanCredentials(t *testing.T) {
 	oneLine := strings.Join(strings.Fields(cookieHeader), " ")
 	budget.Allocs(t, 0, 100, func() { sinkString = CleanCredentials(oneLine) })
 }
+
+func TestBudgetSplit(t *testing.T) {
+	for _, tc := range partCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := tc.reply()
+			undo := unsplit(r)
+			budget.Allocs(t, tc.split, 20, func() {
+				undo()
+				sinkAhead = r.Split(256, 16)
+			})
+		})
+	}
+}
+
+func TestBudgetJoin(t *testing.T) {
+	for _, tc := range partCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := tc.reply()
+			ahead := r.Split(256, 16)
+			budget.Allocs(t, tc.join, 20, func() {
+				r.Join(ahead)
+				unjoin(r)
+			})
+		})
+	}
+}
