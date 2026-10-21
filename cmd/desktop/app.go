@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/duration"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/notice"
@@ -393,12 +393,13 @@ func cornerPainter(right bool) func(*ui.Painter, ui.Rect) {
 // length in every build.
 var clocks [60 * 60]string
 
+// clock says seconds as the TUI and ytm do (duration.Clock).
 func clock(seconds int) string {
 	if seconds < 0 || seconds >= len(clocks) {
-		return fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
+		return duration.Clock(float64(seconds))
 	}
 	if clocks[seconds] == "" {
-		clocks[seconds] = fmt.Sprintf("%d:%02d", seconds/60, seconds%60)
+		clocks[seconds] = duration.Clock(float64(seconds))
 	}
 	return clocks[seconds]
 }
@@ -420,7 +421,7 @@ func numeral(n int) string {
 
 // totalLength starts with "· ": the meta line shows it after the owner.
 func totalLength(songs []catalog.Song) string {
-	return locales.CollectionLength(len(songs), catalog.TotalSeconds(songs)/60)
+	return locales.CollectionLength(len(songs), duration.Minutes(catalog.TotalSeconds(songs)))
 }
 
 // syncLanguage drops the text made in the language shown before, so the
