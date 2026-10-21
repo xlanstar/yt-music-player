@@ -45,7 +45,9 @@ func (p *progress) isWatched() bool { return !p.isBlurred && !p.isHidden }
 // nextFrame returns how long after a frame showing pos of s the next one
 // is due, or 0 when none is.
 func (p *progress) nextFrame(s *api.State, pos float64) time.Duration {
-	if !s.Playing || s.Waiting || s.Current == "" || p.isHidden || s.Duration > 0 && pos >= s.Duration {
+	isMoving := s.Playing && !s.Waiting && s.Current != ""
+	isEnded := s.Duration > 0 && pos >= s.Duration
+	if !isMoving || isEnded || p.isHidden {
 		return 0
 	}
 	step := float64(focusedStep)
