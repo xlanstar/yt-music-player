@@ -137,11 +137,15 @@ func (m *model) clickRow(h hit, isDouble bool) {
 	}
 	isSelected := h.list.cursor == h.i
 	h.list.cursor = h.i
-	if wasTyping || !isSelected && !isDouble {
+	isActing := isSelected || isDouble
+	if wasTyping || !isActing {
 		return
 	}
 	p := m.page()
-	if p.list != h.list || p.title != "" || h.i < 0 || h.i >= p.n || !p.selectable(h.i) {
+	// The page now shows another list, or a message instead.
+	isStale := p.list != h.list || p.title != ""
+	isInRange := h.i >= 0 && h.i < p.n
+	if isStale || !isInRange || !p.selectable(h.i) {
 		return
 	}
 	m.lastClick.hasActed = true
