@@ -11,19 +11,24 @@ import (
 	"strings"
 	"sync"
 	"yt-music-player/internal/catalog"
+
+	"github.com/rs/zerolog/log"
 )
 
 // maxHomeContinuations caps the pages after the home feed's first: each
 // brings a few shelves, and scrolling that far is rare.
 const maxHomeContinuations = 3
 
-const newReleasesBrowseID = "FEmusic_new_releases_albums"
+const (
+	homeBrowseID        = "FEmusic_home"
+	newReleasesBrowseID = "FEmusic_new_releases_albums"
+)
 
 // Home returns the home feed's shelves: personal when signed in, else
 // those a visitor from the IP's region sees. A failed continuation ends
 // the feed early instead of failing it, unless ctx is done.
 func (c *Client) Home(ctx context.Context) (catalog.Home, error) {
-	resp, err := c.call(ctx, "browse", map[string]any{"browseId": "FEmusic_home"})
+	resp, err := c.call(ctx, "browse", map[string]any{"browseId": homeBrowseID})
 	if err != nil {
 		return catalog.Home{}, fmt.Errorf("ytmusic: home: %w", err)
 	}
@@ -49,6 +54,8 @@ func (c *Client) Home(ctx context.Context) (catalog.Home, error) {
 			if ctx.Err() != nil {
 				return catalog.Home{}, fmt.Errorf("ytmusic: home: %w", err)
 			}
+			log.Debug().Str("browseId", homeBrowseID).Int("shelves", len(shelves)).Err(err).
+				Msg("ytmusic: a continuation failed; the feed ends early")
 			break
 		}
 		list = next.ContinuationContents.SectionList

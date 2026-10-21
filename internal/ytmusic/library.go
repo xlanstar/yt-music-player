@@ -8,6 +8,8 @@ import (
 	"slices"
 	"sync"
 	"yt-music-player/internal/catalog"
+
+	"github.com/rs/zerolog/log"
 )
 
 // maxLibraryItems caps each library part: at 25 to 100 items a page, a
@@ -123,6 +125,8 @@ func (c *Client) libraryPart(ctx context.Context, browseID string, add func(row 
 			if ctx.Err() != nil || errors.Is(err, catalog.ErrSignedOut) {
 				return fmt.Errorf("ytmusic: library %s: after %d items: %w", browseID, added, err)
 			}
+			log.Debug().Str("browseId", browseID).Int("items", added).Err(err).
+				Msg("ytmusic: a continuation failed; the library part ends early")
 			return nil
 		}
 		page = cmp.Or(next.ContinuationContents.Grid, next.ContinuationContents.Shelf)
