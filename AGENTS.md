@@ -62,7 +62,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 
 `cmd/ytmd`: the daemon's `main` (lock, state, socket, run loop, signals); `source.go` (`source_placeholder.go` under the tag: the fake, playing silently on a clock).
 
-`cmd/ytm`: `ytm`, the TUI (`tui`) without arguments, else one command to ytmd (`ytm help`), run against a fake daemon in tests; `testdata/status.json` holds `status --json`.
+`cmd/ytm`: `ytm`, the TUI (`tui`) without arguments, else one command to ytmd (`ytm help`; `commands.go`: one table dispatches, lists and says them), run against a fake daemon in tests; `testdata/status.json` holds `status --json`.
 
 What each binary must not link: `docs/daemon.md` (Programs), held by `TestDeps`.
 

@@ -17,7 +17,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-	"yt-music-player/internal/api"
 	"yt-music-player/internal/autostart"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/logfile"
@@ -136,70 +135,31 @@ func startLog(paths ipc.Paths) func() {
 
 // run runs the command of args and returns its exit code.
 func run(ctx context.Context, args []string, e *env) int {
-	if len(args) > 0 && args[0] == "autostart" {
-		// It switches the entry itself.
-		return e.autostartCommand(args[1:])
-	}
-	repaired := e.repairAutostart()
-	defer func() {
-		select {
-		case <-repaired:
-		case <-time.After(repairWait):
-		}
-	}()
 	if len(args) == 0 {
+		defer waitRepair(e.repairAutostart())
 		return runTUI(ctx, e)
 	}
 	name, rest := args[0], args[1:]
-	switch name {
-	case "help", "-h", "--help":
-		e.help()
-		return exitOK
-	case "status":
-		return e.statusCommand(ctx, rest)
-	case "play", "pause", "toggle", "next", "prev":
-		if len(rest) > 0 {
-			return e.usage(name)
-		}
-		return e.call(ctx, api.Call{Method: controls[name]})
-	case "seek":
-		return e.seekCommand(ctx, rest)
-	case "volume":
-		return e.volumeCommand(ctx, rest)
-	case "login":
-		if len(rest) > 0 {
-			return e.usage(name)
-		}
-		return e.login(ctx)
-	case "logout":
-		if len(rest) > 0 {
-			return e.usage(name)
-		}
-		return e.logout(ctx)
-	case "daemon":
-		return e.daemonCommand(ctx, rest)
-	case "logs":
-		if len(rest) > 0 {
-			return e.usage(name)
-		}
-		return e.logs()
-	case "version":
-		if len(rest) > 0 {
-			return e.usage(name)
-		}
-		return e.versionCommand(ctx)
+	cmd, isKnown := findCommand(name)
+	if !cmd.isRepairSkipped {
+		defer waitRepair(e.repairAutostart())
 	}
-	writeLine(e.stderr, locales.CliUnknownCommand(name))
-	return exitUsage
+	switch {
+	case !isKnown:
+		writeLine(e.stderr, locales.CliUnknownCommand(name))
+		return exitUsage
+	case !cmd.hasArgs && len(rest) > 0:
+		return e.usage(cmd.name)
+	}
+	return cmd.run(e, ctx, rest)
 }
 
-// controls are the methods of the commands without arguments.
-var controls = map[string]api.Method{
-	"play":   api.MethodResume,
-	"pause":  api.MethodPause,
-	"toggle": api.MethodToggle,
-	"next":   api.MethodNext,
-	"prev":   api.MethodPrev,
+// waitRepair waits for repaired at the command's end, at most repairWait.
+func waitRepair(repaired <-chan struct{}) {
+	select {
+	case <-repaired:
+	case <-time.After(repairWait):
+	}
 }
 
 // writeLine writes s and a newline to w. A failed write, to a terminal or

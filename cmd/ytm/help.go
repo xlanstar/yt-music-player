@@ -7,60 +7,49 @@ import (
 	"yt-music-player/locales"
 )
 
-// usage is a command's synopsis: names and arguments, never translated.
-type usage struct {
-	command string
-	about   func() string
+// helpLine is a line of help: commands and their arguments, never
+// translated, and what they do.
+type helpLine struct {
+	commands string
+	about    func() string
 }
 
-// usages are the commands help lists, in order.
-var usages = []usage{
-	{"", locales.CliHelpTUI},
-	{synopses["status"], locales.CliHelpStatus},
-	{"play | pause | toggle", locales.CliHelpPlay},
-	{"next | prev", locales.CliHelpNext},
-	{synopses["seek"], locales.CliHelpSeek},
-	{synopses["volume"], locales.CliHelpVolume},
-	{"login", locales.CliHelpLogin},
-	{"logout", locales.CliHelpLogout},
-	{synopses["daemon"], locales.CliHelpDaemon},
-	{synopses["autostart"], locales.CliHelpAutostart},
-	{"logs", locales.CliHelpLogs},
-	{"version", locales.CliHelpVersion},
-	{"help", locales.CliHelpHelp},
-}
-
-// synopses are the commands that take arguments; the others' is their
-// name.
-var synopses = map[string]string{
-	"status":    "status [--json]",
-	"seek":      "seek <sec|+sec|-sec>",
-	"volume":    "volume <0-100|+n|-n>",
-	"daemon":    "daemon start|stop|restart|status",
-	"autostart": "autostart on|off|status",
+// helpLines are help's lines: the TUI's, then the commands', a command
+// without its own joining the line before.
+func helpLines() []helpLine {
+	lines := []helpLine{{"", locales.CliHelpTUI}}
+	for _, c := range commands() {
+		if c.about == nil {
+			lines[len(lines)-1].commands += " | " + c.name
+			continue
+		}
+		lines = append(lines, helpLine{c.synopsisOf(), c.about})
+	}
+	return lines
 }
 
 // help writes the list of commands.
 func (e *env) help() {
+	lines := helpLines()
 	width := 0
-	for _, u := range usages {
-		width = max(width, len("ytm ")+len(u.command))
+	for _, l := range lines {
+		width = max(width, len("ytm ")+len(l.commands))
 	}
 	var b strings.Builder
 	b.WriteString(locales.CliHelpTitle())
 	b.WriteString("\n\n")
-	for _, u := range usages {
-		line := strings.TrimSpace("ytm " + u.command)
-		fmt.Fprintf(&b, "  %-*s  %s\n", width, line, u.about())
+	for _, l := range lines {
+		line := strings.TrimSpace("ytm " + l.commands)
+		fmt.Fprintf(&b, "  %-*s  %s\n", width, line, l.about())
 	}
 	_, _ = io.WriteString(e.stdout, b.String())
 }
 
 // usage tells how command is used and returns exitUsage.
 func (e *env) usage(command string) int {
-	synopsis, ok := synopses[command]
-	if !ok {
-		synopsis = command
+	synopsis := command
+	if c, ok := findCommand(command); ok {
+		synopsis = c.synopsisOf()
 	}
 	writeLine(e.stderr, locales.CliUsage("ytm "+synopsis))
 	return exitUsage
