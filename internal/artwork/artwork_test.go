@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -419,6 +420,30 @@ func TestDiskCachePrunesOldest(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(dir, "*"))
 	if len(files) != 2 {
 		t.Errorf("files %q", files)
+	}
+}
+
+// A crash leaves a temporary file, which the first write's scan removes
+// once it is too old to be another process's write in progress.
+func TestDiskCacheRemovesLeftovers(t *testing.T) {
+	dir := t.TempDir()
+	old, fresh := filepath.Join(dir, "tmp-old"), filepath.Join(dir, "tmp-fresh")
+	for _, path := range []string{old, fresh} {
+		if err := os.WriteFile(path, []byte{1}, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	long := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(old, long, long); err != nil {
+		t.Fatal(err)
+	}
+	d := &disk{dir: dir, maxBytes: 1000}
+	d.put("a", []byte{1, 2, 3})
+	if _, err := os.Stat(old); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the old leftover stays: %v", err)
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Errorf("a write in progress went: %v", err)
 	}
 }
 
