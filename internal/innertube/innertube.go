@@ -149,10 +149,7 @@ func (c *Client) Call(ctx context.Context, endpoint string, body map[string]any,
 	}
 	for attempt := 0; ; attempt++ {
 		wait, err := c.do(ctx, endpoint, url, data, decode)
-		// Only a 429 or a 5xx may succeed on retry.
-		statusErr, isStatus := errors.AsType[*StatusError](err)
-		if err == nil || attempt >= retries || !isStatus ||
-			statusErr.StatusCode != http.StatusTooManyRequests && statusErr.StatusCode < 500 {
+		if err == nil || attempt >= retries || !retryable(err) {
 			return err
 		}
 		wait = max(wait, min(backoff<<attempt, maxRetryAfter))
@@ -164,6 +161,15 @@ func (c *Client) Call(ctx context.Context, endpoint string, body map[string]any,
 		case <-timer.C:
 		}
 	}
+}
+
+// retryable reports a 429 or a 5xx: only those may succeed on retry.
+func retryable(err error) bool {
+	statusErr, isStatus := errors.AsType[*StatusError](err)
+	if !isStatus {
+		return false
+	}
+	return statusErr.StatusCode == http.StatusTooManyRequests || statusErr.StatusCode >= 500
 }
 
 func (c *Client) payload(body map[string]any) ([]byte, error) {

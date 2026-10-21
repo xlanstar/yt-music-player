@@ -213,8 +213,10 @@ func (s *httpSource) download() {
 		case errors.Is(err, errMoved):
 			continue
 		}
+		failures++
 		status, isStatus := errors.AsType[statusError](err)
-		if failures++; isStatus && status.final() || failures >= maxAttempts {
+		isFinal := isStatus && status.final()
+		if isFinal || failures >= maxAttempts {
 			s.fail(err)
 			return
 		}
@@ -416,8 +418,10 @@ func (s *httpSource) put(at int64, b []byte) (moved, closed bool) {
 	// will not bring; past the window, the bytes would be dropped.
 	i, off := s.pos/chunkSize, s.pos%chunkSize
 	isKept := int64(len(s.chunks[i])) > off
+	readerAway := !isKept && (s.pos < at-chunkSize || s.pos > at+seekGap)
 	_, hi := s.window()
-	return !isKept && (s.pos < at-chunkSize || s.pos > at+seekGap) || at > hi*chunkSize, false
+	pastWindow := at > hi*chunkSize
+	return readerAway || pastWindow, false
 }
 
 // newChunk returns an empty chunk, a dropped one if any; the caller holds
