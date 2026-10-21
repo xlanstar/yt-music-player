@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-	"yt-music-player/internal/account"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 
@@ -62,7 +61,7 @@ func (s *Service) dispatch(c *conn, id uint32, cl *api.Call) {
 	case api.MethodSignOut:
 		s.signOutFor(c, id)
 	case api.MethodRefresh:
-		s.acct.Fetch(account.Part(cl.Part.Part - 1))
+		s.acct.Fetch(accountPart(cl.Part.Part))
 		c.reply(id, &api.Reply{})
 	case api.MethodPlay, api.MethodPlayAll, api.MethodEnqueue, api.MethodToggle,
 		api.MethodPause, api.MethodResume, api.MethodNext, api.MethodPrev,

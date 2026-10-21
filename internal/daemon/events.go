@@ -69,7 +69,7 @@ func (s *Service) state() api.State {
 		Duration: s.pb.SongLength(song),
 		Volume:   p.Volume,
 		Muted:    p.Muted,
-		Repeat:   api.Repeat(p.Repeat) + 1,
+		Repeat:   wireRepeat(p.Repeat),
 		Shuffled: p.IsShuffled(),
 		Current:  current,
 		Index:    p.Index(),
@@ -179,7 +179,7 @@ func (s *Service) snapshot() []api.Frame {
 	}
 	latest := s.acct.Latest()
 	if latest.Status != nil {
-		ev.Account = &api.AccountEvent{Account: latest.Status.Account, SignedIn: latest.Status.SignedIn}
+		ev.Account = accountEvent(latest.Status)
 	}
 	ev.Library = latest.Library
 	if latest.Likes != nil {
@@ -224,14 +224,6 @@ func likedSongs(songs []catalog.Song) *api.Event {
 	return &api.Event{Likes: &api.Likes{Songs: songs}}
 }
 
-func likesEvent(l *account.Likes) *api.Likes {
-	return &api.Likes{Full: l.Full, IDs: l.IDs, Songs: l.Songs, Added: l.Added, Removed: l.Removed}
-}
-
-func failedEvent(f account.Failure) *api.FailedEvent {
-	return &api.FailedEvent{Part: api.Part(f.Part) + 1, Err: api.Encode(f.Err)}
-}
-
 // accountChanged tells the subscribers what the account reports, after
 // the reply of the request that caused it.
 func (s *Service) accountChanged(c account.Change) {
@@ -244,7 +236,7 @@ func (s *Service) accountChanged(c account.Change) {
 			s.player.Clear()
 			s.hasLibrary = true
 		}
-		ev.Account = &api.AccountEvent{Account: c.Status.Account, SignedIn: c.Status.SignedIn, Switched: c.Status.Switched}
+		ev.Account = accountEvent(c.Status)
 	case c.Library != nil:
 		ev.Library = c.Library
 	case c.Likes != nil:

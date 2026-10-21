@@ -117,7 +117,7 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	if saved.V == stateVersion {
 		p.Volume, p.Muted = min(max(saved.Volume, 0), 1), saved.Muted
 	}
-	if api.Repeat(saved.Repeat + 1).Valid() {
+	if saved.Repeat.Valid() {
 		p.Repeat = saved.Repeat
 	}
 	s.player = p
