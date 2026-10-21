@@ -352,6 +352,17 @@ func (h *harness) loaded() {
 	h.until("loaded", func() bool { return h.fake.Loads > 0 })
 }
 
+// startLiking starts the Service, a subscriber connected, and answers its
+// fetches as Ada's, with an empty library and liked.
+func (h *harness) startLiking(liked []catalog.Song) {
+	h.t.Helper()
+	h.svc.Start()
+	calls := h.src.Take(h.t, nil, "account", "library", "playlist LM")
+	calls["account"].Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
+	calls["library"].Reply <- catalogtest.Reply{}
+	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
+}
+
 // until waits until cond, run on the loop, holds: what happens off the
 // loop comes back through it.
 func (h *harness) until(what string, cond func() bool) {

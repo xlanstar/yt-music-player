@@ -10,7 +10,6 @@ import (
 	"weak"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/budget"
-	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 )
 
@@ -111,12 +110,7 @@ func TestBudgetLiveConn(t *testing.T) {
 	}
 	h := newHarness(t, Options{Seed: catalogtest.Decoded(5000)})
 	c := h.connect(true)
-	h.svc.Start()
-	calls := h.src.Take(t, nil, "account", "library", "playlist LM")
-	liked := catalogtest.Decoded(5000)
-	calls["account"].Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
-	calls["library"].Reply <- catalogtest.Reply{}
-	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
+	h.startLiking(catalogtest.Decoded(5000))
 	// All three told, so that nothing is in flight while measuring.
 	for told := 0; told < 3; {
 		if ev := c.event(); ev.Account != nil || ev.Library != nil || ev.Likes != nil && ev.Likes.Full {

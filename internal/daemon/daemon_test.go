@@ -531,12 +531,8 @@ func TestLongLists(t *testing.T) {
 	h := newHarness(t, Options{})
 	c := h.connect(true)
 	c.event()
-	h.svc.Start()
 	liked := catalogtest.Decoded(1000)
-	calls := h.src.Take(t, nil, "account", "library", "playlist LM")
-	calls["account"].Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
-	calls["library"].Reply <- catalogtest.Reply{}
-	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
+	h.startLiking(liked)
 	ev, _, ahead := c.songsAhead(func(ev api.Event) bool { return ev.Likes != nil && ev.Likes.Full })
 	if !slices.Equal(ev.Likes.IDs, ids(liked)) || ev.Likes.Songs != nil || !reflect.DeepEqual(ahead, liked) {
 		t.Errorf("likes %d IDs, %d songs, %d ahead", len(ev.Likes.IDs), len(ev.Likes.Songs), len(ahead))
@@ -562,7 +558,8 @@ func TestLongLists(t *testing.T) {
 	}
 }
 
-// carry sends a long list whole ahead, in at most maxSongFrames frames.
+// carry sends each long list of an event whole ahead, in at most
+// maxSongFrames frames.
 func TestCarry(t *testing.T) {
 	for _, tc := range []struct{ n, frames, kept int }{
 		{0, 0, 0},
@@ -572,14 +569,20 @@ func TestCarry(t *testing.T) {
 		{100_000, maxSongFrames, 0},
 	} {
 		list := songs(tc.n)
-		ahead, kept := carry(nil, list, queuedSongs)
-		var sent []catalog.Song
+		ev := api.Event{Songs: list, Likes: &api.Likes{Songs: list}}
+		ahead := carry(nil, &ev)
+		var queued, liked []catalog.Song
 		for _, f := range ahead {
-			sent = append(sent, f.Event.Songs...)
+			queued = append(queued, f.Event.Songs...)
+			if f.Event.Likes != nil {
+				liked = append(liked, f.Event.Likes.Songs...)
+			}
 		}
-		sent = append(sent, kept...)
-		if len(ahead) != tc.frames || len(kept) != tc.kept || !slices.Equal(sent, list) {
-			t.Errorf("%d songs: %d frames, %d kept, %d sent; want %d frames, %d kept", tc.n, len(ahead), len(kept), len(sent), tc.frames, tc.kept)
+		queued, liked = append(queued, ev.Songs...), append(liked, ev.Likes.Songs...)
+		if len(ahead) != 2*tc.frames || len(ev.Songs) != tc.kept || len(ev.Likes.Songs) != tc.kept ||
+			!slices.Equal(queued, list) || !slices.Equal(liked, list) {
+			t.Errorf("%d songs: %d frames, %d and %d kept, %d and %d sent; want 2×%d frames, %d kept",
+				tc.n, len(ahead), len(ev.Songs), len(ev.Likes.Songs), len(queued), len(liked), tc.frames, tc.kept)
 		}
 	}
 }

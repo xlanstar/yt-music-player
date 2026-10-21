@@ -104,19 +104,18 @@ func (s *Service) settle() {
 func (s *Service) tell(st api.State, now time.Time, queueChanged bool, n notice.Notice, hasNotice bool) {
 	ev := &api.Event{State: &st}
 	s.sent.state, s.sent.at = st, now
-	var ahead []api.Frame
 	if queueChanged {
 		s.sent.queueGen = s.player.QueueGen()
 		ids := s.player.AppendPlayOrder(make([]string, 0, s.player.Len()))
 		ev.Queue = &api.Queue{IDs: ids}
-		ahead, ev.Songs = carry(nil, s.newSongs(ids), queuedSongs)
+		ev.Songs = s.newSongs(ids)
 	}
 	if hasNotice {
 		// A copy, so that n stays on the stack when there is none.
 		told := n
 		ev.Notice = &told
 	}
-	s.broadcast(ahead, ev)
+	s.broadcast(ev)
 }
 
 // compare reports whether st differs from the State last sent but in its
@@ -172,10 +171,12 @@ func (s *Service) snapshot() []api.Frame {
 	s.pb.Follow()
 	st := s.state()
 	ids := s.player.AppendPlayOrder(make([]string, 0, s.player.Len()))
-	ev := &api.Event{State: &st, Queue: &api.Queue{IDs: ids}}
-	// A copy: the catalog replaces songs in place.
-	frames, songs := carry(nil, slices.Clone(s.cat.Songs), queuedSongs)
-	ev.Songs = songs
+	ev := &api.Event{
+		State: &st,
+		Queue: &api.Queue{IDs: ids},
+		// A copy: the catalog replaces songs in place.
+		Songs: slices.Clone(s.cat.Songs),
+	}
 	latest := s.acct.Latest()
 	if latest.Status != nil {
 		ev.Account = &api.AccountEvent{Account: latest.Status.Account, SignedIn: latest.Status.SignedIn}
@@ -183,8 +184,8 @@ func (s *Service) snapshot() []api.Frame {
 	ev.Library = latest.Library
 	if latest.Likes != nil {
 		ev.Likes = likesEvent(latest.Likes)
-		frames, ev.Likes.Songs = carry(frames, ev.Likes.Songs, likedSongs)
 	}
+	frames := carry(nil, ev)
 	frames = slices.Grow(frames, 1+len(latest.Failed))
 	frames = append(frames, api.Frame{Event: ev})
 	for _, f := range latest.Failed {
@@ -193,22 +194,30 @@ func (s *Service) snapshot() []api.Frame {
 	return frames
 }
 
-// carry appends to ahead the frames, made by wrap, of a list of songs too
-// long for the event naming them, and returns the songs that event keeps.
-func carry(ahead []api.Frame, songs []catalog.Song, wrap func([]catalog.Song) *api.Event) ([]api.Frame, []catalog.Song) {
-	if len(songs) <= songsPerFrame {
-		return ahead, songs
+// carry moves the songs of ev too many for one frame into events of songs
+// alone, appended to ahead, to go first: every Proto 1 front-end keeps them.
+func carry(ahead []api.Frame, ev *api.Event) []api.Frame {
+	if len(ev.Songs) > songsPerFrame {
+		ahead = chunk(ahead, ev.Songs, queuedSongs)
+		ev.Songs = nil
 	}
-	size := max(songsPerFrame, (len(songs)+maxSongFrames-1)/maxSongFrames)
-	ahead = slices.Grow(ahead, (len(songs)+size-1)/size)
-	for chunk := range slices.Chunk(songs, size) {
-		ahead = append(ahead, api.Frame{Event: wrap(chunk)})
+	if ev.Likes != nil && len(ev.Likes.Songs) > songsPerFrame {
+		ahead = chunk(ahead, ev.Likes.Songs, likedSongs)
+		ev.Likes.Songs = nil
 	}
-	return ahead, nil
+	return ahead
 }
 
-// queuedSongs and likedSongs are events of songs alone, which front-ends
-// of every Proto 1 keep for the queue and the likes that follow.
+// chunk appends songs to ahead in at most maxSongFrames events wrap makes.
+func chunk(ahead []api.Frame, songs []catalog.Song, wrap func([]catalog.Song) *api.Event) []api.Frame {
+	size := max(songsPerFrame, (len(songs)+maxSongFrames-1)/maxSongFrames)
+	ahead = slices.Grow(ahead, (len(songs)+size-1)/size)
+	for part := range slices.Chunk(songs, size) {
+		ahead = append(ahead, api.Frame{Event: wrap(part)})
+	}
+	return ahead
+}
+
 func queuedSongs(songs []catalog.Song) *api.Event { return &api.Event{Songs: songs} }
 
 func likedSongs(songs []catalog.Song) *api.Event {
@@ -226,10 +235,7 @@ func failedEvent(f account.Failure) *api.FailedEvent {
 // accountChanged tells the subscribers what the account reports, after
 // the reply of the request that caused it.
 func (s *Service) accountChanged(c account.Change) {
-	var (
-		ev    api.Event
-		ahead []api.Frame
-	)
+	var ev api.Event
 	switch {
 	case c.Status != nil:
 		if c.Status.Switched {
@@ -243,11 +249,10 @@ func (s *Service) accountChanged(c account.Change) {
 		ev.Library = c.Library
 	case c.Likes != nil:
 		ev.Likes = likesEvent(c.Likes)
-		ahead, ev.Likes.Songs = carry(nil, ev.Likes.Songs, likedSongs)
 	case c.Failed != nil:
 		ev.Failed = failedEvent(*c.Failed)
 	}
-	s.broadcast(ahead, &ev)
+	s.broadcast(&ev)
 }
 
 // status is the snapshot for `ytm status`.

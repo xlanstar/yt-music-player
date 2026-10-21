@@ -102,11 +102,17 @@ func (f *remoteFixture) next(t *testing.T, kind, id string) catalogtest.Call {
 // signedIn answers the daemon's first fetches as Ada's.
 func (f *remoteFixture) signedIn(t *testing.T) {
 	t.Helper()
+	f.signedInLiking(t, adaLikes.IDs, adaLikes.Songs)
+}
+
+// signedInLiking is signedIn with ids liked, songs describing them.
+func (f *remoteFixture) signedInLiking(t *testing.T, ids []string, songs []catalog.Song) {
+	t.Helper()
 	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
 	calls["account"].Reply <- catalogtest.Reply{Account: ada}
 	calls["library"].Reply <- catalogtest.Reply{Library: adaLibrary()}
 	calls["playlist LM"].Reply <- catalogtest.Reply{
-		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: adaLikes.IDs}, Songs: adaLikes.Songs,
+		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids}, Songs: songs,
 	}
 	f.until(t, "fetched Ada's account", func() bool {
 		for _, res := range Resources {
@@ -252,14 +258,8 @@ func TestRemoteLikeDescribed(t *testing.T) {
 func TestRemoteLongLists(t *testing.T) {
 	f := newRemoteFixture(t)
 	liked := catalogtest.Decoded(1000)
-	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
-	calls["account"].Reply <- catalogtest.Reply{Account: ada}
-	calls["library"].Reply <- catalogtest.Reply{Library: adaLibrary()}
-	calls["playlist LM"].Reply <- catalogtest.Reply{
-		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids(liked)}, Songs: liked,
-	}
+	f.signedInLiking(t, ids(liked), liked)
 	queue := liked[:600]
-	f.until(t, "got the likes", func() bool { return f.s.LikedCount() == len(liked) })
 	f.c.PlayAll(ids(queue), queue)
 	f.until(t, "got the queue", func() bool { return len(f.c.Mirror().Queue()) == len(queue) })
 	late := f.connect(t)

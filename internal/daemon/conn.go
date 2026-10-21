@@ -136,9 +136,10 @@ func (s *Service) cancelCall(c *conn, id uint32) {
 	}
 }
 
-// broadcast sends every subscriber the frames ahead, then ev; they share
-// them.
-func (s *Service) broadcast(ahead []api.Frame, ev *api.Event) {
+// broadcast sends ev to every subscriber, which share it, after the songs
+// carry moves out of it.
+func (s *Service) broadcast(ev *api.Event) {
+	ahead := carry(nil, ev)
 	for c := range s.conns {
 		if !c.subscribed {
 			continue
