@@ -12,11 +12,8 @@ func TestBudgetApplyEvents(t *testing.T) {
 	for _, tc := range applyCases {
 		t.Run(tc.name, func(t *testing.T) {
 			c, l := applying()
-			ev := tc.event()
-			budget.Allocs(t, tc.allocs, 100, func() {
-				c.receive(l, ev)
-				c.flush()
-			})
+			evs := tc.events()
+			budget.Allocs(t, tc.allocs, 100, func() { applyEvents(c, l, evs, tc.relink) })
 		})
 	}
 }

@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"slices"
 	"strconv"
 	"testing"
 	"yt-music-player/internal/api"
@@ -9,17 +10,22 @@ import (
 )
 
 // applyCases are the events a front-end's thread takes most: a State,
-// and the snapshot of a long queue. allocs is each one's budget
+// the snapshot of a long queue, and that of a reconnection, its songs
+// ahead (daemon's carry). allocs is each one's budget
 // (TestBudgetApplyEvents).
 var applyCases = []struct {
 	name   string
-	event  func() *api.Event
+	events func() []*api.Event
+	// relink: each op comes over a new link, as after a reconnection.
+	relink bool
 	allocs float64
 }{
 	// 0 allocs today.
-	{"state", stateEvent, 0},
+	{"state", func() []*api.Event { return []*api.Event{stateEvent()} }, false, 0},
 	// 0 allocs today: the songs' map holds them from the first.
-	{"queue-5000", func() *api.Event { return queueEvent(5000) }, 0},
+	{"queue-5000", func() []*api.Event { return []*api.Event{queueEvent(5000)} }, false, 0},
+	// 18 allocs today: the songs' map made anew for the queue.
+	{"reconnect-5000", func() []*api.Event { return songsAhead(queueEvent(5000)) }, true, 21},
 }
 
 func stateEvent() *api.Event {
@@ -42,6 +48,27 @@ func queueEvent(n int) *api.Event {
 	return ev
 }
 
+// songsAhead is ev with its songs ahead in 16 events, as ytmd sends a
+// snapshot.
+func songsAhead(ev *api.Event) []*api.Event {
+	var evs []*api.Event
+	for part := range slices.Chunk(ev.Songs, (len(ev.Songs)+15)/16) {
+		evs = append(evs, &api.Event{Songs: part})
+	}
+	return append(evs, &api.Event{Queue: ev.Queue})
+}
+
+// applyEvents receives evs and applies them, over a new link if relink.
+func applyEvents(c *Client, l *link, evs []*api.Event, relink bool) {
+	if relink {
+		l.n++
+	}
+	for _, ev := range evs {
+		c.receive(l, ev)
+	}
+	c.flush()
+}
+
 // applying is a Client fed events as its reader feeds them, flushed by
 // hand rather than posted; its two batches, which swap, are made.
 func applying() (*Client, *link) {
@@ -60,11 +87,10 @@ func BenchmarkApplyEvents(b *testing.B) {
 	for _, tc := range applyCases {
 		b.Run(tc.name, func(b *testing.B) {
 			c, l := applying()
-			ev := tc.event()
+			evs := tc.events()
 			b.ReportAllocs()
 			for b.Loop() {
-				c.receive(l, ev)
-				c.flush()
+				applyEvents(c, l, evs, tc.relink)
 			}
 			sinkState = c.Mirror().State()
 		})
