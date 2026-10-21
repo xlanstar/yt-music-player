@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -195,5 +196,17 @@ func runStoppingStep(t *testing.T, step methodStep) {
 	case <-h.svc.Done():
 	case <-time.After(wait):
 		t.Fatalf("%s did not stop the Service", step.call.Method)
+	}
+}
+
+// A method its route does not serve fails rather than answering as done.
+func TestUnknownMethod(t *testing.T) {
+	s, _ := benchService(t, 3)
+	ping := &api.Call{Method: api.MethodPing}
+	if err := s.control(ping); !errors.Is(err, errUnknownMethod) {
+		t.Errorf("control of a Ping: %v, want errUnknownMethod", err)
+	}
+	if r := ask(t.Context(), catalogtest.New(), ping); r.Err == nil || r.Err.Code != api.CodeInternal {
+		t.Errorf("ask of a Ping: %+v, want an internal error", r)
 	}
 }

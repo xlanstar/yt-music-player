@@ -69,7 +69,7 @@ After reconnecting, the first events are a full snapshot, which replaces the fro
 
 AF_UNIX stream sockets on every OS (Windows 10 1803+), one gob stream per direction. `go doc ./internal/api` has the frames, methods, events and the rules for changing them (only append enum values; never change a field's type; the bootstrap messages, which let any front-end hand off to or stop any daemon, never change).
 
-- **Requests** carry an ID; the reply carries it back. A front-end whose context ends sends a cancel (catalog requests, sign-in) and returns at once; a closed connection cancels all its requests.
+- **Requests** carry an ID; the reply carries it back. A front-end whose context ends sends a cancel (catalog requests, sign-in) and returns at once; a closed connection cancels all its requests. A method of the Proto that ytmd serves nowhere fails as internal, never as done (`TestEveryMethodServed`).
 - **Data:** ytmd keeps no catalog and caches no pages, only its queue's and the likes' songs, which front-ends send with the IDs they play, queue or like. The queue holds each song once (package `player`).
 - **Events:** first a snapshot (state, queue and its songs, account, library and likes, a failure per part whose last fetch failed), then changes. The playback state goes out whole when a field changes or the position jumps over 1 s, never on a timer: receivers move the position with their own clock. A sign-in switching accounts empties the queue.
 - **Songs** too many for one frame (256, or a sixteenth of the list) go ahead of the event naming them, in events of songs alone: gob keeps a connection's buffer as large as the largest frame it sent.

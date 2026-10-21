@@ -20,6 +20,9 @@ var (
 	errSuperseded  = errors.New("daemon: another sign-in followed")
 	errNoArguments = fmt.Errorf("%w: no arguments", api.ErrInvalid)
 	errLikeSong    = fmt.Errorf("%w: a like describing another song", api.ErrInvalid)
+	// errUnknownMethod is a method of this Proto that nothing serves: a bug,
+	// failed loudly rather than answered as done.
+	errUnknownMethod = errors.New("daemon: unknown method")
 )
 
 // dispatch answers a request. A stopping Service answers none: after a
@@ -61,13 +64,20 @@ func (s *Service) dispatch(c *conn, id uint32, cl *api.Call) {
 	case api.MethodRefresh:
 		s.acct.Fetch(account.Part(cl.Part.Part - 1))
 		c.reply(id, &api.Reply{})
-	default:
+	case api.MethodPlay, api.MethodPlayAll, api.MethodEnqueue, api.MethodToggle,
+		api.MethodPause, api.MethodResume, api.MethodNext, api.MethodPrev,
+		api.MethodSeek, api.MethodSetVolume, api.MethodToggleMute,
+		api.MethodCycleRepeat, api.MethodToggleShuffle, api.MethodRemove,
+		api.MethodMove, api.MethodClearUpNext:
 		if err := s.control(cl); err != nil {
 			log.Debug().Stringer("method", cl.Method).Err(err).Msg("invalid call")
 			c.fail(id, err)
 			return
 		}
 		c.reply(id, &api.Reply{})
+	default:
+		log.Debug().Stringer("method", cl.Method).Msg("unknown method")
+		c.fail(id, errUnknownMethod)
 	}
 }
 
@@ -156,6 +166,8 @@ func (s *Service) control(cl *api.Call) error {
 		p.Move(cl.Move.From, cl.Move.To)
 	case api.MethodClearUpNext:
 		p.ClearUpNext()
+	default:
+		return errUnknownMethod
 	}
 	return nil
 }
@@ -218,6 +230,8 @@ func ask(ctx context.Context, src catalog.Source, cl *api.Call) *api.Reply {
 		var lib catalog.Library
 		lib, err = src.Library(ctx)
 		r.Library = &lib
+	default:
+		err = errUnknownMethod
 	}
 	if err != nil {
 		log.Debug().Stringer("method", cl.Method).Err(err).Msg("catalog request failed")
