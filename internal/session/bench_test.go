@@ -190,14 +190,64 @@ func retryLikes(s *Session, q chan func()) {
 	(<-q)()
 }
 
-// BenchmarkRetry measures fetching and seeding the placeholder's likes,
-// from a source that answers at once.
-func BenchmarkRetry(b *testing.B) {
-	s, q := newSession(catalog.Placeholder())
+// servedLikes answers Liked music with the same songs every time, so that
+// only the Session's cost is measured.
+type servedLikes struct {
+	catalog.Source
+	playlist catalog.Playlist
+	songs    []catalog.Song
+}
+
+func newServedLikes(n int) servedLikes {
+	songs := catalogtest.Decoded(n)
+	ids := make([]string, len(songs))
+	for i, song := range songs {
+		ids[i] = song.ID
+	}
+	return servedLikes{catalog.NewPlaceholderSource(0), catalog.Playlist{ID: catalog.LikedID, Songs: ids}, songs}
+}
+
+func (s servedLikes) Playlist(context.Context, string) (catalog.Playlist, []catalog.Song, error) {
+	return s.playlist, s.songs, nil
+}
+
+// retryCases are Retries of Liked music from a source that answers at
+// once: the placeholder's, and 5000 as the remote Client decodes them.
+var retryCases = []struct {
+	name    string
+	session func() (*Session, chan func())
+	limit   float64
+}{
+	// 15 allocs today: the job's context, goroutine and post, the source's
+	// copies, the maps of ShareStrings, Unique and the likes. 3 when ytmd
+	// fetched them and sent the event.
+	{"placeholder", func() (*Session, chan func()) { return newSession(catalog.Placeholder()) }, 18},
+	// 59 allocs today, most of them the maps of ShareStrings, Unique and
+	// the likes.
+	{"5000", func() (*Session, chan func()) {
+		return sessionOver(newServedLikes(5000), catalog.New(nil, nil, nil))
+	}, 68},
+}
+
+// retrySession makes a Session, signs it in as Lan and fetches its likes
+// once.
+func retrySession(session func() (*Session, chan func())) (*Session, chan func()) {
+	s, q := session()
 	s.KeepAccount(catalog.Account{Name: "Lan"}, catalog.Library{})
-	b.ReportAllocs()
-	for b.Loop() {
-		retryLikes(s, q)
+	retryLikes(s, q)
+	return s, q
+}
+
+// BenchmarkRetry measures fetching and seeding the likes again.
+func BenchmarkRetry(b *testing.B) {
+	for _, tc := range retryCases {
+		b.Run(tc.name, func(b *testing.B) {
+			s, q := retrySession(tc.session)
+			b.ReportAllocs()
+			for b.Loop() {
+				retryLikes(s, q)
+			}
+		})
 	}
 }
 

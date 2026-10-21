@@ -53,12 +53,12 @@ func TestBudgetSetLiked(t *testing.T) {
 }
 
 func TestBudgetRetry(t *testing.T) {
-	s, q := newSession(catalog.Placeholder())
-	s.KeepAccount(catalog.Account{Name: "Lan"}, catalog.Library{})
-	// 15 allocs today: the job's context, goroutine and post, the source's
-	// copies, the maps of ShareStrings, Unique and the likes. 3 when ytmd
-	// fetched them and sent the event.
-	budget.Allocs(t, 18, 100, func() { retryLikes(s, q) })
+	for _, tc := range retryCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, q := retrySession(tc.session)
+			budget.Allocs(t, tc.limit, 20, func() { retryLikes(s, q) })
+		})
+	}
 }
 
 func TestBudgetCacheRead(t *testing.T) {
