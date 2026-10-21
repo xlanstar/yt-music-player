@@ -2,12 +2,9 @@ package remote
 
 import (
 	"context"
-	"fmt"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 )
-
-var errNoAccount = fmt.Errorf("%w: a sign-in's reply without its account", api.ErrInvalid)
 
 // Account is what a session asks of ytmd's account, over a Client whose
 // Go keeps each answer in its place among the events. Use it on the
@@ -44,14 +41,7 @@ func (a *Account) SignIn(credentials string, done func(catalog.Account, error)) 
 	a.c.Go(ctx, api.Call{Method: api.MethodSignIn, SignIn: &api.SignInArgs{Credentials: credentials}},
 		func(reply *api.Reply, err error) {
 			cancel()
-			switch {
-			case err != nil:
-				done(catalog.Account{}, err)
-			case reply.Account == nil:
-				done(catalog.Account{}, errNoAccount)
-			default:
-				done(*reply.Account, nil)
-			}
+			done(account(reply, err))
 		})
 }
 
