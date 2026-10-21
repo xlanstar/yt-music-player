@@ -116,7 +116,7 @@ func parseColor(s string) (ui.Color, error) {
 	c := Oklch(float32(l), float32(ch), float32(lchValues[2]))
 	if hasAlpha {
 		a, err := strconv.ParseFloat(strings.TrimSpace(alpha), 32)
-		if err != nil || a < 0 || a > 1 {
+		if err != nil || math.IsNaN(a) || a < 0 || a > 1 {
 			return bad("alpha is 0 to 1")
 		}
 		c = c.Alpha(float32(a))

@@ -203,7 +203,7 @@ func TestParseColor(t *testing.T) {
 			t.Errorf("parseColor(%q) = %v, %v; want %v", in, got, err, want)
 		}
 	}
-	for _, in := range []string{"", "#", "#1234", "fff", "rgb(1,2,3)", "oklch(a b c)", "oklch(0.5 0.1 30 / 2)", "oklch(0.5 0.1 NaN)"} {
+	for _, in := range []string{"", "#", "#1234", "fff", "rgb(1,2,3)", "oklch(a b c)", "oklch(0.5 0.1 30 / 2)", "oklch(0.5 0.1 NaN)", "oklch(0.5 0.1 30 / NaN)"} {
 		if _, err := parseColor(in); err == nil {
 			t.Errorf("parseColor(%q) took it", in)
 		}
