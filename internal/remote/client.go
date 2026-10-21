@@ -21,18 +21,24 @@ const controlTimeout = 2 * time.Second
 var errNoResult = fmt.Errorf("%w: a reply without its result", api.ErrInvalid)
 
 // Handler gets what the daemon reports besides playback, on the
-// front-end's thread. A nil func drops its reports.
+// front-end's thread. A nil field drops its reports.
 type Handler struct {
-	// Account, Library, Likes and Failed go to the session's Apply methods.
-	Account func(api.AccountEvent)
-	Library func(catalog.Library)
-	Likes   func(api.Likes)
-	Failed  func(api.FailedEvent)
+	// Account gets the account's events; a session made after the Client
+	// comes through SetAccountEvents.
+	Account AccountEvents
 	// Notice gets the daemon's notices and notice.ControlFailed.
 	Notice func(notice.Notice)
 	// Link gets the Supervisor's latest Link when it changed: changes in
 	// quick succession may show as one.
 	Link func(Link)
+}
+
+// AccountEvents gets the account's events, as session.Session does.
+type AccountEvents interface {
+	ApplyAccount(api.AccountEvent)
+	ApplyLibrary(catalog.Library)
+	ApplyLikes(api.Likes)
+	ApplyFailed(api.FailedEvent)
 }
 
 // Client is a front-end's end of the daemon's socket; without a connection,
@@ -112,6 +118,11 @@ func NewClient(post func(func()), h Handler) *Client {
 	c.flushFn = c.flush
 	return c
 }
+
+// SetAccountEvents has the account's events go to e, a session that
+// needs the Client to be made. Call it before the Client connects, or on
+// the front-end's thread, which reads it.
+func (c *Client) SetAccountEvents(e AccountEvents) { c.h.Account = e }
 
 // Mirror returns the daemon's playback; read it on the front-end's thread.
 func (c *Client) Mirror() *Mirror { return &c.mirror }
@@ -414,19 +425,26 @@ func (c *Client) apply(r *received) {
 	}
 	ev := r.ev
 	c.mirror.apply(ev, r.link, r.at)
-	if ev.Account != nil && c.h.Account != nil {
-		c.h.Account(*ev.Account)
-	}
-	if ev.Library != nil && c.h.Library != nil {
-		c.h.Library(*ev.Library)
-	}
-	if ev.Likes != nil && c.h.Likes != nil {
-		c.h.Likes(*ev.Likes)
-	}
-	if ev.Failed != nil && c.h.Failed != nil {
-		c.h.Failed(*ev.Failed)
+	if c.h.Account != nil {
+		applyAccount(c.h.Account, ev)
 	}
 	if ev.Notice != nil {
 		c.tell(*ev.Notice)
+	}
+}
+
+// applyAccount hands ev's account events to e, in apply's order.
+func applyAccount(e AccountEvents, ev *api.Event) {
+	if ev.Account != nil {
+		e.ApplyAccount(*ev.Account)
+	}
+	if ev.Library != nil {
+		e.ApplyLibrary(*ev.Library)
+	}
+	if ev.Likes != nil {
+		e.ApplyLikes(*ev.Likes)
+	}
+	if ev.Failed != nil {
+		e.ApplyFailed(*ev.Failed)
 	}
 }

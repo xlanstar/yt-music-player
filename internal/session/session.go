@@ -145,7 +145,7 @@ func (s *Session) fail(p api.Part, err error) {
 	s.states.Set(Resources[p-1], fetchstate.Fetch{State: fetchstate.Failed, Err: err})
 }
 
-// ApplyAccount keeps who is signed in (remote.Handler.Account).
+// ApplyAccount keeps who is signed in (remote.AccountEvents).
 func (s *Session) ApplyAccount(status api.AccountEvent) {
 	switch {
 	case !status.SignedIn:
@@ -163,13 +163,13 @@ func (s *Session) ApplyAccount(status api.AccountEvent) {
 	}
 }
 
-// ApplyLibrary keeps the library fetched (remote.Handler.Library).
+// ApplyLibrary keeps the library fetched (remote.AccountEvents).
 func (s *Session) ApplyLibrary(lib catalog.Library) {
 	s.setLibrary(lib)
 	s.states.Set(LibraryRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
-// ApplyFailed keeps a fetch that failed (remote.Handler.Failed); the
+// ApplyFailed keeps a fetch that failed (remote.AccountEvents); the
 // pages show its error with Retry.
 func (s *Session) ApplyFailed(f api.FailedEvent) {
 	if !f.Part.Valid() {
@@ -183,7 +183,7 @@ func (s *Session) ApplyFailed(f api.FailedEvent) {
 }
 
 // ApplyLikes keeps the likes fetched, or those that went through
-// (remote.Handler.Likes), adding the songs they describe to the catalog.
+// (remote.AccountEvents), adding the songs they describe to the catalog.
 func (s *Session) ApplyLikes(likes api.Likes) {
 	if len(likes.Songs) > 0 && !likes.Full {
 		s.cat.Add(likes.Songs, nil, nil)

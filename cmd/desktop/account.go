@@ -23,11 +23,12 @@ type sheetState struct {
 }
 
 // connectAccount makes the session, which keeps what ytmd's account
-// reports for the pages. The daemon fetches the account as it starts and
+// reports for the pages, before the client connects. The daemon fetches the account as it starts and
 // sends what it has as the app connects, and the rest as it comes: the
 // account's resources load meanwhile, never asked for again.
 func (a *app) connectAccount(cat *catalog.Catalog) {
 	a.session = session.New(remote.NewAccount(a.client), &a.fetches, a.loader, cat)
+	a.client.SetAccountEvents(a.session)
 	for _, res := range session.Resources {
 		a.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	}

@@ -64,15 +64,11 @@ func (f *remoteFixture) connect(t *testing.T) *frontEnd {
 	t.Helper()
 	fe := &frontEnd{cat: catalog.New(nil, nil, nil), q: make(chan func(), 64)}
 	post := func(fn func()) { fe.q <- fn }
-	c := remote.NewClient(post, remote.Handler{
-		Account: func(e api.AccountEvent) { fe.s.ApplyAccount(e) },
-		Library: func(l catalog.Library) { fe.s.ApplyLibrary(l) },
-		Likes:   func(l api.Likes) { fe.s.ApplyLikes(l) },
-		Failed:  func(e api.FailedEvent) { fe.s.ApplyFailed(e) },
-	})
+	c := remote.NewClient(post, remote.Handler{})
 	fe.c = c
 	load := loader.New(c, &fe.states, fe.cat, post)
 	fe.s = New(remote.NewAccount(c), &fe.states, load, fe.cat)
+	c.SetAccountEvents(fe.s)
 	sup := remote.Supervise(c, remote.Options{
 		Role: api.RoleDesktop, Version: "1.2.3", Dialer: pipeDialer{f.svc},
 		Spawn: func() error { return errors.New("no ytmd to start") },

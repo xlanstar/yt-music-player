@@ -288,15 +288,17 @@ type front struct {
 func newFront() *front {
 	f := &front{ui: &ui{}}
 	f.client = NewClient(f.ui.post, Handler{
-		Account: func(api.AccountEvent) { f.events = append(f.events, "account") },
-		Library: func(catalog.Library) { f.events = append(f.events, "library") },
-		Likes:   func(api.Likes) { f.events = append(f.events, "likes") },
-		Failed:  func(api.FailedEvent) { f.events = append(f.events, "failed") },
+		Account: f,
 		Notice:  func(n notice.Notice) { f.notices = append(f.notices, n) },
 		Link:    func(l Link) { f.links = append(f.links, l) },
 	})
 	return f
 }
+
+func (f *front) ApplyAccount(api.AccountEvent) { f.events = append(f.events, "account") }
+func (f *front) ApplyLibrary(catalog.Library)  { f.events = append(f.events, "library") }
+func (f *front) ApplyLikes(api.Likes)          { f.events = append(f.events, "likes") }
+func (f *front) ApplyFailed(api.FailedEvent)   { f.events = append(f.events, "failed") }
 
 // healths returns the healths the front-end was told, in order.
 func (f *front) healths() []Health {

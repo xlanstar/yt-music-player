@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"yt-music-player/internal/api"
-	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/job"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/remote"
@@ -36,17 +35,10 @@ type daemonState struct {
 	quit     func()
 }
 
-// daemonHandler routes what the daemon reports: the account's events to
-// the session, notices to tell, the Link to the banner.
+// daemonHandler routes what the daemon reports: notices to tell, the
+// Link to the banner; connectAccount gives the session the account's.
 func (a *app) daemonHandler() remote.Handler {
-	return remote.Handler{
-		Account: func(e api.AccountEvent) { a.session.ApplyAccount(e) },
-		Library: func(l catalog.Library) { a.session.ApplyLibrary(l) },
-		Likes:   func(l api.Likes) { a.session.ApplyLikes(l) },
-		Failed:  func(e api.FailedEvent) { a.session.ApplyFailed(e) },
-		Notice:  a.tellLater,
-		Link:    a.linked,
-	}
+	return remote.Handler{Notice: a.tellLater, Link: a.linked}
 }
 
 // connect has a Supervisor keep the client connected to d, starting ytmd

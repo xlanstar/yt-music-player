@@ -117,14 +117,7 @@ func newApp(cfg Config, out *termOut) *app {
 		dir, _ := artwork.DefaultDir()
 		return artwork.New(artwork.Options{Post: posts.post, Dir: dir, MemoryBytes: artMemory, Workers: artWorkers})
 	}}
-	c := remote.NewClient(posts.post, remote.Handler{
-		Account: func(e api.AccountEvent) { m.session.ApplyAccount(e) },
-		Library: func(l catalog.Library) { m.session.ApplyLibrary(l) },
-		Likes:   func(l api.Likes) { m.session.ApplyLikes(l) },
-		Failed:  func(e api.FailedEvent) { m.session.ApplyFailed(e) },
-		Notice:  m.tell,
-		Link:    m.setLink,
-	})
+	c := remote.NewClient(posts.post, remote.Handler{Notice: m.tell, Link: m.setLink})
 	states := &fetchstate.Registry{}
 	cat := catalog.New(nil, nil, nil)
 	load := loader.New(c, states, cat, posts.post)
@@ -140,6 +133,7 @@ func newApp(cfg Config, out *termOut) *app {
 		openDesktop: openDesktop,
 		daemonLog:   cfg.DaemonLog,
 	}
+	c.SetAccountEvents(m.session)
 	sup := remote.Supervise(c, remote.Options{
 		Role: api.RoleTUI, Version: cfg.Version, Dialer: cfg.Dialer, Spawn: cfg.Spawn,
 	})
