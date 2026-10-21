@@ -10,8 +10,8 @@ import (
 func TestBudgetPayload(t *testing.T) {
 	c := benchClient()
 	body := benchBodies[0].body
-	// 10 allocs today: the body's copy and encoding.
-	budget.Allocs(t, 12, 100, func() { sinkBytes, _ = c.payload(body) })
+	// 7 allocs today: the encoding.
+	budget.Allocs(t, 8, 100, func() { sinkBytes, _ = c.payload(body) })
 }
 
 func TestBudgetContext(t *testing.T) {

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -128,7 +127,8 @@ func (e *StatusError) Unwrap() error {
 
 // Call posts body to endpoint (like "search" or "browse") with the client
 // context added, and hands the body of the response that succeeds to
-// decode, returning its error as is. body is not modified.
+// decode, returning its error as is. body is not modified and must not
+// hold "context".
 func (c *Client) Call(ctx context.Context, endpoint string, body map[string]any, decode func(io.Reader) error) error {
 	data, err := c.payload(body)
 	if err != nil {
@@ -172,11 +172,15 @@ func retryable(err error) bool {
 	return statusErr.StatusCode == http.StatusTooManyRequests || statusErr.StatusCode >= 500
 }
 
+// payload embeds body rather than copying it into a map beside the
+// context, which allocated a third more (BenchmarkPayload).
+type payload struct {
+	Context requestContext `json:"context"`
+	Body    map[string]any `json:",embed"`
+}
+
 func (c *Client) payload(body map[string]any) ([]byte, error) {
-	payload := make(map[string]any, len(body)+1)
-	maps.Copy(payload, body)
-	payload["context"] = c.context()
-	return json.Marshal(payload)
+	return json.Marshal(payload{Context: c.context(), Body: body})
 }
 
 // do sends one attempt; wait is the server's Retry-After, if any.
