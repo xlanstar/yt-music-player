@@ -37,12 +37,11 @@ const (
 	// expirySlack: a stream expiring sooner is resolved anew instead of
 	// played, as its URL would stop working mid-song.
 	expirySlack = time.Minute
+	// releaseAfter is how long the engine keeps a stream paused (about 2 MB:
+	// its download, decoder and output) before Release; Play then loads it
+	// again, a request away.
+	releaseAfter = time.Minute
 )
-
-// releaseAfter is how long the engine keeps a stream paused (about 2 MB:
-// its download, decoder and output) before Release; Play then loads it
-// again, a request away. A var for tests.
-var releaseAfter = time.Minute
 
 type loadState uint8
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 	"yt-music-player/internal/audio"
 	"yt-music-player/internal/catalog"
@@ -665,79 +666,109 @@ func TestWaiting(t *testing.T) {
 	}
 }
 
-// shortRelease has the engine release a paused stream after d.
-func shortRelease(t *testing.T, d time.Duration) {
+// released advances the bubble's clock to the release and runs its post.
+func (x *fixture) released(t *testing.T) {
 	t.Helper()
-	releaseAfter = d
-	t.Cleanup(func() { releaseAfter = time.Minute })
+	synctest.Sleep(releaseAfter)
+	x.posted(t)
+}
+
+// posted runs the post made once the bubble's goroutines are blocked.
+func (x *fixture) posted(t *testing.T) {
+	t.Helper()
+	synctest.Wait()
+	select {
+	case fn := <-x.q:
+		fn()
+	default:
+		t.Fatal("nothing posted")
+	}
+}
+
+// none fails if anything was posted once the bubble's goroutines are
+// blocked.
+func (x *fixture) none(t *testing.T) {
+	t.Helper()
+	synctest.Wait()
+	select {
+	case <-x.q:
+		t.Fatal("posted, want nothing")
+	default:
+	}
 }
 
 func TestReleasesAPausedStream(t *testing.T) {
-	shortRelease(t, time.Millisecond)
-	res := &instantResolver{}
-	x := newFixture(res)
-	song := x.player.Current()
-	x.startPlaying(t)
-	x.turn(50)
-	x.player.Playing = false
-	x.pb.Follow()
-	x.run(t) // the release timer
-	x.pb.Follow()
-	x.wantCalls(t, "pause", "release")
-	if x.pb.IsWaiting() || x.player.Position != 50 {
-		t.Errorf("released: waiting %v, at %v", x.pb.IsWaiting(), x.player.Position)
-	}
-	// Seeks move Now Playing.
-	x.player.Position = 60
-	x.pb.Follow()
-	x.wantCalls(t, "seek 60")
+	synctest.Test(t, func(t *testing.T) {
+		res := &instantResolver{}
+		x := newFixture(res)
+		song := x.player.Current()
+		x.startPlaying(t)
+		x.turn(50)
+		x.player.Playing = false
+		x.pb.Follow()
+		x.released(t)
+		x.pb.Follow()
+		x.wantCalls(t, "pause", "release")
+		if x.pb.IsWaiting() || x.player.Position != 50 {
+			t.Errorf("released: waiting %v, at %v", x.pb.IsWaiting(), x.player.Position)
+		}
+		// Seeks move Now Playing.
+		x.player.Position = 60
+		x.pb.Follow()
+		x.wantCalls(t, "seek 60")
 
-	// Play loads the same stream again, where the song was.
-	x.player.Playing = true
-	x.pb.Follow()
-	x.wantCalls(t, "load https://audio/"+song+" at 60", "play")
-	if got := res.Asked(); len(got) != 1 {
-		t.Errorf("resolved %q, want the released stream", got)
-	}
-	if !x.pb.IsWaiting() {
-		t.Error("not waiting while it loads again")
-	}
-	x.f.Emit(audio.Ready)
-	x.run(t)
-	if x.pb.IsWaiting() {
-		t.Error("waiting once ready")
-	}
-	x.noPost(t, 20*time.Millisecond)
+		// Play loads the same stream again, where the song was.
+		x.player.Playing = true
+		x.pb.Follow()
+		x.wantCalls(t, "load https://audio/"+song+" at 60", "play")
+		if got := res.Asked(); len(got) != 1 {
+			t.Errorf("resolved %q, want the released stream", got)
+		}
+		if !x.pb.IsWaiting() {
+			t.Error("not waiting while it loads again")
+		}
+		x.f.Emit(audio.Ready)
+		x.posted(t)
+		if x.pb.IsWaiting() {
+			t.Error("waiting once ready")
+		}
+		x.none(t)
+	})
 }
 
 func TestReleaseWaitsForThePause(t *testing.T) {
-	shortRelease(t, 10*time.Millisecond)
-	x := newFixture(&instantResolver{})
-	x.startPlaying(t)
-	x.noPost(t, 50*time.Millisecond)
-	// Played again before it is due.
-	x.player.Playing = false
-	x.pb.Follow()
-	x.player.Playing = true
-	x.pb.Follow()
-	x.noPost(t, 50*time.Millisecond)
-	x.wantCalls(t, "pause", "play")
+	synctest.Test(t, func(t *testing.T) {
+		x := newFixture(&instantResolver{})
+		x.startPlaying(t)
+		synctest.Sleep(releaseAfter + time.Second)
+		x.none(t)
+		// Played again a second before it is due.
+		x.player.Playing = false
+		x.pb.Follow()
+		synctest.Sleep(releaseAfter - time.Second)
+		x.player.Playing = true
+		x.pb.Follow()
+		synctest.Sleep(2 * time.Second)
+		x.none(t)
+		x.wantCalls(t, "pause", "play")
+	})
 }
 
 func TestReleasedStreamThatExpiresResolvesAnew(t *testing.T) {
-	shortRelease(t, time.Millisecond)
-	res := &instantResolver{expires: time.Now().Add(expirySlack / 2)}
-	x := newFixture(res)
-	song := x.player.Current()
-	x.startPlaying(t)
-	x.player.Playing = false
-	x.pb.Follow()
-	x.run(t)
-	x.player.Playing = true
-	x.pb.Follow()
-	x.run(t) // the resolve
-	x.wantCalls(t, "pause", "release", "load https://audio/"+song+" at 0", "play")
-	if got := res.Asked(); len(got) != 2 {
-		t.Errorf("resolved %q, want the song again", got)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		res := &instantResolver{expires: time.Now().Add(expirySlack / 2)}
+		x := newFixture(res)
+		song := x.player.Current()
+		x.startPlaying(t)
+		x.player.Playing = false
+		x.pb.Follow()
+		x.released(t)
+		x.player.Playing = true
+		x.pb.Follow()
+		x.posted(t) // the resolve
+		x.wantCalls(t, "pause", "release", "load https://audio/"+song+" at 0", "play")
+		if got := res.Asked(); len(got) != 2 {
+			t.Errorf("resolved %q, want the song again", got)
+		}
+	})
 }
