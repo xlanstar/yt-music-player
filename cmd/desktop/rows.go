@@ -128,7 +128,7 @@ func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hover
 	}
 	like()
 	if opts.hasActions && hovered {
-		iconButton(c, "more", icMore, locales.More(), 32, 18, iconOpts{})
+		iconButton(c, "more", icMore, locales.More(), btnRow, iconOpts{})
 		return
 	}
 	size := th.Type.Sub

@@ -207,10 +207,10 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 			}
 		}
 		ui.Box(c).Width(th.Space(1.5))
-		a.shuffleButton(c, 42, 22)
-		iconButton(c, "save", icPlus, locales.SaveToLibrary(), 42, 22, iconOpts{})
-		iconButton(c, "download", icDownload, locales.Download(), 42, 22, iconOpts{})
-		iconButton(c, "more", icMore, locales.More(), 42, 22, iconOpts{})
+		a.shuffleButton(c, btnAction)
+		iconButton(c, "save", icPlus, locales.SaveToLibrary(), btnAction, iconOpts{})
+		iconButton(c, "download", icDownload, locales.Download(), btnAction, iconOpts{})
+		iconButton(c, "more", icMore, locales.More(), btnAction, iconOpts{})
 	})
 }
 

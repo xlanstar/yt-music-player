@@ -108,7 +108,7 @@ func (a *app) volumeZone(c *ui.Context, onTop bool) {
 			if silent {
 				muteIcon, mute.tip = icVolumeMuted, locales.Unmute()
 			}
-			if iconButton(c, "mute", muteIcon, locales.Mute(), 36, 18, mute).Clicked() {
+			if iconButton(c, "mute", muteIcon, locales.Mute(), btnChrome, mute).Clicked() {
 				a.client.ToggleMute()
 			}
 		})
@@ -130,7 +130,7 @@ func (a *app) volumeZone(c *ui.Context, onTop bool) {
 // so the lyrics and queue buttons switch tabs rather than fight.
 func (a *app) panelButton(c *ui.Context, key any, icon *ui.SVG, label string, tab int) {
 	open := a.panel.isShown && a.panel.tab == tab
-	if iconButton(c, key, icon, label, 36, 18, iconOpts{isOn: open, isToggle: true, isChecked: open}).Clicked() {
+	if iconButton(c, key, icon, label, btnChrome, iconOpts{isOn: open, isToggle: true, isChecked: open}).Clicked() {
 		a.panel.isShown, a.panel.tab = !open, tab
 	}
 }
@@ -175,14 +175,14 @@ func percent(n int) string {
 
 func (a *app) transport(c *ui.Context) {
 	ui.Row(c).Gap(th.Space(3.5)).AlignItems(ui.Center).FocusGroup(ui.Horizontal).Children(func() {
-		a.shuffleButton(c, 34, 17)
+		a.shuffleButton(c, btnBar)
 		prev := iconOpts{fg: th.Color.Text, keys: hints.prev}
-		if iconButton(c, "prev", icSkipBack, locales.Previous(), 38, 20, prev).Clicked() {
+		if iconButton(c, "prev", icSkipBack, locales.Previous(), btnSkip, prev).Clicked() {
 			a.client.Prev()
 		}
 		a.playButton(c)
 		next := iconOpts{fg: th.Color.Text, keys: hints.next}
-		if iconButton(c, "next", icSkipForward, locales.Next(), 38, 20, next).Clicked() {
+		if iconButton(c, "next", icSkipForward, locales.Next(), btnSkip, next).Clicked() {
 			a.client.Next()
 		}
 		a.repeatButton(c)
@@ -221,7 +221,7 @@ func (a *app) repeatButton(c *ui.Context) {
 		icon, mode, opts.tip = icRepeatOne, locales.RepeatModeOne(), locales.RepeatOne()
 	}
 	opts.isOn = repeat == api.RepeatAll || repeat == api.RepeatOne
-	if iconButton(c, "repeat", icon, locales.Repeat(), 34, 17, opts).Value(mode).Clicked() {
+	if iconButton(c, "repeat", icon, locales.Repeat(), btnBar, opts).Value(mode).Clicked() {
 		a.client.CycleRepeat()
 	}
 }

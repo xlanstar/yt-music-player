@@ -9,6 +9,22 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// btnSize is a round icon button's diameter and its icon's side.
+type btnSize struct{ box, glyph float32 }
+
+// The icon buttons' sizes, by where they sit.
+var (
+	btnClear  = btnSize{box: 28, glyph: 14} // in the search field
+	btnSmall  = btnSize{box: 28, glyph: 16} // beside a sidebar heading
+	btnPanel  = btnSize{box: 32, glyph: 17} // the side panel's header
+	btnRow    = btnSize{box: 32, glyph: 18} // a song row's actions
+	btnNav    = btnSize{box: 34, glyph: 18} // Back and Forward
+	btnBar    = btnSize{box: 34, glyph: 17} // the player bar's shuffle and repeat
+	btnChrome = btnSize{box: 36, glyph: 18} // the top bar's, the player bar's and the panel's
+	btnSkip   = btnSize{box: 38, glyph: 20} // Previous and Next
+	btnAction = btnSize{box: 42, glyph: 22} // under a collection's title
+)
+
 // iconOpts are an iconButton's options. Disabled changes input, so
 // iconButton applies every option before asking about hover or press.
 type iconOpts struct {
@@ -25,8 +41,8 @@ type iconOpts struct {
 
 // iconButton keeps the keyboard focus where it was when clicked, so Space
 // still plays and pauses; Tab still reaches it.
-func iconButton(c *ui.Context, key any, icon *ui.SVG, label string, size, iconSize float32, opts iconOpts) ui.Element {
-	b := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Radius(size / 2).Center().
+func iconButton(c *ui.Context, key any, icon *ui.SVG, label string, size btnSize, opts iconOpts) ui.Element {
+	b := ui.ButtonBase(c.Key(key)).Size(size.box, size.box).Shrink(0).Radius(size.box / 2).Center().
 		Label(label).Cursor(ui.CursorPointer).KeepFocus().Disabled(opts.isDisabled)
 	if opts.isToggle {
 		b.Role(ui.RoleToggleButton).Checked(opts.isChecked)
@@ -56,10 +72,11 @@ func iconButton(c *ui.Context, key any, icon *ui.SVG, label string, size, iconSi
 		bg = over(th.Color.GhostHover, bg)
 	}
 	b.Background(bg).TextColor(fg).Transition(colorFade).Children(func() {
-		ui.Icon(c, icon).Size(iconSize, iconSize)
+		ui.Icon(c, icon).Size(size.glyph, size.glyph)
 		if opts.isOn {
 			// A dot as well as the color, so the state doesn't rest on hue alone.
-			ui.Box(c).Size(4, 4).Radius(2).Background(th.Color.Accent).Absolute().Bottom(size * 0.08).Left(size/2 - 2)
+			ui.Box(c).Size(4, 4).Radius(2).Background(th.Color.Accent).Absolute().Bottom(size.box * 0.08).
+				Left(size.box/2 - 2)
 		}
 	})
 	return b
@@ -72,15 +89,15 @@ func (a *app) likeButton(c *ui.Context, id string, size float32) {
 	if liked {
 		icon, opts.tip, opts.fg = icHeartFilled, locales.Unlike(), th.Color.Accent
 	}
-	if iconButton(c, "like", icon, locales.Like(), size, size*0.5, opts).Clicked() {
+	if iconButton(c, "like", icon, locales.Like(), btnSize{box: size, glyph: size * 0.5}, opts).Clicked() {
 		a.session.SetLiked(id, !liked)
 	}
 }
 
-func (a *app) shuffleButton(c *ui.Context, size, iconSize float32) {
+func (a *app) shuffleButton(c *ui.Context, size btnSize) {
 	isShuffled := a.mirror.State().Shuffled
 	opts := iconOpts{isOn: isShuffled, isToggle: true, isChecked: isShuffled}
-	if iconButton(c, "shuffle", icShuffle, locales.Shuffle(), size, iconSize, opts).Clicked() {
+	if iconButton(c, "shuffle", icShuffle, locales.Shuffle(), size, opts).Clicked() {
 		a.client.ToggleShuffle()
 	}
 }

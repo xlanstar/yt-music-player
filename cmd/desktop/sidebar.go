@@ -24,7 +24,7 @@ func (a *app) sidebar(c *ui.Context) {
 		ui.Box(c).Height(1).Background(th.Color.Line).Margin(th.Space(4.5), th.Space(6))
 		ui.Row(c).Padding(0, th.Space(4), th.Space(2), th.Space(6)).AlignItems(ui.Center).Children(func() {
 			eyebrow(c, locales.SidebarPlaylists()).Grow(1)
-			iconButton(c, "new-playlist", icPlus, locales.NewPlaylist(), 28, 16, iconOpts{})
+			iconButton(c, "new-playlist", icPlus, locales.NewPlaylist(), btnSmall, iconOpts{})
 		})
 		playlists := ui.Scroll(c.Key("playlists")).Grow(1).Padding(0, th.Space(3), th.Space(4)).Gap(th.Space(0.5)).
 			FocusGroup(ui.Vertical)
