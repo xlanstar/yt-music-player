@@ -2,7 +2,6 @@ package main
 
 import (
 	"strconv"
-	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/theme"
@@ -194,16 +193,8 @@ func (a *app) playButton(c *ui.Context) {
 	if a.isPlaying() {
 		icon, label = icPause, locales.Pause()
 	}
-	play := ui.ButtonBase(c.Key("play")).Size(44, 44).Radius(22).Center().Background(th.Color.Text).
-		Label(label).Cursor(ui.CursorPointer).KeepFocus()
+	play := roundPlayButton(c, "play", icon, label, btnPlay, th.Color.Text, th.Color.Base)
 	tip(c, play, label, locales.KeySpace())
-	// A pose, as liftMotion explains.
-	grow := boolToFloat(play.Hovered())
-	if play.Pressed() {
-		grow = -0.6
-	}
-	play.AnimatePose(ui.Pose{Scale: 1 + 0.06*grow}, ui.Animation{Duration: 120 * time.Millisecond})
-	play.Children(func() { ui.Icon(c, icon).Size(18, 18).TextColor(th.Color.Base) })
 	if play.Clicked() {
 		a.client.Toggle()
 	}

@@ -20,6 +20,7 @@ var (
 	btnChrome  = btnSize{box: 36, glyph: 18} // the top bar's, the player bar's and the panel's
 	btnSkip    = btnSize{box: 38, glyph: 20} // Previous and Next
 	btnAction  = btnSize{box: 42, glyph: 22} // under a collection's title
+	btnPlay    = btnSize{box: 44, glyph: 18} // the player bar's Play
 )
 
 // iconOpts are an iconButton's options. Disabled changes input, so
@@ -78,6 +79,22 @@ func iconButton(c *ui.Context, key any, icon *ui.SVG, label string, size btnSize
 	})
 	return b
 }
+
+// roundPlayButton is a filled round button that grows while hovered and
+// shrinks while pressed, as a pose: liftMotion explains.
+func roundPlayButton(c *ui.Context, key any, icon *ui.SVG, label string, size btnSize, bg, fg ui.Color) ui.Element {
+	b := ui.ButtonBase(c.Key(key)).Size(size.box, size.box).Radius(size.box / 2).Center().Background(bg).
+		Label(label).Cursor(ui.CursorPointer).KeepFocus()
+	grow := boolToFloat(b.Hovered())
+	if b.Pressed() {
+		grow = -0.6
+	}
+	b.AnimatePose(ui.Pose{Scale: 1 + 0.06*grow}, pressMotion)
+	b.Children(func() { ui.Icon(c, icon).Size(size.glyph, size.glyph).TextColor(fg) })
+	return b
+}
+
+var pressMotion = ui.Animation{Duration: 120 * time.Millisecond}
 
 // likeButton's label stays Like, pressed while liked.
 func (a *app) likeButton(c *ui.Context, id string, size btnSize) {
