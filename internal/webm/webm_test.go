@@ -2,8 +2,10 @@ package webm
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -218,5 +220,34 @@ func TestSynthesized(t *testing.T) {
 	}
 	if f, err := r.ReadFrame(); err != nil || f.Time != 10*time.Second || f.Data[0] != 500&0xFF {
 		t.Errorf("after the seek, %v at %v", err, f.Time)
+	}
+}
+
+// info is an Info element's body holding a Duration of d timecode units.
+func info(d float64) []byte {
+	b := []byte{0x44, 0x89, 0x88}
+	return binary.BigEndian.AppendUint64(b, math.Float64bits(d))
+}
+
+func TestParseInfoDuration(t *testing.T) {
+	for _, tc := range []struct {
+		units float64
+		want  time.Duration
+	}{
+		{6020, 6020 * time.Millisecond},
+		{0, 0},
+		{-1, 0},
+		{math.NaN(), 0},
+		{math.Inf(1), 0},
+		// Past Duration's range in nanoseconds: unknown, not 292 years.
+		{1e16, 0},
+	} {
+		var w Reader
+		if err := w.parseInfo(info(tc.units)); err != nil {
+			t.Fatal(err)
+		}
+		if w.Duration() != tc.want {
+			t.Errorf("Duration of %v ms read as %v, want %v", tc.units, w.Duration(), tc.want)
+		}
 	}
 }

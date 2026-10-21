@@ -283,8 +283,10 @@ func (w *Reader) parseInfo(b []byte) error {
 		return fmt.Errorf("%w: timecode scale %d", ErrFormat, scale)
 	}
 	w.scale = time.Duration(scale)
-	if duration > 0 && !math.IsInf(duration, 0) {
-		w.duration = time.Duration(duration * float64(scale))
+	// A length past Duration's range would convert to what the
+	// architecture gives: 292 years on arm64, negative on amd64.
+	if d := duration * float64(scale); d > 0 && d < math.MaxInt64 {
+		w.duration = time.Duration(d)
 	}
 	return nil
 }
