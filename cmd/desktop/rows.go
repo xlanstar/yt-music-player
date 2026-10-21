@@ -7,6 +7,13 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// A table's fixed columns, which its head and skeleton line up with.
+const (
+	numberColumn   = 28
+	likeColumn     = 36
+	durationColumn = 48
+)
+
 type songRowOpts struct {
 	index      int     // position shown in a table or ranked, from 0
 	art        float32 // cover size, 0 for none
@@ -114,9 +121,9 @@ func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hover
 		}
 	}
 	if opts.isInTable {
-		ui.Row(c).Width(36).Justify(ui.Center).Children(like)
+		ui.Row(c).Width(likeColumn).Justify(ui.Center).Children(like)
 		ui.Text(c, clock(s.Seconds)).FontSize(th.Type.Detail).TextColor(th.Color.Muted).FontFeatures("tnum").
-			Width(48).TextAlign(ui.End)
+			Width(durationColumn).TextAlign(ui.End)
 		return
 	}
 	like()
@@ -133,7 +140,7 @@ func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hover
 }
 
 func (a *app) trackNumber(c *ui.Context, index int, isCurrent, hovered bool) {
-	ui.Row(c).Width(28).Justify(ui.Center).Children(func() {
+	ui.Row(c).Width(numberColumn).Justify(ui.Center).Children(func() {
 		switch {
 		case hovered && isCurrent && a.isPlaying():
 			ui.Icon(c, icPause).Size(14, 14).TextColor(th.Color.Text)

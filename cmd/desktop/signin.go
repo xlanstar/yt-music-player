@@ -209,13 +209,13 @@ func (a *app) libraryState(c *ui.Context, width float32, header func()) bool {
 }
 
 func librarySkeleton(c *ui.Context, width float32, header func()) {
-	cols := columnsFor(width, th.Layout.Sized().Cell, 2, 7)
-	cell := (width - th.Space(5)*float32(cols-1)) / float32(cols)
+	cols, gap := libraryColumns(width), libraryGap()
+	cell := (width - gap*float32(cols-1)) / float32(cols)
 	ui.Column(c).Grow(1).Padding(th.Space(1), th.Layout.Page-rowBleed, th.Space(12)).Children(func() {
 		header()
 		ui.Column(c).Padding(0, rowBleed).Gap(th.Space(3.5)).Children(func() {
 			loadingStatus(c)
-			ui.Grid(c).Columns(cols).GapX(th.Space(5)).Children(func() {
+			ui.Grid(c).Columns(cols).GapX(gap).Children(func() {
 				for range cols {
 					boneCard(c, 0, cell, 0.45)
 				}

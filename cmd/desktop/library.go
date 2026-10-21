@@ -177,9 +177,9 @@ func playlistLine(pl catalog.Playlist, withCount bool) string {
 // ui.GridView: it wants fixed-height cells, while a card grows with its width
 // and two lines of text, and it cannot scroll the header with the cards.
 func cardGrid(c *ui.Context, state *ui.ListState, w float32, count int, header func(), card func(i int)) {
-	cols := columnsFor(w, th.Layout.Sized().Cell, 2, 7)
+	cols := libraryColumns(w)
 	pageList(c, state, th.Space(1), (count+cols-1)/cols, nil, header, func(row int) {
-		grid := ui.Grid(c).Columns(cols).GapX(th.Space(5)).Padding(0, rowBleed)
+		grid := ui.Grid(c).Columns(cols).GapX(libraryGap()).Padding(0, rowBleed)
 		if row > 0 {
 			grid.Margin(th.Space(7), 0, 0, 0)
 		}
@@ -190,3 +190,8 @@ func cardGrid(c *ui.Context, state *ui.ListState, w float32, count int, header f
 		})
 	})
 }
+
+func libraryColumns(w float32) int { return columnsFor(w, th.Layout.Sized().Cell, 2, 7) }
+
+// libraryGap is between the library's cards, across.
+func libraryGap() float32 { return th.Space(5) }

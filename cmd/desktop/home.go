@@ -146,7 +146,7 @@ func (a *app) songShelf(c *ui.Context, w float32, sh *catalog.Shelf, playAll boo
 			}
 			a.client.PlayAll(ids, songs)
 		}
-		cols := columnsFor(w, 300, 1, 3)
+		cols := songShelfColumns(w)
 		grid := ui.Grid(c).Columns(cols).GapX(th.Space(4)).GapY(th.Space(0.5)).Margin(0, -th.Space(2)).
 			FocusGroup(ui.Horizontal | ui.Vertical)
 		grid.Children(func() {
@@ -156,6 +156,8 @@ func (a *app) songShelf(c *ui.Context, w float32, sh *catalog.Shelf, playAll boo
 		})
 	})
 }
+
+func songShelfColumns(w float32) int { return columnsFor(w, 300, 1, 3) }
 
 func (a *app) cardShelf(c *ui.Context, sh *catalog.Shelf, cards []cardText) {
 	ui.Column(c).Children(func() {
@@ -203,11 +205,13 @@ func featured(shelves []catalog.Shelf) (shelfIndex, itemIndex int, ok bool) {
 	return 0, 0, false
 }
 
+const heroHeight = 248
+
 func (a *app) hero(c *ui.Context, w float32, sh *catalog.Shelf, itemIndex int) {
 	playlist := sh.Items[itemIndex].Playlist
 	cv := coverOf(playlist.Art)
 	col := &th.Color
-	banner := ui.Row(c).Height(248).Radius(th.Radius.Hero).AlignItems(ui.Stretch).
+	banner := ui.Row(c).Height(heroHeight).Radius(th.Radius.Hero).AlignItems(ui.Stretch).
 		LinearGradient(ui.LinearGradient{From: cv.from, To: cv.to, Angle: 110, Oklab: true})
 	pt := &a.paints
 	pt.hero = cv
@@ -310,11 +314,11 @@ func artOf(it catalog.Item) catalog.Art {
 func homeSkeleton(c *ui.Context, w float32) {
 	size := th.Layout.Sized()
 	loadingStatus(c).Margin(0, 0, -th.Space(6), 0)
-	bone(c, 0, 248, th.Radius.Hero)
+	bone(c, 0, heroHeight, th.Radius.Hero)
 	ui.Column(c).Gap(th.Space(4)).Children(func() {
 		bone(c, 120, 11, 5)
 		bone(c, 200, 22, 8)
-		cols := columnsFor(w, 300, 1, 3)
+		cols := songShelfColumns(w)
 		ui.Grid(c).Columns(cols).GapX(th.Space(4)).GapY(th.Space(0.5)).Children(func() {
 			for range cols * 4 {
 				ui.Row(c).Padding(0, 0, th.Space(4.5), 0).Gap(th.Space(3.5)).AlignItems(ui.Center).Children(func() {

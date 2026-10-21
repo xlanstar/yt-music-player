@@ -176,7 +176,7 @@ func collectionSkeleton(c *ui.Context, w float32, label string) {
 			row := ui.Row(c).Height(th.Layout.Sized().Row).Padding(0, th.Space(3)).Gap(th.Space(4)).
 				AlignItems(ui.Center)
 			row.Children(func() {
-				bone(c, 28, 14, 7)
+				bone(c, numberColumn, 14, 7)
 				boneLines(c, 200, 120)
 				bone(c, 36, 12, 6)
 			})
@@ -296,12 +296,12 @@ func tableHead(c *ui.Context, showAlbum bool, albumWidth float32) {
 	ui.Row(c).Height(36).Padding(0, th.Space(3)).Gap(th.Space(4)).AlignItems(ui.Center).
 		BorderWidth(0, 0, 1, 0).BorderColor(th.Color.Line).Margin(0, 0, th.Space(2), 0).
 		TextColor(th.Color.Faint).FontSize(th.Type.Small).FontWeight(600).Children(func() {
-		ui.Text(c, "#").Width(28).TextAlign(ui.Center)
+		ui.Text(c, "#").Width(numberColumn).TextAlign(ui.Center)
 		ui.Text(c, locales.ColumnTitle()).LetterSpacing(1).Grow(1)
 		if showAlbum {
 			ui.Text(c, locales.ColumnAlbum()).LetterSpacing(1).Width(albumWidth)
 		}
-		ui.Box(c).Width(36)
-		ui.Row(c).Width(48).Justify(ui.End).Children(func() { ui.Icon(c, icClock).Size(15, 15) })
+		ui.Box(c).Width(likeColumn)
+		ui.Row(c).Width(durationColumn).Justify(ui.End).Children(func() { ui.Icon(c, icClock).Size(15, 15) })
 	})
 }
