@@ -16,16 +16,15 @@ type collectionKind uint8
 const (
 	noCollection collectionKind = iota
 	albumCollection
-	playlistCollection // also Liked music
+	playlistCollection
+	likedMusicCollection // a playlist that says how likes fill it
 )
 
 type collection struct {
 	kind                        collectionKind
 	eyebrow, title, owner, meta string
-	// emptyDetail explains an empty collection; only Liked music has one.
-	emptyDetail string
-	art         catalog.Art
-	songs       []catalog.Song
+	art                         catalog.Art
+	songs                       []catalog.Song
 }
 
 func (a *app) likedCollection() collection {
@@ -37,8 +36,8 @@ func (a *app) likedCollection() collection {
 	if m.stale(collectionKey{session.LikedRes, a.cat.Gen(), a.session.LikesGen(), owner}) {
 		songs := a.session.LikedSongs()
 		m.v = collection{
-			kind: playlistCollection, eyebrow: locales.AutoPlaylist(), title: locales.LikedMusic(), owner: owner,
-			meta: totalLength(songs), emptyDetail: locales.LikedEmpty(), art: artLiked, songs: songs,
+			kind: likedMusicCollection, eyebrow: locales.AutoPlaylist(), title: locales.LikedMusic(), owner: owner,
+			meta: totalLength(songs), art: artLiked, songs: songs,
 		}
 	}
 	return m.v
@@ -143,8 +142,8 @@ func (a *app) collectionPage(c *ui.Context, w float32, col collection) {
 			if len(col.songs) == 0 {
 				ui.Column(c).Padding(th.Space(12), 0).Gap(th.Space(1.5)).AlignItems(ui.Center).Children(func() {
 					heading(c, locales.NothingHereYet(), ty.Minor, 2)
-					if col.emptyDetail != "" {
-						ui.Text(c, col.emptyDetail).TextColor(th.Color.Muted)
+					if col.kind == likedMusicCollection {
+						ui.Text(c, locales.LikedEmpty()).TextColor(th.Color.Muted)
 					}
 				})
 			}
