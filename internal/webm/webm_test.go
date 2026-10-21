@@ -251,3 +251,29 @@ func TestParseInfoDuration(t *testing.T) {
 		}
 	}
 }
+
+// FuzzUnlace: any block unlaces into its frame count of frames, one run
+// of its bytes, or fails; it never panics.
+func FuzzUnlace(f *testing.F) {
+	f.Add(byte(laceXiph), []byte("\x02\x01\x02abbccc"))
+	f.Add(byte(laceFixed), []byte("\x02aabbcc"))
+	f.Add(byte(laceEBML), []byte("\x02\x82\xC0aabbbcccc"))
+	for _, tc := range laceCases {
+		f.Add(tc.kind, lacedBlock(tc.kind, tc.frames))
+	}
+	r := &Reader{}
+	f.Fuzz(func(t *testing.T, kind byte, data []byte) {
+		kind = kind&0x06 | laceXiph
+		frames, err := r.unlace(kind, data)
+		if err != nil {
+			return
+		}
+		if len(frames) != int(data[0])+1 {
+			t.Fatalf("%d frames, want %d", len(frames), int(data[0])+1)
+		}
+		if !bytes.Contains(data[1:], bytes.Join(frames, nil)) {
+			t.Fatalf("frames are not a run of the block's bytes")
+		}
+		r.laced = frames
+	})
+}
