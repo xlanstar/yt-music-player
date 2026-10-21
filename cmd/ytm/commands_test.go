@@ -117,17 +117,67 @@ func TestUsage(t *testing.T) {
 	}
 }
 
+// helpText is what ytm help writes, in English.
+const helpText = `Control YT Music Player from the terminal. Commands:
+
+  ytm                                   Open the player in the terminal
+  ytm status [--json]                   Show what is playing
+  ytm play | pause | toggle             Play, pause, or switch between them
+  ytm next | prev                       Skip to the next or the previous song
+  ytm seek <sec|+sec|-sec>              Go to a time in the song, or forward or back by seconds
+  ytm volume <0-100|+n|-n>              Set the volume, or turn it up or down
+  ytm login                             Sign in with a Cookie header, pasted or piped in
+  ytm logout                            Sign out
+  ytm daemon start|stop|restart|status  Start, stop or restart the background player
+  ytm autostart on|off|status           Start the background player when you log in, or not
+  ytm logs                              Show where the log files are
+  ytm version                           Show the versions of ytm and the background player
+  ytm help                              Show this list
+`
+
 func TestHelp(t *testing.T) {
-	for _, arg := range []string{"help", "-h", "--help"} {
+	for _, args := range [][]string{{"help"}, {"-h"}, {"--help"}, {"help", "seek"}} {
 		w := newWorld(nil)
-		if code := w.run(t, arg); code != exitOK {
-			t.Errorf("%s: exit %d", arg, code)
+		if code := w.run(t, args...); code != exitOK {
+			t.Errorf("%s: exit %d", args, code)
 		}
-		for _, command := range []string{"ytm status [--json]", "ytm daemon start|stop|restart|status", "ytm autostart on|off|status"} {
-			if !strings.Contains(w.stdout.String(), command) {
-				t.Errorf("%s: no %q in %q", arg, command, w.stdout)
+		if got := w.stdout.String(); got != helpText {
+			t.Errorf("%s: wrote %q, want %q", args, got, helpText)
+		}
+	}
+}
+
+// TestUsageText checks each command's usage, told on stderr when misused.
+func TestUsageText(t *testing.T) {
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"status", "x"}, "Usage: ytm status [--json]\n"},
+		{[]string{"play", "x"}, "Usage: ytm play\n"},
+		{[]string{"pause", "x"}, "Usage: ytm pause\n"},
+		{[]string{"toggle", "x"}, "Usage: ytm toggle\n"},
+		{[]string{"next", "x"}, "Usage: ytm next\n"},
+		{[]string{"prev", "x"}, "Usage: ytm prev\n"},
+		{[]string{"seek"}, "Usage: ytm seek <sec|+sec|-sec>\n"},
+		{[]string{"volume"}, "Usage: ytm volume <0-100|+n|-n>\n"},
+		{[]string{"login", "x"}, "Usage: ytm login\n"},
+		{[]string{"logout", "x"}, "Usage: ytm logout\n"},
+		{[]string{"daemon"}, "Usage: ytm daemon start|stop|restart|status\n"},
+		{[]string{"autostart"}, "Usage: ytm autostart on|off|status\n"},
+		{[]string{"logs", "x"}, "Usage: ytm logs\n"},
+		{[]string{"version", "x"}, "Usage: ytm version\n"},
+		{[]string{"bogus"}, "Unknown command “bogus”. Run “ytm help” for the commands.\n"},
+	} {
+		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
+			w := newWorld(nil)
+			if code := w.run(t, tc.args...); code != exitUsage {
+				t.Errorf("exit %d, want %d", code, exitUsage)
 			}
-		}
+			if got := w.stderr.String(); got != tc.want {
+				t.Errorf("stderr %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
