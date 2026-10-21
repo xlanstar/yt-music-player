@@ -87,6 +87,7 @@ type Service struct {
 	signOuts []pendingReply
 
 	store *store // nil keeps nothing
+	saves saveTracker
 	quiet quiet.GC
 
 	lis  net.Listener
@@ -147,6 +148,7 @@ func newService(opts Options) *Service {
 	s.pb.Resolver, s.pb.NewEngine = opts.Resolver, opts.NewEngine
 	s.acct = account.New(s.src, s.post, s.accountChanged)
 	s.sent.reset(s)
+	s.saves.reset(s.mark())
 	return s
 }
 

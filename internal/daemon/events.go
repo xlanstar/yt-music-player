@@ -26,8 +26,8 @@ const (
 	maxSongFrames = ipc.QueueLen / 4
 )
 
-// sentState is what the subscribers were last told and the state file
-// last kept, to send and save only what changed.
+// sentState is what the subscribers were last told, to send only what
+// changed.
 type sentState struct {
 	state api.State
 	at    time.Time // when state was sent
@@ -37,12 +37,9 @@ type sentState struct {
 	queued, spare map[string]struct{}
 	// catGen is the catalog's Gen once it held only the queue's songs.
 	catGen uint64
-	// seen is the latest seen, to save after a change; mark is what the
-	// state file holds.
-	seen, mark saveMark
 }
 
-// reset takes the Service's state as told and saved.
+// reset takes the Service's state as told.
 func (t *sentState) reset(s *Service) {
 	t.state, t.at = s.state(), s.now()
 	t.queueGen = s.player.QueueGen()
@@ -51,8 +48,6 @@ func (t *sentState) reset(s *Service) {
 		t.queued[id] = struct{}{}
 	}
 	t.catGen = s.cat.Gen()
-	t.seen = s.mark()
-	t.mark = t.seen
 }
 
 func (s *Service) state() api.State {

@@ -65,6 +65,20 @@ func (s *Service) mark() saveMark {
 	return saveMark{p.QueueGen(), p.Index(), p.Volume, p.Muted, p.Repeat, p.IsShuffled()}
 }
 
+// saveTracker compares saveMarks: seen is the latest seen, to save after
+// a change; saved is what the state file holds.
+type saveTracker struct{ seen, saved saveMark }
+
+func (t *saveTracker) reset(m saveMark) { t.seen, t.saved = m, m }
+
+// see takes m as the latest; true if it changed since the last seen and
+// differs from the file's.
+func (t *saveTracker) see(m saveMark) bool {
+	changed := m != t.seen
+	t.seen = m
+	return changed && m != t.saved
+}
+
 // loadState reads daemon.json; ok is false without one. One unreadable is
 // kept aside as daemon.json.bad, and st is empty.
 func loadState(path string) (st savedState, ok bool) {
@@ -152,23 +166,20 @@ func (s *Service) persist(st, last api.State, jumped bool) {
 	if s.store == nil {
 		return
 	}
-	t := &s.sent
 	paused := last.Playing && !st.Playing
 	newSong := st.Current != last.Current
-	mark := s.mark()
-	changed := mark != t.seen
-	t.seen = mark
+	changed := s.saves.see(s.mark())
 	if paused || newSong || jumped {
 		s.save()
 		return
 	}
-	if changed && mark != t.mark {
+	if changed {
 		s.store.arm(s.post, s.saveDue)
 	}
 }
 
 func (s *Service) saveDue() {
-	if !s.stopping && s.mark() != s.sent.mark {
+	if !s.stopping && s.mark() != s.saves.saved {
 		s.save()
 	}
 }
@@ -177,7 +188,7 @@ func (s *Service) save() {
 	if s.store == nil {
 		return
 	}
-	s.sent.mark = s.mark()
+	s.saves.saved = s.mark()
 	s.store.save(s.saved())
 }
 
