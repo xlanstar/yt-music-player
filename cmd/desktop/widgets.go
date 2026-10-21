@@ -124,15 +124,17 @@ var pillSizes = [...]struct{ height, pad float32 }{
 
 // pillOpts' zero value is a large light pill.
 type pillOpts struct {
-	style pillStyle
-	size  pillSize
+	style      pillStyle
+	size       pillSize
+	isDisabled bool
 }
 
 func pill(c *ui.Context, key any, icon *ui.SVG, label string, opts pillOpts) ui.Element {
 	size := pillSizes[opts.size]
 	b := ui.ButtonBase(c.Key(key)).Height(size.height).Padding(0, th.Space(size.pad)).Gap(th.Space(2)).
-		Radius(th.Radius.Pill).Center().Shrink(0).Cursor(ui.CursorPointer).KeepFocus()
-	hovered, pressed := b.Hovered(), b.Pressed()
+		Radius(th.Radius.Pill).Center().Shrink(0).Cursor(ui.CursorPointer).KeepFocus().Disabled(opts.isDisabled)
+	isDisabled := b.IsDisabled()
+	hovered, pressed := b.Hovered() && !isDisabled, b.Pressed()
 	col := &th.Color
 	var bg, fg ui.Color
 	switch opts.style {
@@ -151,6 +153,13 @@ func pill(c *ui.Context, key any, icon *ui.SVG, label string, opts pillOpts) ui.
 		b.Border(1, col.GhostBorder)
 		if hovered {
 			bg = col.GhostHover
+		}
+	}
+	if isDisabled {
+		// A ghost has no fill to dim.
+		bg = bg.Alpha(0.35)
+		if opts.style == pillGhost {
+			fg = col.Faint
 		}
 	}
 	if pressed {

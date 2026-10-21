@@ -100,7 +100,8 @@ func (a *app) signInSheet(c *ui.Context) {
 			if busy {
 				label = locales.SigningIn()
 			}
-			if sheetButton(c, label, busy || a.noCredentials()).Clicked() {
+			submitOpts := pillOpts{style: pillLight, isDisabled: busy || a.noCredentials()}
+			if pill(c, "sign-in-submit", nil, label, submitOpts).Clicked() {
 				submit = true
 			}
 		})
@@ -133,23 +134,6 @@ func step(c *ui.Context, number int, text string, runs func()) {
 		ui.RichText(c).FontSize(th.Type.Label).LineHeight(1.45).TextColor(th.Color.Text).Grow(1).MinWidth(0).
 			Children(runs)
 	})
-}
-
-// sheetButton looks like pillLight, grayed out while disabled.
-func sheetButton(c *ui.Context, label string, disabled bool) ui.Element {
-	button := ui.ButtonBase(c.Key("sign-in-submit")).Height(40).Padding(0, th.Space(5.5)).
-		Radius(th.Radius.Pill).Center().Shrink(0).Cursor(ui.CursorPointer).Disabled(disabled)
-	bg := th.Color.Text
-	switch {
-	case button.IsDisabled():
-		bg = th.Color.Text.Alpha(0.35)
-	case button.Hovered():
-		bg = th.Color.Light
-	}
-	button.Background(bg).TextColor(th.Color.Base).Transition(colorFade).Children(func() {
-		ui.Text(c, label).FontSize(th.Type.Label).FontWeight(600).SingleLine()
-	})
-	return button
 }
 
 func (a *app) signedOutPage(c *ui.Context, icon *ui.SVG, title, body string) {
