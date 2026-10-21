@@ -135,12 +135,17 @@ func (s *Service) cancelCall(c *conn, id uint32) {
 	}
 }
 
-// broadcast sends ev to every subscriber, which share it.
-func (s *Service) broadcast(ev *api.Event) {
+// broadcast sends every subscriber the frames ahead, then ev; they share
+// them.
+func (s *Service) broadcast(ahead []api.Frame, ev *api.Event) {
 	for c := range s.conns {
-		if c.subscribed {
-			c.send(api.Frame{Event: ev})
+		if !c.subscribed {
+			continue
 		}
+		for _, f := range ahead {
+			c.send(f)
+		}
+		c.send(api.Frame{Event: ev})
 	}
 }
 

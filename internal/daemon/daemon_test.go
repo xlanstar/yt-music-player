@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 	"yt-music-player/internal/api"
@@ -521,6 +522,65 @@ func TestAccount(t *testing.T) {
 	}
 	if a := c.event().Account; a == nil || a.SignedIn {
 		t.Errorf("account event %+v, want signed out", a)
+	}
+}
+
+// Songs too many for one frame go ahead of the event naming them, in
+// events of songs alone, which every Proto 1 front-end keeps.
+func TestLongLists(t *testing.T) {
+	h := newHarness(t, Options{})
+	c := h.connect(true)
+	c.event()
+	h.svc.Start()
+	liked := catalogtest.Decoded(1000)
+	calls := h.src.Take(t, nil, "account", "library", "playlist LM")
+	calls["account"].Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
+	calls["library"].Reply <- catalogtest.Reply{}
+	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
+	ev, _, ahead := c.songsAhead(func(ev api.Event) bool { return ev.Likes != nil && ev.Likes.Full })
+	if !slices.Equal(ev.Likes.IDs, ids(liked)) || ev.Likes.Songs != nil || !reflect.DeepEqual(ahead, liked) {
+		t.Errorf("likes %d IDs, %d songs, %d ahead", len(ev.Likes.IDs), len(ev.Likes.Songs), len(ahead))
+	}
+
+	queue := songs(1000)
+	c.call(playAll(queue, 0))
+	ev, ahead, _ = c.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
+	if !slices.Equal(ev.Queue.IDs, ids(queue)) || ev.Songs != nil || !reflect.DeepEqual(ahead, queue) {
+		t.Errorf("queue %d IDs, %d songs, %d ahead", len(ev.Queue.IDs), len(ev.Songs), len(ahead))
+	}
+
+	late := h.connect(true)
+	snap, queued, likedAhead := late.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
+	byID := func(a, b catalog.Song) int { return strings.Compare(a.ID, b.ID) }
+	slices.SortFunc(queued, byID)
+	slices.SortFunc(queue, byID)
+	if !slices.Equal(snap.Queue.IDs, ids(songs(1000))) || snap.Songs != nil || !reflect.DeepEqual(queued, queue) {
+		t.Errorf("snapshot's queue %d IDs, %d songs, %d ahead", len(snap.Queue.IDs), len(snap.Songs), len(queued))
+	}
+	if l := snap.Likes; !l.Full || !slices.Equal(l.IDs, ids(liked)) || l.Songs != nil || !reflect.DeepEqual(likedAhead, liked) {
+		t.Errorf("snapshot's likes %d IDs, %d songs, %d ahead", len(l.IDs), len(l.Songs), len(likedAhead))
+	}
+}
+
+// carry sends a long list whole ahead, in at most maxSongFrames frames.
+func TestCarry(t *testing.T) {
+	for _, tc := range []struct{ n, frames, kept int }{
+		{0, 0, 0},
+		{songsPerFrame, 0, songsPerFrame},
+		{songsPerFrame + 1, 2, 0},
+		{songsPerFrame * maxSongFrames, maxSongFrames, 0},
+		{100_000, maxSongFrames, 0},
+	} {
+		list := songs(tc.n)
+		ahead, kept := carry(nil, list, queuedSongs)
+		var sent []catalog.Song
+		for _, f := range ahead {
+			sent = append(sent, f.Event.Songs...)
+		}
+		sent = append(sent, kept...)
+		if len(ahead) != tc.frames || len(kept) != tc.kept || !slices.Equal(sent, list) {
+			t.Errorf("%d songs: %d frames, %d kept, %d sent; want %d frames, %d kept", tc.n, len(ahead), len(kept), len(sent), tc.frames, tc.kept)
+		}
 	}
 }
 

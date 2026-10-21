@@ -394,6 +394,28 @@ func TestMirrorReplacedAfterReconnect(t *testing.T) {
 	})
 }
 
+// A reconnection's songs come ahead of its queue, in events of their own:
+// till the queue, the one before shows with its songs.
+func TestMirrorSongsAhead(t *testing.T) {
+	var m Mirror
+	at := time.Now()
+	m.apply(&api.Event{Queue: &api.Queue{IDs: []string{"a"}}, Songs: []catalog.Song{song("a")}}, 1, at)
+	m.apply(&api.Event{Songs: []catalog.Song{song("b")}}, 2, at)
+	m.apply(&api.Event{Songs: []catalog.Song{song("c")}}, 2, at)
+	if _, ok := m.Song("a"); !ok || !slices.Equal(m.Queue(), []string{"a"}) {
+		t.Errorf("queue %v, song a gone before the next queue", m.Queue())
+	}
+	m.apply(&api.Event{Queue: &api.Queue{IDs: []string{"b", "c"}}}, 2, at)
+	if _, ok := m.Song("a"); ok {
+		t.Error("the first link's song stays")
+	}
+	for _, id := range m.Queue() {
+		if _, ok := m.Song(id); !ok {
+			t.Errorf("song %s missing", id)
+		}
+	}
+}
+
 func TestMirrorPrunes(t *testing.T) {
 	var m Mirror
 	at := time.Now()

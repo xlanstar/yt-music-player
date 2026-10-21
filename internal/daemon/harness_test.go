@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"net"
+	"reflect"
 	"strconv"
 	"sync"
 	"testing"
@@ -282,6 +283,32 @@ func (c *client) eventWith(has func(api.Event) bool) api.Event {
 	for {
 		if ev := c.event(); has(ev) {
 			return ev
+		}
+	}
+}
+
+// songsAhead returns the next event last accepts, with the songs that came
+// ahead of it in events of their own: the queue's and the likes'. Other
+// events are dropped.
+func (c *client) songsAhead(last func(api.Event) bool) (ev api.Event, queued, liked []catalog.Song) {
+	c.t.Helper()
+	for {
+		ev = c.event()
+		var chunk []catalog.Song
+		switch {
+		case last(ev):
+			return ev, queued, liked
+		case reflect.DeepEqual(ev, api.Event{Songs: ev.Songs}):
+			chunk = ev.Songs
+			queued = append(queued, chunk...)
+		case ev.Likes != nil && reflect.DeepEqual(ev, api.Event{Likes: &api.Likes{Songs: ev.Likes.Songs}}):
+			chunk = ev.Likes.Songs
+			liked = append(liked, chunk...)
+		default:
+			continue
+		}
+		if len(chunk) == 0 || len(chunk) > songsPerFrame {
+			c.t.Errorf("an event of %d songs", len(chunk))
 		}
 	}
 }

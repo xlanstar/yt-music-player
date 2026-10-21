@@ -18,6 +18,8 @@ type Mirror struct {
 	link  uint64 // the connection the data came from
 
 	stateGen, queueGen uint64
+	// isStale: songs came over an earlier link; the next queue drops them.
+	isStale bool
 }
 
 // State returns the playback state last reported.
@@ -57,9 +59,8 @@ func (m *Mirror) QueueGen() uint64 { return m.queueGen }
 func (m *Mirror) apply(ev *api.Event, link uint64, at time.Time) {
 	if link != m.link {
 		// A new daemon, or the same one after a gap: its snapshot follows,
-		// with every song of its queue.
-		m.link = link
-		clear(m.songs)
+		// every song of its queue ahead of the queue, which shows till then.
+		m.link, m.isStale = link, true
 		m.queueGen++
 	}
 	if ev.State != nil {
@@ -83,11 +84,12 @@ func (m *Mirror) apply(ev *api.Event, link uint64, at time.Time) {
 }
 
 // prune drops the songs no longer queued once they outnumber those
-// queued, rather than on every change of the queue.
+// queued, rather than on every change of the queue, or once stale.
 func (m *Mirror) prune() {
-	if len(m.songs) <= 2*len(m.queue)+64 {
+	if !m.isStale && len(m.songs) <= 2*len(m.queue)+64 {
 		return
 	}
+	m.isStale = false
 	kept := make(map[string]catalog.Song, len(m.queue))
 	for _, id := range m.queue {
 		if song, ok := m.songs[id]; ok {

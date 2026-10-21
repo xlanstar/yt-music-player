@@ -41,6 +41,7 @@ type remoteFixture struct {
 // frontEnd is a Session over Remote, as a front-end has it.
 type frontEnd struct {
 	s      *Session
+	c      *remote.Client
 	states fetchstate.Registry
 	cat    *catalog.Catalog
 	q      chan func()
@@ -67,6 +68,7 @@ func (f *remoteFixture) connect(t *testing.T) *frontEnd {
 		Likes:   func(l api.Likes) { fe.s.ApplyLikes(l) },
 		Failed:  func(e api.FailedEvent) { fe.s.ApplyFailed(e) },
 	})
+	fe.c = c
 	load := loader.New(c, &fe.states, fe.cat, post)
 	fe.s = New(NewRemote(c), &fe.states, load, fe.cat)
 	sup := remote.Supervise(c, remote.Options{
@@ -243,4 +245,44 @@ func TestRemoteLikeDescribed(t *testing.T) {
 	other.until(t, "shown the song liked", shown(other))
 	late := f.connect(t)
 	late.until(t, "shown the song liked", shown(late))
+}
+
+// Lists too long for one frame come in parts (daemon's carry): front-ends
+// connected then and later end with every song.
+func TestRemoteLongLists(t *testing.T) {
+	f := newRemoteFixture(t)
+	liked := catalogtest.Decoded(1000)
+	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
+	calls["account"].Reply <- catalogtest.Reply{Account: ada}
+	calls["library"].Reply <- catalogtest.Reply{Library: adaLibrary()}
+	calls["playlist LM"].Reply <- catalogtest.Reply{
+		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids(liked)}, Songs: liked,
+	}
+	queue := liked[:600]
+	f.until(t, "got the likes", func() bool { return f.s.LikedCount() == len(liked) })
+	f.c.PlayAll(ids(queue), queue)
+	f.until(t, "got the queue", func() bool { return len(f.c.Mirror().Queue()) == len(queue) })
+	late := f.connect(t)
+	late.until(t, "got the likes and the queue", func() bool {
+		return late.s.LikedCount() == len(liked) && len(late.c.Mirror().Queue()) == len(queue)
+	})
+	for _, fe := range []*frontEnd{f.frontEnd, late} {
+		if got := fe.s.LikedSongs(); !reflect.DeepEqual(got, liked) {
+			t.Errorf("%d liked songs, want %d", len(got), len(liked))
+		}
+		m := fe.c.Mirror()
+		for i, id := range m.Queue() {
+			if song, ok := m.Song(id); !ok || song != queue[i] {
+				t.Errorf("queued song %d is %+v, want %+v", i, song, queue[i])
+			}
+		}
+	}
+}
+
+func ids(songs []catalog.Song) []string {
+	out := make([]string, len(songs))
+	for i, song := range songs {
+		out[i] = song.ID
+	}
+	return out
 }

@@ -84,7 +84,7 @@ type Event struct {
 	State *State
 	Queue *Queue
 	// Songs describe the songs newly in the queue, all of them in a
-	// snapshot.
+	// snapshot; too many for one frame, they come ahead in events of their own.
 	Songs   []catalog.Song
 	Likes   *Likes
 	Account *AccountEvent
@@ -200,9 +200,9 @@ type State struct {
 type Queue struct{ IDs []string }
 
 // Likes changes the liked songs (account.Likes). With Full, IDs are all of
-// them, newest first, and Songs describe them; otherwise Added and Removed
-// are the likes that went through since, and Songs describe those of
-// Added whose Like described them (LikeArgs.Song). Never coalesced.
+// them, newest first, described by Songs and Likes of Songs alone before it;
+// otherwise Added and Removed went through since, and Songs describe those
+// of Added whose Like described them (LikeArgs.Song). Never coalesced.
 type Likes struct {
 	Full           bool
 	IDs            []string
