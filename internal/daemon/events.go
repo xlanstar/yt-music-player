@@ -233,8 +233,10 @@ func (s *Service) accountChanged(c account.Change) {
 	switch {
 	case c.Status != nil:
 		if c.Status.Switched {
-			// The queue was the previous account's.
+			// The queue was the previous account's; the sign-in fetches
+			// the library and likes.
 			s.player.Clear()
+			s.hasLibrary = true
 		}
 		ev.Account = &api.AccountEvent{Account: c.Status.Account, SignedIn: c.Status.SignedIn, Switched: c.Status.Switched}
 	case c.Library != nil:

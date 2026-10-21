@@ -102,6 +102,10 @@ type Service struct {
 	// resume continues a hand-off's playback at Start.
 	resume   bool
 	stopping bool
+	// isStarted: Start ran. hasLibrary: the library and likes were
+	// fetched, or a sign-in fetches them (fetchLibrary).
+	isStarted  bool
+	hasLibrary bool
 }
 
 // New returns a Service, its state loaded from opts.State, and starts its
@@ -172,8 +176,8 @@ func Open(paths ipc.Paths, opts Options) (*Service, error) {
 	return s, nil
 }
 
-// Start resumes playing after a hand-off, fetches the account, and accepts
-// connections on Open's socket.
+// Start resumes playing after a hand-off, fetches who is signed in, and
+// accepts connections on Open's socket.
 func (s *Service) Start() {
 	s.post(s.start)
 	if s.lis != nil {
@@ -189,9 +193,28 @@ func (s *Service) start() {
 		// Saved anew without resumePlaying: read once.
 		s.save()
 	}
-	for p := range account.Liked + 1 {
-		s.acct.Fetch(p)
+	s.isStarted = true
+	s.acct.Fetch(account.Profile)
+	for c := range s.conns {
+		if c.subscribed {
+			s.fetchLibrary()
+			break
+		}
 	}
+}
+
+// fetchLibrary fetches the library and likes once, for the first subscriber
+// after Start: only front-ends read them, and ytmd may start at login.
+func (s *Service) fetchLibrary() {
+	if !s.isStarted || s.hasLibrary {
+		return
+	}
+	s.hasLibrary = true
+	if st, ok := s.acct.Status(); ok && !st.SignedIn {
+		return // a sign-in fetches them
+	}
+	s.acct.Fetch(account.Library)
+	s.acct.Fetch(account.Liked)
 }
 
 func (s *Service) accept(lis net.Listener) {

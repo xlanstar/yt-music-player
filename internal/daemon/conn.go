@@ -120,6 +120,7 @@ func (s *Service) register(c *conn) {
 		for _, f := range s.snapshot() {
 			c.send(f)
 		}
+		s.fetchLibrary()
 	}
 }
 

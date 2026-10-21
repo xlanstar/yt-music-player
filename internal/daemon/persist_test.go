@@ -240,10 +240,11 @@ func TestHandoffTooLate(t *testing.T) {
 	late := newHarness(t, Options{State: path})
 	late.clock.set(saved.Add(2 * time.Minute))
 	late.svc.Start()
-	late.src.Take(t, nil, "account", "library", "playlist LM")
+	late.src.Next(t, nil, "account", "")
 	if st := late.connect(true).event().State; st.Playing {
 		t.Errorf("resumed past resumeBefore: %+v", st)
 	}
+	late.src.Take(t, nil, "library", "playlist LM")
 }
 
 // Of two hand-offs at once, only the first is answered; the other hears of

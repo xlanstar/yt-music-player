@@ -584,6 +584,99 @@ func TestCarry(t *testing.T) {
 	}
 }
 
+// Started, ytmd fetches who is signed in, for `ytm status`; the library
+// and likes once, for the first subscriber.
+func TestLibraryForSubscribers(t *testing.T) {
+	h := newHarness(t, Options{})
+	cli := h.connect(false)
+	h.svc.Start()
+	ada := catalog.Account{Name: "Ada"}
+	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Account: ada}
+	h.until("signed in", func() bool { return h.svc.status().SignedIn })
+	if st := cli.call(api.Call{Method: api.MethodStatus}).Status; st.Account != ada {
+		t.Errorf("status %+v", st)
+	}
+	h.src.None(t, nil, 30*time.Millisecond)
+
+	first := h.connect(true)
+	if snap := first.event(); snap.Account == nil || snap.Library != nil || snap.Likes != nil {
+		t.Errorf("first snapshot %+v", snap)
+	}
+	calls := h.src.Take(t, nil, "library", "playlist LM")
+	// One connecting meanwhile hears of them as the first does.
+	second := h.connect(true)
+	second.event()
+	h.src.None(t, nil, 30*time.Millisecond)
+	lib := catalog.Library{Songs: songs(2)}
+	liked := songs(3)
+	calls["library"].Reply <- catalogtest.Reply{Library: lib}
+	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
+	for _, c := range []*client{first, second} {
+		var (
+			gotLib   *catalog.Library
+			gotLikes *api.Likes
+		)
+		for gotLib == nil || gotLikes == nil {
+			ev := c.event()
+			if ev.Library != nil {
+				gotLib = ev.Library
+			}
+			if ev.Likes != nil {
+				gotLikes = ev.Likes
+			}
+		}
+		if !reflect.DeepEqual(*gotLib, lib) || !slices.Equal(gotLikes.IDs, ids(liked)) {
+			t.Errorf("library %+v, likes %+v", gotLib, gotLikes)
+		}
+	}
+
+	// Later ones, after the others left, find them in their snapshot.
+	_ = first.c.Close()
+	_ = second.c.Close()
+	late := h.connect(true)
+	if snap := late.event(); snap.Library == nil || snap.Likes == nil || !slices.Equal(snap.Likes.IDs, ids(liked)) {
+		t.Errorf("late snapshot %+v", snap)
+	}
+	h.src.None(t, nil, 30*time.Millisecond)
+}
+
+// Signed out, a subscriber has nothing fetched; a sign-in fetches it all,
+// before any subscriber too, which then fetches nothing again.
+func TestLibraryAfterSignIn(t *testing.T) {
+	t.Run("signed out", func(t *testing.T) {
+		h := signedOutHarness(t)
+		h.until("signed out", func() bool {
+			_, ok := h.svc.acct.Status()
+			return ok
+		})
+		if a := h.connect(true).event().Account; a == nil || a.SignedIn {
+			t.Errorf("account %+v, want signed out", a)
+		}
+		h.src.None(t, nil, 30*time.Millisecond)
+	})
+	t.Run("signed in without subscribers", func(t *testing.T) {
+		h := signedOutHarness(t)
+		cli := h.connect(false)
+		id := cli.send(signIn("SID=1"))
+		h.src.Next(t, nil, "signin", "SID=1").Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
+		if r := cli.reply(id); r.Err != nil {
+			t.Fatal(r.Err.Err())
+		}
+		h.src.Take(t, nil, "account", "library", "playlist LM")
+		h.connect(true).event()
+		h.src.None(t, nil, 30*time.Millisecond)
+	})
+}
+
+// signedOutHarness is a harness started signed out.
+func signedOutHarness(t *testing.T) *harness {
+	t.Helper()
+	h := newHarness(t, Options{})
+	h.svc.Start()
+	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	return h
+}
+
 func TestSignInAndOut(t *testing.T) {
 	h := newHarness(t, Options{Seed: songs(2)})
 	c := h.connect(true)

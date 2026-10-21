@@ -349,15 +349,22 @@ func playAll(songs []catalog.Song, start int) api.Call {
 // loop.
 func (h *harness) loaded() {
 	h.t.Helper()
+	h.until("loaded", func() bool { return h.fake.Loads > 0 })
+}
+
+// until waits until cond, run on the loop, holds: what happens off the
+// loop comes back through it.
+func (h *harness) until(what string, cond func() bool) {
+	h.t.Helper()
 	deadline := time.Now().Add(wait)
 	for {
-		var n uint64
-		h.do(func() { n = h.fake.Loads })
-		if n > 0 {
+		var ok bool
+		h.do(func() { ok = cond() })
+		if ok {
 			return
 		}
 		if time.Now().After(deadline) {
-			h.t.Fatal("nothing loaded")
+			h.t.Fatalf("never %s", what)
 		}
 		time.Sleep(time.Millisecond)
 	}
