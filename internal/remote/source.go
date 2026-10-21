@@ -11,90 +11,62 @@ import (
 // Search is catalog.Source's Search, through the daemon.
 func (c *Client) Search(ctx context.Context, query string) (catalog.Results, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodSearch, Query: &api.QueryArgs{Query: query}})
-	switch {
-	case err != nil:
-		return catalog.Results{}, err
-	case r.Results == nil:
-		return catalog.Results{}, errNoResult
-	}
-	return *r.Results, nil
+	return resultOf(r, err, func(r *api.Reply) *catalog.Results { return r.Results })
 }
 
 // Album is catalog.Source's Album, through the daemon.
 func (c *Client) Album(ctx context.Context, id string) (catalog.Album, []catalog.Song, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodAlbum, Ref: &api.RefArgs{ID: id}})
-	switch {
-	case err != nil:
-		return catalog.Album{}, nil, err
-	case r.Album == nil:
-		return catalog.Album{}, nil, errNoResult
-	}
-	return r.Album.Album, r.Album.Songs, nil
+	album, err := resultOf(r, err, func(r *api.Reply) *api.AlbumReply { return r.Album })
+	return album.Album, album.Songs, err
 }
 
 // Playlist is catalog.Source's Playlist, through the daemon.
 func (c *Client) Playlist(ctx context.Context, id string) (catalog.Playlist, []catalog.Song, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: id}})
-	switch {
-	case err != nil:
-		return catalog.Playlist{}, nil, err
-	case r.Playlist == nil:
-		return catalog.Playlist{}, nil, errNoResult
-	}
-	return r.Playlist.Playlist, r.Playlist.Songs, nil
+	playlist, err := resultOf(r, err, func(r *api.Reply) *api.PlaylistReply { return r.Playlist })
+	return playlist.Playlist, playlist.Songs, err
 }
 
 // Home is catalog.Source's Home, through the daemon.
 func (c *Client) Home(ctx context.Context) (catalog.Home, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodHome})
-	switch {
-	case err != nil:
-		return catalog.Home{}, err
-	case r.Home == nil:
-		return catalog.Home{}, errNoResult
-	}
-	return *r.Home, nil
+	return resultOf(r, err, func(r *api.Reply) *catalog.Home { return r.Home })
 }
 
 // Explore is catalog.Source's Explore, through the daemon.
 func (c *Client) Explore(ctx context.Context) (catalog.Explore, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodExplore})
-	switch {
-	case err != nil:
-		return catalog.Explore{}, err
-	case r.Explore == nil:
-		return catalog.Explore{}, errNoResult
-	}
-	return *r.Explore, nil
+	return resultOf(r, err, func(r *api.Reply) *catalog.Explore { return r.Explore })
 }
 
 // SignIn has the daemon clean, check and store credentials.
 func (c *Client) SignIn(ctx context.Context, credentials string) (catalog.Account, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodSignIn, SignIn: &api.SignInArgs{Credentials: credentials}})
-	return account(r, err)
-}
-
-func account(r *api.Reply, err error) (catalog.Account, error) {
-	switch {
-	case err != nil:
-		return catalog.Account{}, err
-	case r.Account == nil:
-		return catalog.Account{}, errNoResult
-	}
-	return *r.Account, nil
+	return resultOf(r, err, accountOf)
 }
 
 // Status returns the daemon's snapshot for `ytm status`.
 func (c *Client) Status(ctx context.Context) (api.Status, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodStatus})
-	switch {
-	case err != nil:
-		return api.Status{}, err
-	case r.Status == nil:
-		return api.Status{}, errNoResult
-	}
-	return *r.Status, nil
+	return resultOf(r, err, func(r *api.Reply) *api.Status { return r.Status })
 }
+
+// resultOf is what pick finds in a reply to a call that ended with err;
+// a reply without it is errNoResult.
+func resultOf[T any](r *api.Reply, err error, pick func(*api.Reply) *T) (T, error) {
+	var zero T
+	if err != nil {
+		return zero, err
+	}
+	v := pick(r)
+	if v == nil {
+		return zero, errNoResult
+	}
+	return *v, nil
+}
+
+func accountOf(r *api.Reply) *catalog.Account { return r.Account }
 
 // Handoff asks the daemon to save and exit for a newer one, which the
 // caller starts within wait; it returns once the daemon closed the

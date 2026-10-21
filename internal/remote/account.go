@@ -41,7 +41,7 @@ func (a *Account) SignIn(credentials string, done func(catalog.Account, error)) 
 	a.c.Go(ctx, api.Call{Method: api.MethodSignIn, SignIn: &api.SignInArgs{Credentials: credentials}},
 		func(reply *api.Reply, err error) {
 			cancel()
-			done(account(reply, err))
+			done(resultOf(reply, err, accountOf))
 		})
 }
 
