@@ -115,7 +115,7 @@ func TestCoverShowsThumbnailOnceLoaded(t *testing.T) {
 				builds++
 				a.useArt()
 				ui.Box(c).Fill().Center().Children(func() {
-					ui.Column(c).Width(tc.side).Children(func() { coverArt(c, art, tc.w, tc.w, 12) })
+					ui.Column(c).Width(tc.side).Children(func() { coverArt(c, art, tc.w, 12) })
 				})
 			}, 300, 300)
 			// The URL's generated cover, while it loads.

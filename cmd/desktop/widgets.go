@@ -269,7 +269,7 @@ func (a *app) eqDancing() bool {
 
 func (a *app) thumb(c *ui.Context, s catalog.Song, size, radius float32, hovered bool) {
 	isCurrent := s.ID == a.currentID()
-	coverArt(c, s.Art, size, size, radius).Children(func() {
+	coverArt(c, s.Art, size, radius).Children(func() {
 		if !hovered && !isCurrent {
 			return
 		}
@@ -352,7 +352,7 @@ func mediaCard(c *ui.Context, key any, art catalog.Art, title, sub string, size 
 	card.Children(func() {
 		// The cover rises in the layout, not as a pose: a cover clips its
 		// motif, and MyGo draws a moved clip through a mask texture it keeps.
-		artBox := coverArt(c, art, size, size, radius).Top(-4*lift).
+		artBox := coverArt(c, art, size, radius).Top(-4*lift).
 			Shadow(0, 8+10*lift, 28, -4, th.Color.Shadow.Alpha(0.35+0.2*lift))
 		artBox.Children(func() {
 			play := playBadge(c, 44, card.Hovered())

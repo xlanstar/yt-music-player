@@ -81,7 +81,7 @@ func (a *app) queueView(c *ui.Context) {
 	cv := coverOf(s.Art)
 	ui.Column(c).Padding(th.Space(1), th.Space(5), th.Space(6)).Gap(th.Space(4.5)).Children(func() {
 		artSize := th.Layout.Panel - 2*th.Space(5)
-		coverArt(c, s.Art, artSize, artSize, th.Radius.Large).Shadow(0, 24, 50, -10, cv.from.Alpha(0.5))
+		coverArt(c, s.Art, artSize, th.Radius.Large).Shadow(0, 24, 50, -10, cv.from.Alpha(0.5))
 		ui.Row(c).Gap(th.Space(2)).AlignItems(ui.Start).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(th.Space(1.25)).Children(func() {
 				heading(c, s.Title, th.Type.Section, 2).MaxLines(2)
@@ -113,7 +113,7 @@ func (a *app) lyricsView(c *ui.Context) {
 	ty := &th.Type
 	ui.Column(c).Padding(th.Space(1), th.Space(6), th.Space(8)).Gap(th.Space(5.5)).Children(func() {
 		ui.Row(c).Gap(th.Space(3)).AlignItems(ui.Center).Children(func() {
-			coverArt(c, s.Art, 48, 48, th.Radius.Small)
+			coverArt(c, s.Art, 48, th.Radius.Small)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(th.Space(0.75)).Children(func() {
 				ui.Text(c, s.Title).FontSize(ty.Title).FontWeight(600).SingleLine()
 				ui.Text(c, s.Artist).FontSize(ty.Sub).TextColor(th.Color.Muted).SingleLine()

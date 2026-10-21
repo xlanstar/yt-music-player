@@ -34,7 +34,7 @@ func (a *app) accountButton(c *ui.Context) {
 	tip(c, button, name, "")
 	button.Children(func() {
 		if user.Photo.IsURL() {
-			coverArt(c, user.Photo, 34, 34, 17)
+			coverArt(c, user.Photo, 34, 17)
 		} else {
 			ui.Avatar(c, user.Name, nil).Size(34, 34)
 		}

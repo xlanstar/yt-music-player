@@ -136,7 +136,7 @@ func (a *app) panelButton(c *ui.Context, key any, icon *ui.SVG, label string, ta
 }
 
 func barArt(c *ui.Context, art catalog.Art) {
-	coverArt(c, art, 56, 56, th.Radius.Small).Shadow(0, 4, 14, 0, th.Color.Shadow.Alpha(0.5))
+	coverArt(c, art, 56, th.Radius.Small).Shadow(0, 4, 14, 0, th.Color.Shadow.Alpha(0.5))
 }
 
 // barText caches the player bar's and the panel's strings and closures

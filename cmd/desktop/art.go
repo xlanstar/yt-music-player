@@ -179,15 +179,15 @@ func stretchedWidth(c *ui.Context, box ui.Element, art catalog.Art) float32 {
 	return w
 }
 
-// coverArt's width 0 makes it a square stretched across its parent.
-func coverArt(c *ui.Context, art catalog.Art, w, h, radius float32) ui.Element {
+// coverArt is a square of side size; 0 stretches it across its parent.
+func coverArt(c *ui.Context, art catalog.Art, size, radius float32) ui.Element {
 	box := ui.Box(c).Shrink(0).Radius(radius)
-	if w > 0 {
-		box.Size(w, h)
+	if size > 0 {
+		box.Size(size, size)
 	} else {
 		box.AspectRatio(1)
 	}
-	bitmap := thumbnail(c, box, art, w)
+	bitmap := thumbnail(c, box, art, size)
 	cv := coverOf(art)
 	if bitmap != nil {
 		// The image rounds its own corners in its shader, even turned: a
@@ -202,7 +202,7 @@ func coverArt(c *ui.Context, art catalog.Art, w, h, radius float32) ui.Element {
 		Draw(cv.painter(radius))
 	if cv.motif == motifStripes {
 		// The GPU shades stripes as a fill: no path, no clip.
-		side := w
+		side := size
 		if side <= 0 {
 			side = stretchedCover
 		}

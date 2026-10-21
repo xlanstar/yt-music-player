@@ -107,7 +107,7 @@ func (a *app) topResult(c *ui.Context, s catalog.Song) {
 		AlignItems(ui.Start).Cursor(ui.CursorPointer).KeepFocus().Label(s.Title)
 	hovered := raise(card)
 	card.Transition(colorFade).Children(func() {
-		coverArt(c, s.Art, 104, 104, th.Radius.Card).Shadow(0, 10, 28, 0, th.Color.Shadow.Alpha(0.45))
+		coverArt(c, s.Art, 104, th.Radius.Card).Shadow(0, 10, 28, 0, th.Color.Shadow.Alpha(0.45))
 		ui.Column(c).Gap(th.Space(2)).Children(func() {
 			heading(c, s.Title, ty.Feature, 0).SingleLine()
 			ui.Row(c).Gap(th.Space(2)).AlignItems(ui.Center).Children(func() {

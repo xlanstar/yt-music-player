@@ -128,7 +128,7 @@ func (a *app) collectionPage(c *ui.Context, w float32, col collection) {
 	a.songList(c, nil, col.songs, col.kind != albumCollection, w, th.Space(2), func() {
 		ui.Column(c).Padding(0, rowBleed).Children(func() {
 			ui.Row(c).Gap(th.Space(7)).AlignItems(ui.End).Children(func() {
-				coverArt(c, col.art, artSize, artSize, th.Radius.Large).Shadow(0, 24, 60, -8, th.Color.Shadow.Alpha(0.6))
+				coverArt(c, col.art, artSize, th.Radius.Large).Shadow(0, 24, 60, -8, th.Color.Shadow.Alpha(0.6))
 				ui.Column(c).Grow(1).MinWidth(0).Gap(th.Space(2.5)).Children(func() {
 					eyebrow(c, col.eyebrow)
 					heading(c, col.title, ty.Display, 1).MaxLines(2).LineHeight(1.05)

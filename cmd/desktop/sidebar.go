@@ -141,7 +141,7 @@ func (a *app) playlistItem(c *ui.Context, item *sideItem) {
 		b.Background(th.Color.NavHover)
 	}
 	b.Children(func() {
-		artBox := coverArt(c, item.art, 40, 40, th.Radius.Cover)
+		artBox := coverArt(c, item.art, 40, th.Radius.Cover)
 		if item.art == artLiked {
 			artBox.Center().Children(func() { ui.Icon(c, icHeartFilled).Size(16, 16).TextColor(th.Color.Light) })
 		}

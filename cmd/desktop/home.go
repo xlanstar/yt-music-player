@@ -275,7 +275,7 @@ func heroStack(c *ui.Context, items []catalog.Item, itemIndex int) {
 	fan := float32(-1)
 	box.Children(func() {
 		sleeve := func(art catalog.Art, size, x, y, dx, dy float32) {
-			sleeveArt := coverArt(c, art, size, size, th.Radius.Sleeve)
+			sleeveArt := coverArt(c, art, size, th.Radius.Sleeve)
 			if coverOf(art).clips(th.Radius.Sleeve, size) {
 				if fan < 0 {
 					fan = box.Animate("fan", hovered, fanMotion.Duration)

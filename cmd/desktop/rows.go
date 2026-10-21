@@ -65,7 +65,7 @@ func (a *app) songRow(c *ui.Context, s catalog.Song, opts songRowOpts) {
 				a.trackNumber(c, opts.index, isCurrent, hovered)
 				ui.Row(c).Grow(1).MinWidth(0).Gap(th.Space(3.5)).AlignItems(ui.Center).Children(func() {
 					if opts.art > 0 {
-						coverArt(c, s.Art, opts.art, opts.art, th.Radius.Thumb)
+						coverArt(c, s.Art, opts.art, th.Radius.Thumb)
 					}
 					a.songTitle(c, s, text, opts, isCurrent)
 				})
