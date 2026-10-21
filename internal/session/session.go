@@ -3,10 +3,10 @@
 // like at once and undoes it if the daemon says it failed; results come
 // out as notices.
 //
-// A Session asks ytmd through a Daemon (Remote) and tracks what is not
-// answered yet, relying on an answer coming before the events its request
-// caused. It belongs to the UI thread, as do the Daemon's answers and the
-// Apply methods' events.
+// A Session asks ytmd through a Daemon (remote.Account) and tracks what
+// is not answered yet, relying on an answer coming before the events its
+// request caused. It belongs to the UI thread, as do the Daemon's answers
+// and the Apply methods' events.
 package session
 
 import (

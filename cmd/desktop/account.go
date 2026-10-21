@@ -6,6 +6,7 @@ import (
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/noticetext"
+	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
 	"yt-music-player/locales"
 
@@ -26,7 +27,7 @@ type sheetState struct {
 // sends what it has as the app connects, and the rest as it comes: the
 // account's resources load meanwhile, never asked for again.
 func (a *app) connectAccount(cat *catalog.Catalog) {
-	a.session = session.New(session.NewRemote(a.client), &a.fetches, a.loader, cat)
+	a.session = session.New(remote.NewAccount(a.client), &a.fetches, a.loader, cat)
 	for _, res := range session.Resources {
 		a.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	}

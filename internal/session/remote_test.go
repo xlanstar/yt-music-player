@@ -17,6 +17,8 @@ import (
 	"yt-music-player/internal/remote"
 )
 
+var _ Daemon = (*remote.Account)(nil)
+
 // pipeDialer connects to an in-process Service over net.Pipe.
 type pipeDialer struct{ svc *daemon.Service }
 
@@ -29,7 +31,7 @@ func (d pipeDialer) Dial(context.Context) (net.Conn, error) {
 func (d pipeDialer) Wait(ctx context.Context) (net.Conn, error)        { return d.Dial(ctx) }
 func (d pipeDialer) DialOrSpawn(ctx context.Context) (net.Conn, error) { return d.Dial(ctx) }
 
-// remoteFixture is a Session over Remote, over a Client connected to a
+// remoteFixture is a Session over remote.Account, over a Client connected to a
 // Service over catalogtest, which the test answers; the test's goroutine
 // is the UI thread.
 type remoteFixture struct {
@@ -38,7 +40,7 @@ type remoteFixture struct {
 	*frontEnd
 }
 
-// frontEnd is a Session over Remote, as a front-end has it.
+// frontEnd is a Session over remote.Account, as a front-end has it.
 type frontEnd struct {
 	s      *Session
 	c      *remote.Client
@@ -70,7 +72,7 @@ func (f *remoteFixture) connect(t *testing.T) *frontEnd {
 	})
 	fe.c = c
 	load := loader.New(c, &fe.states, fe.cat, post)
-	fe.s = New(NewRemote(c), &fe.states, load, fe.cat)
+	fe.s = New(remote.NewAccount(c), &fe.states, load, fe.cat)
 	sup := remote.Supervise(c, remote.Options{
 		Role: api.RoleDesktop, Version: "1.2.3", Dialer: pipeDialer{f.svc},
 		Spawn: func() error { return errors.New("no ytmd to start") },

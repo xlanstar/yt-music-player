@@ -7,7 +7,8 @@ import (
 )
 
 // TestDeps keeps what plays and signs in, which only ytmd does, out of
-// the package front-ends link (docs/daemon.md, Programs).
+// the package front-ends link (docs/daemon.md, Programs), and remote,
+// whose Account meets Daemon, out of the session it serves.
 func TestDeps(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs go list")
@@ -32,6 +33,7 @@ func TestDeps(t *testing.T) {
 		"yt-music-player/internal/audio",
 		"yt-music-player/internal/auth",
 		"yt-music-player/internal/innertube",
+		"yt-music-player/internal/remote",
 		"yt-music-player/internal/stream",
 		"yt-music-player/internal/ytmusic",
 	} {

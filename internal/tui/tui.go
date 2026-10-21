@@ -131,7 +131,7 @@ func newApp(cfg Config, out *termOut) *app {
 	m.deps = deps{
 		ctl:         c,
 		mirror:      c.Mirror(),
-		session:     session.New(session.NewRemote(c), states, load, cat),
+		session:     session.New(remote.NewAccount(c), states, load, cat),
 		loader:      load,
 		cat:         cat,
 		states:      states,
