@@ -852,3 +852,24 @@ func TestShutdown(t *testing.T) {
 	// Shutting down twice is harmless.
 	h.svc.Shutdown()
 }
+
+// A connection after the Service stopped closes at once, unread.
+func TestServeAfterStop(t *testing.T) {
+	h := newHarness(t, Options{})
+	h.svc.Shutdown()
+	ours, theirs := net.Pipe()
+	t.Cleanup(func() { _ = ours.Close() })
+	served := make(chan struct{})
+	go func() {
+		h.svc.Serve(theirs)
+		close(served)
+	}()
+	select {
+	case <-served:
+	case <-time.After(wait):
+		t.Fatal("Serve runs a connection after the stop")
+	}
+	if _, err := ours.Read(make([]byte, 1)); err == nil {
+		t.Error("the connection is still open")
+	}
+}
