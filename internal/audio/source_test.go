@@ -113,6 +113,13 @@ func TestSourceSeeks(t *testing.T) {
 	}
 }
 
+func TestSourceSeekRejectsUnknownWhence(t *testing.T) {
+	s := &httpSource{size: 100, pos: 10}
+	if at, err := s.Seek(5, 3); err == nil || s.pos != 10 {
+		t.Errorf("Seek(5, 3) = %d, %v; at %d, want an error and 10", at, err, s.pos)
+	}
+}
+
 // maxChunks is how many chunks the window spans at most.
 const maxChunks = (keepBehind+readAhead)/chunkSize + 2
 

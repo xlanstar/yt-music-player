@@ -167,6 +167,7 @@ func (s *httpSource) Seek(offset int64, whence int) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	switch whence {
+	case io.SeekStart:
 	case io.SeekCurrent:
 		offset += s.pos
 	case io.SeekEnd:
@@ -174,6 +175,8 @@ func (s *httpSource) Seek(offset int64, whence int) (int64, error) {
 			return 0, errors.New("audio: seek from the end of a stream of unknown size")
 		}
 		offset += s.size
+	default:
+		return 0, fmt.Errorf("audio: seek: unknown whence %d", whence)
 	}
 	if offset < 0 {
 		return 0, errors.New("audio: seek before the start")
