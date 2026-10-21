@@ -31,13 +31,11 @@ const (
 	// maxAttempts is how many times a range is asked for before the
 	// source fails; a failed attempt waits retryWait, doubled each time.
 	maxAttempts = 4
+	retryWait   = 500 * time.Millisecond
 	// requestTimeout bounds waiting for a response's headers, or its next
 	// bytes.
 	requestTimeout = 15 * time.Second
 )
-
-// retryWait is a var for tests.
-var retryWait = 500 * time.Millisecond
 
 // errClosed is what reads return once the source is closed.
 var errClosed = errors.New("audio: source closed")
