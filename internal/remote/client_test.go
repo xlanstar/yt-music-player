@@ -414,6 +414,14 @@ func TestMirrorSongsAhead(t *testing.T) {
 			t.Errorf("song %s missing", id)
 		}
 	}
+
+	// The same queue again, a song described anew.
+	retitled := catalog.Song{ID: "b", Title: "New"}
+	m.apply(&api.Event{Songs: []catalog.Song{retitled, song("c")}}, 3, at)
+	m.apply(&api.Event{Queue: &api.Queue{IDs: []string{"b", "c"}}}, 3, at)
+	if b, _ := m.Song("b"); b != retitled || len(m.songs) != 2 {
+		t.Errorf("song b %+v, %d songs", b, len(m.songs))
+	}
 }
 
 func TestMirrorPrunes(t *testing.T) {

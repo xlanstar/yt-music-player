@@ -11,8 +11,8 @@ import (
 func TestBudgetApplyEvents(t *testing.T) {
 	for _, tc := range applyCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c, l := applying()
 			evs := tc.events()
+			c, l := applying(len(evs))
 			budget.Allocs(t, tc.allocs, 100, func() { applyEvents(c, l, evs, tc.relink) })
 		})
 	}

@@ -86,10 +86,12 @@ func (m *Mirror) apply(ev *api.Event, link uint64, at time.Time) {
 // prune drops the songs no longer queued once they outnumber those
 // queued, rather than on every change of the queue, or once stale.
 func (m *Mirror) prune() {
-	if !m.isStale && len(m.songs) <= 2*len(m.queue)+64 {
+	// Once stale, the songs held but not queued go: often none, the queue the same.
+	stale := m.isStale && m.queued() < len(m.songs)
+	m.isStale = false
+	if !stale && len(m.songs) <= 2*len(m.queue)+64 {
 		return
 	}
-	m.isStale = false
 	kept := make(map[string]catalog.Song, len(m.queue))
 	for _, id := range m.queue {
 		if song, ok := m.songs[id]; ok {
@@ -97,4 +99,15 @@ func (m *Mirror) prune() {
 		}
 	}
 	m.songs = kept
+}
+
+// queued counts the queue's songs held.
+func (m *Mirror) queued() int {
+	n := 0
+	for _, id := range m.queue {
+		if _, ok := m.songs[id]; ok {
+			n++
+		}
+	}
+	return n
 }

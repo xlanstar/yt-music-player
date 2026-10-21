@@ -24,8 +24,8 @@ var applyCases = []struct {
 	{"state", func() []*api.Event { return []*api.Event{stateEvent()} }, false, 0},
 	// 0 allocs today: the songs' map holds them from the first.
 	{"queue-5000", func() []*api.Event { return []*api.Event{queueEvent(5000)} }, false, 0},
-	// 18 allocs today: the songs' map made anew for the queue.
-	{"reconnect-5000", func() []*api.Event { return songsAhead(queueEvent(5000)) }, true, 21},
+	// 0 allocs today: the songs' map kept, every song held queued.
+	{"reconnect-5000", func() []*api.Event { return songsAhead(queueEvent(5000)) }, true, 0},
 }
 
 func stateEvent() *api.Event {
@@ -70,12 +70,14 @@ func applyEvents(c *Client, l *link, evs []*api.Event, relink bool) {
 }
 
 // applying is a Client fed events as its reader feeds them, flushed by
-// hand rather than posted; its two batches, which swap, are made.
-func applying() (*Client, *link) {
+// hand rather than posted; its two batches, which swap, are made for n.
+func applying(n int) (*Client, *link) {
 	c := NewClient(func(func()) {}, Handler{})
 	l := &link{n: 1}
 	for range 2 {
-		c.receive(l, &api.Event{})
+		for range n {
+			c.receive(l, &api.Event{})
+		}
 		c.flush()
 	}
 	return c, l
@@ -86,8 +88,8 @@ func applying() (*Client, *link) {
 func BenchmarkApplyEvents(b *testing.B) {
 	for _, tc := range applyCases {
 		b.Run(tc.name, func(b *testing.B) {
-			c, l := applying()
 			evs := tc.events()
+			c, l := applying(len(evs))
 			b.ReportAllocs()
 			for b.Loop() {
 				applyEvents(c, l, evs, tc.relink)
