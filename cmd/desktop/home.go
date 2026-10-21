@@ -116,10 +116,7 @@ func cardSub(it catalog.Item) string {
 	case catalog.ItemSong:
 		return it.Song.Artist
 	case catalog.ItemAlbum:
-		if it.Album.Kind == "" {
-			return it.Album.Artist
-		}
-		return albumKind(it.Album.Kind) + " · " + it.Album.Artist
+		return dotJoin(albumKind(it.Album.Kind), it.Album.Artist)
 	case catalog.ItemPlaylist:
 		return it.Playlist.Owner
 	}

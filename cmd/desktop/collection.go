@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"slices"
+	"strconv"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
@@ -84,7 +84,7 @@ func (a *app) cachedCollection(res fetchstate.Resource) collection {
 			songs := a.cat.AlbumTracks(al.ID)
 			m.v = collection{
 				kind: albumCollection, eyebrow: albumKind(al.Kind), title: al.Title, owner: al.Artist,
-				meta: fmt.Sprintf("· %d %s", al.Year, totalLength(songs)), art: al.Art, songs: songs,
+				meta: albumMeta(al.Year, totalLength(songs)), art: al.Art, songs: songs,
 			}
 		}
 		return m.v
@@ -97,6 +97,15 @@ func (a *app) cachedCollection(res fetchstate.Resource) collection {
 		}
 	}
 	return m.v
+}
+
+// albumMeta puts the year, when known, before length, which starts with
+// "· ".
+func albumMeta(year int, length string) string {
+	if year <= 0 {
+		return length
+	}
+	return "· " + strconv.Itoa(year) + " " + length
 }
 
 // albumKind says an album's release type in the app's language.

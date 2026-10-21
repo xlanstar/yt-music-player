@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strconv"
 	"strings"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/locales"
@@ -58,8 +57,8 @@ func (a *app) foundText(query string, albums []catalog.Album) *foundText {
 	m := &a.memo.found
 	if m.stale(foundKey{query, keyOf(albums)}) {
 		cards := make([]cardText, len(albums))
-		for i, al := range albums {
-			cards[i] = cardText{key: al.ID, sub: al.Artist + " · " + strconv.Itoa(al.Year)}
+		for i := range albums {
+			cards[i] = cardText{key: albums[i].ID, sub: albumByline(&albums[i])}
 		}
 		m.v = foundText{quoted: quoted.say1(query), albums: cards}
 	}

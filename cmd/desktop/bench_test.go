@@ -553,6 +553,9 @@ var helperCases = []struct {
 	{"PlaylistLine/count", 17, func(a *app, _ int) { sinkString = playlistLine(a.cat.Playlists[0], true) }}, // 14 allocs today: plural.
 	{"PlaylistLine/owner", 1, func(a *app, _ int) { sinkString = playlistLine(a.cat.Playlists[0], false) }},
 	{"Percent", 0, func(*app, int) { sinkString = percent(70) }},
+	// One string for a line of parts; a lone part is itself.
+	{"DotJoin/two", 1, func(*app, int) { sinkString = dotJoin("Lumen Drive", "Velvet Static") }},
+	{"DotJoin/one", 0, func(*app, int) { sinkString = dotJoin("Lumen Drive", "") }},
 	// Table rows' positions, cached as far as playlists go.
 	{"Numeral/small", 0, func(*app, int) { sinkString = numeral(7) }},
 	{"Numeral/large", 0, func(*app, int) { sinkString = numeral(1234) }},
@@ -611,6 +614,7 @@ func BenchmarkTotalLength(b *testing.B)  { benchHelper(b, "TotalLength") }
 func BenchmarkUpper(b *testing.B)        { benchHelper(b, "Upper") }
 func BenchmarkPlaylistLine(b *testing.B) { benchHelper(b, "PlaylistLine") }
 func BenchmarkPercent(b *testing.B)      { benchHelper(b, "Percent") }
+func BenchmarkDotJoin(b *testing.B)      { benchHelper(b, "DotJoin") }
 func BenchmarkNumeral(b *testing.B)      { benchHelper(b, "Numeral") }
 func BenchmarkSeekValue(b *testing.B)    { benchHelper(b, "SeekValue") }
 func BenchmarkResourceAt(b *testing.B)   { benchHelper(b, "ResourceAt") }
@@ -645,8 +649,8 @@ var memoCases = []struct {
 	// A scan of 2000 songs, without allocating.
 	{"HoldsCurrent", 0, func(a *app) { sinkBool = a.holdsCurrent(a.cat.Songs) }},
 	{"RowText", 7, func(a *app) { sinkRowText = a.rowText(&a.cat.Songs[0]) }}, // 6 allocs today, the map included.
-	// 35 allocs today: the tracks of a scan of 2000 songs, and the line.
-	{"CachedCollection/album", 41, func(a *app) {
+	// 34 allocs today: the tracks of a scan of 2000 songs, and the line.
+	{"CachedCollection/album", 39, func(a *app) {
 		sinkCollection = a.cachedCollection(fetchstate.Resource{Kind: fetchstate.Album, ID: "neon-tide"})
 	}},
 	{"CachedCollection/playlist", 25, func(a *app) { // 21 allocs today.
