@@ -41,17 +41,17 @@ func signedCallWith(
 	body map[string]any,
 ) (*response, error) {
 	if !api.Auth.IsSignedIn() {
-		return nil, fmt.Errorf("ytmusic: %s: %w", endpoint, catalog.ErrSignedOut)
+		return nil, fmt.Errorf("%s: %w", endpoint, catalog.ErrSignedOut)
 	}
 	resp, err := callWith(ctx, api, endpoint, body)
 	if errors.Is(err, innertube.ErrUnauthorized) {
-		return nil, fmt.Errorf("ytmusic: %s: %w: %w", endpoint, catalog.ErrSignedOut, err)
+		return nil, fmt.Errorf("%s: %w: %w", endpoint, catalog.ErrSignedOut, err)
 	}
 	if err != nil {
 		return nil, err
 	}
 	if signedOut(resp) {
-		return nil, fmt.Errorf("ytmusic: %s: %w (answered as to a visitor)", endpoint, catalog.ErrSignedOut)
+		return nil, fmt.Errorf("%s: %w (answered as to a visitor)", endpoint, catalog.ErrSignedOut)
 	}
 	return resp, nil
 }
@@ -129,18 +129,23 @@ func (c *Client) SignOut() error {
 // Account returns who is signed in, from the account menu.
 func (c *Client) Account(ctx context.Context) (catalog.Account, error) {
 	c.load()
-	return account(ctx, c.api)
+	acct, err := account(ctx, c.api)
+	if err != nil {
+		return catalog.Account{}, fmt.Errorf("ytmusic: account: %w", err)
+	}
+	return acct, nil
 }
 
 func account(ctx context.Context, api *innertube.Client) (catalog.Account, error) {
-	resp, err := signedCallWith(ctx, api, "account/account_menu", map[string]any{})
+	const endpoint = "account/account_menu"
+	resp, err := signedCallWith(ctx, api, endpoint, map[string]any{})
 	if err != nil {
-		return catalog.Account{}, fmt.Errorf("ytmusic: account: %w", err)
+		return catalog.Account{}, err
 	}
 	acct, ok := accountMenu(resp)
 	if !ok {
 		// A signed-in menu always has the account header.
-		return catalog.Account{}, fmt.Errorf("ytmusic: account: %w (no account header)", catalog.ErrSignedOut)
+		return catalog.Account{}, fmt.Errorf("%s: %w (no account header)", endpoint, catalog.ErrSignedOut)
 	}
 	return acct, nil
 }

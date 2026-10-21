@@ -84,6 +84,8 @@ func publicCall(
 	return resp, err
 }
 
+// callWith's errors, as every helper's, name the endpoint but not the
+// package: the exported method the caller called does, once.
 func callWith(
 	ctx context.Context,
 	api *innertube.Client,
@@ -93,7 +95,7 @@ func callWith(
 	var resp *response
 	err := api.Call(ctx, endpoint, body, func(r io.Reader) (err error) {
 		if resp, err = decode(r); err != nil {
-			return fmt.Errorf("ytmusic: %s: %w", endpoint, err)
+			return fmt.Errorf("%s: %w", endpoint, err)
 		}
 		return nil
 	})

@@ -193,3 +193,32 @@ func withoutAlbumArt(al catalog.Album) catalog.Album {
 	al.Art = ""
 	return al
 }
+
+// Errors name the package once, at the method the caller called; inner
+// layers add only what they asked for.
+func TestErrorsNameThePackageOnce(t *testing.T) {
+	signedOut, _ := accountClient(t, nil)
+	_, err := signedOut.Account(t.Context())
+	if want := "ytmusic: account: account/account_menu: catalog: signed out"; err == nil || err.Error() != want {
+		t.Errorf("Account: err %v, want %q", err, want)
+	}
+	if !errors.Is(err, catalog.ErrSignedOut) {
+		t.Errorf("Account: err %v, want ErrSignedOut", err)
+	}
+
+	broken := serverClient(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("{")) })
+	_, _, albumErr := broken.Album(t.Context(), albumID)
+	_, searchErr := broken.Search(t.Context(), "q")
+	_, signInErr := broken.SignIn(t.Context(), "Cookie: "+testCookie)
+	for name, err := range map[string]error{"Album": albumErr, "Search": searchErr, "SignIn": signInErr} {
+		if err == nil {
+			t.Errorf("%s: no error", name)
+			continue
+		}
+		for line := range strings.Lines(err.Error()) {
+			if n := strings.Count(line, "ytmusic:"); n != 1 {
+				t.Errorf("%s: %q names the package %d times", name, line, n)
+			}
+		}
+	}
+}
