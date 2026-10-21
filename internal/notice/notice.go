@@ -1,6 +1,6 @@
 // Package notice holds messages for the user produced outside a build
-// (by the session and playback). The app shows them on its next build, as
-// a toast or in the sign-in sheet, all through one path.
+// (by the session, playback and the settings). The app shows them on its
+// next build, as a toast or in the sign-in sheet, all through one path.
 //
 // A Notice holds no text, only plain data: codes naming its messages, and
 // their arguments. Whoever shows it says them in the user's language (see
@@ -45,6 +45,12 @@ const (
 	ControlFailed             // Couldn’t change playback
 	AutostartFailed           // Couldn’t change starting at login
 	TerminalFailed            // Couldn’t change ytm in the terminal
+	SettingsSaveFailed        // Couldn’t save your settings
+	SettingsReadFailed        // Couldn’t read your settings
+	ThemesReadFailed          // Couldn’t read your themes
+	ThemeReadFailed           // Couldn’t read the theme {name}
+	ThemeFallback             // {reason}. The default theme shows instead.
+	LayoutFailed              // Couldn’t use your layout
 
 	// NumCodes is the length of a table indexed by Code.
 	NumCodes
@@ -69,4 +75,10 @@ const (
 	Playback = "playback" // a song failed to play
 	SignIn   = "sign-in"  // something needs an account
 	Control  = "control"  // the daemon failed a control or did not answer
+
+	SettingsSave = "settings-save" // the settings failed to save
+	SettingsRead = "settings-read" // the settings failed to read
+	Themes       = "themes"        // the user's themes failed to read
+	Theme        = "theme:"        // and a theme's file: it failed to read
+	Layout       = "layout"        // the user's layout failed to apply
 )

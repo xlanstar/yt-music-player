@@ -1,5 +1,5 @@
 // Package noticetext says notices in the user's language. Their producers
-// (playback, session) name messages by code and need no catalog of
+// (playback, session, the settings) name messages by code and need no catalog of
 // messages; whatever shows notices says them through Render, so all say
 // the same words.
 package noticetext
@@ -59,6 +59,12 @@ var messages = [notice.NumCodes]message{
 	notice.ControlFailed:        plain(locales.Messages.NoticeControlFailed),
 	notice.AutostartFailed:      plain(locales.Messages.NoticeAutostartFailed),
 	notice.TerminalFailed:       plain(locales.Messages.NoticeTerminalFailed),
+	notice.SettingsSaveFailed:   plain(locales.Messages.NoticeSettingsSaveFailed),
+	notice.SettingsReadFailed:   plain(locales.Messages.NoticeSettingsReadFailed),
+	notice.ThemesReadFailed:     plain(locales.Messages.NoticeThemesReadFailed),
+	notice.ThemeReadFailed:      named(locales.Messages.NoticeThemeReadFailed),
+	notice.ThemeFallback:        named(locales.Messages.NoticeThemeFallback),
+	notice.LayoutFailed:         plain(locales.Messages.NoticeLayoutFailed),
 	// An error's text is in no language of ours.
 	notice.Reason: {args: 1, say: func(_ locales.Messages, args []string, _ int) string { return args[0] }},
 }

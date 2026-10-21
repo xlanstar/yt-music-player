@@ -62,7 +62,7 @@ type app struct {
 	session *session.Session
 	sheet   sheetState
 	// notices wait for a build to be told: the daemon's, the failed
-	// controls' and the settings'.
+	// controls' and switches', the settings' and the themes'.
 	notices []notice.Notice
 	startup startupState
 	memo    viewMemo
@@ -215,7 +215,6 @@ func (a *app) reconcile(c *ui.Context) {
 	a.syncQuery()
 	a.syncLoad()
 	a.syncAccount(c)
-	a.syncLook(c)
 	a.syncNotices(c)
 	a.announceLink(c)
 	a.syncPlayback(c)

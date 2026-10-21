@@ -1492,64 +1492,100 @@ func (msgs Messages) ColumnAlbum() string {
 	return Catalog.Format(msgs.locale, "columnAlbum", nil)
 }
 
-// SettingsSaveFailed says "Couldn’t save your settings"
+// NoticeSettingsSaveFailed says "Couldn’t save your settings"
 // in the language the app shows.
-func SettingsSaveFailed() string { return In(i18n.Locale()).SettingsSaveFailed() }
+//
+// Saving the app's settings (theme, layout) to disk failed; the reason
+// follows.
+func NoticeSettingsSaveFailed() string { return In(i18n.Locale()).NoticeSettingsSaveFailed() }
 
-// SettingsSaveFailed says "Couldn’t save your settings"
+// NoticeSettingsSaveFailed says "Couldn’t save your settings"
 // in the language of msgs.
-func (msgs Messages) SettingsSaveFailed() string {
-	return Catalog.Format(msgs.locale, "settingsSaveFailed", nil)
+//
+// Saving the app's settings (theme, layout) to disk failed; the reason
+// follows.
+func (msgs Messages) NoticeSettingsSaveFailed() string {
+	return Catalog.Format(msgs.locale, "noticeSettingsSaveFailed", nil)
 }
 
-// SettingsReadFailed says "Couldn’t read your settings"
+// NoticeSettingsReadFailed says "Couldn’t read your settings"
 // in the language the app shows.
-func SettingsReadFailed() string { return In(i18n.Locale()).SettingsReadFailed() }
+//
+// Reading the app's saved settings failed at start, so the defaults show;
+// the reason follows.
+func NoticeSettingsReadFailed() string { return In(i18n.Locale()).NoticeSettingsReadFailed() }
 
-// SettingsReadFailed says "Couldn’t read your settings"
+// NoticeSettingsReadFailed says "Couldn’t read your settings"
 // in the language of msgs.
-func (msgs Messages) SettingsReadFailed() string {
-	return Catalog.Format(msgs.locale, "settingsReadFailed", nil)
+//
+// Reading the app's saved settings failed at start, so the defaults show;
+// the reason follows.
+func (msgs Messages) NoticeSettingsReadFailed() string {
+	return Catalog.Format(msgs.locale, "noticeSettingsReadFailed", nil)
 }
 
-// ThemesReadFailed says "Couldn’t read your themes"
+// NoticeThemesReadFailed says "Couldn’t read your themes"
 // in the language the app shows.
-func ThemesReadFailed() string { return In(i18n.Locale()).ThemesReadFailed() }
+//
+// Reading the folder of the user's own theme files failed; the reason
+// follows.
+func NoticeThemesReadFailed() string { return In(i18n.Locale()).NoticeThemesReadFailed() }
 
-// ThemesReadFailed says "Couldn’t read your themes"
+// NoticeThemesReadFailed says "Couldn’t read your themes"
 // in the language of msgs.
-func (msgs Messages) ThemesReadFailed() string {
-	return Catalog.Format(msgs.locale, "themesReadFailed", nil)
+//
+// Reading the folder of the user's own theme files failed; the reason
+// follows.
+func (msgs Messages) NoticeThemesReadFailed() string {
+	return Catalog.Format(msgs.locale, "noticeThemesReadFailed", nil)
 }
 
-// ThemeReadFailed says "Couldn’t read the theme {name}"
+// NoticeThemeReadFailed says "Couldn’t read the theme {name}"
 // in the language the app shows.
-func ThemeReadFailed(name string) string { return In(i18n.Locale()).ThemeReadFailed(name) }
+//
+// One of the user's theme files can't be read or holds a mistake; name is
+// its file name, as is. The reason follows.
+func NoticeThemeReadFailed(name string) string { return In(i18n.Locale()).NoticeThemeReadFailed(name) }
 
-// ThemeReadFailed says "Couldn’t read the theme {name}"
+// NoticeThemeReadFailed says "Couldn’t read the theme {name}"
 // in the language of msgs.
-func (msgs Messages) ThemeReadFailed(name string) string {
-	return Catalog.Format(msgs.locale, "themeReadFailed", map[string]any{"name": name})
+//
+// One of the user's theme files can't be read or holds a mistake; name is
+// its file name, as is. The reason follows.
+func (msgs Messages) NoticeThemeReadFailed(name string) string {
+	return Catalog.Format(msgs.locale, "noticeThemeReadFailed", map[string]any{"name": name})
 }
 
-// ThemeFallback says "{reason}. The default theme shows instead."
+// NoticeThemeFallback says "{reason}. The default theme shows instead."
 // in the language the app shows.
-func ThemeFallback(reason string) string { return In(i18n.Locale()).ThemeFallback(reason) }
+//
+// Under noticeThemeReadFailed when that theme is the one chosen: reason is
+// the error's text, as is; the built-in default theme shows in its place.
+func NoticeThemeFallback(reason string) string { return In(i18n.Locale()).NoticeThemeFallback(reason) }
 
-// ThemeFallback says "{reason}. The default theme shows instead."
+// NoticeThemeFallback says "{reason}. The default theme shows instead."
 // in the language of msgs.
-func (msgs Messages) ThemeFallback(reason string) string {
-	return Catalog.Format(msgs.locale, "themeFallback", map[string]any{"reason": reason})
+//
+// Under noticeThemeReadFailed when that theme is the one chosen: reason is
+// the error's text, as is; the built-in default theme shows in its place.
+func (msgs Messages) NoticeThemeFallback(reason string) string {
+	return Catalog.Format(msgs.locale, "noticeThemeFallback", map[string]any{"reason": reason})
 }
 
-// LayoutFailed says "Couldn’t use your layout"
+// NoticeLayoutFailed says "Couldn’t use your layout"
 // in the language the app shows.
-func LayoutFailed() string { return In(i18n.Locale()).LayoutFailed() }
+//
+// The layout chosen in the settings (sidebar, panel, player bar, density)
+// can't be used, so the default shows; the reason follows.
+func NoticeLayoutFailed() string { return In(i18n.Locale()).NoticeLayoutFailed() }
 
-// LayoutFailed says "Couldn’t use your layout"
+// NoticeLayoutFailed says "Couldn’t use your layout"
 // in the language of msgs.
-func (msgs Messages) LayoutFailed() string {
-	return Catalog.Format(msgs.locale, "layoutFailed", nil)
+//
+// The layout chosen in the settings (sidebar, panel, player bar, density)
+// can't be used, so the default shows; the reason follows.
+func (msgs Messages) NoticeLayoutFailed() string {
+	return Catalog.Format(msgs.locale, "noticeLayoutFailed", nil)
 }
 
 // AppearanceIntro says "Colors and layout. Album art brings its own color, so every theme stays dark."

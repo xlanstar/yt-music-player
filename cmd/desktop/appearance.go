@@ -5,6 +5,7 @@ import (
 	"context"
 	"slices"
 	"yt-music-player/internal/job"
+	"yt-music-player/internal/notice"
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/theme"
 	"yt-music-player/locales"
@@ -22,9 +23,8 @@ type lookState struct {
 	options []themeOption
 	choice  string
 	chips   [len(layoutChoices)]int
-	// notes wait for a pass, as toasts need its Context. problem is the
-	// last problem with the theme in use, so it is told once.
-	notes   []ui.Toast
+	// problem is the last problem with the theme in use, so it is told
+	// once.
 	problem string
 }
 
@@ -37,20 +37,20 @@ type themeOption struct {
 }
 
 // useSettings runs before the first frame; errors wait for the first
-// pass as toasts.
+// build, as every notice does (tellLater).
 func (a *app) useSettings(dir settings.Dir) {
 	a.look.dir = dir
 	a.look.saver = settings.NewSaver(dir, func(err error) {
-		a.post(func() { a.note(locales.SettingsSaveFailed(), err.Error()) })
+		a.post(func() { a.tellLater(lookFailed(notice.SettingsSave, notice.SettingsSaveFailed, err.Error())) })
 	})
 	set, err := dir.Load()
 	if err != nil {
-		a.note(locales.SettingsReadFailed(), err.Error())
+		a.tellLater(lookFailed(notice.SettingsRead, notice.SettingsReadFailed, err.Error()))
 	}
 	a.look.set = set
 	users, err := dir.Themes()
 	if err != nil {
-		a.note(locales.ThemesReadFailed(), err.Error())
+		a.tellLater(lookFailed(notice.Themes, notice.ThemesReadFailed, err.Error()))
 	}
 	a.useThemes(users)
 }
@@ -66,7 +66,7 @@ func (a *app) useThemes(users []settings.UserTheme) {
 		prev := slices.IndexFunc(a.look.users, func(old settings.UserTheme) bool { return old.File == userTheme.File })
 		wasTold := prev >= 0 && errText(a.look.users[prev].Err) == userTheme.Err.Error()
 		if !wasTold {
-			a.note(locales.ThemeReadFailed(userTheme.File), userTheme.Err.Error())
+			a.tellLater(themeFailed(userTheme.File, userTheme.Err))
 		}
 	}
 	a.look.users = users
@@ -83,10 +83,16 @@ func errText(err error) string {
 	return err.Error()
 }
 
-// note queues an error toast for the next pass. The title is its ID, so
-// a later note about the same file replaces an earlier one.
-func (a *app) note(title, detail string) {
-	a.look.notes = append(a.look.notes, ui.Toast{ID: title, Title: title, Description: detail, Type: "error"})
+// lookFailed is a failure to read, save or apply the settings or themes;
+// a later one of the same topic replaces it.
+func lookFailed(topic string, title notice.Code, args ...string) notice.Notice {
+	return notice.Notice{Kind: notice.Failure, Title: title, Detail: notice.Reason, Args: args, Topic: topic}
+}
+
+// themeFailed is a failure to read the theme in file, each file's
+// replacing its last.
+func themeFailed(file string, err error) notice.Notice {
+	return lookFailed(notice.Theme+file, notice.ThemeReadFailed, file, err.Error())
 }
 
 func (a *app) applyLook() {
@@ -103,10 +109,12 @@ func (a *app) applyLook() {
 	}
 	a.look.problem = problem
 	if themeErr != nil {
-		a.note(locales.ThemeReadFailed(a.look.set.Theme), locales.ThemeFallback(themeErr.Error()))
+		n := themeFailed(a.look.set.Theme, themeErr)
+		n.Detail = notice.ThemeFallback
+		a.tellLater(n)
 	}
 	if layoutErr != nil {
-		a.note(locales.LayoutFailed(), layoutErr.Error())
+		a.tellLater(lookFailed(notice.Layout, notice.LayoutFailed, layoutErr.Error()))
 	}
 }
 
@@ -125,7 +133,7 @@ func (a *app) openLook() {
 		func(context.Context) ([]settings.UserTheme, error) { return dir.Themes() },
 		func(users []settings.UserTheme, err error) {
 			if err != nil {
-				a.note(locales.ThemesReadFailed(), err.Error())
+				a.tellLater(lookFailed(notice.Themes, notice.ThemesReadFailed, err.Error()))
 				return
 			}
 			a.useThemes(users)
@@ -227,13 +235,6 @@ func (a *app) arrange() {
 		}
 	}
 	a.look.saver.Save(a.look.set)
-}
-
-func (a *app) syncLook(c *ui.Context) {
-	for _, t := range a.look.notes {
-		c.AddToast(t)
-	}
-	a.look.notes = a.look.notes[:0]
 }
 
 // appearanceSheet builds only while open, as its closures would cost

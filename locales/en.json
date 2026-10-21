@@ -199,14 +199,24 @@
   "@columnTitle": { "description": "The song list's column heading, in capitals." },
   "columnAlbum": "ALBUM",
 
-  "settingsSaveFailed": "Couldn’t save your settings",
-  "settingsReadFailed": "Couldn’t read your settings",
-  "themesReadFailed": "Couldn’t read your themes",
-  "themeReadFailed": "Couldn’t read the theme {name}",
-  "@themeReadFailed": { "placeholders": { "name": { "type": "String" } } },
-  "themeFallback": "{reason}. The default theme shows instead.",
-  "@themeFallback": { "placeholders": { "reason": { "type": "String" } } },
-  "layoutFailed": "Couldn’t use your layout",
+  "noticeSettingsSaveFailed": "Couldn’t save your settings",
+  "@noticeSettingsSaveFailed": { "description": "Saving the app's settings (theme, layout) to disk failed; the reason follows." },
+  "noticeSettingsReadFailed": "Couldn’t read your settings",
+  "@noticeSettingsReadFailed": { "description": "Reading the app's saved settings failed at start, so the defaults show; the reason follows." },
+  "noticeThemesReadFailed": "Couldn’t read your themes",
+  "@noticeThemesReadFailed": { "description": "Reading the folder of the user's own theme files failed; the reason follows." },
+  "noticeThemeReadFailed": "Couldn’t read the theme {name}",
+  "@noticeThemeReadFailed": {
+    "description": "One of the user's theme files can't be read or holds a mistake; name is its file name, as is. The reason follows.",
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "noticeThemeFallback": "{reason}. The default theme shows instead.",
+  "@noticeThemeFallback": {
+    "description": "Under noticeThemeReadFailed when that theme is the one chosen: reason is the error's text, as is; the built-in default theme shows in its place.",
+    "placeholders": { "reason": { "type": "String" } }
+  },
+  "noticeLayoutFailed": "Couldn’t use your layout",
+  "@noticeLayoutFailed": { "description": "The layout chosen in the settings (sidebar, panel, player bar, density) can't be used, so the default shows; the reason follows." },
   "appearanceIntro": "Colors and layout. Album art brings its own color, so every theme stays dark.",
   "theme": "Theme",
   "layout": "Layout",

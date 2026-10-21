@@ -10,7 +10,7 @@ import (
 var sinkTitle, sinkDetail string
 
 // renderCases are notices with no argument, with one in the title and a
-// count in the detail, and with an argument in each.
+// count in the detail, with a reason, and with an argument in each.
 var renderCases = []struct {
 	name          string
 	n             notice.Notice
@@ -45,6 +45,17 @@ var renderCases = []struct {
 		detail: "quota exceeded",
 		// 10 allocs today, all the catalog's formatting of the title.
 		limit: 12,
+	},
+	{
+		name: "fallback",
+		n: notice.Notice{
+			Kind: notice.Failure, Title: notice.ThemeReadFailed, Detail: notice.ThemeFallback,
+			Args: []string{"neon.json", "type.title: 400 is out of 6 to 96"}, Topic: notice.Theme + "neon.json",
+		},
+		title:  "Couldn’t read the theme neon.json",
+		detail: "type.title: 400 is out of 6 to 96. The default theme shows instead.",
+		// 20 allocs today, the catalog's formatting of both.
+		limit: 23,
 	},
 }
 

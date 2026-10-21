@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"yt-music-player/internal/notice"
 	"yt-music-player/internal/settings"
 	"yt-music-player/internal/theme"
 
@@ -226,6 +227,42 @@ func TestAppearanceCorruptSettings(t *testing.T) {
 	}
 }
 
+// Failing to read or save the settings and themes is a notice, told as
+// every notice is; each subject's or file's replaces its last.
+func TestAppearanceFailuresAreNotices(t *testing.T) {
+	a, q, dir := lookApp(t, func(dir settings.Dir) {
+		writeFile(t, filepath.Join(string(dir), "settings.json"), `{"theme": `)
+		writeFile(t, filepath.Join(dir.ThemesDir(), "broken.json"), `{"color": {"accent": "teal"}}`)
+	})
+	want := []notice.Notice{
+		{Title: notice.SettingsReadFailed, Topic: notice.SettingsRead},
+		{Title: notice.ThemeReadFailed, Topic: notice.Theme + "broken.json"},
+	}
+	if len(a.notices) != len(want) {
+		t.Fatalf("notices %+v, want %d", a.notices, len(want))
+	}
+	for i, n := range a.notices {
+		isFailure := n.Kind == notice.Failure && n.Detail == notice.Reason
+		if !isFailure || n.Title != want[i].Title || n.Topic != want[i].Topic {
+			t.Errorf("notice %d is %+v, want title %d of topic %q", i, n, want[i].Title, want[i].Topic)
+		}
+	}
+	tt := newTester(a)
+	frames(tt, 2)
+	if said := strings.Join(tt.Announcements(), "\n"); !strings.Contains(said, "Couldn’t read your settings") ||
+		!strings.Contains(said, "Couldn’t read the theme broken.json") {
+		t.Errorf("announcements %q", said)
+	}
+	// A directory the app may not write to fails the save.
+	if err := os.Chmod(string(dir), 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(string(dir), 0o700) })
+	a.chooseTheme("forest")
+	a.look.saver.Wait()
+	eventually(t, tt, q, "told the save failed", func() bool { return toasted(tt, "Couldn’t save your settings") })
+}
+
 func TestAppearanceKeyboard(t *testing.T) {
 	a, _, _ := lookApp(t, nil)
 	tt := newTester(a)
@@ -260,8 +297,8 @@ func TestAppearanceKeepsNothingWithoutDir(t *testing.T) {
 	a := idleApp(t)
 	a.chooseTheme("orchid")
 	a.look.saver.Wait()
-	if a.look.dir != "" || len(a.look.notes) != 0 {
-		t.Errorf("an app without a store kept its settings in %q, or failed: %v", a.look.dir, a.look.notes)
+	if a.look.dir != "" || len(a.notices) != 0 {
+		t.Errorf("an app without a store kept its settings in %q, or failed: %v", a.look.dir, a.notices)
 	}
 	orchid, _ := theme.PresetByID("orchid")
 	if a.theme != orchid.Theme() {
