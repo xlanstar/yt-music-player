@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -213,4 +214,24 @@ func TestParseColor(t *testing.T) {
 			t.Errorf("%v read back as %v, %v", c, got, err)
 		}
 	}
+}
+
+// Only exported float fields take numbers; others are no tokens, never a
+// panic.
+func TestSetNumbersOnlyIntoFloats(t *testing.T) {
+	var group struct {
+		Size   float32
+		Count  int
+		hidden float32
+	}
+	b := bounds{"": {0, 10}}
+	if err := set("group", &group, map[string]float64{"size": 4}, b.put); err != nil || group.Size != 4 {
+		t.Errorf("size: %v, set to %v", err, group.Size)
+	}
+	for _, token := range []string{"count", "hidden"} {
+		if err := set("group", &group, map[string]float64{token: 1}, b.put); !errors.Is(err, errNoToken) {
+			t.Errorf("%s: err %v, want errNoToken", token, err)
+		}
+	}
+	_ = group.hidden
 }

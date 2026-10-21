@@ -191,8 +191,10 @@ func putColor(f reflect.Value, _, s string) error {
 }
 
 func (b bounds) put(f reflect.Value, name string, n float64) error {
+	// SetFloat panics on any other field.
+	isFloat := f.Kind() == reflect.Float32 || f.Kind() == reflect.Float64
 	lim, ok := b.of(name)
-	if !ok {
+	if !ok || !isFloat || !f.CanSet() {
 		return errNoToken
 	}
 	if err := inBounds(n, lim); err != nil {
