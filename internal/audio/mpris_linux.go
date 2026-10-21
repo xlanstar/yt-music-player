@@ -247,20 +247,26 @@ func (p mprisPlayerMethods) PlayPause() *dbus.Error { return p.send(CommandToggl
 func (p mprisPlayerMethods) Stop() *dbus.Error      { return p.send(CommandPause, 0) }
 func (p mprisPlayerMethods) Play() *dbus.Error      { return p.send(CommandPlay, 0) }
 
-// SeekBy is MPRIS's Seek: it moves by offset microseconds.
+// SeekBy is MPRIS's Seek: it moves by offset microseconds, no further
+// than the end, which then ends the song as MPRIS's Next would.
 func (p mprisPlayerMethods) SeekBy(offset int64) *dbus.Error {
 	p.m.mu.Lock()
 	at := p.m.positionLocked(time.Now()) + float64(offset)/1e6
+	if d := p.m.np.duration; d > 0 {
+		at = min(at, d)
+	}
 	p.m.mu.Unlock()
 	return p.send(CommandSeek, max(at, 0))
 }
 
-// SetPosition moves to pos microseconds, if track still plays.
+// SetPosition moves to pos microseconds, if track still plays; MPRIS
+// has a position before the start or past the length do nothing.
 func (p mprisPlayerMethods) SetPosition(track dbus.ObjectPath, pos int64) *dbus.Error {
 	p.m.mu.Lock()
 	isCurrent := track == p.m.trackIDLocked()
+	isPastEnd := p.m.np.duration > 0 && pos > micros(p.m.np.duration)
 	p.m.mu.Unlock()
-	if !isCurrent || pos < 0 {
+	if !isCurrent || pos < 0 || isPastEnd {
 		return nil
 	}
 	return p.send(CommandSeek, float64(pos)/1e6)

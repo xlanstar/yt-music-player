@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -87,5 +88,33 @@ func TestMPRIS(t *testing.T) {
 	case ev := <-commands:
 		t.Errorf("a stale track's SetPosition sent %+v", ev)
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// Seeks stay within the song, as MPRIS asks; no session bus needed.
+func TestMPRISSeeksWithinTheSong(t *testing.T) {
+	var sent []Event
+	m := &mpris{command: func(ev Event) { sent = append(sent, ev) }, at: time.Now()}
+	m.np = nowPlaying{duration: 6, elapsed: 2, state: statePaused}
+	p := mprisPlayerMethods{m}
+	track := m.trackIDLocked()
+	for _, tc := range []struct {
+		name string
+		call func() *dbus.Error
+		want []Event
+	}{
+		{"SetPosition past the end", func() *dbus.Error { return p.SetPosition(track, 7e6) }, nil},
+		{"SetPosition before the start", func() *dbus.Error { return p.SetPosition(track, -1) }, nil},
+		{"SetPosition at the end", func() *dbus.Error { return p.SetPosition(track, 6e6) }, []Event{{Kind: CommandSeek, At: 6}}},
+		{"SeekBy past the end", func() *dbus.Error { return p.SeekBy(1 << 62) }, []Event{{Kind: CommandSeek, At: 6}}},
+		{"SeekBy before the start", func() *dbus.Error { return p.SeekBy(-1 << 62) }, []Event{{Kind: CommandSeek, At: 0}}},
+	} {
+		sent = nil
+		if err := tc.call(); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if !slices.Equal(sent, tc.want) {
+			t.Errorf("%s sent %+v, want %+v", tc.name, sent, tc.want)
+		}
 	}
 }
