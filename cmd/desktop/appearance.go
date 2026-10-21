@@ -245,15 +245,8 @@ func (a *app) appearanceSheet(c *ui.Context) {
 	}
 	ty, col := &th.Type, &th.Color
 	ui.DialogBase(c, &a.look.isOpen, func(back, panel ui.Element) {
-		back.Background(col.Shadow.Alpha(0.6))
-		panel.Width(600).MaxHeight(780).Padding(th.Space(7)).Gap(th.Space(6)).
-			Radius(th.Radius.Dialog).Background(col.Panel).Border(1, col.Line).
-			Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label(locales.Appearance())
-		ui.Column(c).Gap(th.Space(1.5)).Children(func() {
-			heading(c, locales.Appearance(), ty.Section, 1)
-			ui.Text(c, locales.AppearanceIntro()).
-				FontSize(ty.Label).TextColor(col.Muted)
-		})
+		sheetFrame(back, panel, 600, locales.Appearance()).MaxHeight(780).Gap(th.Space(6))
+		sheetHeader(c, locales.Appearance(), locales.AppearanceIntro())
 		ui.Scroll(c.Key("appearance-scroll")).Grow(1).MinHeight(0).Gap(th.Space(6)).Children(func() {
 			ui.Column(c).Gap(th.Space(3)).Children(func() {
 				eyebrow(c, locales.Theme())

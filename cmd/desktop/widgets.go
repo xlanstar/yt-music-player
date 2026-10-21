@@ -310,6 +310,23 @@ func sectionHeader(c *ui.Context, key any, eyebrowText, title, action string) bo
 	return clicked
 }
 
+// sheetFrame dims the window behind a dialog and styles its panel, which
+// title names to assistive technology.
+func sheetFrame(back, panel ui.Element, width float32, title string) ui.Element {
+	col := &th.Color
+	back.Background(col.Shadow.Alpha(0.6))
+	return panel.Width(width).Padding(th.Space(7)).Radius(th.Radius.Dialog).Background(col.Panel).
+		Border(1, col.Line).Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label(title)
+}
+
+// sheetHeader is a dialog's title over the line introducing it.
+func sheetHeader(c *ui.Context, title, intro string) {
+	ui.Column(c).Gap(th.Space(1.5)).Children(func() {
+		heading(c, title, th.Type.Section, 1)
+		ui.Text(c, intro).FontSize(th.Type.Label).TextColor(th.Color.Muted)
+	})
+}
+
 // raise reports whether b is hovered.
 func raise(b ui.Element) bool {
 	hovered := b.Hovered()

@@ -70,15 +70,8 @@ func (a *app) signInSheet(c *ui.Context) {
 	busy := a.session.IsSigningIn()
 	ty, col := &th.Type, &th.Color
 	ui.DialogBase(c, &a.sheet.isOpen, func(back, panel ui.Element) {
-		back.Background(col.Shadow.Alpha(0.6))
-		panel.Width(540).Padding(th.Space(7)).Gap(th.Space(4.5)).
-			Radius(th.Radius.Dialog).Background(col.Panel).Border(1, col.Line).
-			Shadow(0, 24, 60, -8, col.Shadow.Alpha(0.6)).Label(locales.SignInTitle())
-		ui.Column(c).Gap(th.Space(1.5)).Children(func() {
-			heading(c, locales.SignInTitle(), ty.Section, 1)
-			ui.Text(c, locales.SignInIntro()).
-				FontSize(ty.Label).TextColor(col.Muted)
-		})
+		sheetFrame(back, panel, 540, locales.SignInTitle()).Gap(th.Space(4.5))
+		sheetHeader(c, locales.SignInTitle(), locales.SignInIntro())
 		ui.Column(c).Gap(th.Space(2)).Children(func() {
 			step(c, 1, "", func() {
 				ui.Text(c, locales.SignInOpenBefore())
