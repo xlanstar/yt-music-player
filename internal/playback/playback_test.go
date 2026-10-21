@@ -3,6 +3,7 @@ package playback
 import (
 	"context"
 	"errors"
+	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -390,6 +391,32 @@ func TestSeekAndVolumeAreForwarded(t *testing.T) {
 	x.wantCalls(t, "volume 0.3")
 	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: 100})
 	x.wantCalls(t, "seek 100")
+}
+
+// A system's seek is checked as the player's own: Now Playing may send
+// any number.
+func TestSystemSeekIsChecked(t *testing.T) {
+	x := newFixture(&instantResolver{})
+	x.startPlaying(t)
+	x.turn(42)
+	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: math.NaN()})
+	if x.player.Position != 42 {
+		t.Errorf("NaN moved to %v, want 42", x.player.Position)
+	}
+	x.wantCalls(t)
+	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: -5})
+	if x.player.Position != 0 {
+		t.Errorf("-5 moved to %v, want 0", x.player.Position)
+	}
+	x.wantCalls(t, "seek 0")
+	x.player.Clear()
+	x.pb.Follow()
+	x.f.TakeCalls()
+	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: 30})
+	if x.player.Position != 0 {
+		t.Errorf("an empty queue moved to %v, want 0", x.player.Position)
+	}
+	x.wantCalls(t)
 }
 
 // Paused or stalled, the position stands still, whatever the engine says.

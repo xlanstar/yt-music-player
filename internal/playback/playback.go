@@ -325,7 +325,7 @@ func (pb *Playback) command(ev audio.Event) {
 	case audio.CommandPrev:
 		p.Prev()
 	case audio.CommandSeek:
-		p.Position = ev.At
+		p.Seek(ev.At)
 	}
 	pb.Follow()
 }
