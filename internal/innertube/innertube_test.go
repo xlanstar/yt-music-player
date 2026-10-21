@@ -129,6 +129,31 @@ func TestCallGivesUp(t *testing.T) {
 	}
 }
 
+// Only a 429 or a 5xx is asked again.
+func TestCallRetriesOnlyWhatMaySucceed(t *testing.T) {
+	for status, want := range map[int]int32{
+		http.StatusTooManyRequests:     2,
+		http.StatusInternalServerError: 2,
+		http.StatusBadGateway:          2,
+		http.StatusBadRequest:          1,
+		http.StatusUnauthorized:        1,
+		http.StatusNotFound:            1,
+	} {
+		var calls atomic.Int32
+		c := server(t, func(w http.ResponseWriter, _ *http.Request) {
+			calls.Add(1)
+			w.WriteHeader(status)
+		})
+		c.Retries = 1
+		if _, err := callBody(t.Context(), c, "browse", nil); err == nil {
+			t.Errorf("HTTP %d: no error", status)
+		}
+		if n := calls.Load(); n != want {
+			t.Errorf("HTTP %d: %d calls, want %d", status, n, want)
+		}
+	}
+}
+
 func TestCallStatusError(t *testing.T) {
 	var calls atomic.Int32
 	c := server(t, func(w http.ResponseWriter, _ *http.Request) {
