@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/duration"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
 	"yt-music-player/locales"
@@ -329,7 +330,7 @@ func playlistLine(pl catalog.Playlist, songs []catalog.Song) string {
 
 // length says how many songs and minutes songs are.
 func length(songs []catalog.Song) string {
-	return locales.CollectionLength(len(songs), (catalog.TotalSeconds(songs)+30)/60)
+	return locales.CollectionLength(len(songs), duration.Minutes(catalog.TotalSeconds(songs)))
 }
 
 // collectionSongs returns the songs of o, remade only when the catalog

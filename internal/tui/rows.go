@@ -3,6 +3,7 @@ package tui
 import (
 	"strconv"
 	"strings"
+	"yt-music-player/internal/duration"
 	"yt-music-player/locales"
 )
 
@@ -147,7 +148,7 @@ func (m *model) songSegments(segs []segment, it *item, w int) []segment {
 	}
 	dur := ""
 	if s.Seconds > 0 {
-		dur = Clock(float64(s.Seconds))
+		dur = duration.Clock(float64(s.Seconds))
 	}
 	heart := ""
 	if m.session.Liked(s.ID) {

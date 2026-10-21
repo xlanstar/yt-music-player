@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/duration"
 	"yt-music-player/internal/remote"
 	"yt-music-player/locales"
 )
@@ -388,11 +389,11 @@ func (m *model) drawBar(g region, f *frame) {
 func (m *model) drawProgress(g region, st api.State, x, end int) {
 	const y = barProgress
 	pos, c := m.position(st), &m.cells
-	x += g.text(x, y, Clock(pos), paint{}) + 1
+	x += g.text(x, y, duration.Clock(pos), paint{}) + 1
 	if st.Duration <= 0 {
 		return
 	}
-	total := Clock(st.Duration)
+	total := duration.Clock(st.Duration)
 	tw := c.width(total)
 	n := end - tw - 1 - x
 	if n < 4 {

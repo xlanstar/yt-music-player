@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -141,27 +140,4 @@ func (c cells) glyphWidth(glyph string) int {
 		return c.thick
 	}
 	return c.width(glyph)
-}
-
-// Clock says seconds as m:ss, or h:mm:ss from an hour; ytm status says
-// times as the TUI does.
-func Clock(seconds float64) string {
-	s := max(int(seconds), 0)
-	h, m := s/3600, s/60
-	b := make([]byte, 0, len("100:00:00"))
-	if h > 0 {
-		m %= 60
-		b = strconv.AppendInt(b, int64(h), 10)
-		b = append(b, ':')
-		if m < 10 {
-			b = append(b, '0')
-		}
-	}
-	b = strconv.AppendInt(b, int64(m), 10)
-	b = append(b, ':')
-	if s%60 < 10 {
-		b = append(b, '0')
-	}
-	b = strconv.AppendInt(b, int64(s%60), 10)
-	return string(b)
 }

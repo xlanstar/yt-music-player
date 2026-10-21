@@ -8,7 +8,7 @@ import (
 	"math"
 	"strings"
 	"yt-music-player/internal/api"
-	"yt-music-player/internal/tui"
+	"yt-music-player/internal/duration"
 	"yt-music-player/locales"
 )
 
@@ -192,9 +192,9 @@ func statusText(s *api.Status) string {
 			b.WriteString(locales.CliPausedSong(song))
 		}
 		b.WriteString("\n  ")
-		position := tui.Clock(st.Position)
+		position := duration.Clock(st.Position)
 		if st.Duration > 0 {
-			position = locales.SeekValue(position, tui.Clock(st.Duration))
+			position = locales.SeekValue(position, duration.Clock(st.Duration))
 		}
 		b.WriteString(position)
 		b.WriteString(" · ")
