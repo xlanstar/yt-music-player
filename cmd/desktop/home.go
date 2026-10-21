@@ -243,10 +243,10 @@ func (a *app) hero(c *ui.Context, w float32, sh *catalog.Shelf, itemIndex int) {
 					MaxWidth(420).MaxLines(2)
 			}
 			ui.Row(c).Gap(th.Space(2.5)).Margin(th.Space(2.5), 0, 0, 0).Children(func() {
-				if pill(c, "hero-play", icPlay, locales.Play(), pillLight).Clicked() {
+				if pill(c, "hero-play", icPlay, locales.Play(), pillOpts{style: pillLight}).Clicked() {
 					a.playPlaylist(playlist.ID)
 				}
-				if pill(c, "hero-open", icQueue, locales.Open(), pillGlass).Clicked() {
+				if pill(c, "hero-open", icQueue, locales.Open(), pillOpts{style: pillGlass}).Clicked() {
 					a.router.Push(playlistPath(playlist.ID))
 				}
 			})

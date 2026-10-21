@@ -107,13 +107,35 @@ const (
 	pillGhost
 )
 
-func pill(c *ui.Context, key any, icon *ui.SVG, label string, style pillStyle) ui.Element {
-	b := ui.ButtonBase(c.Key(key)).Height(40).Padding(0, th.Space(5)).Gap(th.Space(2)).Radius(th.Radius.Pill).
-		Center().Shrink(0).Cursor(ui.CursorPointer).KeepFocus()
+type pillSize uint8
+
+const (
+	pillLarge  pillSize = iota // a page's or dialog's own action
+	pillMedium                 // beside a heading or in the top bar
+	pillSmall                  // in a banner or a settings row
+)
+
+// pillSizes are each size's height and padding across, in spacing steps.
+var pillSizes = [...]struct{ height, pad float32 }{
+	pillLarge:  {height: 40, pad: 5},
+	pillMedium: {height: 34, pad: 3.5},
+	pillSmall:  {height: 30, pad: 3.5},
+}
+
+// pillOpts' zero value is a large light pill.
+type pillOpts struct {
+	style pillStyle
+	size  pillSize
+}
+
+func pill(c *ui.Context, key any, icon *ui.SVG, label string, opts pillOpts) ui.Element {
+	size := pillSizes[opts.size]
+	b := ui.ButtonBase(c.Key(key)).Height(size.height).Padding(0, th.Space(size.pad)).Gap(th.Space(2)).
+		Radius(th.Radius.Pill).Center().Shrink(0).Cursor(ui.CursorPointer).KeepFocus()
 	hovered, pressed := b.Hovered(), b.Pressed()
 	col := &th.Color
 	var bg, fg ui.Color
-	switch style {
+	switch opts.style {
 	case pillLight:
 		bg, fg = col.Text, col.Base
 		if hovered {
@@ -318,7 +340,7 @@ func sectionHeader(c *ui.Context, key any, eyebrowText, title, action string) bo
 			heading(c, title, th.Type.Section, 2).SingleLine()
 		})
 		if action != "" {
-			clicked = pill(c, key, nil, action, pillGhost).Height(32).Padding(0, th.Space(3.5)).Clicked()
+			clicked = pill(c, key, nil, action, pillOpts{style: pillGhost, size: pillMedium}).Height(32).Clicked()
 		}
 	})
 	return clicked

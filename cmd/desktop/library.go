@@ -50,7 +50,7 @@ func (a *app) libraryHeader(c *ui.Context, tab libraryTab) {
 	ui.Column(c).Padding(0, rowBleed).Gap(th.Space(6)).Margin(0, 0, th.Space(6), 0).Children(func() {
 		ui.Row(c).Gap(th.Space(4)).AlignItems(ui.Center).Children(func() {
 			heading(c, locales.NavLibrary(), th.Type.Page, 1).Grow(1)
-			pill(c, "sort", nil, locales.RecentlyAdded(), pillGhost).Height(34).Padding(0, th.Space(3.5))
+			pill(c, "sort", nil, locales.RecentlyAdded(), pillOpts{style: pillGhost, size: pillMedium})
 		})
 		// The route owns the tab, so choosing one navigates.
 		chosen := int(tab)

@@ -262,8 +262,8 @@ func (a *app) appearanceSheet(c *ui.Context) {
 				ui.Row(c).AlignItems(ui.Center).Children(func() {
 					eyebrow(c, locales.Layout()).Grow(1)
 					if a.look.set.Layout != (theme.Arrangement{}) &&
-						pill(c, "reset-layout", nil, locales.UseThemeLayout(), pillGhost).
-							Height(30).Padding(0, th.Space(3.5)).Clicked() {
+						pill(c, "reset-layout", nil, locales.UseThemeLayout(), pillOpts{style: pillGhost, size: pillSmall}).
+							Clicked() {
 						a.look.set.Layout = theme.Arrangement{}
 						a.arrange()
 					}
@@ -275,7 +275,7 @@ func (a *app) appearanceSheet(c *ui.Context) {
 			a.backgroundPlayer(c)
 		})
 		ui.Row(c).Justify(ui.End).Children(func() {
-			if pill(c, "appearance-done", nil, locales.Done(), pillLight).Clicked() {
+			if pill(c, "appearance-done", nil, locales.Done(), pillOpts{style: pillLight}).Clicked() {
 				a.look.isOpen = false
 			}
 		})

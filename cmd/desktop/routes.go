@@ -146,7 +146,7 @@ func notFound(c *ui.Context) {
 
 func loadFailed(c *ui.Context, title string, err error, retry func()) {
 	message(c, nil, title, err.Error(), 1, func() {
-		if pill(c, "retry", nil, locales.Retry(), pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
+		if pill(c, "retry", nil, locales.Retry(), pillOpts{style: pillLight}).Margin(th.Space(3), 0, 0, 0).Clicked() {
 			retry()
 		}
 	})

@@ -101,7 +101,7 @@ func (a *app) bannerActions(c *ui.Context, h remote.Health) {
 }
 
 func bannerButton(c *ui.Context, key, label string) bool {
-	return pill(c, key, nil, label, pillGhost).Height(30).Padding(0, th.Space(3.5)).Clicked()
+	return pill(c, key, nil, label, pillOpts{style: pillGhost, size: pillSmall}).Clicked()
 }
 
 // fileURL is the file: URL of path, which opens in the system's viewer

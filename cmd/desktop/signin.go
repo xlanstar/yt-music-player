@@ -21,8 +21,8 @@ func (a *app) accountButton(c *ui.Context) {
 		if a.fetches.State(session.AccountRes).State != fetchstate.SignedOut {
 			return
 		}
-		signIn := pill(c, "sign-in", nil, locales.SignIn(), pillLight).
-			Height(34).Padding(0, th.Space(4)).Margin(0, 0, 0, th.Space(1.5))
+		signIn := pill(c, "sign-in", nil, locales.SignIn(), pillOpts{style: pillLight, size: pillMedium}).
+			Padding(0, th.Space(4)).Margin(0, 0, 0, th.Space(1.5))
 		if signIn.Clicked() {
 			a.openSignIn()
 		}
@@ -93,7 +93,7 @@ func (a *app) signInSheet(c *ui.Context) {
 			if busy {
 				ui.Text(c, locales.SigningIn()).FontSize(ty.Detail).TextColor(col.Muted).Role(ui.RoleStatus).Grow(1)
 			}
-			if pill(c, "cancel", nil, locales.Cancel(), pillGhost).Clicked() {
+			if pill(c, "cancel", nil, locales.Cancel(), pillOpts{style: pillGhost}).Clicked() {
 				a.sheet.isOpen = false
 			}
 			label := locales.SignIn()
@@ -154,7 +154,7 @@ func sheetButton(c *ui.Context, label string, disabled bool) ui.Element {
 
 func (a *app) signedOutPage(c *ui.Context, icon *ui.SVG, title, body string) {
 	signIn := func() {
-		if pill(c, "sign-in-page", nil, locales.SignIn(), pillLight).Margin(th.Space(3), 0, 0, 0).Clicked() {
+		if pill(c, "sign-in-page", nil, locales.SignIn(), pillOpts{style: pillLight}).Margin(th.Space(3), 0, 0, 0).Clicked() {
 			a.openSignIn()
 		}
 	}
