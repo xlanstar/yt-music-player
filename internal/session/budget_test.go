@@ -61,6 +61,21 @@ func TestBudgetRetry(t *testing.T) {
 	budget.Allocs(t, 18, 100, func() { retryLikes(s, q) })
 }
 
+func TestBudgetCacheRead(t *testing.T) {
+	s, _, saved := cachedSession()
+	// 35 allocs today, for 5000 liked: the maps of Unique and the likes.
+	budget.Allocs(t, 41, 20, func() { s.cacheRead(saved, nil) })
+}
+
+func TestBudgetSaveCache(t *testing.T) {
+	s, q, saved := cachedSession()
+	s.cacheRead(saved, nil)
+	s.isLibraryFresh, s.isLikesFresh = true, true
+	// 11 allocs today: the IDs and songs liked, copied for the writer, the
+	// job's and the channel Wait reads.
+	budget.Allocs(t, 13, 20, func() { saveRoundTrip(s, q) })
+}
+
 // TestBudgetLiveLikes holds the heap a front-end keeps for 5000 liked songs
 // described as YouTube does: the Session and its catalog, less once they
 // are collected.

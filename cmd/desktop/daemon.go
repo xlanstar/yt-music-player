@@ -22,6 +22,9 @@ type ytmd struct {
 	// log is the daemon's log file, which the banner's View log opens; ""
 	// offers none.
 	log string
+	// accountCache is where the app's session keeps the library and likes
+	// between runs (newApp); "" keeps none.
+	accountCache string
 }
 
 // daemonState is what the app knows of ytmd besides playback, which the

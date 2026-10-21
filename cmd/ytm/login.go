@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+	"yt-music-player/internal/accountcache"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/locales"
@@ -77,8 +78,17 @@ func (e *env) login(ctx context.Context) int {
 	case err != nil:
 		return e.fail(what, err)
 	}
+	e.removeAccountCache()
 	writeLine(e.stdout, locales.SignedInAs(accountName(account.Name, account.Handle)))
 	return exitOK
+}
+
+// removeAccountCache removes the front-ends' copy of the library and
+// likes, no longer the signed-in account's, as an open one's session would.
+func (e *env) removeAccountCache() {
+	if err := accountcache.File(e.paths.AccountCache).Remove(); err != nil {
+		log.Debug().Err(err).Msg("ytm: removing the account's cache")
+	}
 }
 
 // readCredentials reads the Cookie header: on a terminal after the
@@ -201,6 +211,7 @@ func (e *env) logout(ctx context.Context) int {
 	if _, err := c.Call(ctx, api.Call{Method: api.MethodSignOut}); err != nil {
 		return e.fail(what, err)
 	}
+	e.removeAccountCache()
 	writeLine(e.stdout, locales.NoticeSignedOut())
 	return exitOK
 }

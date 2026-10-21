@@ -58,7 +58,7 @@ func TestBuildBeforeAttach(t *testing.T) {
 // newApp starts with none of the placeholder's music: only a placeholder
 // ytmd plays it.
 func TestNewAppWithoutDemo(t *testing.T) {
-	a := newApp(nil)
+	a := newApp(nil, "")
 	if len(a.cat.Songs) != 0 || a.currentID() != "" {
 		t.Fatalf("started with %d songs, at %q", len(a.cat.Songs), a.currentID())
 	}

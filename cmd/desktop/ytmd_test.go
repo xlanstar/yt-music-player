@@ -58,6 +58,8 @@ type ytmdOptions struct {
 	signedOut bool
 	// isDetached leaves the app's posts to the test to attach.
 	isDetached bool
+	// accountCache is the app's, in the test's TempDir; "" keeps none.
+	accountCache string
 }
 
 // startApp is an app over an in-process ytmd serving src, connected and
@@ -82,12 +84,14 @@ func startApp(tb testing.TB, src catalog.Source, opts ytmdOptions) (*app, posts)
 	// to the channels, not through y, which outlives the app.
 	appPosts, clientPosts := make(chan func(), 64), make(chan func(), 1024)
 	y.q = posts{app: appPosts, client: clientPosts, ytmd: y}
-	a := newDemoApp(func(fn func()) { clientPosts <- fn })
+	a := newDemoApp(func(fn func()) { clientPosts <- fn }, opts.accountCache)
 	if !opts.isDetached {
 		a.updates.attach(func(fn func()) { appPosts <- fn })
 	}
 	y.a = a
-	a.connect(ytmd{dialer: pipeDialer{y}, spawn: errNoSpawn, version: version.Dev, log: testLog})
+	a.connect(ytmd{
+		dialer: pipeDialer{y}, spawn: errNoSpawn, version: version.Dev, log: testLog,
+	})
 	tb.Cleanup(y.close)
 	y.until(tb, "connected", func() bool {
 		return a.daemon.link.Health == remote.Connected && a.mirror.StateGen() > 0

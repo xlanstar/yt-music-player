@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"yt-music-player/internal/accountcache"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/daemon"
 	"yt-music-player/internal/remote"
@@ -46,13 +48,20 @@ func (signingSource) SignOut() error { return nil }
 
 func newDaemonApp(t *testing.T) *daemonApp {
 	t.Helper()
+	return newCachingApp(t, "")
+}
+
+// newCachingApp is newDaemonApp keeping the account's library and likes
+// in accountCache.
+func newCachingApp(t *testing.T, accountCache string) *daemonApp {
+	t.Helper()
 	svc := daemon.New(daemon.Options{
 		Source: signingSource{catalog.NewPlaceholderSource(0)},
 		Seed:   catalog.Placeholder().Songs,
 	})
 	svc.Start()
 	a := newApp(Config{
-		Dialer: pipeDialer{svc}, Version: "1.2.3", DaemonLog: "/logs/ytmd.log",
+		Dialer: pipeDialer{svc}, Version: "1.2.3", DaemonLog: "/logs/ytmd.log", AccountCache: accountCache,
 		Spawn: func() error { return errors.New("no ytmd to start") },
 	}, nil)
 	t.Cleanup(func() {
@@ -114,6 +123,18 @@ func TestOverDaemon(t *testing.T) {
 	d.send(keyMsg("down"))
 	d.send(keyMsg("enter"))
 	d.until("opened a playlist", func() bool { return d.shows("Late Night Drive") && d.shows("Play all") })
+}
+
+// The library and likes fetched are kept for the next run.
+func TestAccountCached(t *testing.T) {
+	file := accountcache.File(filepath.Join(t.TempDir(), "account.json"))
+	d := newCachingApp(t, string(file))
+	m := d.a.m
+	d.until("fetched the account", func() bool { return m.session.IsSignedIn() && !m.session.IsBusy() })
+	saved, err := file.Load()
+	if err != nil || saved.Account.Name != "Lan" || len(saved.Liked) != m.session.LikedCount() || len(saved.Liked) == 0 {
+		t.Errorf("kept %+v, %d liked, %v", saved.Account, len(saved.Liked), err)
+	}
 }
 
 // Signing in switches accounts: the daemon empties its queue, the

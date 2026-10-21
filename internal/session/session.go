@@ -15,6 +15,7 @@ import (
 	"errors"
 	"iter"
 	"slices"
+	"yt-music-player/internal/accountcache"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
@@ -75,6 +76,9 @@ type Options struct {
 	Loader *loader.Loader
 	// Catalog gets the music fetched.
 	Catalog *catalog.Catalog
+	// AccountCache is where the library and likes are kept between runs
+	// (cache.go); "" keeps none.
+	AccountCache string
 }
 
 // Session is the signed-in account, or none, and what it has.
@@ -102,9 +106,20 @@ type Session struct {
 	likeSeq uint64
 
 	// libraryJob and likesJob fetch the library and Liked music; told are
-	// the likes that went through meanwhile, in order, newer than the list.
+	// the likes that went through since, in order, newer than the list
+	// fetched, or than the cache, which shows until a fetch went through.
 	libraryJob, likesJob job.Job
 	told                 []toldLike
+	// isLibraryFresh and isLikesFresh: what shows was fetched, not cached.
+	isLibraryFresh, isLikesFresh bool
+
+	// cache keeps the library and likes between runs, nil none (cache.go).
+	cache             Cache
+	cacheJob, diskJob job.Job
+	isCacheRead       bool
+	// diskEnded closes as diskJob's op returns; nextDisk waits for it.
+	diskEnded chan struct{}
+	nextDisk  func()
 
 	signInSeq uint64
 	notices   []notice.Notice
@@ -132,7 +147,7 @@ func New(opts Options) *Session {
 	for _, res := range Resources {
 		opts.Fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	}
-	return &Session{
+	s := &Session{
 		daemon:  opts.Daemon,
 		src:     opts.Source,
 		post:    opts.Post,
@@ -142,6 +157,10 @@ func New(opts Options) *Session {
 		liked:   map[string]bool{},
 		pending: map[string]pendingLike{},
 	}
+	if opts.AccountCache != "" {
+		s.cache = accountcache.File(opts.AccountCache)
+	}
+	return s
 }
 
 // Retry fetches res again, and who is signed in too if that failed, since
@@ -227,6 +246,7 @@ func (s *Session) ApplyAccount(status api.AccountEvent) {
 		return
 	case status.Switched || s.isSignedIn && !sameAccount(status.Account, s.account):
 		s.clearLibrary()
+		s.removeCache()
 		s.loader.Forget(loader.HomeRes)
 	case s.fetches.Get(AccountRes).State == fetchstate.SignedOut:
 		// Home was a guest's.
@@ -238,6 +258,7 @@ func (s *Session) ApplyAccount(status api.AccountEvent) {
 	s.likesJob.Stop()
 	s.fetchLibrary()
 	s.fetchLikes()
+	s.readCache()
 }
 
 // ApplyFailed keeps a fetch of who is signed in that failed
@@ -265,8 +286,10 @@ func (s *Session) finishLibrary(lib catalog.Library, err error) {
 		s.failFetch(LibraryRes, err)
 		return
 	}
+	s.isLibraryFresh = true
 	s.setLibrary(lib)
 	s.fetches.Set(LibraryRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	s.saveCache()
 }
 
 // likedMusic is Liked music fetched: its songs' IDs, newest first, once
@@ -283,7 +306,9 @@ func (s *Session) fetchLikes() {
 		return
 	}
 	s.loading(LikedRes)
-	s.told = s.told[:0]
+	if s.isLikesFresh {
+		s.told = s.told[:0]
+	}
 	src := s.src
 	s.likesJob.Run(s.post,
 		func(ctx context.Context) (likedMusic, error) { return fetchLikes(ctx, src) },
@@ -317,9 +342,12 @@ func (s *Session) finishLikes(likes likedMusic, err error) {
 		s.failFetch(LikedRes, err)
 		return
 	}
+	s.isLikesFresh = true
 	s.cat.Add(likes.songs, nil, nil)
 	s.seedLikes(likes.ids)
+	s.told = s.told[:0]
 	s.fetches.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	s.saveCache()
 }
 
 // loading marks res as loading, unless what it showed stays until the
@@ -350,16 +378,16 @@ func (s *Session) ApplyLikes(likes api.Likes) {
 	if len(likes.Songs) > 0 {
 		s.cat.Add(likes.Songs, nil, nil)
 	}
-	isFetching := s.likesJob.IsRunning()
+	isNewer := s.likesJob.IsRunning() || !s.isLikesFresh
 	for _, id := range likes.Added {
 		s.keepLike(id, true)
-		if isFetching {
+		if isNewer {
 			s.told = append(s.told, toldLike{id, true})
 		}
 	}
 	for _, id := range likes.Removed {
 		s.keepLike(id, false)
-		if isFetching {
+		if isNewer {
 			s.told = append(s.told, toldLike{id, false})
 		}
 	}
@@ -429,7 +457,6 @@ func (s *Session) seedLikes(ids []string) {
 	for _, like := range s.told {
 		s.keepLike(like.id, like.liked)
 	}
-	s.told = s.told[:0]
 	for id, like := range s.pending {
 		s.applyLike(id, like.liked)
 	}
@@ -575,6 +602,7 @@ func (s *Session) forget() {
 	wasSignedIn := s.isSignedIn
 	s.isSignedIn, s.account, s.displayName = false, catalog.Account{}, ""
 	s.clearLibrary()
+	s.removeCache()
 	for _, res := range Resources {
 		s.fetches.Set(res, fetchstate.Fetch{State: fetchstate.SignedOut})
 	}
@@ -583,10 +611,13 @@ func (s *Session) forget() {
 	}
 }
 
-// clearLibrary drops the library and likes, and their fetches in flight.
+// clearLibrary drops the library and likes, and their fetches and the
+// cache's read in flight.
 func (s *Session) clearLibrary() {
 	s.libraryJob.Stop()
 	s.likesJob.Stop()
+	s.cacheJob.Stop()
+	s.isLibraryFresh, s.isLikesFresh = false, false
 	s.library = catalog.Library{}
 	s.cat.SetLibrary(nil)
 	clear(s.pending)
@@ -661,10 +692,12 @@ func (s *Session) finishSignOut(err error) {
 // IsSigningOut reports whether a sign-out is in flight.
 func (s *Session) IsSigningOut() bool { return s.isSigningOut }
 
-// IsBusy reports whether a fetch, a like, or a sign-in or sign-out is in
-// flight.
+// IsBusy reports whether a fetch, a like, a sign-in or sign-out, or the
+// cache's read or write is in flight.
 func (s *Session) IsBusy() bool {
-	if len(s.pending) > 0 || s.isSigningIn || s.isSigningOut || s.libraryJob.IsRunning() || s.likesJob.IsRunning() {
+	isFetching := s.libraryJob.IsRunning() || s.likesJob.IsRunning()
+	isCaching := s.cacheJob.IsRunning() || s.diskJob.IsRunning()
+	if len(s.pending) > 0 || s.isSigningIn || s.isSigningOut || isFetching || isCaching {
 		return true
 	}
 	for _, res := range Resources {

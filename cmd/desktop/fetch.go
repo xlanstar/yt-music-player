@@ -3,6 +3,7 @@ package main
 import (
 	"net/url"
 	"strings"
+	"time"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
 )
@@ -75,13 +76,14 @@ func (a *app) playPlaylist(id string) {
 }
 
 // stopWork runs as the window closes: later results have nowhere to show.
-// Pending settings still save.
+// Pending settings still save, and the account's cache, a second at most.
 func (a *app) stopWork() {
 	a.loader.Stop()
 	if a.art != nil {
 		a.art.Close()
 	}
 	a.disconnect()
+	a.session.Wait(time.Second)
 	a.look.scan.Stop()
 	a.look.saver.Wait()
 }

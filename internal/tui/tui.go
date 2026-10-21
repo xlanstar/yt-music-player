@@ -67,6 +67,9 @@ type Config struct {
 	// DaemonLog is the path of ytmd's log, shown when it cannot be
 	// reached.
 	DaemonLog string
+	// AccountCache keeps the library and likes between runs; "" keeps
+	// none.
+	AccountCache string
 }
 
 // Run runs the TUI until the user quits or ctx ends. Quitting leaves ytmd
@@ -81,7 +84,7 @@ func Run(ctx context.Context, cfg Config) error {
 	_, err := p.Run()
 	stop()
 	// Update is done: this goroutine is the UI thread now.
-	if images := a.close(); images != "" {
+	if images := a.close(); images != "" { //nolint:contextcheck // the cache's write ends within Wait's second, even after a signal
 		// Bubble Tea, stopped, writes nothing queued: Kitty keeps images
 		// until told.
 		_, _ = io.WriteString(out, images)
@@ -126,7 +129,7 @@ func newApp(cfg Config, out *termOut) *app {
 		mirror: c.Mirror(),
 		session: session.New(session.Options{
 			Daemon: remote.NewAccount(c), Source: c,
-			Post: posts.post, Fetches: fetches, Loader: load, Catalog: cat,
+			Post: posts.post, Fetches: fetches, Loader: load, Catalog: cat, AccountCache: cfg.AccountCache,
 		}),
 		loader:      load,
 		cat:         cat,
@@ -144,11 +147,13 @@ func newApp(cfg Config, out *termOut) *app {
 	return &app{m: m, posts: posts, sup: sup}
 }
 
-// close stops the fetches and disconnects, on the UI thread; it returns
-// what frees the terminal's images.
+// close stops the fetches, disconnects and lets the account's cache save
+// or go, a second at most, on the UI thread; it returns what frees the
+// terminal's images.
 func (a *app) close() string {
 	a.m.loader.Stop()
 	a.sup.Close()
+	a.m.session.Wait(time.Second)
 	a.m.quiet.Stop()
 	return a.m.covers.close()
 }

@@ -118,25 +118,26 @@ type seenState struct {
 }
 
 // newApp starts with an empty catalog; ytmd has the queue.
-func newApp(post func(func())) *app {
-	return appWith(catalog.New(nil, nil, nil), post)
+func newApp(post func(func()), accountCache string) *app {
+	return appWith(catalog.New(nil, nil, nil), post, accountCache)
 }
 
 // newDemoApp starts with the placeholder's music, which only a
 // placeholder ytmd serves. Apart from newApp so that the release build,
 // which calls it only behind the constant demo, links no placeholder
 // catalog.
-func newDemoApp(post func(func())) *app {
+func newDemoApp(post func(func()), accountCache string) *app {
 	cat := catalog.Placeholder()
 	// The library and likes come from the session.
 	cat.SetLibrary(nil)
-	return appWith(cat, post)
+	return appWith(cat, post, accountCache)
 }
 
 // appWith makes the app over cat. clientPost runs the remote Client's
 // funcs on the UI thread; nil is a.post, which tests replace to run them
-// apart from the app's own.
-func appWith(cat *catalog.Catalog, clientPost func(func())) *app {
+// apart from the app's own. The session keeps the library and likes in
+// accountCache, "" none.
+func appWith(cat *catalog.Catalog, clientPost func(func()), accountCache string) *app {
 	r := ui.NewRouter(pathHome)
 	// Pages draw over the panel's glow; a slide would paint an opaque
 	// backdrop over it while they move.
@@ -153,7 +154,7 @@ func appWith(cat *catalog.Catalog, clientPost func(func())) *app {
 	a.client = remote.NewClient(clientPost, a.daemonHandler())
 	a.mirror = a.client.Mirror()
 	a.loader = loader.New(a.client, &a.fetches, cat, a.post)
-	a.connectAccount(cat, clientPost)
+	a.connectAccount(cat, clientPost, accountCache)
 	for i, path := range [...]string{pathHome, pathExplore, pathLibrary} {
 		a.goTo[i] = func() { a.router.Push(path) }
 	}

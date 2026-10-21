@@ -12,10 +12,11 @@ import (
 // Quitting leaves the daemon playing.
 func runTUI(ctx context.Context, e *env) int {
 	err := tui.Run(ctx, tui.Config{
-		Dialer:    e.dialer,
-		Spawn:     e.spawn,
-		Version:   e.version,
-		DaemonLog: e.paths.Log("ytmd"),
+		Dialer:       e.dialer,
+		Spawn:        e.spawn,
+		Version:      e.version,
+		DaemonLog:    e.paths.Log("ytmd"),
+		AccountCache: e.paths.AccountCache,
 	})
 	if err != nil {
 		writeLine(e.stderr, locales.CliFailed(locales.CliTuiFailed(), err.Error()))

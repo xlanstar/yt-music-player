@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
+	"io/fs"
 	"strconv"
 	"strings"
 	"testing"
+	"yt-music-player/internal/accountcache"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 	"yt-music-player/internal/fetchstate"
@@ -197,4 +199,53 @@ func BenchmarkRetry(b *testing.B) {
 	for b.Loop() {
 		retryLikes(s, q)
 	}
+}
+
+// nopCache keeps nothing, so that only the Session's cost is measured.
+type nopCache struct{}
+
+func (nopCache) Load() (accountcache.Saved, error) { return accountcache.Saved{}, fs.ErrNotExist }
+func (nopCache) Save(*accountcache.Saved) error    { return nil }
+func (nopCache) Remove() error                     { return nil }
+
+// cachedSession is a Session signed in as Lan, using nopCache, and a cache
+// of 5000 liked songs as accountcache loads them.
+func cachedSession() (*Session, chan func(), accountcache.Saved) {
+	s, q := newSession(catalog.New(nil, nil, nil))
+	s.cache = nopCache{}
+	lan := catalog.Account{Name: "Lan"}
+	s.setAccount(lan)
+	liked := catalogtest.Decoded(5000)
+	catalog.ShareStrings(liked)
+	ids := make([]string, len(liked))
+	for i, song := range liked {
+		ids[i] = song.ID
+	}
+	return s, q, accountcache.Saved{Account: lan, Liked: ids, LikedSongs: liked}
+}
+
+// BenchmarkCacheRead is showing the cache at a start, on the UI thread.
+func BenchmarkCacheRead(b *testing.B) {
+	s, _, saved := cachedSession()
+	b.ReportAllocs()
+	for b.Loop() {
+		s.cacheRead(saved, nil)
+	}
+}
+
+// BenchmarkSaveCache is what the UI thread does to save once fetched.
+func BenchmarkSaveCache(b *testing.B) {
+	s, q, saved := cachedSession()
+	s.cacheRead(saved, nil)
+	s.isLibraryFresh, s.isLikesFresh = true, true
+	b.ReportAllocs()
+	for b.Loop() {
+		saveRoundTrip(s, q)
+	}
+}
+
+// saveRoundTrip is a save and its end.
+func saveRoundTrip(s *Session, q chan func()) {
+	s.saveCache()
+	(<-q)()
 }

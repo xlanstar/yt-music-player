@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"yt-music-player/internal/api"
@@ -14,6 +17,7 @@ const cookie = "SID=s3cr3t-sid-value; SAPISID=s3cr3t-sapisid; __Secure-3PAPISID=
 func TestLoginPiped(t *testing.T) {
 	d := newDaemon("1.0.0", 7)
 	w := newWorld(d)
+	cache := withAccountCache(t, w)
 	w.env.stdin = strings.NewReader(cookie + "\n")
 	if code := w.run(t, "login"); code != exitOK {
 		t.Fatalf("exit %d; stderr %q", code, w.stderr)
@@ -28,6 +32,7 @@ func TestLoginPiped(t *testing.T) {
 	if w.stderr.Len() > 0 {
 		t.Errorf("stderr %q: no steps for a pipe", w.stderr)
 	}
+	cacheGone(t, cache)
 }
 
 func TestLoginLimit(t *testing.T) {
@@ -82,9 +87,13 @@ func TestLoginInvalid(t *testing.T) {
 		return &api.Reply{Err: &api.Error{Code: api.CodeInvalidCredentials, Detail: "no SAPISID cookie"}}
 	}
 	w := newWorld(d)
+	cache := withAccountCache(t, w)
 	w.env.stdin = strings.NewReader(cookie)
 	if code := w.run(t, "login"); code != exitFailed {
 		t.Errorf("exit %d, want %d", code, exitFailed)
+	}
+	if _, err := os.Stat(cache); err != nil {
+		t.Errorf("a refused sign-in removed the cache: %v", err)
 	}
 	for _, want := range []string{locales.CliLoginInvalid(), "no SAPISID cookie"} {
 		if !strings.Contains(w.stderr.String(), want) {
@@ -194,10 +203,33 @@ func TestReadAll(t *testing.T) {
 func TestLogout(t *testing.T) {
 	d := newDaemon("1.0.0", 7)
 	w := newWorld(d)
+	cache := withAccountCache(t, w)
 	if code := w.run(t, "logout"); code != exitOK {
 		t.Fatalf("exit %d", code)
 	}
 	if got, want := w.stdout.String(), locales.NoticeSignedOut()+"\n"; got != want {
 		t.Errorf("stdout %q, want %q", got, want)
+	}
+	cacheGone(t, cache)
+}
+
+// withAccountCache gives w a front-ends' cache of the library and likes,
+// in a TempDir, and returns its path.
+func withAccountCache(t *testing.T, w *world) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "account.json")
+	if err := os.WriteFile(path, []byte(`{"v":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.env.paths.AccountCache = path
+	return path
+}
+
+// cacheGone fails t unless the cache at path was removed: the account it
+// kept is no longer signed in.
+func cacheGone(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the account's cache stayed: %v", err)
 	}
 }

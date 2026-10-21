@@ -35,15 +35,16 @@ func main() {
 	if err != nil {
 		log.Warn().Err(err).Msg("YT_LOG")
 	}
+	d, err := systemYtmd()
 	var a *app
 	if demo {
-		a = newDemoApp(nil)
+		a = newDemoApp(nil, d.accountCache)
 	} else {
-		a = newApp(nil)
+		a = newApp(nil, d.accountCache)
 	}
 	// Connecting, starting ytmd if need be, takes a while: from now,
 	// while the window opens. What it reports waits for the window.
-	if d, err := systemYtmd(); err == nil {
+	if err == nil {
 		a.connect(d)
 	} else {
 		log.Error().Err(err).Msg("ytmd's paths")
@@ -151,8 +152,9 @@ func systemYtmd() (ytmd, error) {
 		return ytmd{}, err
 	}
 	return ytmd{
-		dialer:  &ipc.Dialer{Socket: paths.Socket, Spawn: ipc.SpawnDaemon},
-		version: appVersion(),
-		log:     paths.Log("ytmd"),
+		dialer:       &ipc.Dialer{Socket: paths.Socket, Spawn: ipc.SpawnDaemon},
+		version:      appVersion(),
+		log:          paths.Log("ytmd"),
+		accountCache: paths.AccountCache,
 	}, nil
 }

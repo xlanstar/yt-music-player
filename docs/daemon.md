@@ -28,11 +28,12 @@ Each binary's `TestDeps` (and `session`'s) holds the last column; the test binar
 | fallback socket dir | `$TMPDIR/yt-music-player-<uid>/` | `/tmp/yt-music-player-<uid>/` | `%TEMP%\yt-music-player\` |
 | state | `<cfg>/daemon.json` | same | same |
 | logs | `<cache>/logs/ytmd.log`, `ytm.log` | same | same |
+| library and likes, the front-ends' | `<cache>/account.json` | same | same |
 | start at login | `~/Library/LaunchAgents/dev.lanstar.ytmusicplayer.daemon.plist` | `~/.config/systemd/user/ytmd.service` | `HKCU\…\CurrentVersion\Run\YTMusicPlayerDaemon` |
 
 - The fallback holds the socket when Linux has no `$XDG_RUNTIME_DIR` or the usual path is too long for `sun_path` (103 bytes on macOS, 107 elsewhere).
 - Only the socket's directory (0700, refused when another user owns it) and the socket (0600) keep other users out; Windows relies on `%LOCALAPPDATA%`'s ACL.
-- A placeholder build adds `-placeholder` to the socket, lock, state and log names, a development build (version `dev`) then `-dev` (`daemon-placeholder-dev.json`), so development front-ends never reach an installed daemon or its files. `ytm logs` prints the log paths.
+- A placeholder build adds `-placeholder` to the socket, lock, state, log and cache names, a development build (version `dev`) then `-dev` (`daemon-placeholder-dev.json`), so development front-ends never reach an installed daemon or its files. `ytm logs` prints the log paths.
 
 ## Starting and stopping
 

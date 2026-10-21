@@ -23,12 +23,12 @@ type sheetState struct {
 
 // connectAccount makes the session before the client connects, giving it
 // the account's events; the session fetches the library and likes through
-// ytmd once it tells who is signed in. post is the Client's: the fetches
-// answer through ytmd, as its events do.
-func (a *app) connectAccount(cat *catalog.Catalog, post func(func())) {
+// ytmd once it tells who is signed in, keeping them in accountCache. post
+// is the Client's: the fetches answer through ytmd, as its events do.
+func (a *app) connectAccount(cat *catalog.Catalog, post func(func()), accountCache string) {
 	a.session = session.New(session.Options{
 		Daemon: remote.NewAccount(a.client), Source: a.client,
-		Post: post, Fetches: &a.fetches, Loader: a.loader, Catalog: cat,
+		Post: post, Fetches: &a.fetches, Loader: a.loader, Catalog: cat, AccountCache: accountCache,
 	})
 	a.client.SetAccountEvents(a.session)
 }

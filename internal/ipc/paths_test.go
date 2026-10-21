@@ -34,8 +34,11 @@ func TestPathsCarrySuffix(t *testing.T) {
 		Lock:   "/run/user/1/yt-music-player/ytmd-placeholder-dev.lock",
 		State:  "/c/yt-music-player/daemon-placeholder-dev.json",
 		Logs:   "/k/yt-music-player/logs",
+		// A front-end's.
+		AccountCache: "/k/yt-music-player/account-placeholder-dev.json",
 	}
-	if p.Socket != fp(want.Socket) || p.Lock != fp(want.Lock) || p.State != fp(want.State) || p.Logs != fp(want.Logs) {
+	if p.Socket != fp(want.Socket) || p.Lock != fp(want.Lock) || p.State != fp(want.State) || p.Logs != fp(want.Logs) ||
+		p.AccountCache != fp(want.AccountCache) {
 		t.Errorf("got %+v, want %+v", p, want)
 	}
 	if got := p.Log("ytmd"); got != fp("/k/yt-music-player/logs/ytmd-placeholder-dev.log") {

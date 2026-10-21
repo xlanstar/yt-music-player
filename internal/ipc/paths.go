@@ -29,14 +29,17 @@ type Roots struct {
 	UID  int // os.Getuid; -1 on Windows
 }
 
-// Paths are where ytmd keeps its files. Each name carries the build's
-// suffix: "-placeholder" for a placeholder build, then "-dev" for a
-// development one, so neither touches an installed daemon's files.
+// Paths are where ytmd and its front-ends keep their files. Each name
+// carries the build's suffix: "-placeholder" for a placeholder build, then
+// "-dev" for a development one, so neither touches an installed one's.
 type Paths struct {
 	Socket string
 	Lock   string // next to Socket
 	State  string // daemon.json
 	Logs   string // the directory of the log files (Log)
+	// AccountCache is the front-ends' copy of the library and likes
+	// (package accountcache).
+	AccountCache string
 
 	suffix string
 	uid    int
@@ -82,10 +85,12 @@ func suffix(placeholder, dev bool) string {
 
 func resolve(r Roots, goos, suffix string) (Paths, error) {
 	p := Paths{
-		State:  filepath.Join(r.Config, appName, "daemon"+suffix+".json"),
-		Logs:   filepath.Join(r.Cache, appName, "logs"),
-		suffix: suffix,
-		uid:    r.UID,
+		State: filepath.Join(r.Config, appName, "daemon"+suffix+".json"),
+		Logs:  filepath.Join(r.Cache, appName, "logs"),
+		// The cache's, not the config's: losing it costs a fetch.
+		AccountCache: filepath.Join(r.Cache, appName, "account"+suffix+".json"),
+		suffix:       suffix,
+		uid:          r.UID,
 	}
 	sock := "ytmd" + suffix + ".sock"
 	var dir string

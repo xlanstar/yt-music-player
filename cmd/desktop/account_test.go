@@ -3,10 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+	"yt-music-player/internal/accountcache"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
 
@@ -422,5 +425,50 @@ func TestSignInEmptiesTheQueue(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("Carrier Wave") || len(a.mirror.Queue()) != 1 {
 		t.Errorf("queue %q, texts %q", a.mirror.Queue(), tt.Texts())
+	}
+}
+
+// The library and likes a previous run kept show as soon as ytmd tells
+// whose they are, before the fetch ends, which they are kept from in turn;
+// signing out removes them.
+func TestAccountCached(t *testing.T) {
+	file := accountcache.File(filepath.Join(t.TempDir(), "account.json"))
+	err := file.Save(&accountcache.Saved{
+		Account: ada, Library: catalog.Library{Playlists: []catalog.Playlist{adaMix}},
+		Liked: []string{"far-1"}, LikedSongs: remoteTracks[:1],
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := catalogtest.Accounts{Source: catalogtest.New(t)}
+	a, q := startApp(t, src, ytmdOptions{accountCache: string(file)})
+	fetchedFeeds(a)
+	tt := newTester(a)
+	a.router.Push(pathLiked)
+	answer(t, tt, q, src.Next(t, tt.Frame, "account", ""), reply{Account: ada})
+	calls := src.Take(t, tt.Frame, "library", "playlist LM")
+	eventually(t, tt, q, "showed the cache", func() bool { return tt.HasText("Carrier Wave by Nova Static") })
+	if !tt.HasText("Engine Notes") || tt.HasText("Loading…") {
+		t.Errorf("the cached library not shown, texts %q", tt.Texts())
+	}
+
+	calls["library"].Reply <- reply{Library: adaLibrary}
+	calls["playlist LM"].Reply <- reply{Playlist: adaLikes, Songs: []catalog.Song{remoteTracks[1], remoteTracks[0]}}
+	settleLoads(t, tt, a, q)
+	if !tt.HasText("Dead Air by Nova Static") {
+		t.Errorf("the fetch did not replace the cache, texts %q", tt.Texts())
+	}
+	if saved, err := file.Load(); err != nil || !slices.Equal(saved.Liked, []string{"far-2", "far-1"}) {
+		t.Errorf("kept %q, %v", saved.Liked, err)
+	}
+
+	click(t, tt, "Ada Lovelace")
+	if err := tt.ChooseMenuItem("Sign out"); err != nil {
+		t.Fatal(err)
+	}
+	answer(t, tt, q, src.Next(t, tt.Frame, "signout", ""), reply{})
+	settleLoads(t, tt, a, q)
+	if _, err := file.Load(); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("signed out, the cache stayed: %v", err)
 	}
 }

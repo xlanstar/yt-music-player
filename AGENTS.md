@@ -30,6 +30,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `fetchstate`: `Resource` and `Fetch` state; the `Registry` pages read (`a.fetches`).
 - `notice`: messages for the user, made by session and playback, as codes and arguments; `noticetext`: their words, which `tell` shows (`Render`).
 - `loader`: page fetches (album, playlist, feeds, search) for the page shown.
+- `accountcache`: the library and likes on disk, which a front-end's session shows at start while fetching them.
 - `account`: ytmd's sign-in/out, fetching who is signed in, sending likes; reports changes as plain values and holds no UI state, so a process without a window can own it.
 - `session`: the account as pages read it (fetch states, the catalog, notices): who is signed in, from ytmd's `account` events, and the library and likes, which it fetches through ytmd and keeps; asks ytmd's account through `remote.Account`; every like through `SetLiked`, shown at once and undone on failure.
 - `auth`: browser-cookie credentials and their store (Keychain on macOS).
