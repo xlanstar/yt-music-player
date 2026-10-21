@@ -239,7 +239,7 @@ func TestHandoff(t *testing.T) {
 	if st := nc.state(); !st.Playing || st.Position != 20 {
 		t.Errorf("resumed %+v", st)
 	}
-	next.src.Take(t, nil, "account", "library", "playlist LM")
+	next.src.Next(t, nil, "account", "")
 	if st := next.readState(); st.ResumePlaying {
 		t.Errorf("resumePlaying kept: %+v", st)
 	}
@@ -295,7 +295,6 @@ func TestHandoffTooLate(t *testing.T) {
 	if st := late.connect(true).event().State; st.Playing {
 		t.Errorf("resumed past resumeBefore: %+v", st)
 	}
-	late.src.Take(t, nil, "library", "playlist LM")
 }
 
 // Of two hand-offs at once, only the first is answered; the other hears of

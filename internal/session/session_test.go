@@ -4,7 +4,10 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
+	"time"
+	"unsafe"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/catalog/catalogtest"
@@ -16,8 +19,8 @@ import (
 // request is one the Session made of its Daemon, which the test answers
 // by calling done or signedIn, on its own goroutine as the UI thread.
 type request struct {
-	// what is "refresh account", "refresh library" or "refresh liked",
-	// "like +id" or "like -id", "signin <credentials>" or "signout".
+	// what is "refresh", "like +id" or "like -id", "signin <credentials>"
+	// or "signout".
 	what     string
 	done     func(error)
 	signedIn func(catalog.Account, error)
@@ -31,10 +34,8 @@ type fakeDaemon struct {
 	canceled int
 }
 
-var partNames = map[api.Part]string{api.PartAccount: "account", api.PartLibrary: "library", api.PartLiked: "liked"}
-
-func (d *fakeDaemon) Refresh(p api.Part, done func(error)) {
-	d.requests = append(d.requests, request{what: "refresh " + partNames[p], done: done})
+func (d *fakeDaemon) Refresh(done func(error)) {
+	d.requests = append(d.requests, request{what: "refresh", done: done})
 }
 
 func (d *fakeDaemon) Like(id string, liked bool, song *catalog.Song, done func(error)) {
@@ -77,26 +78,72 @@ func (d *fakeDaemon) next(t *testing.T, want string) request {
 	return d.take(t, want)[0]
 }
 
-// fixture is a Session over a fakeDaemon, as the app starts: ytmd fetches
-// the account's resources and sends them.
+// fixture is a Session over a fakeDaemon and a catalogtest.Source, which
+// the test answers, as the app starts: ytmd fetches who is signed in and
+// tells it, and the Session fetches the rest. The test's goroutine is the
+// UI thread, which runs the fetches' results (run).
 type fixture struct {
 	d       *fakeDaemon
+	src     catalogtest.Source
+	q       chan func()
 	s       *Session
 	fetches fetchstate.Registry
 	cat     *catalog.Catalog
 }
 
 func newFixture(tb testing.TB) *fixture {
-	f := &fixture{d: &fakeDaemon{}, cat: catalog.New(nil, nil, nil)}
+	f := &fixture{d: &fakeDaemon{}, src: catalogtest.New(tb), q: make(chan func(), 16), cat: catalog.New(nil, nil, nil)}
 	// The loader only forgets Home here: it never runs its post.
 	load := loader.New(catalogtest.New(tb), &f.fetches, f.cat, func(func()) { panic("the loader fetched") })
-	f.s = New(f.d, &f.fetches, load, f.cat)
+	f.s = New(Options{
+		Daemon: f.d, Source: f.src, Post: func(fn func()) { f.q <- fn },
+		Fetches: &f.fetches, Loader: load, Catalog: f.cat,
+	})
 	// Loaded so changed can see an account change forget it.
 	f.fetches.Set(loader.HomeRes, fetchstate.Fetch{State: fetchstate.Loaded})
-	for _, res := range Resources {
-		f.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
-	}
 	return f
+}
+
+// run waits for one of the Session's results and runs it.
+func (f *fixture) run(t *testing.T) {
+	t.Helper()
+	select {
+	case fn := <-f.q:
+		fn()
+	case <-time.After(5 * time.Second):
+		t.Fatal("no result came back")
+	}
+}
+
+// answer answers the Session's fetch of kind and id with r, and runs its
+// result.
+func (f *fixture) answer(t *testing.T, kind, id string, r catalogtest.Reply) {
+	t.Helper()
+	f.src.Next(t, nil, kind, id).Reply <- r
+	f.run(t)
+}
+
+// fetches returns the Session's fetches of the library and Liked music.
+func (f *fixture) takeFetches(t *testing.T) (library, liked catalogtest.Call) {
+	t.Helper()
+	calls := f.src.Take(t, nil, "library", "playlist LM")
+	return calls["library"], calls["playlist LM"]
+}
+
+// fetched answers them as Ada's, and runs their results.
+func (f *fixture) fetched(t *testing.T) {
+	t.Helper()
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	liked.Reply <- adaLiked()
+	f.run(t)
+	f.run(t)
+}
+
+// none fails t if the Session fetches anything.
+func (f *fixture) none(t *testing.T) {
+	t.Helper()
+	f.src.None(t, nil, 30*time.Millisecond)
 }
 
 // changed reports whether an account change forgot Home.
@@ -117,10 +164,10 @@ func wantNotices(t *testing.T, f *fixture, want ...notice.Notice) {
 }
 
 var (
-	ada      = catalog.Account{Name: "Ada Lovelace", Handle: "@ada"}
-	adaMix   = catalog.Playlist{ID: "ada-mix", Name: "Engine Notes", Songs: []string{"far-1", "far-2"}}
-	tracks   = []catalog.Song{{ID: "far-1", Title: "Carrier Wave"}, {ID: "far-2", Title: "Dead Air"}}
-	adaLikes = api.Likes{Full: true, IDs: []string{"far-2", "far-1"}, Songs: []catalog.Song{tracks[1], tracks[0]}}
+	ada    = catalog.Account{Name: "Ada Lovelace", Handle: "@ada"}
+	grace  = catalog.Account{Name: "Grace Hopper"}
+	adaMix = catalog.Playlist{ID: "ada-mix", Name: "Engine Notes", Songs: []string{"far-1", "far-2"}}
+	tracks = []catalog.Song{{ID: "far-1", Title: "Carrier Wave"}, {ID: "far-2", Title: "Dead Air"}}
 
 	signInToLikeNotice = notice.Notice{Kind: notice.KindNeedsAccount, Title: notice.SignInToLike, Topic: notice.TopicSignIn}
 )
@@ -135,17 +182,19 @@ func adaLibrary() catalog.Library {
 	}
 }
 
-// fetched gives s Ada's account, library and likes as the daemon's events.
-func fetched(s *Session) {
-	s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
-	s.ApplyLibrary(adaLibrary())
-	s.ApplyLikes(adaLikes)
+// adaLiked is Ada's Liked music, newest first, as the source answers it.
+func adaLiked() catalogtest.Reply {
+	return catalogtest.Reply{
+		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: []string{"far-2", "far-1"}},
+		Songs:    []catalog.Song{tracks[1], tracks[0]},
+	}
 }
 
 func signedIn(t *testing.T) *fixture {
 	t.Helper()
 	f := newFixture(t)
-	fetched(f.s)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	f.fetched(t)
 	if f.s.IsBusy() {
 		t.Fatal("busy once fetched")
 	}
@@ -161,10 +210,17 @@ func signedOut(t *testing.T) *fixture {
 
 func TestFetched(t *testing.T) {
 	f := newFixture(t)
-	if !f.s.IsBusy() {
-		t.Error("not busy while fetching")
+	// Until ytmd tells who is signed in, as the front-ends start.
+	for _, res := range Resources {
+		wantState(t, f, res, fetchstate.Loading)
 	}
-	fetched(f.s)
+	if !f.s.IsBusy() {
+		t.Error("not busy while ytmd fetches who is signed in")
+	}
+	f.none(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	wantState(t, f, AccountRes, fetchstate.Loaded)
+	f.fetched(t)
 	for _, res := range Resources {
 		wantState(t, f, res, fetchstate.Loaded)
 	}
@@ -188,6 +244,188 @@ func TestFetched(t *testing.T) {
 		t.Error("fetching the account changed it")
 	}
 	f.d.take(t)
+}
+
+// Liked music answered without its IDs, or not found as for an account
+// that never liked a song, still loads; its songs share their strings.
+func TestFetchedLiked(t *testing.T) {
+	f := newFixture(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{}
+	described := func() []catalog.Song {
+		var songs []catalog.Song
+		for _, id := range []string{"far-1", "far-2"} {
+			songs = append(songs, catalog.Song{ID: id, Title: id, Artist: strings.Clone("Ada"), Album: strings.Clone("Engine")})
+		}
+		return songs
+	}
+	liked.Reply <- catalogtest.Reply{Songs: described()}
+	f.run(t)
+	f.run(t)
+	if got := f.s.LikedSongs(); len(got) != 2 || got[0].ID != "far-1" {
+		t.Fatalf("liked songs %+v", got)
+	}
+	a, b := f.s.LikedSongs()[0], f.s.LikedSongs()[1]
+	if unsafe.StringData(a.Artist) != unsafe.StringData(b.Artist) || unsafe.StringData(a.Album) != unsafe.StringData(b.Album) {
+		t.Error("liked songs keep a copy each of their artist and album")
+	}
+
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked = f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{}
+	liked.Reply <- catalogtest.Reply{Err: catalog.ErrNotFound}
+	f.run(t)
+	f.run(t)
+	wantState(t, f, LikedRes, fetchstate.Loaded)
+	if f.s.LikedCount() != 0 {
+		t.Errorf("%d liked, want none", f.s.LikedCount())
+	}
+}
+
+// Told again who is signed in, as a reconnection's snapshot does, the
+// Session fetches anew, showing what it has meanwhile and if it fails.
+func TestFetchedAgain(t *testing.T) {
+	f := signedIn(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	for _, res := range Resources {
+		wantState(t, f, res, fetchstate.Loaded)
+	}
+	if !f.s.IsBusy() {
+		t.Error("not busy fetching again")
+	}
+	library.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	liked.Reply <- catalogtest.Reply{Songs: tracks[:1]}
+	f.run(t)
+	f.run(t)
+	wantState(t, f, LibraryRes, fetchstate.Loaded)
+	if len(f.cat.LibraryPlaylists()) != 1 || f.s.IsLiked("far-2") || !f.s.IsLiked("far-1") {
+		t.Error("the library left, or the likes stayed")
+	}
+	// What failed meanwhile is fetched again with the rest that failed.
+	f.s.RetryFailed()
+	f.answer(t, "library", "", catalogtest.Reply{Library: catalog.Library{}})
+	if len(f.cat.LibraryPlaylists()) != 0 || f.s.IsBusy() {
+		t.Error("the library not fetched again")
+	}
+	f.s.RetryFailed()
+	f.none(t)
+
+	// Another account than the one shown: what it had goes at once.
+	grace := catalog.Account{Name: "Grace Hopper"}
+	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true})
+	if f.s.IsLiked("far-1") || !f.changed() {
+		t.Error("Ada's likes shown as Grace's, or Home kept")
+	}
+	wantState(t, f, LibraryRes, fetchstate.Loading)
+	f.fetched(t)
+}
+
+// Told who is signed in while fetching, as a new link's snapshot is while
+// the old link's fetch fails, the Session fetches anew: the old fetch's
+// failure, however late, changes nothing.
+func TestFetchedAnewWhileFetching(t *testing.T) {
+	f := newFixture(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	if library.Ctx.Err() == nil || liked.Ctx.Err() == nil {
+		t.Error("the old link's fetches go on")
+	}
+	newLibrary, newLiked := f.takeFetches(t)
+	newLibrary.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	newLiked.Reply <- adaLiked()
+	f.run(t)
+	f.run(t)
+	library.Reply <- catalogtest.Reply{Err: api.ErrDisconnected}
+	liked.Reply <- catalogtest.Reply{Err: api.ErrDisconnected}
+	select {
+	case <-f.q:
+		t.Error("the old link's failure came back")
+	case <-time.After(30 * time.Millisecond):
+	}
+	for _, res := range Resources {
+		wantState(t, f, res, fetchstate.Loaded)
+	}
+	if len(f.cat.LibraryPlaylists()) != 1 || !f.s.IsLiked("far-2") || f.s.IsBusy() {
+		t.Error("the new fetches' results not shown")
+	}
+}
+
+// Liked music failing to refetch shows the likes it had, and stays to fetch
+// again with what failed, through its next fetch, until one goes through
+// or the account changes.
+func TestLikesFailedMeanwhile(t *testing.T) {
+	f := signedIn(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	liked.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	f.run(t)
+	f.run(t)
+	wantState(t, f, LikedRes, fetchstate.Loaded)
+	if !f.s.IsLiked("far-2") || f.s.IsBusy() {
+		t.Error("the likes left, or the session stays busy")
+	}
+	f.s.RetryFailed()
+	liked = f.src.Next(t, nil, "playlist", catalog.LikedID)
+	wantState(t, f, LikedRes, fetchstate.Loaded)
+	f.s.RetryFailed()
+	f.none(t)
+	liked.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	f.run(t)
+	f.s.RetryFailed()
+	f.answer(t, "playlist", catalog.LikedID, adaLiked())
+	f.s.RetryFailed()
+	f.none(t)
+
+	// Failed again, then another account: nothing of Ada's is retried.
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked = f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	liked.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	f.run(t)
+	f.run(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true, Switched: true})
+	f.fetched(t)
+	f.s.RetryFailed()
+	f.none(t)
+}
+
+// The same account under another photo URL, as YouTube serves them after
+// a ytmd restart, is no switch: only the photo changes.
+func TestPhotoChanged(t *testing.T) {
+	f := signedIn(t)
+	f.s.SetLiked("far-1", false)
+	like := f.d.next(t, "like -far-1")
+	photo := ada
+	photo.Photo = "https://yt3.example/ada-2"
+	f.s.ApplyAccount(api.AccountEvent{Account: photo, SignedIn: true})
+	if f.changed() || len(f.cat.LibraryPlaylists()) != 1 || !f.s.IsLiked("far-2") || f.s.IsLiked("far-1") {
+		t.Error("a new photo cleared the library, the likes or Home")
+	}
+	if f.s.Account() != photo {
+		t.Errorf("account %+v, want the new photo", f.s.Account())
+	}
+	wantState(t, f, LibraryRes, fetchstate.Loaded)
+	f.fetched(t)
+	// The like stayed pending, so the fetch's list did not undo it.
+	if f.s.IsLiked("far-1") {
+		t.Error("the pending unlike was dropped")
+	}
+	like.done(nil)
+}
+
+// Signing in after a known sign-out, as a reconnection's snapshot tells
+// without Switched, refetches Home, a guest's.
+func TestSignedInAfterSignedOut(t *testing.T) {
+	f := signedOut(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	if !f.changed() {
+		t.Error("Home kept the guest's")
+	}
+	f.fetched(t)
 }
 
 // seedLikes must not alias its argument.
@@ -261,10 +499,14 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 
 func TestLibraryFailsAndRetries(t *testing.T) {
 	f := newFixture(t)
-	f.s.ApplyFailed(api.FailedEvent{Part: api.PartAccount, Err: &api.Error{Code: api.CodeInternal}})
-	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal, Detail: "network is down"}})
-	f.s.ApplyLikes(adaLikes)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Err: &api.Error{Code: api.CodeInternal, Detail: "network is down"}}
+	liked.Reply <- adaLiked()
+	f.run(t)
+	f.run(t)
 	wantState(t, f, LibraryRes, fetchstate.Failed)
+	wantState(t, f, LikedRes, fetchstate.Loaded)
 	err := f.fetches.Get(LibraryRes).Err
 	if !errors.Is(err, api.ErrInternal) || err.Error() != "api: ytmd failed: network is down" {
 		t.Errorf("error %v", err)
@@ -272,45 +514,83 @@ func TestLibraryFailsAndRetries(t *testing.T) {
 	if f.s.IsBusy() {
 		t.Error("busy once every fetch ended")
 	}
-	f.d.take(t)
-	// Retrying retries the failed account too.
 	f.s.Retry(LibraryRes)
 	wantState(t, f, LibraryRes, fetchstate.Loading)
-	f.d.take(t, "refresh library", "refresh account")
-	f.s.ApplyLibrary(adaLibrary())
-	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	f.answer(t, "library", "", catalogtest.Reply{Library: adaLibrary()})
 	wantState(t, f, LibraryRes, fetchstate.Loaded)
-	wantState(t, f, AccountRes, fetchstate.Loaded)
 	f.s.Retry(LikedRes)
-	f.d.take(t, "refresh liked")
+	f.answer(t, "playlist", catalog.LikedID, adaLiked())
+	f.d.take(t)
+}
+
+// Who is signed in failing to load, so do the library and likes, whose
+// Retry asks ytmd again: its answer fetches them.
+func TestAccountFailsAndRetries(t *testing.T) {
+	f := newFixture(t)
+	f.s.ApplyFailed(api.FailedEvent{Err: &api.Error{Code: api.CodeInternal, Detail: "offline"}})
+	for _, res := range Resources {
+		wantState(t, f, res, fetchstate.Failed)
+	}
+	if f.s.IsBusy() {
+		t.Error("busy once ytmd's fetch failed")
+	}
+	f.none(t)
+	f.s.Retry(LibraryRes)
+	wantState(t, f, AccountRes, fetchstate.Loading)
+	wantState(t, f, LibraryRes, fetchstate.Loading)
+	f.d.next(t, "refresh").done(nil)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	f.fetched(t)
+	for _, res := range Resources {
+		wantState(t, f, res, fetchstate.Loaded)
+	}
 }
 
 func TestRefreshFails(t *testing.T) {
-	f := signedIn(t)
-	f.s.Retry(LibraryRes)
-	f.d.next(t, "refresh library").done(api.ErrDisconnected)
-	if err := f.fetches.Get(LibraryRes).Err; !errors.Is(err, api.ErrDisconnected) {
-		t.Errorf("library %v, want the request's failure", err)
+	f := newFixture(t)
+	f.s.ApplyFailed(api.FailedEvent{Err: &api.Error{Code: api.CodeInternal}})
+	f.s.Retry(LikedRes)
+	f.d.next(t, "refresh").done(api.ErrDisconnected)
+	for _, res := range []fetchstate.Resource{AccountRes, LikedRes} {
+		if err := f.fetches.Get(res).Err; !errors.Is(err, api.ErrDisconnected) {
+			t.Errorf("%+v failed with %v, want the request's failure", res, err)
+		}
 	}
 	// An answer after the event changes nothing.
-	f.s.Retry(LikedRes)
-	refresh := f.d.next(t, "refresh liked")
-	f.s.ApplyLikes(adaLikes)
+	f.s.RetryFailed()
+	refresh := f.d.next(t, "refresh")
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	refresh.done(api.ErrDisconnected)
-	wantState(t, f, LikedRes, fetchstate.Loaded)
-	refresh.done(nil)
-	wantState(t, f, LikedRes, fetchstate.Loaded)
+	wantState(t, f, AccountRes, fetchstate.Loaded)
+	wantState(t, f, LikedRes, fetchstate.Loading)
+	f.fetched(t)
 }
 
 func TestFailedEventChecked(t *testing.T) {
 	f := signedIn(t)
-	f.s.ApplyFailed(api.FailedEvent{Part: 9, Err: &api.Error{Code: api.CodeInternal}})
-	for _, res := range Resources {
-		wantState(t, f, res, fetchstate.Loaded)
-	}
-	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLiked})
-	if err := f.fetches.Get(LikedRes).Err; !errors.Is(err, api.ErrInternal) {
+	f.s.ApplyFailed(api.FailedEvent{})
+	if err := f.fetches.Get(AccountRes).Err; !errors.Is(err, api.ErrInternal) {
 		t.Errorf("a failure without its error is %v", err)
+	}
+	// Signed in, the library and likes stay.
+	wantState(t, f, LibraryRes, fetchstate.Loaded)
+	wantState(t, f, LikedRes, fetchstate.Loaded)
+}
+
+// A fetch answered ErrSignedOut shows signed out; ytmd tells the rest.
+func TestFetchSignedOut(t *testing.T) {
+	f := newFixture(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	f.run(t)
+	wantState(t, f, LibraryRes, fetchstate.SignedOut)
+	f.s.ApplyAccount(api.AccountEvent{})
+	if liked.Ctx.Err() == nil || f.s.IsBusy() {
+		t.Error("signing out left Liked music's fetch running")
+	}
+	for _, res := range Resources {
+		wantState(t, f, res, fetchstate.SignedOut)
 	}
 }
 
@@ -417,10 +697,14 @@ func TestLikesReported(t *testing.T) {
 func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
 	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{}
+	f.run(t)
 	// A like sent meanwhile is newer than the list.
 	f.s.SetLiked("midnight-arcade", true)
 	like := f.d.next(t, "like +midnight-arcade")
-	f.s.ApplyLikes(adaLikes)
+	liked.Reply <- adaLiked()
+	f.run(t)
 	if !f.s.IsLiked("far-1") || !f.s.IsLiked("far-2") || !f.s.IsLiked("midnight-arcade") {
 		t.Fatal("likes not seeded from Liked music")
 	}
@@ -430,6 +714,66 @@ func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
 	like.done(nil)
 	if !f.s.IsLiked("midnight-arcade") {
 		t.Error("a like that went through was undone")
+	}
+}
+
+// Likes ytmd tells went through while Liked music is fetched are newer
+// than the list, which may or may not have them.
+func TestLikesToldWhileFetching(t *testing.T) {
+	f := signedIn(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	f.run(t)
+	night := catalog.Song{ID: "night", Title: "Night Shift"}
+	f.s.ApplyLikes(api.Likes{Added: []string{"night"}, Songs: []catalog.Song{night}})
+	f.s.ApplyLikes(api.Likes{Removed: []string{"far-1"}})
+	f.s.ApplyLikes(api.Likes{Added: []string{"far-1"}})
+	f.s.ApplyLikes(api.Likes{Removed: []string{"far-2"}})
+	if !f.s.IsLiked("night") || f.s.IsLiked("far-2") {
+		t.Error("told likes wait for the fetch")
+	}
+	liked.Reply <- adaLiked()
+	f.run(t)
+	if !f.s.IsLiked("night") || !f.s.IsLiked("far-1") || f.s.IsLiked("far-2") {
+		t.Errorf("likes %q, the told ones lost", f.s.likeOrder)
+	}
+	if got := f.s.LikedSongs(); len(got) != 2 || got[0] != night {
+		t.Errorf("liked songs %+v, want %+v first", got, night)
+	}
+	// Told once the fetch is in, they apply as they come.
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	f.fetched(t)
+	f.s.ApplyLikes(api.Likes{Removed: []string{"far-1"}})
+	if f.s.IsLiked("far-1") || !f.s.IsLiked("far-2") {
+		t.Errorf("likes %q", f.s.likeOrder)
+	}
+}
+
+// A fetch the account changed since gives nothing.
+func TestStaleFetchDropped(t *testing.T) {
+	f := newFixture(t)
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked := f.takeFetches(t)
+	grace := catalog.Account{Name: "Grace Hopper"}
+	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true, Switched: true})
+	if library.Ctx.Err() == nil || liked.Ctx.Err() == nil {
+		t.Error("switching accounts left Ada's fetches running")
+	}
+	graceLibrary, graceLiked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	liked.Reply <- adaLiked()
+	graceLibrary.Reply <- catalogtest.Reply{}
+	graceLiked.Reply <- catalogtest.Reply{Err: catalog.ErrNotFound}
+	f.run(t)
+	f.run(t)
+	select {
+	case <-f.q:
+		t.Error("Ada's fetches came back")
+	case <-time.After(30 * time.Millisecond):
+	}
+	if len(f.cat.LibraryPlaylists()) != 0 || f.s.IsLiked("far-1") || f.s.IsBusy() {
+		t.Error("Ada's library or likes shown as Grace's")
 	}
 }
 
@@ -462,13 +806,13 @@ func TestSignIn(t *testing.T) {
 	if !f.s.IsSignedIn() || f.s.Account() != ada || !f.changed() || f.s.IsSigningIn() {
 		t.Error("not signed in as Ada")
 	}
-	// Everything the account has is being fetched anew, by the daemon.
-	for _, res := range Resources {
-		wantState(t, f, res, fetchstate.Loading)
-	}
+	// Everything the account has is fetched anew.
+	wantState(t, f, AccountRes, fetchstate.Loaded)
+	wantState(t, f, LibraryRes, fetchstate.Loading)
+	wantState(t, f, LikedRes, fetchstate.Loading)
 	wantState(t, f, loader.HomeRes, fetchstate.Idle)
 	f.d.take(t)
-	fetched(f.s)
+	f.fetched(t)
 	if len(f.cat.LibraryPlaylists()) != 1 || !f.s.IsLiked("far-1") || f.s.IsBusy() {
 		t.Error("Ada's library or likes missing")
 	}
@@ -573,16 +917,18 @@ func TestStaleLikeRejected(t *testing.T) {
 func TestRetryFailed(t *testing.T) {
 	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
-	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal}})
-	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLiked, Err: &api.Error{Code: api.CodeInternal}})
+	library, liked := f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	liked.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	f.run(t)
+	f.run(t)
 	// Only what failed is fetched again.
 	f.s.RetryFailed()
 	wantState(t, f, LibraryRes, fetchstate.Loading)
 	wantState(t, f, LikedRes, fetchstate.Loading)
-	f.d.take(t, "refresh library", "refresh liked")
-	f.s.ApplyLibrary(adaLibrary())
-	f.s.ApplyLikes(adaLikes)
+	f.fetched(t)
 	wantState(t, f, LibraryRes, fetchstate.Loaded)
 	f.s.RetryFailed()
+	f.none(t)
 	f.d.take(t)
 }

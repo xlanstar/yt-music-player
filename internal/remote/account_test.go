@@ -51,7 +51,7 @@ func TestAccountRequests(t *testing.T) {
 		var errs []error
 		keep := func(err error) { errs = append(errs, err) }
 		song := &catalog.Song{ID: "a", Title: "A"}
-		af.a.Refresh(api.PartLibrary, keep)
+		af.a.Refresh(keep)
 		af.a.Like("a", true, song, keep)
 		af.a.SignOut(keep)
 		af.settle()
@@ -62,7 +62,7 @@ func TestAccountRequests(t *testing.T) {
 		if len(calls) != 3 {
 			t.Fatalf("daemon got %d frames, want 3", len(calls))
 		}
-		if c := calls[0].Call; c.Method != api.MethodRefresh || c.Part.Part != api.PartLibrary {
+		if c := calls[0].Call; c.Method != api.MethodRefresh {
 			t.Errorf("Refresh sent %+v", c)
 		}
 		if c := calls[1].Call; c.Method != api.MethodLike || c.Like.ID != "a" || !c.Like.Liked || c.Like.Song.Title != "A" {

@@ -12,8 +12,10 @@ import (
 	"testing"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/remote"
+	"yt-music-player/internal/session"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -288,18 +290,33 @@ func TestLibrary(t *testing.T) {
 	}
 }
 
+// failingLibrary fails its first fetch of the library, as ytmd tells a
+// failure.
+type failingLibrary struct {
+	catalog.Source
+	calls *atomic.Int32
+}
+
+func (s failingLibrary) Library(ctx context.Context) (catalog.Library, error) {
+	if s.calls.Add(1) == 1 {
+		return catalog.Library{}, &api.Error{Code: api.CodeInternal}
+	}
+	return s.Source.Library(ctx)
+}
+
 func TestLibraryStates(t *testing.T) {
-	h := newHarness(t, catalog.NewPlaceholderSource(0))
+	h := newHarness(t, failingLibrary{catalog.NewPlaceholderSource(0), new(atomic.Int32)})
 	h.press("shift+tab")
 	h.screenHas("Loading…")
+	if f := h.m.fetches.Get(session.LibraryRes); f.State != fetchstate.Loading || !h.m.session.IsBusy() {
+		t.Errorf("before ytmd tells who is signed in, the library is %+v", f)
+	}
 
-	h.m.session.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal}})
-	h.send(postedMsg{})
+	h.m.session.ApplyAccount(api.AccountEvent{Account: catalog.Account{Name: "Lan"}, SignedIn: true})
+	h.settle("fetched", func() bool { return !h.m.session.IsBusy() })
 	h.golden("library-failed")
 	h.press("enter")
-	if !slices.Contains(h.daemon.calls, "Refresh 2") {
-		t.Errorf("enter asked %q, not to refresh the library", h.daemon.calls)
-	}
+	h.settle("fetched again", func() bool { return h.m.fetches.Get(session.LibraryRes).State == fetchstate.Loaded })
 }
 
 func TestSignedOut(t *testing.T) {
@@ -426,10 +443,10 @@ func TestHealth(t *testing.T) {
 // A new connection fetches again what failed meanwhile.
 func TestReconnectRetries(t *testing.T) {
 	h := newHarness(t, catalog.NewPlaceholderSource(0))
-	h.m.session.ApplyFailed(api.FailedEvent{Part: api.PartLiked, Err: &api.Error{Code: api.CodeInternal}})
+	h.m.session.ApplyFailed(api.FailedEvent{Err: &api.Error{Code: api.CodeInternal}})
 	h.m.setLink(remote.Link{Health: remote.Connected, Connection: 2})
-	if !slices.Contains(h.daemon.calls, "Refresh 3") {
-		t.Errorf("asked %q, not to refresh the likes", h.daemon.calls)
+	if !slices.Contains(h.daemon.calls, "Refresh") {
+		t.Errorf("asked %q, not who is signed in", h.daemon.calls)
 	}
 }
 

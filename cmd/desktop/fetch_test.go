@@ -84,8 +84,9 @@ func heldPost(t testing.TB, q posts) func() {
 }
 
 // answer replies to call and waits until the app has the answer: ytmd
-// took it, the loader's result for a page or the reply to a sign-in or out
-// came back, and what the daemon sent with it arrived.
+// took it, the loader's result for a page, the session's for the library
+// or Liked music, or the reply to a sign-in or out came back, and what
+// the daemon sent with it arrived.
 func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply) {
 	t.Helper()
 	call.Reply <- r
@@ -93,6 +94,11 @@ func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply
 	q.ytmd.until(t, "took the "+call.Kind, func() bool { return len(call.Reply) == 0 })
 	if isPage(call) {
 		heldPost(t, q)()
+	}
+	if res, isSession := sessionRes(call); isSession {
+		// Its result is the Client's reply, then the job's post.
+		a := q.ytmd.a
+		q.ytmd.until(t, "had the "+call.Kind, func() bool { return a.fetches.Get(res).State != fetchstate.Loading })
 	}
 	if call.Kind == "signin" || call.Kind == "signout" {
 		// ytmd replies once its account's job posts the result, maybe after the Pings.
@@ -104,7 +110,7 @@ func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply
 }
 
 // isPage reports whether the loader asked for call, rather than ytmd's
-// account.
+// account or the session.
 func isPage(call catalogtest.Call) bool {
 	switch call.Kind {
 	case "album", "search", "home", "explore":
@@ -113,6 +119,18 @@ func isPage(call catalogtest.Call) bool {
 		return call.ID != catalog.LikedID
 	}
 	return false
+}
+
+// sessionRes returns the resource of the session's fetch call, if it is
+// one: the library or Liked music.
+func sessionRes(call catalogtest.Call) (fetchstate.Resource, bool) {
+	switch {
+	case call.Kind == "library":
+		return session.LibraryRes, true
+	case call.Kind == "playlist" && call.ID == catalog.LikedID:
+		return session.LikedRes, true
+	}
+	return fetchstate.Resource{}, false
 }
 
 func waitPost(t *testing.T, tt *ui.Tester, q posts) {

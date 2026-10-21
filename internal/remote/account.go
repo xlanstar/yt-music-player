@@ -18,11 +18,10 @@ type Account struct {
 // account's events to the session.
 func NewAccount(c *Client) *Account { return &Account{c: c} }
 
-// Refresh has part fetched anew, whose result comes as an event; done
-// gets why the request failed, or nil.
-func (a *Account) Refresh(part api.Part, done func(error)) {
-	a.c.Go(context.Background(), api.Call{Method: api.MethodRefresh, Part: &api.PartArgs{Part: part}},
-		func(_ *api.Reply, err error) { done(err) })
+// Refresh has who is signed in fetched anew, whose result comes as an
+// event; done gets why the request failed, or nil.
+func (a *Account) Refresh(done func(error)) {
+	a.c.Go(context.Background(), api.Call{Method: api.MethodRefresh}, func(_ *api.Reply, err error) { done(err) })
 }
 
 // Like likes or unlikes song id; song, when liked, is what the caller

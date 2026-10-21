@@ -128,7 +128,7 @@ func newApp(post func(func())) *app {
 // catalog.
 func newDemoApp(post func(func())) *app {
 	cat := catalog.Placeholder()
-	// The library and likes come from ytmd's account.
+	// The library and likes come from the session.
 	cat.SetLibrary(nil)
 	return appWith(cat, post)
 }
@@ -153,7 +153,7 @@ func appWith(cat *catalog.Catalog, clientPost func(func())) *app {
 	a.client = remote.NewClient(clientPost, a.daemonHandler())
 	a.mirror = a.client.Mirror()
 	a.loader = loader.New(a.client, &a.fetches, cat, a.post)
-	a.connectAccount(cat)
+	a.connectAccount(cat, clientPost)
 	for i, path := range [...]string{pathHome, pathExplore, pathLibrary} {
 		a.goTo[i] = func() { a.router.Push(path) }
 	}

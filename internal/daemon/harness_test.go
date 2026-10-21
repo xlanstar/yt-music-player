@@ -294,28 +294,20 @@ func (c *client) eventWith(has func(api.Event) bool) api.Event {
 	}
 }
 
-// songsAhead returns the next event last accepts, with the songs that came
-// ahead of it in events of their own: the queue's and the likes'. Other
-// events are dropped.
-func (c *client) songsAhead(last func(api.Event) bool) (ev api.Event, queued, liked []catalog.Song) {
+// songsAhead returns the next event last accepts, with the queue's songs
+// that came ahead of it in events of their own. Other events are dropped.
+func (c *client) songsAhead(last func(api.Event) bool) (ev api.Event, queued []catalog.Song) {
 	c.t.Helper()
 	for {
 		ev = c.event()
-		var chunk []catalog.Song
 		switch {
 		case last(ev):
-			return ev, queued, liked
+			return ev, queued
 		case reflect.DeepEqual(ev, api.Event{Songs: ev.Songs}):
-			chunk = ev.Songs
-			queued = append(queued, chunk...)
-		case ev.Likes != nil && reflect.DeepEqual(ev, api.Event{Likes: &api.Likes{Songs: ev.Likes.Songs}}):
-			chunk = ev.Likes.Songs
-			liked = append(liked, chunk...)
-		default:
-			continue
-		}
-		if len(chunk) == 0 || len(chunk) > songsPerFrame {
-			c.t.Errorf("an event of %d songs", len(chunk))
+			if len(ev.Songs) == 0 || len(ev.Songs) > songsPerFrame {
+				c.t.Errorf("an event of %d songs", len(ev.Songs))
+			}
+			queued = append(queued, ev.Songs...)
 		}
 	}
 }
@@ -359,15 +351,12 @@ func (h *harness) loaded() {
 	h.until("loaded", func() bool { return h.fake.Loads > 0 })
 }
 
-// startLiking starts the Service, a subscriber connected, and answers its
-// fetches as Ada's, with an empty library and liked.
-func (h *harness) startLiking(liked []catalog.Song) {
+// signedIn starts the Service and answers its fetch of who is signed in
+// as Ada's.
+func (h *harness) signedIn() {
 	h.t.Helper()
 	h.svc.Start()
-	calls := h.src.Take(h.t, nil, "account", "library", "playlist LM")
-	calls["account"].Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
-	calls["library"].Reply <- catalogtest.Reply{}
-	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
+	h.src.Next(h.t, nil, "account", "").Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
 }
 
 // until waits until cond, run on the loop, holds: what happens off the

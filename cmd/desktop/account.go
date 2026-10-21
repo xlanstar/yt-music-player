@@ -3,7 +3,6 @@ package main
 import (
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
-	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/notice"
 	"yt-music-player/internal/noticetext"
 	"yt-music-player/internal/remote"
@@ -22,16 +21,16 @@ type sheetState struct {
 	failure     string
 }
 
-// connectAccount makes the session, which keeps what ytmd's account
-// reports for the pages, before the client connects. The daemon fetches the account as it starts and
-// sends what it has as the app connects, and the rest as it comes: the
-// account's resources load meanwhile, never asked for again.
-func (a *app) connectAccount(cat *catalog.Catalog) {
-	a.session = session.New(remote.NewAccount(a.client), &a.fetches, a.loader, cat)
+// connectAccount makes the session before the client connects, giving it
+// the account's events; the session fetches the library and likes through
+// ytmd once it tells who is signed in. post is the Client's: the fetches
+// answer through ytmd, as its events do.
+func (a *app) connectAccount(cat *catalog.Catalog, post func(func())) {
+	a.session = session.New(session.Options{
+		Daemon: remote.NewAccount(a.client), Source: a.client,
+		Post: post, Fetches: &a.fetches, Loader: a.loader, Catalog: cat,
+	})
 	a.client.SetAccountEvents(a.session)
-	for _, res := range session.Resources {
-		a.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
-	}
 }
 
 func (a *app) syncAccount(c *ui.Context) {

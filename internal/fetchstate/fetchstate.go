@@ -53,7 +53,7 @@ const (
 // Fetch is how fetching a resource went.
 type Fetch struct {
 	State State
-	Err   error // set when Failed
+	Err   error // set when Failed, or Loaded whose refresh failed
 }
 
 // Registry records each resource's Fetch. Its zero value is ready to use.

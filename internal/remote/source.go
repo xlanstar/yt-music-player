@@ -40,6 +40,13 @@ func (c *Client) Explore(ctx context.Context) (catalog.Explore, error) {
 	return resultOf(r, err, func(r *api.Reply) *catalog.Explore { return r.Explore })
 }
 
+// Library is catalog.Source's Library, through the daemon: the session's,
+// fetched once ytmd tells who is signed in.
+func (c *Client) Library(ctx context.Context) (catalog.Library, error) {
+	r, err := c.Call(ctx, api.Call{Method: api.MethodLibrary})
+	return resultOf(r, err, func(r *api.Reply) *catalog.Library { return r.Library })
+}
+
 // SignIn has the daemon clean, check and store credentials.
 func (c *Client) SignIn(ctx context.Context, credentials string) (catalog.Account, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodSignIn, SignIn: &api.SignInArgs{Credentials: credentials}})

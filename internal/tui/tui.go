@@ -122,9 +122,12 @@ func newApp(cfg Config, out *termOut) *app {
 	cat := catalog.New(nil, nil, nil)
 	load := loader.New(c, fetches, cat, posts.post)
 	m.deps = deps{
-		ctl:         c,
-		mirror:      c.Mirror(),
-		session:     session.New(remote.NewAccount(c), fetches, load, cat),
+		ctl:    c,
+		mirror: c.Mirror(),
+		session: session.New(session.Options{
+			Daemon: remote.NewAccount(c), Source: c,
+			Post: posts.post, Fetches: fetches, Loader: load, Catalog: cat,
+		}),
 		loader:      load,
 		cat:         cat,
 		fetches:     fetches,

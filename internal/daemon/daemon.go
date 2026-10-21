@@ -6,7 +6,8 @@
 // docs/daemon.md describes the protocol, the events and daemon.json.
 //
 // The daemon keeps no catalog but its queue's songs, which callers send
-// with the IDs (api.IDsArgs.Songs), and the account's liked songs.
+// with the IDs (api.IDsArgs.Songs): front-ends fetch the library and likes
+// through it, and keep them.
 package daemon
 
 import (
@@ -102,10 +103,6 @@ type Service struct {
 	// shouldResume continues a hand-off's playback at Start.
 	shouldResume bool
 	isStopping   bool
-	// isStarted: Start ran. hasLibrary: the library and likes were
-	// fetched, or a sign-in fetches them (fetchLibrary).
-	isStarted  bool
-	hasLibrary bool
 }
 
 // New returns a Service, its state loaded from opts.State, and starts its
@@ -197,28 +194,7 @@ func (s *Service) start() {
 		// Saved anew without resumePlaying: read once.
 		s.save()
 	}
-	s.isStarted = true
-	s.acct.Fetch(account.PartAccount)
-	for c := range s.conns {
-		if c.isSubscribed {
-			s.fetchLibrary()
-			break
-		}
-	}
-}
-
-// fetchLibrary fetches the library and likes once, for the first subscriber
-// after Start: only front-ends read them, and ytmd may start at login.
-func (s *Service) fetchLibrary() {
-	if !s.isStarted || s.hasLibrary {
-		return
-	}
-	s.hasLibrary = true
-	if st, ok := s.acct.Status(); ok && !st.SignedIn {
-		return // a sign-in fetches them
-	}
-	s.acct.Fetch(account.PartLibrary)
-	s.acct.Fetch(account.PartLiked)
+	s.acct.Fetch()
 }
 
 func (s *Service) accept(lis net.Listener) {

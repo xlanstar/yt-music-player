@@ -167,7 +167,11 @@ func (s *Service) register(c *conn) {
 		for _, f := range s.snapshot() {
 			c.send(f)
 		}
-		s.fetchLibrary()
+		// Its snapshot only says the fetch failed (offline at login, say),
+		// which nothing else fetches again.
+		if s.acct.Failed() != nil && !s.acct.IsFetching() {
+			s.acct.Fetch()
+		}
 	}
 }
 

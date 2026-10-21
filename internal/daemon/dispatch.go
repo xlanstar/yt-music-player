@@ -61,7 +61,7 @@ func (s *Service) dispatch(c *conn, id uint32, cl *api.Call) {
 	case api.MethodSignOut:
 		s.signOutFor(c, id)
 	case api.MethodRefresh:
-		s.acct.Fetch(accountPart(cl.Part.Part))
+		s.acct.Fetch()
 		c.reply(id, &api.Reply{})
 	case api.MethodPlay, api.MethodPlayAll, api.MethodEnqueue, api.MethodToggle,
 		api.MethodPause, api.MethodResume, api.MethodNext, api.MethodPrev,
@@ -172,12 +172,13 @@ func (s *Service) control(cl *api.Call) error {
 }
 
 // fetch asks the source off the loop; a request canceled meanwhile gets
-// no reply. A long one goes in parts (api.Reply.Split).
+// no reply. A long one goes in parts (api.Reply.Split). Its ErrSignedOut
+// signs out after the reply, as the account's own requests do.
 func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 	s.cancelCall(c, id)
 	ctx, cancel := context.WithCancel(s.ctx)
 	c.calls[id] = cancel
-	src := s.src
+	src, gen := s.src, s.acct.Gen()
 	go func() {
 		r := ask(ctx, src, cl)
 		if ctx.Err() != nil {
@@ -191,6 +192,7 @@ func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 			delete(c.calls, id)
 			cancel()
 			c.replyAhead(id, ahead, r)
+			s.acct.Answered(gen, r.Err.Err())
 		})
 	}()
 }

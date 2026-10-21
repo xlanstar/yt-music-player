@@ -125,16 +125,13 @@ var methodSteps = []methodStep{
 		reply: noError,
 	},
 	{
-		call:  api.Call{Method: api.MethodRefresh, Part: &api.PartArgs{Part: api.PartLibrary}},
-		serve: answer("library", "", catalogtest.Reply{}),
-		event: func(ev api.Event) bool { return ev.Library != nil },
+		call:  api.Call{Method: api.MethodRefresh},
+		serve: answer("account", "", catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}),
+		event: func(ev api.Event) bool { return ev.Account != nil && ev.Account.Account.Name == "Ada" },
 	},
 	{
-		call: signIn("SID=1"),
-		serve: func(h *harness) {
-			answer("signin", "SID=1", catalogtest.Reply{Account: catalog.Account{Name: "Ada"}})(h)
-			h.src.Take(h.t, nil, "account", "library", "playlist LM")
-		},
+		call:  signIn("SID=1"),
+		serve: answer("signin", "SID=1", catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}),
 		reply: func(r api.Reply) bool { return r.Account != nil && r.Account.Name == "Ada" },
 	},
 	{call: api.Call{Method: api.MethodSignOut}, serve: answer("signout", "", catalogtest.Reply{}), reply: noError},

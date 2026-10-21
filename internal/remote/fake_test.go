@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 	"yt-music-player/internal/api"
-	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/notice"
 )
@@ -303,7 +302,6 @@ func newFront() *front {
 }
 
 func (f *front) ApplyAccount(api.AccountEvent) { f.events = append(f.events, "account") }
-func (f *front) ApplyLibrary(catalog.Library)  { f.events = append(f.events, "library") }
 func (f *front) ApplyLikes(api.Likes)          { f.events = append(f.events, "likes") }
 func (f *front) ApplyFailed(api.FailedEvent)   { f.events = append(f.events, "failed") }
 

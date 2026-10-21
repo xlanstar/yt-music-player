@@ -2,7 +2,8 @@ package catalog
 
 // ShareStrings has songs, edited in place, hold one copy of each artist,
 // album and cover they repeat: decoded page by page or frame by frame, each
-// holds its own, which those kept long (ytmd's likes and queue) should share.
+// holds its own, which those kept long (ytmd's queue, a front-end's likes)
+// should share.
 func ShareStrings(songs []Song) {
 	// One song repeats nothing of another.
 	if len(songs) < 2 {

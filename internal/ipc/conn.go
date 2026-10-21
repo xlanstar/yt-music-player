@@ -104,7 +104,7 @@ func (c *Conn) Send(f api.Frame) error {
 func stateOnly(f *api.Frame) bool {
 	e := f.Event
 	return e != nil && e.State != nil && e.Queue == nil && e.Songs == nil && e.Likes == nil &&
-		e.Account == nil && e.Library == nil && e.Failed == nil && e.Notice == nil && e.Handoff == nil
+		e.Account == nil && e.Failed == nil && e.Notice == nil && e.Handoff == nil
 }
 
 // write is the writer goroutine: it takes the queued frames, encodes them

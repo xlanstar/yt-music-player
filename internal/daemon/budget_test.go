@@ -47,8 +47,8 @@ func TestBudgetLikesDiff(t *testing.T) {
 func TestBudgetSnapshot(t *testing.T) {
 	s, _ := benchService(t, bigQueue)
 	// 15 allocs today: the event and its State, the queue's IDs and songs,
-	// the account's Latest, the frames, and the 8 events of the songs, which
-	// go ahead of it (carry).
+	// the frames, and the 8 events of the songs, which go ahead of it
+	// (carry).
 	budget.Allocs(t, 18, 20, func() { sinkFrames = s.snapshot() })
 }
 
@@ -103,22 +103,13 @@ func TestBudgetLiveQueue(t *testing.T) {
 }
 
 // TestBudgetLiveConn holds the heap a subscriber's connection keeps once
-// it got the snapshot of 5000 liked songs and 5000 queued: with the
-// connection, less once it closed.
+// it got the snapshot of 5000 queued songs: with the connection, less once
+// it closed.
 func TestBudgetLiveConn(t *testing.T) {
 	if budget.Race {
 		t.Skip("the race detector allocates on its own")
 	}
 	h := newHarness(t, Options{Seed: catalogtest.Decoded(5000)})
-	c := h.connect(true)
-	h.startLiking(catalogtest.Decoded(5000))
-	// All three told, so that nothing is in flight while measuring.
-	for told := 0; told < 3; {
-		if ev := c.event(); ev.Account != nil || ev.Library != nil || ev.Likes != nil && ev.Likes.Full {
-			told++
-		}
-	}
-
 	ours, theirs := net.Pipe()
 	served := make(chan struct{})
 	go func() {
@@ -133,10 +124,10 @@ func TestBudgetLiveConn(t *testing.T) {
 	h.do(func() {}) // its unregister
 	live := (with - liveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 200 KB today, mostly gob's buffer for the snapshot's event, the songs
-	// gone ahead (carry), 10 the queue's frames: with them, 2754.
-	if live > 222 {
-		t.Errorf("%d KB live, budget 222", live)
+	// 143 KB today, mostly gob's buffer for an event of 313 songs gone
+	// ahead (carry: 5000 in 16), 10 the queue's frames.
+	if live > 160 {
+		t.Errorf("%d KB live, budget 160", live)
 	}
 }
 
@@ -153,7 +144,7 @@ func TestBudgetLiveReply(t *testing.T) {
 		h.svc.Serve(theirs)
 		close(served)
 	}()
-	fetchLiked(t, h, ours)
+	fetchLiked(t, h, ours, false)
 	go io.Copy(io.Discard, ours) //nolint:errcheck // ends as the pipe closes
 	with := liveHeap()
 	_ = ours.Close()
@@ -161,22 +152,60 @@ func TestBudgetLiveReply(t *testing.T) {
 	h.do(func() {}) // its unregister
 	live := (with - liveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 145 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
+	// 143 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
 	// 5000 in 16); the reply whole, 1435.
 	if live > 160 {
 		t.Errorf("%d KB live, budget 160", live)
 	}
 }
 
+// TestBudgetLiveLikes holds the heap a signed-in ytmd keeps once a
+// subscriber fetched 5000 liked songs through it and left: the front-ends
+// keep the likes.
+func TestBudgetLiveLikes(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	h := newHarness(t, Options{})
+	h.signedIn()
+	h.until("signed in", func() bool { return h.svc.status().SignedIn })
+	// A first fetch makes what later ones share, such as gob's types.
+	fetchLikedAndLeave(t, h)
+	before := liveHeap()
+	fetchLikedAndLeave(t, h)
+	live := (liveHeap() - before) / 1024
+	t.Logf("%d KB live", live)
+	// -6 to 7 KB today, noise: ytmd keeps none of them.
+	if live > 9 {
+		t.Errorf("%d KB live, budget 9", live)
+	}
+}
+
+// fetchLikedAndLeave connects a subscriber that fetches Liked music
+// (fetchLiked), then leaves.
+func fetchLikedAndLeave(t *testing.T, h *harness) {
+	t.Helper()
+	ours, theirs := net.Pipe()
+	served := make(chan struct{})
+	go func() {
+		h.svc.Serve(theirs)
+		close(served)
+	}()
+	fetchLiked(t, h, ours, true)
+	_ = ours.Close()
+	<-served
+	h.do(func() {}) // its unregister
+}
+
 // fetchLiked greets the daemon over nc and fetches Liked music, which the
 // source answers with 5000 songs, reading frames up to its reply, then a
 // ping's; the decoder and songs go with it, so that only the daemon's side
 // stays.
-func fetchLiked(t *testing.T, h *harness, nc net.Conn) {
+func fetchLiked(t *testing.T, h *harness, nc net.Conn, subscribe bool) {
 	t.Helper()
 	liked := catalogtest.Decoded(5000)
 	enc, dec := gob.NewEncoder(nc), gob.NewDecoder(nc)
-	hello := api.Hello{Proto: api.Proto, Version: "1.2.3", Role: api.RoleTUI, PID: 79}
+	hello := api.Hello{Proto: api.Proto, Version: "1.2.3", Role: api.RoleTUI, Subscribe: subscribe, PID: 79}
 	call := api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: catalog.LikedID}}
 	for _, f := range []api.Frame{{Hello: &hello}, {ID: 1, Call: &call}} {
 		if err := enc.Encode(&f); err != nil {

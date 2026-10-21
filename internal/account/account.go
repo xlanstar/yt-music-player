@@ -1,21 +1,22 @@
 // Package account signs in and out through catalog.Accounts, fetches who
-// is signed in, their library and their liked songs, and sends likes. It
+// is signed in, and sends likes, reporting those that went through. It
 // holds no UI state, so that a process without a window can own it;
-// package session keeps what it reports for the pages.
+// package session keeps the library and likes, which front-ends fetch.
 //
-// Any call answering catalog.ErrSignedOut signs out: the fetches stop, the
-// likes in flight change nothing, and a Status says no one is signed in.
+// Any call answering catalog.ErrSignedOut signs out, and so does any
+// other request with the same credentials (Answered): the fetch stops,
+// the likes in flight change nothing, and a Status says no one is signed
+// in.
 //
 // An Account belongs to the thread post runs funcs on. Its goroutines call
 // only the Source; results come back through post, and what changed is
-// reported on that thread as a Change. It keeps the latest of each for
-// front-ends that connect later (Latest).
+// reported on that thread as a Change. It keeps the latest Status and
+// failure for front-ends that connect later.
 package account
 
 import (
 	"context"
 	"errors"
-	"slices"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/job"
@@ -23,26 +24,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Part is one thing an Account fetches.
-type Part uint8
-
-// The Parts, in the order a sign-in fetches them.
-const (
-	PartAccount Part = iota // who is signed in
-	PartLibrary
-	PartLiked // the songs in Liked music
-)
-
-var partNames = [...]string{PartAccount: "account", PartLibrary: "library", PartLiked: "liked"}
-
-func (p Part) String() string { return partNames[p] }
-
 // Change is what an Account reports: exactly one field is set.
 type Change struct {
-	Status  *Status
-	Library *catalog.Library
-	Likes   *Likes
-	Failed  *Failure
+	Status *Status
+	Likes  *Likes
+	// Failed is why who is signed in could not be fetched, for another
+	// reason than being signed out.
+	Failed error
 }
 
 // Status is who is signed in, if anyone.
@@ -50,72 +38,44 @@ type Status struct {
 	Account  catalog.Account
 	SignedIn bool
 	// Switched reports a sign-in: what was fetched with the previous
-	// credentials is stale, and every Part is being fetched anew.
+	// credentials is stale.
 	Switched bool
 }
 
-// Likes changes the liked songs. With Full, IDs are all of them, newest
-// first and maybe repeated, and Songs those Liked music described;
-// otherwise Added and Removed are likes that went through since, and Songs
-// describe those of Added whose Like described them.
+// Likes are likes that went through: Songs describe those of Added whose
+// Like described them.
 type Likes struct {
-	Full           bool
-	IDs            []string
 	Songs          []catalog.Song
 	Added, Removed []string
 }
 
-// Failure is a fetch that failed for another reason than being signed out.
-type Failure struct {
-	Part Part
-	Err  error
-}
-
-// Account is the credentials the Source holds, and what they fetch.
+// Account is the credentials the Source holds, and who they sign in.
 type Account struct {
 	src      catalog.Source
 	accounts catalog.Accounts // src as catalog.Accounts, or nil
 	post     func(func())
 	report   func(Change)
 
-	fetches [PartLiked + 1]job.Job
+	fetchJob job.Job
 	// liking maps songs to their latest likeSeq; stale replies change nothing.
 	// Credential changes clear it so old likes cannot affect the new account.
 	liking      map[string]uint64
 	likeSeq     uint64
 	likeCtx     context.Context
 	cancelLikes context.CancelFunc
+	// gen counts the credentials' changes (Gen).
+	gen uint64
 
 	// signInCtx identifies the sign-in in flight.
 	signInCtx  context.Context
 	stopSignIn context.CancelFunc
 	signOutJob job.Job
 
-	// Latest reported values; hasStatus and hasLikes distinguish unfetched values.
-	status   Status
-	library  *catalog.Library
-	likedIDs []string
-	// likedSongs is replaced whole, never edited.
-	likedSongs []catalog.Song
-	// failed holds each Part's latest fetch failure.
-	failed    [PartLiked + 1]*Failure
+	// status is the latest reported, hasStatus whether there is one;
+	// failed is the latest fetch's failure, nil once one went through.
+	status    Status
+	failed    error
 	hasStatus bool
-	hasLikes  bool
-}
-
-// Latest is the latest an Account reported of each Part, as a full
-// Change would carry it; nil while not known. Library and Likes.Songs are
-// the Account's: read them, never modify them.
-type Latest struct {
-	// Status never has Switched.
-	Status  *Status
-	Library *catalog.Library
-	// Likes are Full, the liked songs since the last fetch included; Songs
-	// describe those of the fetch, and those liked since whose Like
-	// described them.
-	Likes *Likes
-	// Failed are the Parts whose last fetch failed.
-	Failed []Failure
 }
 
 // New returns an Account over src. post runs a func on the Account's
@@ -135,70 +95,43 @@ func New(src catalog.Source, post func(func()), report func(Change)) *Account {
 	}
 }
 
-// Fetch fetches p off the thread, dropping a fetch of p in flight, and
-// reports it or its failure.
-func (a *Account) Fetch(p Part) {
+// Fetch fetches who is signed in off the thread, dropping a fetch in
+// flight, and reports it or its failure.
+func (a *Account) Fetch() {
 	src := a.src
-	a.fetches[p].Run(a.post,
-		func(ctx context.Context) (Change, error) { return fetch(ctx, src, p) },
-		func(c Change, err error) { a.finishFetch(p, c, err) })
+	a.fetchJob.Run(a.post, src.Account, a.finishFetch)
 }
 
-func fetch(ctx context.Context, src catalog.Source, p Part) (Change, error) {
-	switch p {
-	case PartAccount:
-		account, err := src.Account(ctx)
-		return Change{Status: &Status{Account: account, SignedIn: true}}, err
-	case PartLibrary:
-		lib, err := src.Library(ctx)
-		lib.Songs = shareStrings(lib.Songs)
-		return Change{Library: &lib}, err
-	default:
-		likes, err := fetchLikes(ctx, src)
-		likes.Songs = shareStrings(likes.Songs)
-		return Change{Likes: &likes}, err
-	}
-}
-
-// shareStrings returns a copy of songs sharing the strings they repeat
-// (catalog.ShareStrings), kept as long as ytmd runs (TestBudgetLiveLikes);
-// a copy, as what a Source returned may be read elsewhere.
-func shareStrings(songs []catalog.Song) []catalog.Song {
-	songs = slices.Clone(songs)
-	catalog.ShareStrings(songs)
-	return songs
-}
-
-func fetchLikes(ctx context.Context, src catalog.Source) (Likes, error) {
-	playlist, songs, err := src.Playlist(ctx, catalog.LikedID)
-	switch {
-	// An account that never liked a song may have no such playlist.
-	case errors.Is(err, catalog.ErrNotFound):
-		return Likes{Full: true}, nil
-	case err != nil:
-		return Likes{}, err
-	}
-	ids := playlist.Songs
-	if len(ids) == 0 {
-		ids = make([]string, len(songs))
-		for i, song := range songs {
-			ids[i] = song.ID
-		}
-	}
-	return Likes{Full: true, IDs: ids, Songs: songs}, nil
-}
-
-func (a *Account) finishFetch(p Part, c Change, err error) {
+func (a *Account) finishFetch(account catalog.Account, err error) {
 	switch {
 	case errors.Is(err, catalog.ErrSignedOut):
-		log.Debug().Stringer("part", p).Err(err).Msg("signed out")
+		log.Debug().Err(err).Msg("signed out")
 		a.signedOut()
 	case err != nil:
-		log.Debug().Stringer("part", p).Err(err).Msg("fetch failed")
-		a.tell(Change{Failed: &Failure{Part: p, Err: err}})
+		log.Debug().Err(err).Msg("fetching the account failed")
+		a.failed = err
+		a.report(Change{Failed: err})
 	default:
-		a.tell(c)
+		a.tell(Status{Account: account, SignedIn: true})
 	}
+}
+
+// IsFetching reports whether a fetch of who is signed in is in flight.
+func (a *Account) IsFetching() bool { return a.fetchJob.IsRunning() }
+
+// Gen changes whenever the credentials do: a request's answer counts
+// (Answered) only with the credentials it was sent with.
+func (a *Account) Gen() uint64 { return a.gen }
+
+// Answered signs out if err, the Source's answer to a request sent while
+// Gen was gen, is catalog.ErrSignedOut, as the Account's own requests do:
+// a front-end's fetch of the library or likes, say.
+func (a *Account) Answered(gen uint64, err error) {
+	if gen != a.gen || !errors.Is(err, catalog.ErrSignedOut) || a.hasStatus && !a.status.SignedIn {
+		return
+	}
+	log.Debug().Err(err).Msg("signed out")
+	a.signedOut()
 }
 
 // Like likes or unlikes song id off the thread; done gets the Source's
@@ -236,102 +169,39 @@ func (a *Account) finishLike(id string, liked bool, song *catalog.Song, seq uint
 	case errors.Is(err, catalog.ErrSignedOut):
 		a.signedOut()
 	case err == nil && liked && song != nil:
-		a.tell(Change{Likes: &Likes{Added: []string{id}, Songs: []catalog.Song{*song}}})
+		a.report(Change{Likes: &Likes{Added: []string{id}, Songs: []catalog.Song{*song}}})
 	case err == nil && liked:
-		a.tell(Change{Likes: &Likes{Added: []string{id}}})
+		a.report(Change{Likes: &Likes{Added: []string{id}}})
 	case err == nil:
-		a.tell(Change{Likes: &Likes{Removed: []string{id}}})
+		a.report(Change{Likes: &Likes{Removed: []string{id}}})
 	}
 }
 
 // switchCredentials drops what the credentials in use had in flight.
 func (a *Account) switchCredentials() {
-	for i := range a.fetches {
-		a.fetches[i].Stop()
-	}
+	a.gen++
+	a.fetchJob.Stop()
 	clear(a.liking)
 }
 
 func (a *Account) signedOut() {
 	a.switchCredentials()
-	a.tell(Change{Status: &Status{}})
+	a.tell(Status{})
 }
 
-// tell keeps c as the latest, then reports it.
-func (a *Account) tell(c Change) {
-	a.keep(c)
-	a.report(c)
+// tell keeps st as the latest, without Switched, then reports it.
+func (a *Account) tell(st Status) {
+	a.status, a.hasStatus, a.failed = st, true, nil
+	a.status.Switched = false
+	a.report(Change{Status: &st})
 }
 
-func (a *Account) keep(c Change) {
-	switch {
-	case c.Status != nil:
-		a.status, a.hasStatus = *c.Status, true
-		a.status.Switched = false
-		if !c.Status.SignedIn || c.Status.Switched {
-			// Another account's, or no one's: what it had is gone.
-			a.library, a.likedIDs, a.likedSongs, a.hasLikes = nil, nil, nil, false
-			a.failed = [len(a.failed)]*Failure{}
-		}
-		a.failed[PartAccount] = nil
-	case c.Library != nil:
-		a.library, a.failed[PartLibrary] = c.Library, nil
-	case c.Likes != nil && c.Likes.Full:
-		// The Change's IDs go on to others; the Account edits its own.
-		a.likedIDs, a.likedSongs, a.hasLikes = slices.Clone(c.Likes.IDs), c.Likes.Songs, true
-		a.failed[PartLiked] = nil
-	case c.Likes != nil && a.hasLikes:
-		for _, id := range c.Likes.Added {
-			a.likedIDs = slices.Insert(slices.DeleteFunc(a.likedIDs, isID(id)), 0, id)
-		}
-		for _, id := range c.Likes.Removed {
-			a.likedIDs = slices.DeleteFunc(a.likedIDs, isID(id))
-		}
-		if len(c.Likes.Songs) > 0 {
-			a.likedSongs = described(c.Likes.Songs, a.likedSongs)
-		}
-	case c.Failed != nil:
-		a.failed[c.Failed.Part] = c.Failed
-	}
-}
-
-func isID(id string) func(string) bool { return func(s string) bool { return s == id } }
-
-// described returns songs, then those of old they do not describe anew, in
-// a new slice: Latest handed old out.
-func described(songs, old []catalog.Song) []catalog.Song {
-	out := make([]catalog.Song, 0, len(songs)+len(old))
-	out = append(out, songs...)
-	for _, song := range old {
-		if !slices.ContainsFunc(songs, func(s catalog.Song) bool { return s.ID == song.ID }) {
-			out = append(out, song)
-		}
-	}
-	return out
-}
-
-// Latest returns the latest reported of each Part.
-func (a *Account) Latest() Latest {
-	var l Latest
-	if a.hasStatus {
-		status := a.status
-		l.Status = &status
-	}
-	l.Library = a.library
-	if a.hasLikes {
-		l.Likes = &Likes{Full: true, IDs: slices.Clone(a.likedIDs), Songs: a.likedSongs}
-	}
-	for _, f := range a.failed {
-		if f != nil {
-			l.Failed = append(l.Failed, *f)
-		}
-	}
-	return l
-}
-
-// Status returns the latest Status reported, without Switched, if any:
-// what Latest().Status says, without copying the likes.
+// Status returns the latest Status reported, without Switched, if any.
 func (a *Account) Status() (Status, bool) { return a.status, a.hasStatus }
+
+// Failed returns why the latest fetch of who is signed in failed, nil if
+// it went through.
+func (a *Account) Failed() error { return a.failed }
 
 // CanSignIn reports whether the source signs in and out at all.
 func (a *Account) CanSignIn() bool { return a.accounts != nil }
@@ -355,7 +225,7 @@ func (a *Account) SignIn(credentials string, done func(catalog.Account, error)) 
 		if ctx.Err() != nil && err != nil {
 			return
 		}
-		post(func() { a.finishSignIn(ctx == a.signInCtx, account, err, done) }) //nolint:contextcheck // runs on the Account's thread, past this context, and may start work of its own
+		post(func() { a.finishSignIn(ctx == a.signInCtx, account, err, done) })
 	}()
 }
 
@@ -371,11 +241,9 @@ func (a *Account) finishSignIn(isCurrent bool, account catalog.Account, err erro
 		done(catalog.Account{}, err)
 		return
 	}
+	// The sign-in fetched who it signs in.
 	a.switchCredentials()
-	a.tell(Change{Status: &Status{Account: account, SignedIn: true, Switched: true}})
-	for p := range a.fetches {
-		a.Fetch(Part(p))
-	}
+	a.tell(Status{Account: account, SignedIn: true, Switched: true})
 	done(account, nil)
 }
 
@@ -417,9 +285,7 @@ func (a *Account) IsSigningOut() bool { return a.signOutJob.IsRunning() }
 
 // Stop cancels all work in flight, whose results then never come.
 func (a *Account) Stop() {
-	for i := range a.fetches {
-		a.fetches[i].Stop()
-	}
+	a.fetchJob.Stop()
 	a.signOutJob.Stop()
 	a.CancelSignIn()
 	a.cancelLikes()

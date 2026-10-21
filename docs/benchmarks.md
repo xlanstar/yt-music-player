@@ -14,7 +14,7 @@
 - Averages keep their fraction: a slice growing once in 100 calls is 0.01, and a 0 budget fails on it. Hot paths assert an interface once, not per call, converting one to another too (an `io.ReadSeeker` passed as an `io.Reader`): the runtime builds its assertion cache now and then (1 call in 1024).
 - A ceiling is about 1.15× today's count, rounded up, 0–2 held exactly, today's in a comment (`// 27 allocs today.`, `// 2.17 MB today.`); one that varies between runs (a map's random hash seed) is 1.15× the most seen, its range in the comment. Lower one with an improvement; raising one needs its reason in the same change.
 - No budgets on calls over a socket, loopback `httptest` included: unlike an in-memory `RoundTripper`, it is not deterministic.
-- What ytmd keeps for days has its heap held too (`TestBudgetLiveLikes`, `TestBudgetLiveQueue`): the heap with the value, less once it is collected, on songs shaped as YouTube's (`catalogtest.Decoded`: every string a copy of its own, as decoded).
+- What ytmd and the front-ends keep for days has its heap held too (`TestBudgetLiveQueue`, `TestBudgetLiveLikes`): the heap with the value, less once it is collected, on songs shaped as YouTube's (`catalogtest.Decoded`: every string a copy of its own, as decoded).
 - Where a benchmark has a case table, the limits live in it, and the budget ranges over the same cases: a case without its limit does not compile.
 - Screens (`cmd/desktop/budget_test.go`), together about 7 s:
   - `TestBudgetFrames`: every `BenchmarkPages` case to allocs and bytes per steady frame, 1 build a frame, and the heap the screen retains (`retainedKB`: with it, less once it is collected; the same alone or after other pages).

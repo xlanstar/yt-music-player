@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -124,9 +123,7 @@ type fakeDaemon struct{ calls []string }
 
 var _ session.Daemon = (*fakeDaemon)(nil)
 
-func (d *fakeDaemon) Refresh(part api.Part, _ func(error)) {
-	d.calls = append(d.calls, "Refresh "+strconv.Itoa(int(part)))
-}
+func (d *fakeDaemon) Refresh(func(error)) { d.calls = append(d.calls, "Refresh") }
 
 func (d *fakeDaemon) Like(id string, liked bool, _ *catalog.Song, _ func(error)) {
 	d.calls = append(d.calls, fmt.Sprintf("Like %s %t", id, liked))
@@ -164,10 +161,12 @@ func newHarness(t testing.TB, src catalog.Source) *harness {
 	h := &harness{t: t, ctl: &fakeCtl{}, mirror: &fakeMirror{}, sup: &fakeSup{}, daemon: &fakeDaemon{}, clock: epoch}
 	h.mirror.setQueue(catalog.Placeholder().Songs)
 	h.m = newModel(deps{
-		ctl:     h.ctl,
-		mirror:  h.mirror,
-		sup:     h.sup,
-		session: session.New(h.daemon, fetches, load, cat),
+		ctl:    h.ctl,
+		mirror: h.mirror,
+		sup:    h.sup,
+		session: session.New(session.Options{
+			Daemon: h.daemon, Source: src, Post: posts.post, Fetches: fetches, Loader: load, Catalog: cat,
+		}),
 		loader:  load,
 		cat:     cat,
 		fetches: fetches,

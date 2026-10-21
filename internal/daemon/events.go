@@ -173,51 +173,29 @@ func (s *Service) snapshot() []api.Frame {
 		// A copy: the catalog replaces songs in place.
 		Songs: slices.Clone(s.cat.Songs),
 	}
-	latest := s.acct.Latest()
-	if latest.Status != nil {
-		ev.Account = accountEvent(latest.Status)
+	if st, ok := s.acct.Status(); ok {
+		ev.Account = accountEvent(&st)
 	}
-	ev.Library = latest.Library
-	if latest.Likes != nil {
-		ev.Likes = likesEvent(latest.Likes)
+	if err := s.acct.Failed(); err != nil {
+		ev.Failed = failedEvent(err)
 	}
-	frames := carry(nil, ev)
-	frames = slices.Grow(frames, 1+len(latest.Failed))
-	frames = append(frames, api.Frame{Event: ev})
-	for _, f := range latest.Failed {
-		frames = append(frames, api.Frame{Event: &api.Event{Failed: failedEvent(f)}})
-	}
-	return frames
+	return append(carry(nil, ev), api.Frame{Event: ev})
 }
 
 // carry moves the songs of ev too many for one frame into events of songs
 // alone, appended to ahead, to go first: every front-end keeps them.
 func carry(ahead []api.Frame, ev *api.Event) []api.Frame {
-	if len(ev.Songs) > songsPerFrame {
-		ahead = chunk(ahead, ev.Songs, queuedSongs)
-		ev.Songs = nil
+	songs := ev.Songs
+	if len(songs) <= songsPerFrame {
+		return ahead
 	}
-	if ev.Likes != nil && len(ev.Likes.Songs) > songsPerFrame {
-		ahead = chunk(ahead, ev.Likes.Songs, likedSongs)
-		ev.Likes.Songs = nil
-	}
-	return ahead
-}
-
-// chunk appends songs to ahead in at most maxSongFrames events wrap makes.
-func chunk(ahead []api.Frame, songs []catalog.Song, wrap func([]catalog.Song) *api.Event) []api.Frame {
+	ev.Songs = nil
 	size := max(songsPerFrame, (len(songs)+maxSongFrames-1)/maxSongFrames)
 	ahead = slices.Grow(ahead, (len(songs)+size-1)/size)
 	for part := range slices.Chunk(songs, size) {
-		ahead = append(ahead, api.Frame{Event: wrap(part)})
+		ahead = append(ahead, api.Frame{Event: &api.Event{Songs: part}})
 	}
 	return ahead
-}
-
-func queuedSongs(songs []catalog.Song) *api.Event { return &api.Event{Songs: songs} }
-
-func likedSongs(songs []catalog.Song) *api.Event {
-	return &api.Event{Likes: &api.Likes{Songs: songs}}
 }
 
 // accountChanged tells the subscribers what the account reports, after
@@ -227,18 +205,14 @@ func (s *Service) accountChanged(c account.Change) {
 	switch {
 	case c.Status != nil:
 		if c.Status.Switched {
-			// The queue was the previous account's; the sign-in fetches
-			// the library and likes.
+			// The queue was the previous account's.
 			s.player.Clear()
-			s.hasLibrary = true
 		}
 		ev.Account = accountEvent(c.Status)
-	case c.Library != nil:
-		ev.Library = c.Library
 	case c.Likes != nil:
 		ev.Likes = likesEvent(c.Likes)
 	case c.Failed != nil:
-		ev.Failed = failedEvent(*c.Failed)
+		ev.Failed = failedEvent(c.Failed)
 	}
 	s.broadcast(&ev)
 }
@@ -248,7 +222,6 @@ func (s *Service) status() api.Status {
 	st := s.state()
 	song, _ := s.cat.Song(st.Current)
 	out := api.Status{Version: version.Version, Proto: api.Proto, State: st, Song: song, Length: s.player.Len()}
-	// Not Latest, which copies the likes: status bars poll this.
 	if st, ok := s.acct.Status(); ok {
 		out.SignedIn, out.Account = st.SignedIn, st.Account
 	}

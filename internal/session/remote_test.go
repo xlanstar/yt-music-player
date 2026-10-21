@@ -17,7 +17,10 @@ import (
 	"yt-music-player/internal/remote"
 )
 
-var _ Daemon = (*remote.Account)(nil)
+var (
+	_ Daemon = (*remote.Account)(nil)
+	_ Source = (*remote.Client)(nil)
+)
 
 // pipeDialer connects to an in-process Service over net.Pipe.
 type pipeDialer struct{ svc *daemon.Service }
@@ -31,16 +34,17 @@ func (d pipeDialer) Dial(context.Context) (net.Conn, error) {
 func (d pipeDialer) Wait(ctx context.Context) (net.Conn, error)        { return d.Dial(ctx) }
 func (d pipeDialer) DialOrSpawn(ctx context.Context) (net.Conn, error) { return d.Dial(ctx) }
 
-// remoteFixture is a Session over remote.Account, over a Client connected to a
-// Service over catalogtest, which the test answers; the test's goroutine
-// is the UI thread.
+// remoteFixture is a Session over a Client and its remote.Account,
+// connected to a Service over catalogtest, which the test answers; the
+// test's goroutine is the UI thread.
 type remoteFixture struct {
 	src catalogtest.Accounts
 	svc *daemon.Service
 	*frontEnd
 }
 
-// frontEnd is a Session over remote.Account, as a front-end has it.
+// frontEnd is a Session over a Client and its remote.Account, as a
+// front-end has it.
 type frontEnd struct {
 	s       *Session
 	c       *remote.Client
@@ -67,7 +71,10 @@ func (f *remoteFixture) connect(t *testing.T) *frontEnd {
 	c := remote.NewClient(post, remote.Handler{})
 	fe.c = c
 	load := loader.New(c, &fe.fetches, fe.cat, post)
-	fe.s = New(remote.NewAccount(c), &fe.fetches, load, fe.cat)
+	fe.s = New(Options{
+		Daemon: remote.NewAccount(c), Source: c,
+		Post: post, Fetches: &fe.fetches, Loader: load, Catalog: fe.cat,
+	})
 	c.SetAccountEvents(fe.s)
 	sup := remote.Supervise(c, remote.Options{
 		Role: api.RoleDesktop, Version: "1.2.3", Dialer: pipeDialer{f.svc},
@@ -92,34 +99,71 @@ func (f *frontEnd) until(t *testing.T, what string, cond func() bool) {
 	}
 }
 
+// runPosted runs what is posted by now.
+func (f *frontEnd) runPosted() {
+	for {
+		select {
+		case fn := <-f.q:
+			fn()
+		default:
+			return
+		}
+	}
+}
+
 func (f *remoteFixture) next(t *testing.T, kind, id string) catalogtest.Call {
 	t.Helper()
 	return f.src.Next(t, nil, kind, id)
 }
 
-// signedIn answers the daemon's first fetches as Ada's.
+// fetches returns fe's fetches of the library and Liked music, running
+// its posts meanwhile: fe fetches once it hears who is signed in.
+func (f *remoteFixture) takeFetches(t *testing.T, fe *frontEnd) (library, liked catalogtest.Call) {
+	t.Helper()
+	calls := f.src.Take(t, fe.runPosted, "library", "playlist LM")
+	return calls["library"], calls["playlist LM"]
+}
+
+// fetched answers fe's fetches with Ada's library and ids liked, songs
+// describing them, and waits until fe has them.
+func (f *remoteFixture) fetched(t *testing.T, fe *frontEnd, ids []string, songs []catalog.Song) {
+	t.Helper()
+	library, liked := f.takeFetches(t, fe)
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	liked.Reply <- catalogtest.Reply{Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids}, Songs: songs}
+	fe.until(t, "fetched Ada's account", func() bool {
+		for _, res := range Resources {
+			if fe.fetches.Get(res).State != fetchstate.Loaded {
+				return false
+			}
+		}
+		return fe.s.IsSignedIn() && !fe.s.IsBusy()
+	})
+}
+
+var adaLikedIDs = []string{"far-2", "far-1"}
+
+func adaSongs() []catalog.Song { return []catalog.Song{tracks[1], tracks[0]} }
+
+// signedIn answers the daemon's first fetch as Ada's, then the
+// front-end's.
 func (f *remoteFixture) signedIn(t *testing.T) {
 	t.Helper()
-	f.signedInLiking(t, adaLikes.IDs, adaLikes.Songs)
+	f.signedInLiking(t, adaLikedIDs, adaSongs())
 }
 
 // signedInLiking is signedIn with ids liked, songs describing them.
 func (f *remoteFixture) signedInLiking(t *testing.T, ids []string, songs []catalog.Song) {
 	t.Helper()
-	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
-	calls["account"].Reply <- catalogtest.Reply{Account: ada}
-	calls["library"].Reply <- catalogtest.Reply{Library: adaLibrary()}
-	calls["playlist LM"].Reply <- catalogtest.Reply{
-		Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids}, Songs: songs,
-	}
-	f.until(t, "fetched Ada's account", func() bool {
-		for _, res := range Resources {
-			if f.fetches.Get(res).State != fetchstate.Loaded {
-				return false
-			}
-		}
-		return f.s.IsSignedIn()
-	})
+	f.next(t, "account", "").Reply <- catalogtest.Reply{Account: ada}
+	f.fetched(t, f.frontEnd, ids, songs)
+}
+
+// signedOut answers the daemon's first fetch: no one is signed in.
+func (f *remoteFixture) signedOut(t *testing.T) {
+	t.Helper()
+	f.next(t, "account", "").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	f.until(t, "signed out", func() bool { return f.fetches.Get(AccountRes).State == fetchstate.SignedOut })
 }
 
 // Over the socket too, a Like's ErrSignedOut comes before the Account
@@ -148,11 +192,7 @@ func TestRemoteLikeSignedOut(t *testing.T) {
 // anyway, as package account promises.
 func TestRemoteCancelSignIn(t *testing.T) {
 	f := newRemoteFixture(t)
-	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
-	for _, call := range calls {
-		call.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
-	}
-	f.until(t, "signed out", func() bool { return f.fetches.Get(AccountRes).State == fetchstate.SignedOut })
+	f.signedOut(t)
 	canceled := func(call catalogtest.Call) {
 		t.Helper()
 		select {
@@ -182,7 +222,7 @@ func TestRemoteCancelSignIn(t *testing.T) {
 	if f.s.Account() != ada || f.s.IsSigningIn() || len(notices) > 0 {
 		t.Errorf("signed in as %+v (signing in %v), notices %+v", f.s.Account(), f.s.IsSigningIn(), notices)
 	}
-	f.signedIn(t)
+	f.fetched(t, f.frontEnd, adaLikedIDs, adaSongs())
 	if notices = f.s.TakeNotices(); f.s.Account() != ada || len(notices) > 0 {
 		t.Errorf("signed in as %+v, notices %+v", f.s.Account(), notices)
 	}
@@ -190,11 +230,7 @@ func TestRemoteCancelSignIn(t *testing.T) {
 
 func TestRemoteSignIn(t *testing.T) {
 	f := newRemoteFixture(t)
-	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
-	for _, call := range calls {
-		call.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
-	}
-	f.until(t, "signed out", func() bool { return f.fetches.Get(AccountRes).State == fetchstate.SignedOut })
+	f.signedOut(t)
 
 	// A sign-in canceled says nothing, though the daemon answers.
 	f.s.SignIn("SID=first")
@@ -217,23 +253,29 @@ func TestRemoteSignIn(t *testing.T) {
 		t.Error("not signed in, or the library not fetched anew")
 	}
 
-	// Retry asks the daemon, which fetches.
-	f.signedIn(t)
-	f.s.Retry(LibraryRes)
-	f.next(t, "library", "").Reply <- catalogtest.Reply{Err: errors.New("network is down")}
+	// The fetches go through the daemon, whose errors say nothing of
+	// themselves; Retry fetches again.
+	library, liked := f.takeFetches(t, f.frontEnd)
+	library.Reply <- catalogtest.Reply{Err: errors.New("network is down")}
+	liked.Reply <- catalogtest.Reply{Err: catalog.ErrNotFound}
 	f.until(t, "failed", func() bool { return f.fetches.Get(LibraryRes).State == fetchstate.Failed })
 	if err := f.fetches.Get(LibraryRes).Err; !errors.Is(err, api.ErrInternal) {
 		t.Errorf("library failed with %v", err)
 	}
+	f.s.Retry(LibraryRes)
+	f.next(t, "library", "").Reply <- catalogtest.Reply{Library: adaLibrary()}
+	f.until(t, "fetched", func() bool { return f.fetches.Get(LibraryRes).State == fetchstate.Loaded })
 }
 
 // A song liked on one front-end shows in the others' Liked music, those
-// connected then and later, though their catalogs never had it.
+// connected then and those fetching it, though their catalogs never had it.
 func TestRemoteLikeDescribed(t *testing.T) {
 	f := newRemoteFixture(t)
 	f.signedIn(t)
 	other := f.connect(t)
-	other.until(t, "got the likes", func() bool { return other.s.LikedCount() == len(adaLikes.IDs) })
+	f.fetched(t, other, adaLikedIDs, adaSongs())
+	late := f.connect(t)
+	library, liked := f.takeFetches(t, late)
 
 	song := catalog.Song{ID: "far-9", Title: "Night Shift", Artist: "Far"}
 	f.cat.Add([]catalog.Song{song}, nil, nil)
@@ -247,12 +289,40 @@ func TestRemoteLikeDescribed(t *testing.T) {
 		}
 	}
 	other.until(t, "shown the song liked", shown(other))
-	late := f.connect(t)
+	// Liked music fetched before the like went through still shows it.
 	late.until(t, "shown the song liked", shown(late))
+	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
+	liked.Reply <- catalogtest.Reply{Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: adaLikedIDs}, Songs: adaSongs()}
+	late.until(t, "fetched", func() bool { return !late.s.IsBusy() })
+	if !shown(late)() || late.s.LikedCount() != 3 {
+		t.Errorf("liked songs %+v after the fetch", late.s.LikedSongs())
+	}
 }
 
-// Lists too long for one frame come in parts (daemon's carry): front-ends
-// connected then and later end with every song.
+// A fetch answered ErrSignedOut signs ytmd out, and every front-end.
+func TestRemoteFetchSignedOut(t *testing.T) {
+	f := newRemoteFixture(t)
+	f.signedIn(t)
+	other := f.connect(t)
+	f.fetched(t, other, adaLikedIDs, adaSongs())
+	f.s.Retry(LikedRes)
+	f.next(t, "playlist", catalog.LikedID).Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	for _, fe := range []*frontEnd{f.frontEnd, other} {
+		fe.until(t, "signed out", func() bool { return !fe.s.IsSignedIn() })
+		for _, res := range Resources {
+			if got := fe.fetches.Get(res).State; got != fetchstate.SignedOut {
+				t.Errorf("%+v is %d, want signed out", res, got)
+			}
+		}
+		if fe.s.LikedCount() != 0 {
+			t.Error("signed out, the likes stayed")
+		}
+	}
+}
+
+// Lists too long for one frame come in parts (daemon's carry, and a
+// reply's api.Ahead): front-ends connected then and later end with every
+// song.
 func TestRemoteLongLists(t *testing.T) {
 	f := newRemoteFixture(t)
 	liked := catalogtest.Decoded(1000)
@@ -261,9 +331,8 @@ func TestRemoteLongLists(t *testing.T) {
 	f.c.PlayAll(ids(queue), queue)
 	f.until(t, "got the queue", func() bool { return len(f.c.Mirror().Queue()) == len(queue) })
 	late := f.connect(t)
-	late.until(t, "got the likes and the queue", func() bool {
-		return late.s.LikedCount() == len(liked) && len(late.c.Mirror().Queue()) == len(queue)
-	})
+	f.fetched(t, late, ids(liked), liked)
+	late.until(t, "got the queue", func() bool { return len(late.c.Mirror().Queue()) == len(queue) })
 	for _, fe := range []*frontEnd{f.frontEnd, late} {
 		if got := fe.s.LikedSongs(); !reflect.DeepEqual(got, liked) {
 			t.Errorf("%d liked songs, want %d", len(got), len(liked))

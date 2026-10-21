@@ -43,7 +43,7 @@ func TestHelloAndSnapshot(t *testing.T) {
 		t.Errorf("state %+v, want %+v", *ev.State, wantState)
 	}
 	// Not fetched yet, so not told.
-	if ev.Account != nil || ev.Library != nil || ev.Likes != nil {
+	if ev.Account != nil || ev.Likes != nil {
 		t.Errorf("snapshot tells the account before any fetch: %+v", ev)
 	}
 	c.none(50 * time.Millisecond)
@@ -604,51 +604,65 @@ func TestBackpressureReplies(t *testing.T) {
 	}
 }
 
+// TestSubscriberRefetchesFailedAccount: who is signed in, whose fetch
+// failed at start (offline at login), is fetched again for a front-end
+// that subscribes later, once.
+func TestSubscriberRefetchesFailedAccount(t *testing.T) {
+	h := newHarness(t, Options{})
+	h.svc.Start()
+	fetch := h.src.Next(t, nil, "account", "")
+	// Nothing failed yet: a subscriber asks nothing.
+	first := h.connect(true)
+	first.event()
+	h.src.None(t, nil, 30*time.Millisecond)
+	fetch.Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	first.eventWith(func(ev api.Event) bool { return ev.Failed != nil })
+
+	c := h.connect(true)
+	if snap := c.event(); snap.Failed == nil {
+		t.Fatalf("snapshot %+v, want the failure", snap)
+	}
+	fetch = h.src.Next(t, nil, "account", "")
+	// Another meanwhile leaves the fetch in flight.
+	h.connect(true).event()
+	h.src.None(t, nil, 30*time.Millisecond)
+	ada := catalog.Account{Name: "Ada"}
+	fetch.Reply <- catalogtest.Reply{Account: ada}
+	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; a.Account != ada || !a.SignedIn {
+		t.Errorf("account %+v", a)
+	}
+	h.connect(true).event()
+	h.src.None(t, nil, 30*time.Millisecond)
+}
+
 func TestAccount(t *testing.T) {
 	h := newHarness(t, Options{})
 	c := h.connect(true)
 	c.event()
 	h.svc.Start()
-	calls := h.src.Take(t, nil, "account", "library", "playlist LM")
-	ada := catalog.Account{Name: "Ada"}
-	lib := catalog.Library{Songs: songs(2)}
-	liked := songs(2)
-	calls["account"].Reply <- catalogtest.Reply{Account: ada}
-	calls["library"].Reply <- catalogtest.Reply{Library: lib}
-	calls["playlist LM"].Reply <- catalogtest.Reply{Err: errors.New("offline")}
-	got := map[string]bool{}
-	for len(got) < 3 {
-		ev := c.event()
-		switch {
-		case ev.Account != nil:
-			got["account"] = ev.Account.Account == ada && ev.Account.SignedIn
-		case ev.Library != nil:
-			got["library"] = reflect.DeepEqual(*ev.Library, lib)
-		case ev.Failed != nil:
-			got["failed"] = ev.Failed.Part == api.PartLiked && errors.Is(ev.Failed.Err.Err(), api.ErrInternal)
-		}
+	// Who is signed in, and nothing more: front-ends fetch the library and
+	// likes.
+	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	h.src.None(t, nil, 30*time.Millisecond)
+	if f := c.event().Failed; f == nil || !errors.Is(f.Err.Err(), api.ErrInternal) {
+		t.Errorf("failed %+v", f)
 	}
-	for k, ok := range got {
-		if !ok {
-			t.Errorf("%s event wrong", k)
-		}
-	}
-
-	// A new subscriber hears of the failure too, after its snapshot.
-	early := h.connect(true)
-	if snap := early.event(); snap.Account == nil || snap.Library == nil || snap.Likes != nil {
+	// A new subscriber hears of the failure in its snapshot, and has who
+	// is signed in fetched again (TestSubscriberRefetchesFailedAccount).
+	if snap := h.connect(true).event(); snap.Account != nil || snap.Failed == nil {
 		t.Errorf("snapshot %+v", snap)
 	}
-	if f := early.event().Failed; f == nil || f.Part != api.PartLiked {
-		t.Errorf("failed %+v after the snapshot", f)
+	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Err: errors.New("offline")}
+	if f := c.event().Failed; f == nil {
+		t.Errorf("failed %+v", f)
 	}
 
-	// Retry, as the Refresh of a page's Retry.
-	c.call(api.Call{Method: api.MethodRefresh, Part: &api.PartArgs{Part: api.PartLiked}})
-	h.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
-	ev := c.eventWith(func(ev api.Event) bool { return ev.Likes != nil })
-	if l := ev.Likes; !l.Full || !slices.Equal(l.IDs, ids(liked)) || !reflect.DeepEqual(l.Songs, liked) {
-		t.Errorf("likes %+v", l)
+	// Refresh, as a page's Retry.
+	c.call(api.Call{Method: api.MethodRefresh})
+	ada := catalog.Account{Name: "Ada"}
+	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Account: ada}
+	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; a.Account != ada || !a.SignedIn || a.Switched {
+		t.Errorf("account %+v", a)
 	}
 
 	// A like's reply comes before its change.
@@ -657,7 +671,7 @@ func TestAccount(t *testing.T) {
 	if r := c.reply(id); r.Err != nil || len(c.events) > 0 {
 		t.Fatalf("like reply %+v after events %+v", r, c.events)
 	}
-	if l := c.event().Likes; l == nil || l.Full || !slices.Equal(l.Added, []string{"s9"}) || l.Songs != nil {
+	if l := c.event().Likes; l == nil || !slices.Equal(l.Added, []string{"s9"}) || l.Songs != nil {
 		t.Errorf("like event %+v", l)
 	}
 
@@ -677,12 +691,9 @@ func TestAccount(t *testing.T) {
 		t.Errorf("like describing another song: %+v", r)
 	}
 
-	// A new subscriber learns all of it.
+	// A new subscriber learns who is signed in, and keeps no likes.
 	late := h.connect(true)
-	snap := late.event()
-	if snap.Account == nil || snap.Account.Account != ada || snap.Library == nil || snap.Likes == nil ||
-		!snap.Likes.Full || !slices.Equal(snap.Likes.IDs, []string{"s8", "s9", "s0", "s1"}) ||
-		!reflect.DeepEqual(snap.Likes.Songs, append([]catalog.Song{s8}, liked...)) {
+	if snap := late.event(); snap.Account == nil || snap.Account.Account != ada || snap.Likes != nil || snap.Failed != nil {
 		t.Errorf("snapshot %+v", snap)
 	}
 	late.none(30 * time.Millisecond)
@@ -698,40 +709,70 @@ func TestAccount(t *testing.T) {
 	}
 }
 
+// A front-end's fetch answered ErrSignedOut signs ytmd out, as its own
+// do, unless the credentials changed since it was asked.
+func TestFetchSignedOut(t *testing.T) {
+	h := newHarness(t, Options{})
+	c := h.connect(true)
+	c.event()
+	h.signedIn()
+	c.eventWith(func(ev api.Event) bool { return ev.Account != nil })
+
+	stale := c.send(api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: catalog.LikedID}})
+	staleCall := h.src.Next(t, nil, "playlist", catalog.LikedID)
+	id := c.send(signIn("SID=grace"))
+	h.src.Next(t, nil, "signin", "SID=grace").Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Grace"}}
+	c.reply(id)
+	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; !a.Switched {
+		t.Fatalf("account %+v", a)
+	}
+	staleCall.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	if r := c.reply(stale); !errors.Is(r.Err.Err(), catalog.ErrSignedOut) {
+		t.Errorf("reply %+v", r)
+	}
+	c.ping()
+	for _, ev := range c.events {
+		if ev.Account != nil {
+			t.Errorf("the previous credentials' answer told %+v", ev.Account)
+		}
+	}
+	c.events = nil
+
+	id = c.send(api.Call{Method: api.MethodLibrary})
+	h.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
+	if r := c.reply(id); !errors.Is(r.Err.Err(), catalog.ErrSignedOut) || len(c.events) > 0 {
+		t.Fatalf("library reply %+v after %+v", r, c.events)
+	}
+	if a := c.event().Account; a == nil || a.SignedIn {
+		t.Errorf("account event %+v, want signed out", a)
+	}
+	h.until("signed out", func() bool { return !h.svc.status().SignedIn })
+}
+
 // Songs too many for one frame go ahead of the event naming them, in
-// events of songs alone, which every Proto 1 front-end keeps.
+// events of songs alone, which every front-end keeps.
 func TestLongLists(t *testing.T) {
 	h := newHarness(t, Options{})
 	c := h.connect(true)
 	c.event()
-	liked := catalogtest.Decoded(1000)
-	h.startLiking(liked)
-	ev, _, ahead := c.songsAhead(func(ev api.Event) bool { return ev.Likes != nil && ev.Likes.Full })
-	if !slices.Equal(ev.Likes.IDs, ids(liked)) || ev.Likes.Songs != nil || !reflect.DeepEqual(ahead, liked) {
-		t.Errorf("likes %d IDs, %d songs, %d ahead", len(ev.Likes.IDs), len(ev.Likes.Songs), len(ahead))
-	}
-
 	queue := songs(1000)
 	c.call(playAll(queue, 0))
-	ev, ahead, _ = c.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
+	ev, ahead := c.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
 	if !slices.Equal(ev.Queue.IDs, ids(queue)) || ev.Songs != nil || !reflect.DeepEqual(ahead, queue) {
 		t.Errorf("queue %d IDs, %d songs, %d ahead", len(ev.Queue.IDs), len(ev.Songs), len(ahead))
 	}
 
 	late := h.connect(true)
-	snap, queued, likedAhead := late.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
+	snap, queued := late.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
 	byID := func(a, b catalog.Song) int { return strings.Compare(a.ID, b.ID) }
 	slices.SortFunc(queued, byID)
 	slices.SortFunc(queue, byID)
 	if !slices.Equal(snap.Queue.IDs, ids(songs(1000))) || snap.Songs != nil || !reflect.DeepEqual(queued, queue) {
 		t.Errorf("snapshot's queue %d IDs, %d songs, %d ahead", len(snap.Queue.IDs), len(snap.Songs), len(queued))
 	}
-	if l := snap.Likes; !l.Full || !slices.Equal(l.IDs, ids(liked)) || l.Songs != nil || !reflect.DeepEqual(likedAhead, liked) {
-		t.Errorf("snapshot's likes %d IDs, %d songs, %d ahead", len(l.IDs), len(l.Songs), len(likedAhead))
-	}
 }
 
-// carry sends each long list of an event whole ahead, in at most
+// carry sends an event's long list of songs whole ahead, in at most
 // maxSongFrames frames.
 func TestCarry(t *testing.T) {
 	for _, tc := range []struct{ n, frames, kept int }{
@@ -742,115 +783,39 @@ func TestCarry(t *testing.T) {
 		{100_000, maxSongFrames, 0},
 	} {
 		list := songs(tc.n)
-		ev := api.Event{Songs: list, Likes: &api.Likes{Songs: list}}
+		ev := api.Event{Songs: list}
 		ahead := carry(nil, &ev)
-		var queued, liked []catalog.Song
+		var queued []catalog.Song
 		for _, f := range ahead {
 			queued = append(queued, f.Event.Songs...)
-			if f.Event.Likes != nil {
-				liked = append(liked, f.Event.Likes.Songs...)
-			}
 		}
-		queued, liked = append(queued, ev.Songs...), append(liked, ev.Likes.Songs...)
-		if len(ahead) != 2*tc.frames || len(ev.Songs) != tc.kept || len(ev.Likes.Songs) != tc.kept ||
-			!slices.Equal(queued, list) || !slices.Equal(liked, list) {
-			t.Errorf("%d songs: %d frames, %d and %d kept, %d and %d sent; want 2×%d frames, %d kept",
-				tc.n, len(ahead), len(ev.Songs), len(ev.Likes.Songs), len(queued), len(liked), tc.frames, tc.kept)
+		queued = append(queued, ev.Songs...)
+		if len(ahead) != tc.frames || len(ev.Songs) != tc.kept || !slices.Equal(queued, list) {
+			t.Errorf("%d songs: %d frames, %d kept, %d sent; want %d frames, %d kept",
+				tc.n, len(ahead), len(ev.Songs), len(queued), tc.frames, tc.kept)
 		}
 	}
 }
 
-// Started, ytmd fetches who is signed in, for `ytm status`; the library
-// and likes once, for the first subscriber.
-func TestLibraryForSubscribers(t *testing.T) {
+// Started, ytmd fetches who is signed in, for `ytm status`, and nothing
+// more: neither subscribers nor a sign-in fetch anything.
+func TestFetchesOnlyAccount(t *testing.T) {
 	h := newHarness(t, Options{})
 	cli := h.connect(false)
-	h.svc.Start()
-	ada := catalog.Account{Name: "Ada"}
-	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Account: ada}
+	h.signedIn()
 	h.until("signed in", func() bool { return h.svc.status().SignedIn })
-	if st := cli.call(api.Call{Method: api.MethodStatus}).Status; st.Account != ada {
+	if st := cli.call(api.Call{Method: api.MethodStatus}).Status; st.Account.Name != "Ada" {
 		t.Errorf("status %+v", st)
 	}
-	h.src.None(t, nil, 30*time.Millisecond)
-
-	first := h.connect(true)
-	if snap := first.event(); snap.Account == nil || snap.Library != nil || snap.Likes != nil {
-		t.Errorf("first snapshot %+v", snap)
+	if a := h.connect(true).event().Account; a == nil || a.Account.Name != "Ada" {
+		t.Errorf("account %+v", a)
 	}
-	calls := h.src.Take(t, nil, "library", "playlist LM")
-	// One connecting meanwhile hears of them as the first does.
-	second := h.connect(true)
-	second.event()
-	h.src.None(t, nil, 30*time.Millisecond)
-	lib := catalog.Library{Songs: songs(2)}
-	liked := songs(3)
-	calls["library"].Reply <- catalogtest.Reply{Library: lib}
-	calls["playlist LM"].Reply <- catalogtest.Reply{Playlist: catalog.Playlist{Songs: ids(liked)}, Songs: liked}
-	for _, c := range []*client{first, second} {
-		var (
-			gotLib   *catalog.Library
-			gotLikes *api.Likes
-		)
-		for gotLib == nil || gotLikes == nil {
-			ev := c.event()
-			if ev.Library != nil {
-				gotLib = ev.Library
-			}
-			if ev.Likes != nil {
-				gotLikes = ev.Likes
-			}
-		}
-		if !reflect.DeepEqual(*gotLib, lib) || !slices.Equal(gotLikes.IDs, ids(liked)) {
-			t.Errorf("library %+v, likes %+v", gotLib, gotLikes)
-		}
-	}
-
-	// Later ones, after the others left, find them in their snapshot.
-	_ = first.c.Close()
-	_ = second.c.Close()
-	late := h.connect(true)
-	if snap := late.event(); snap.Library == nil || snap.Likes == nil || !slices.Equal(snap.Likes.IDs, ids(liked)) {
-		t.Errorf("late snapshot %+v", snap)
+	id := cli.send(signIn("SID=1"))
+	h.src.Next(t, nil, "signin", "SID=1").Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Grace"}}
+	if r := cli.reply(id); r.Err != nil {
+		t.Fatal(r.Err.Err())
 	}
 	h.src.None(t, nil, 30*time.Millisecond)
-}
-
-// Signed out, a subscriber has nothing fetched; a sign-in fetches it all,
-// before any subscriber too, which then fetches nothing again.
-func TestLibraryAfterSignIn(t *testing.T) {
-	t.Run("signed out", func(t *testing.T) {
-		h := signedOutHarness(t)
-		h.until("signed out", func() bool {
-			_, ok := h.svc.acct.Status()
-			return ok
-		})
-		if a := h.connect(true).event().Account; a == nil || a.SignedIn {
-			t.Errorf("account %+v, want signed out", a)
-		}
-		h.src.None(t, nil, 30*time.Millisecond)
-	})
-	t.Run("signed in without subscribers", func(t *testing.T) {
-		h := signedOutHarness(t)
-		cli := h.connect(false)
-		id := cli.send(signIn("SID=1"))
-		h.src.Next(t, nil, "signin", "SID=1").Reply <- catalogtest.Reply{Account: catalog.Account{Name: "Ada"}}
-		if r := cli.reply(id); r.Err != nil {
-			t.Fatal(r.Err.Err())
-		}
-		h.src.Take(t, nil, "account", "library", "playlist LM")
-		h.connect(true).event()
-		h.src.None(t, nil, 30*time.Millisecond)
-	})
-}
-
-// signedOutHarness is a harness started signed out.
-func signedOutHarness(t *testing.T) *harness {
-	t.Helper()
-	h := newHarness(t, Options{})
-	h.svc.Start()
-	h.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
-	return h
 }
 
 func TestSignInAndOut(t *testing.T) {
@@ -881,7 +846,6 @@ func TestSignInAndOut(t *testing.T) {
 	if ev := c.eventWith(func(ev api.Event) bool { return ev.Queue != nil }); len(ev.Queue.IDs) != 0 || ev.State.Current != "" {
 		t.Errorf("queue after switching accounts: %+v", ev)
 	}
-	h.src.Take(t, nil, "account", "library", "playlist LM")
 
 	out := c.send(api.Call{Method: api.MethodSignOut})
 	signOut := h.src.Next(t, nil, "signout", "")
@@ -950,7 +914,6 @@ func TestCancelSignIn(t *testing.T) {
 	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; !a.Switched || a.Account != ada {
 		t.Errorf("account event %+v", a)
 	}
-	h.src.Take(t, nil, "account", "library", "playlist LM")
 
 	// Credentials stored anyway still sign in, as package account has it,
 	// which only the Account event tells.
@@ -965,7 +928,6 @@ func TestCancelSignIn(t *testing.T) {
 	if a := c.eventWith(func(ev api.Event) bool { return ev.Account != nil }).Account; !a.Switched || a.Account != grace {
 		t.Errorf("account event %+v", a)
 	}
-	h.src.Take(t, nil, "account", "library", "playlist LM")
 	c.ping()
 
 	// The connection's end cancels its sign-in.

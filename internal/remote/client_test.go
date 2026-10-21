@@ -387,11 +387,10 @@ func TestEventsBatched(t *testing.T) {
 			Songs: []catalog.Song{song("a"), song("b")},
 		}})
 		d.send(api.Frame{Event: &api.Event{
-			Likes:   &api.Likes{Full: true},
-			Library: &catalog.Library{},
+			Likes:   &api.Likes{Added: []string{"a"}},
 			Account: &api.AccountEvent{SignedIn: true},
 		}})
-		d.send(api.Frame{Event: &api.Event{Failed: &api.FailedEvent{Part: api.PartLiked}}})
+		d.send(api.Frame{Event: &api.Event{Failed: &api.FailedEvent{}}})
 		d.send(api.Frame{Event: &api.Event{Notice: &notice.Notice{Title: notice.Skipped}}})
 		d.send(api.Frame{Event: &api.Event{State: &api.State{Current: "b", Index: 1}}})
 		synctest.Wait()
@@ -406,7 +405,7 @@ func TestEventsBatched(t *testing.T) {
 		if _, ok := m.Song("b"); !ok || !slices.Equal(m.Queue(), []string{"a", "b"}) {
 			t.Errorf("queue %v, without song b", m.Queue())
 		}
-		if want := []string{"account", "library", "likes", "failed"}; !slices.Equal(f.events, want) {
+		if want := []string{"account", "likes", "failed"}; !slices.Equal(f.events, want) {
 			t.Errorf("handler got %v, want %v", f.events, want)
 		}
 		if len(f.notices) != 1 || f.notices[0].Title != notice.Skipped {

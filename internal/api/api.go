@@ -61,7 +61,6 @@ type Call struct {
 	Ref    *RefArgs    // Album, Playlist
 	Like   *LikeArgs   // Like
 	SignIn *SignInArgs // SignIn
-	Part   *PartArgs   // Refresh
 	Hand   *HandoffArgs
 }
 
@@ -91,7 +90,6 @@ type Event struct {
 	Songs   []catalog.Song
 	Likes   *Likes
 	Account *AccountEvent
-	Library *catalog.Library
 	Failed  *FailedEvent
 	Notice  *notice.Notice
 	Handoff *HandoffEvent
@@ -147,9 +145,6 @@ func (SignInArgs) String() string { return "SignInArgs{…}" }
 // GoString implements fmt.GoStringer without the credentials.
 func (SignInArgs) GoString() string { return "api.SignInArgs{…}" }
 
-// PartArgs name what Refresh fetches anew.
-type PartArgs struct{ Part Part }
-
 // HandoffArgs ask the daemon to save and exit for a newer one, which the
 // caller starts within Wait. Bootstrap: never changes.
 type HandoffArgs struct{ Wait time.Duration }
@@ -202,13 +197,10 @@ type State struct {
 // Queue is the whole queue, in play order (shuffled when shuffling).
 type Queue struct{ IDs []string }
 
-// Likes changes the liked songs (account.Likes). With Full, IDs are all of
-// them, newest first, described by Songs and Likes of Songs alone before it;
-// otherwise Added and Removed went through since, and Songs describe those
-// of Added whose Like described them (LikeArgs.Song). Never coalesced.
+// Likes are likes that went through (account.Likes), which each front-end
+// applies to the liked songs it fetched; Songs describe those of Added
+// whose Like described them (LikeArgs.Song). Never coalesced.
 type Likes struct {
-	Full           bool
-	IDs            []string
 	Songs          []catalog.Song
 	Added, Removed []string
 }
@@ -221,12 +213,9 @@ type AccountEvent struct {
 	Switched bool
 }
 
-// FailedEvent is a fetch of the account, library or likes that failed
-// (account.Failure); Refresh with its Part retries it.
-type FailedEvent struct {
-	Part Part
-	Err  *Error
-}
+// FailedEvent is a fetch of who is signed in that failed (account's
+// Failed); Refresh retries it.
+type FailedEvent struct{ Err *Error }
 
 // HandoffEvent tells the other connections that the front-end of PID By
 // hands off: within Wait (relative, so each side reads its own clock) they

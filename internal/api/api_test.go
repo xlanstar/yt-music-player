@@ -89,7 +89,6 @@ func fullFrame() *Frame {
 			Ref:    &RefArgs{ID: "MPREb_a"},
 			Like:   &LikeArgs{ID: "song1", Liked: true, Song: new(testSong(1))},
 			SignIn: &SignInArgs{Credentials: "SID=x"},
-			Part:   &PartArgs{Part: PartLiked},
 			Hand:   &HandoffArgs{Wait: 5 * time.Second},
 		},
 		Reply: &Reply{
@@ -122,16 +121,12 @@ func fullFrame() *Frame {
 		},
 		Cancel: true,
 		Event: &Event{
-			State: testState(),
-			Queue: &Queue{IDs: []string{"song1", "song2"}},
-			Songs: songs,
-			Likes: &Likes{
-				Full: true, IDs: []string{"song1"}, Songs: songs,
-				Added: []string{"song2"}, Removed: []string{"song3"},
-			},
+			State:   testState(),
+			Queue:   &Queue{IDs: []string{"song1", "song2"}},
+			Songs:   songs,
+			Likes:   &Likes{Songs: songs, Added: []string{"song2"}, Removed: []string{"song3"}},
 			Account: &AccountEvent{Account: testAccount(), SignedIn: true, Switched: true},
-			Library: testLibrary(),
-			Failed:  &FailedEvent{Part: PartLibrary, Err: &Error{Code: CodeInternal, Detail: "x"}},
+			Failed:  &FailedEvent{Err: &Error{Code: CodeInternal, Detail: "x"}},
 			Notice: &notice.Notice{
 				Kind: notice.KindFailure, Title: notice.PlayFailed, Detail: notice.Reason,
 				Args: []string{"Title", "why"}, N: 3, Topic: notice.TopicPlayback,
@@ -259,7 +254,6 @@ func TestEnumsRejectZero(t *testing.T) {
 		first        bool
 	}{
 		{"Method", Method(0).IsValid(), numMethods.IsValid(), MethodPing.IsValid()},
-		{"Part", Part(0).IsValid(), numParts.IsValid(), PartAccount.IsValid()},
 		{"Repeat", Repeat(0).IsValid(), numRepeats.IsValid(), RepeatOff.IsValid()},
 		{"ErrorCode", ErrorCode(0).IsValid(), numCodes.IsValid(), CodeNotFound.IsValid()},
 	} {
@@ -325,14 +319,13 @@ func TestCallValidate(t *testing.T) {
 		{"no args", Call{Method: MethodToggle}, true},
 		{"its args", Call{Method: MethodEnqueue, IDs: &IDsArgs{IDs: []string{"a"}}}, true},
 		{"handoff", Call{Method: MethodHandoff, Hand: &HandoffArgs{Wait: time.Second}}, true},
-		{"refresh", Call{Method: MethodRefresh, Part: &PartArgs{Part: PartAccount}}, true},
+		{"refresh", Call{Method: MethodRefresh}, true},
 		{"zero method", Call{}, false},
 		{"unknown method", Call{Method: numMethods}, false},
 		{"missing args", Call{Method: MethodSeek}, false},
 		{"unwanted args", Call{Method: MethodPing, Seek: &SeekArgs{}}, false},
 		{"wrong args", Call{Method: MethodSearch, Ref: &RefArgs{ID: "x"}}, false},
 		{"two args", Call{Method: MethodSearch, Query: &QueryArgs{}, Ref: &RefArgs{}}, false},
-		{"zero part", Call{Method: MethodRefresh, Part: &PartArgs{}}, false},
 	} {
 		err := tc.call.Validate()
 		if (err == nil) != tc.ok {

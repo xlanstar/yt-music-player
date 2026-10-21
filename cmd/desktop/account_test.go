@@ -23,10 +23,10 @@ func signedOutApp(t *testing.T) (catalogtest.Accounts, *app, posts, *ui.Tester) 
 func signedOut(t *testing.T, src catalogtest.Source, a *app, q posts) *ui.Tester {
 	t.Helper()
 	tt := newTester(a)
-	for _, c := range src.Take(t, tt.Frame, "account", "library", "playlist LM") {
-		c.Reply <- reply{Err: catalog.ErrSignedOut}
-	}
+	src.Next(t, tt.Frame, "account", "").Reply <- reply{Err: catalog.ErrSignedOut}
 	settleLoads(t, tt, a, q)
+	// Signed out, the app fetches no library or likes.
+	src.None(t, tt.Frame, 50*time.Millisecond)
 	return tt
 }
 
@@ -45,8 +45,9 @@ func signedInApp(t *testing.T) (catalogtest.Accounts, *app, posts, *ui.Tester) {
 	t.Helper()
 	src, a, q := accountApp(t)
 	tt := newTester(a)
-	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
-	calls["account"].Reply <- reply{Account: ada}
+	answer(t, tt, q, src.Next(t, tt.Frame, "account", ""), reply{Account: ada})
+	// Then the app fetches the library and likes, through ytmd.
+	calls := src.Take(t, tt.Frame, "library", "playlist LM")
 	calls["library"].Reply <- reply{Library: adaLibrary}
 	calls["playlist LM"].Reply <- reply{Playlist: adaLikes, Songs: []catalog.Song{remoteTracks[1], remoteTracks[0]}}
 	settleLoads(t, tt, a, q)
@@ -170,9 +171,9 @@ func TestSignIn(t *testing.T) {
 	if _, ok := tt.Find("Ada Lovelace"); !ok || count(tt.Texts(), "Sign in") != 0 {
 		t.Errorf("the top bar does not show Ada, texts %q", tt.Texts())
 	}
-	// Signing in refetches the account's data, and Home.
-	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM", "home")
-	calls["account"].Reply <- reply{Account: ada}
+	// Signing in refetches the library, likes and Home; the sign-in told
+	// who.
+	calls := src.Take(t, tt.Frame, "library", "playlist LM", "home")
 	calls["library"].Reply <- reply{Library: adaLibrary}
 	calls["playlist LM"].Reply <- reply{Playlist: adaLikes, Songs: remoteTracks}
 	calls["home"].Reply <- reply{}
@@ -250,8 +251,8 @@ func TestLibraryLoadsFailsAndRetries(t *testing.T) {
 	src, a, q := accountApp(t)
 	tt := newTester(a)
 	a.router.Push(libraryPath(tabAlbums))
-	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
-	answer(t, tt, q, calls["account"], reply{Account: ada})
+	answer(t, tt, q, src.Next(t, tt.Frame, "account", ""), reply{Account: ada})
+	calls := src.Take(t, tt.Frame, "library", "playlist LM")
 	answer(t, tt, q, calls["playlist LM"], reply{Playlist: adaLikes, Songs: remoteTracks})
 	if !tt.HasText("Loading…") || !tt.HasText("Albums") || tt.HasText("Velvet Static") {
 		t.Fatalf("library not loading, texts %q", tt.Texts())
@@ -310,8 +311,8 @@ func TestLikedMusicSeedsLikes(t *testing.T) {
 	src, a, q := accountApp(t)
 	tt := newTester(a)
 	a.router.Push(pathLiked)
-	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
-	answer(t, tt, q, calls["account"], reply{Account: ada})
+	answer(t, tt, q, src.Next(t, tt.Frame, "account", ""), reply{Account: ada})
+	calls := src.Take(t, tt.Frame, "library", "playlist LM")
 	if !tt.HasText("Loading…") || a.session.IsLiked("far-2") {
 		t.Fatalf("liked music not loading, texts %q", tt.Texts())
 	}
@@ -395,8 +396,7 @@ func TestSignInEmptiesTheQueue(t *testing.T) {
 	tt.Type("SID=good")
 	tt.Key(ui.Cmd, ui.KeyEnter)
 	answer(t, tt, q, src.Next(t, tt.Frame, "signin", "SID=good"), reply{Account: ada})
-	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM", "home")
-	calls["account"].Reply <- reply{Account: ada}
+	calls := src.Take(t, tt.Frame, "library", "playlist LM", "home")
 	calls["library"].Reply <- reply{Library: adaLibrary}
 	calls["playlist LM"].Reply <- reply{Playlist: adaLikes, Songs: remoteTracks}
 	calls["home"].Reply <- reply{}

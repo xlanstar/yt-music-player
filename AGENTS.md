@@ -30,15 +30,15 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `fetchstate`: `Resource` and `Fetch` state; the `Registry` pages read (`a.fetches`).
 - `notice`: messages for the user, made by session and playback, as codes and arguments; `noticetext`: their words, which `tell` shows (`Render`).
 - `loader`: page fetches (album, playlist, feeds, search) for the page shown.
-- `account`: sign-in/out, fetching the account, library and likes, sending likes; reports changes as plain values and holds no UI state, so a process without a window can own it.
-- `session`: what ytmd's `account` reports (its events), as pages read it (fetch states, the catalog, notices); asks ytmd through `remote.Account`; every like through `SetLiked`, shown at once and undone on failure.
+- `account`: ytmd's sign-in/out, fetching who is signed in, sending likes; reports changes as plain values and holds no UI state, so a process without a window can own it.
+- `session`: the account as pages read it (fetch states, the catalog, notices): who is signed in, from ytmd's `account` events, and the library and likes, which it fetches through ytmd and keeps; asks ytmd's account through `remote.Account`; every like through `SetLiked`, shown at once and undone on failure.
 - `auth`: browser-cookie credentials and their store (Keychain on macOS).
 - `innertube`: InnerTube transport; knows nothing about music.
 - `ytmusic`: `catalog.Source` over InnerTube, after ytmusicapi. Song = videoId, Album = `MPREb_…`, Playlist = playlistId without `VL`. Responses decode into the structs of `response.go`. Tests are offline against `testdata/`.
 - `stream`: resolves a song's Opus stream; `audio`: the engine (fetches, decodes Opus in Go, plays through MyGo's `audio`; Now Playing on macOS, MPRIS on Linux) and `Fake`; `webm`: an audio track's frames out of WebM.
 - `player`: queue, shuffle, repeat, volume; `playback`: drives the engine from the player, on ytmd's loop; the Desktop times the position's frames itself (`cmd/desktop/playback.go`).
 - `api`: the protocol between ytmd and its front-ends (frames, methods, events, error codes), types and pure functions only; `ipc`: ytmd's paths, single-instance lock, listening, dialing and starting ytmd, and the frame stream whose sends never block.
-- `remote`: a front-end's side of ytmd: `Client` (the pages' music for `loader`, controls, the mirror of playback), `Account` (what the session asks of ytmd's account, over the Client) and `Supervisor` (reconnects, versions, hand-off, the daemon's health).
+- `remote`: a front-end's side of ytmd: `Client` (the pages' music for `loader`, the session's library and likes, controls, the mirror of playback), `Account` (what the session asks of ytmd's account, over the Client) and `Supervisor` (reconnects, versions, hand-off, the daemon's health).
 - `version`: ytmd's and ytm's version (`-ldflags -X`, else `dev`); `logfile`: ytmd's and ytm's size-bounded log files; `autostart`: ytmd at login (LaunchAgent, systemd user unit, HKCU Run) and, on Windows, the app's folder on the Path.
 - `quiet`: the heap back to the OS once builds (Desktop), Update (TUI) or the loop (ytmd) stop.
 - `loop`: one goroutine's run queue, the daemon's `post`; `daemon`: ytmd's service (player, playback, account, engine and `daemon.json` on the loop; serves `api` over `ipc`).

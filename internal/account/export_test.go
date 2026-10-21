@@ -9,10 +9,5 @@ func (a *Account) IsSigningIn() bool { return a.signInCtx != nil }
 // IsBusy reports whether a fetch, a like, or a sign-in or sign-out is in
 // flight.
 func (a *Account) IsBusy() bool {
-	for i := range a.fetches {
-		if a.fetches[i].IsRunning() {
-			return true
-		}
-	}
-	return len(a.liking) > 0 || a.IsSigningIn() || a.signOutJob.IsRunning()
+	return a.fetchJob.IsRunning() || len(a.liking) > 0 || a.IsSigningIn() || a.signOutJob.IsRunning()
 }

@@ -42,8 +42,8 @@ const (
 	MethodPlaylist
 	MethodHome
 	MethodExplore
-	// Account and Library are legacy, replaced by the account's events;
-	// they stay so that the methods after them keep their numbers.
+	// Account is legacy, replaced by the account's events; it stays so
+	// that the methods after it keep their numbers.
 	MethodAccount
 	MethodLibrary
 	MethodLike
@@ -88,7 +88,7 @@ var methods = [numMethods]struct {
 	MethodLike:          {"Like", likeArgs},
 	MethodSignIn:        {"SignIn", signInArgs},
 	MethodSignOut:       {"SignOut", noArgs},
-	MethodRefresh:       {"Refresh", partArgs},
+	MethodRefresh:       {"Refresh", noArgs},
 }
 
 // IsValid reports whether m is a method of this Proto.
@@ -116,7 +116,6 @@ const (
 	refArgs
 	likeArgs
 	signInArgs
-	partArgs
 	handArgs
 )
 
@@ -136,7 +135,6 @@ func (c *Call) Validate() error {
 		refArgs - 1:    c.Ref != nil,
 		likeArgs - 1:   c.Like != nil,
 		signInArgs - 1: c.SignIn != nil,
-		partArgs - 1:   c.Part != nil,
 		handArgs - 1:   c.Hand != nil,
 	}
 	got, n := noArgs, 0
@@ -150,8 +148,6 @@ func (c *Call) Validate() error {
 		return fmt.Errorf("%w: %s with %d args", ErrInvalid, c.Method, n)
 	case got != methods[c.Method].args:
 		return fmt.Errorf("%w: %s with the wrong args", ErrInvalid, c.Method)
-	case c.Part != nil && !c.Part.Part.IsValid():
-		return fmt.Errorf("%w: %s of part %d", ErrInvalid, c.Method, c.Part.Part)
 	}
 	return nil
 }
@@ -180,22 +176,6 @@ const (
 	RoleCLI
 	RoleDaemon
 )
-
-// Part is what the daemon's account fetches (account.Part, which counts
-// from 0, plus 1).
-type Part uint8
-
-// The parts; add new ones only at the end.
-const (
-	_ Part = iota
-	PartAccount
-	PartLibrary
-	PartLiked
-	numParts
-)
-
-// IsValid reports whether p is a part of this Proto.
-func (p Part) IsValid() bool { return p > 0 && p < numParts }
 
 // Repeat is what plays after a song or the queue ends (player.Repeat, which
 // counts from 0, plus 1).

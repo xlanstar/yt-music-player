@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 	"yt-music-player/internal/api"
-	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/notice"
 
@@ -36,7 +35,6 @@ type Handler struct {
 // AccountEvents gets the account's events, as session.Session does.
 type AccountEvents interface {
 	ApplyAccount(api.AccountEvent)
-	ApplyLibrary(catalog.Library)
 	ApplyLikes(api.Likes)
 	ApplyFailed(api.FailedEvent)
 }
@@ -452,9 +450,6 @@ func (c *Client) apply(r *received) {
 func applyAccount(e AccountEvents, ev *api.Event) {
 	if ev.Account != nil {
 		e.ApplyAccount(*ev.Account)
-	}
-	if ev.Library != nil {
-		e.ApplyLibrary(*ev.Library)
 	}
 	if ev.Likes != nil {
 		e.ApplyLikes(*ev.Likes)
