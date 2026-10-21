@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+	"weak"
 
 	mygoaudio "github.com/egoist/mygo/audio"
 )
@@ -266,6 +268,54 @@ func TestEngineDropsTheLoadItReplaced(t *testing.T) {
 	x.Load(Media{URL: srv.URL}, 0)
 	x.expect(t, Ready, 2)
 	x.none(t)
+}
+
+// TestEngineFreesWhatItDrops plays through MyGo's output, which opens no
+// device until Play: a stream dropped must be collected, its decoder too.
+func TestEngineFreesWhatItDrops(t *testing.T) {
+	srv := serveTone(t)
+	for _, tc := range []struct {
+		name string
+		drop func(e *engine)
+	}{
+		{"Load", func(e *engine) { e.Load(Media{URL: srv.URL}, 0) }},
+		{"Release", (*engine).Release},
+		{"Close", (*engine).Close},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			type made struct {
+				player weak.Pointer[mygoaudio.Player]
+				stream weak.Pointer[opusStream]
+			}
+			outs := make(chan made, 2)
+			ready := make(chan Event, 4)
+			e := newEngine(func(ev Event) { ready <- ev }, http.DefaultClient, func(d mygoaudio.Decoder) output {
+				out := newMyGoOutput(d)
+				outs <- made{weak.Make(out.(mygoOutput).Player), weak.Make(d.(*opusStream))}
+				return out
+			})
+			t.Cleanup(e.Close)
+			e.Load(Media{URL: srv.URL}, 0)
+			select {
+			case ev := <-ready:
+				if ev.Kind != Ready {
+					t.Fatalf("event %+v", ev)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("never ready")
+			}
+			first := <-outs
+			tc.drop(e)
+			// MyGo's cleanup frees the decoder a GC after the one that
+			// finds the player gone.
+			for i := 0; first.player.Value() != nil || first.stream.Value() != nil; i++ {
+				if i == 100 {
+					t.Fatalf("kept: player %v, stream %v", first.player.Value() != nil, first.stream.Value() != nil)
+				}
+				runtime.GC()
+			}
+		})
+	}
 }
 
 // stallServer sends the file's first bytes, then waits for release before

@@ -121,10 +121,13 @@ func (e *engine) Load(media Media, at float64) {
 func (e *engine) open(l *load) {
 	u, err := url.Parse(l.media.URL)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
-		e.fail(l, errors.New("audio: bad stream URL"))
+		e.fail(l.n, errors.New("audio: bad stream URL"))
 		return
 	}
-	src := newHTTPSource(e.client, l.media.URL, l.media.Header, func(waiting bool) { e.sourceWaits(l, waiting) })
+	// What the decoder reaches names l by number: MyGo never frees a player
+	// its decoder reaches, and l holds the player.
+	n := l.n
+	src := newHTTPSource(e.client, l.media.URL, l.media.Header, func(waiting bool) { e.sourceWaits(n, waiting) })
 	e.mu.Lock()
 	if e.cur != l {
 		e.mu.Unlock()
@@ -134,10 +137,10 @@ func (e *engine) open(l *load) {
 	l.src = src
 	e.mu.Unlock()
 
-	stream, err := newOpusStream(src, func(err error) { e.fail(l, err) })
+	stream, err := newOpusStream(src, func(err error) { e.fail(n, err) })
 	if err != nil {
 		_ = src.Close()
-		e.fail(l, err)
+		e.fail(n, err)
 		return
 	}
 	out := e.newOutput(stream)
@@ -370,12 +373,12 @@ func (e *engine) checkEnd(l *load) {
 	e.publish()
 }
 
-// sourceWaits hears from the source, on the decoding goroutine, as it
+// sourceWaits hears from load n's source, on the decoding goroutine, as it
 // starts waiting for the network; the stall timer looks at the rest.
-func (e *engine) sourceWaits(l *load, waiting bool) {
+func (e *engine) sourceWaits(n uint64, waiting bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if waiting && !l.isDone && l.isReady && l.wantsPlay && !l.isStalled {
+	if l := e.liveLocked(n); waiting && l != nil && l.isReady && l.wantsPlay && !l.isStalled {
 		e.watchStallLocked(l)
 	}
 }
@@ -436,10 +439,11 @@ func (e *engine) checkStall(l *load) {
 	e.publish()
 }
 
-// fail reports that l's stream cannot go on, once.
-func (e *engine) fail(l *load, err error) {
+// fail reports that load n's stream cannot go on, once.
+func (e *engine) fail(n uint64, err error) {
 	e.mu.Lock()
-	if l.isDone {
+	l := e.liveLocked(n)
+	if l == nil {
 		e.mu.Unlock()
 		return
 	}
@@ -449,6 +453,15 @@ func (e *engine) fail(l *load, err error) {
 	e.emitLocked(l, Event{Kind: Failed, Err: err})
 	e.mu.Unlock()
 	e.publish()
+}
+
+// liveLocked returns load n if it is current and not done, else nil; the
+// caller holds mu.
+func (e *engine) liveLocked(n uint64) *load {
+	if l := e.cur; l != nil && l.n == n && !l.isDone {
+		return l
+	}
+	return nil
 }
 
 // emitLocked sends ev about l, unless the engine moved on; the caller
