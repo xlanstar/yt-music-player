@@ -17,7 +17,6 @@ import (
 	"testing"
 
 	xdraw "golang.org/x/image/draw"
-	_ "golang.org/x/image/webp" // testdata's covers, as the Desktop's ui registers it
 )
 
 // solid returns a w×h image of c whose top and bottom h/8 rows are band,
@@ -257,12 +256,16 @@ func TestShrinkSeesEveryPixel(t *testing.T) {
 }
 
 // copyThenShrink decodes data as Decode did before its box filter: the
-// crop copied whole, halved while twice the size, then bilinear.
+// crop copied whole, halved while twice the size, then bilinear. Its
+// colors are Decode's: only the scaling differs.
 func copyThenShrink(tb testing.TB, data []byte, px int) *image.RGBA {
 	tb.Helper()
-	src, _, err := image.Decode(bytes.NewReader(data))
+	src, format, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		tb.Fatal(err)
+	}
+	if format == "webp" {
+		fullRange(src)
 	}
 	crop := square(trimBars(rgba64(src)))
 	m := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dx()))
@@ -338,5 +341,29 @@ func TestDecodeLooksAsBefore(t *testing.T) {
 		if mean > 3 || most > 80 {
 			t.Errorf("%s at %d: channels differ by %.2f on average, %d at most", tc.name, tc.px, mean, most)
 		}
+	}
+}
+
+// A lossy WebP decodes to the colors it was encoded from: x/image/webp's
+// limited range, unexpanded, was ~8 levels off.
+func TestDecodeWebPInFullRange(t *testing.T) {
+	want, err := Decode(benchFile()["png/544"], coverPx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Decode(benchFile()["webp/544"], coverPx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sum, bias int
+	for i, v := range got.RGBA.Pix {
+		d := int(v) - int(want.RGBA.Pix[i])
+		sum += max(d, -d)
+		bias += d
+	}
+	n := len(got.RGBA.Pix) * 3 / 4 // alpha is never off
+	// 2.4 and -0.3 today: cwebp -q 80's loss; unexpanded, 7.4 and -2.9.
+	if mean, off := float64(sum)/float64(n), float64(bias)/float64(n); mean > 4 || off > 1 || off < -1 {
+		t.Errorf("mean difference %.2f levels, bias %.2f; want under 4 and 1", mean, off)
 	}
 }

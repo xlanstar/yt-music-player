@@ -6,6 +6,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ### Changed
 
+- The app and `ytm` download covers as WebP, about a third smaller at the same sharpness, so pages fill sooner and the cover cache holds more.
 - In `ytm`, iTerm2 3.7.5 and later show covers as Kitty's placeholders, text the terminal keeps, so covers are never redrawn and never vanish.
 
 ### Fixed

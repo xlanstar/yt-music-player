@@ -7,7 +7,7 @@
 | Binary | Links | Never links |
 |---|---|---|
 | `ytmd` (`cmd/ytmd`) | `daemon`, and what plays and signs in: `player`, `playback`, `account`, `audio`, `stream`, `auth`, `ytmusic`, MyGo's `audio` | MyGo's App, `ui`, `i18n`; `locales`, `session`, `loader`; pprof, but in `memprof` builds |
-| `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea, Lip Gloss), `termimage`, `artwork`, `locales` | MyGo's App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic`; x/image's `webp` and `draw` |
+| `ytm` (`cmd/ytm`) | `remote`, `session`, `loader`, `tui` (Bubble Tea, Lip Gloss), `termimage`, `artwork`, `locales` | MyGo's App, `ui`, `audio`; `audio`, `auth`, `account`, `innertube`, `ytmusic`; x/image's `draw` |
 | Desktop (`cmd/desktop`) | MyGo, `remote`, `session`, `loader`, `artwork`, `theme`, `settings` | `audio`, `auth`, `account`, `stream`, `innertube`, `ytmusic` |
 
 Each binary's `TestDeps` (and `session`'s) holds the last column; the test binaries are exempt, as Desktop's tests run a daemon in process. All three share `api`, `ipc`, `catalog`, `job`, `notice`, `version` and `logfile`.

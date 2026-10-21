@@ -21,11 +21,14 @@ func TestSizedURL(t *testing.T) {
 		px   int
 		want string
 	}{
-		{lh3 + "=w544-h544-l90-rj", 192, lh3 + "=w192-h192-l90-rj"},
-		{lh3 + "=w60-h60-l90-rj", 1024, lh3 + "=w1024-h1024-l90-rj"},
-		{lh3 + "=w60-h60", 96, lh3 + "=w96-h96"},
-		{yt3 + "=s120-c-k-c0x00ffffff-no-rj", 256, yt3 + "=w256-h256-c-k-c0x00ffffff-no-rj"},
-		{lh3 + "=w60-h60-l90-rj?x=1", 96, lh3 + "=w96-h96-l90-rj?x=1"},
+		// The format and quality give way to the host's WebP.
+		{lh3 + "=w544-h544-l90-rj", 192, lh3 + "=w192-h192-rw"},
+		{lh3 + "=w60-h60-l90-rj", 1024, lh3 + "=w1024-h1024-rw"},
+		{lh3 + "=w120-h120-p-l90-rj", 352, lh3 + "=w352-h352-p-rw"},
+		{lh3 + "=w60-h60", 96, lh3 + "=w96-h96-rw"},
+		{yt3 + "=s120-c-k-c0x00ffffff-no-rj", 256, yt3 + "=w256-h256-c-k-c0x00ffffff-no-rw"},
+		{yt3 + "=s48-c-k-c0x00000000-no-cc-rj-rp", 96, yt3 + "=w96-h96-c-k-c0x00000000-no-cc-rw"},
+		{lh3 + "=w60-h60-l90-rj?x=1", 96, lh3 + "=w96-h96-rw?x=1"},
 		// Nothing to resize: an options part without a size, or none.
 		{lh3 + "=l90-rj", 96, lh3 + "=l90-rj"},
 		{lh3, 96, lh3},

@@ -9,6 +9,8 @@ import (
 	_ "image/jpeg" // Decode
 	_ "image/png"  // Decode
 	"io"
+
+	_ "golang.org/x/image/webp" // Decode: SizedURL asks Google's hosts for it
 )
 
 // maxPixels keeps a corrupt or hostile header from allocating gigabytes.
@@ -28,10 +30,9 @@ type Image struct {
 // Bytes returns the memory the image's pixels take.
 func (m *Image) Bytes() int { return len(m.RGBA.Pix) }
 
-// Decode decodes a JPEG or PNG image, as the URLs SizedURL makes serve, or
-// one of a format the program registers (MyGo's ui adds WebP), into a
-// square cover of at most px pixels: it trims letterbox bars, crops the
-// middle square, and scales down so a large image does not stay in memory.
+// Decode decodes a WebP, JPEG or PNG image into a square cover of at most
+// px pixels: it trims letterbox bars, crops the middle
+// square, and scales down so a large image does not stay in memory.
 func Decode(data []byte, px int) (*Image, error) {
 	if px <= 0 {
 		return nil, errors.New("artwork: no size")
@@ -46,9 +47,12 @@ func Decode(data []byte, px int) (*Image, error) {
 		return nil, fmt.Errorf("artwork: image of %d×%d pixels", cfg.Width, cfg.Height)
 	}
 	r.data = data
-	src, _, err := image.Decode(r)
+	src, format, err := image.Decode(r)
 	if err != nil {
 		return nil, err
+	}
+	if format == "webp" {
+		fullRange(src)
 	}
 	crop := square(trimBars(rgba64(src)))
 	var m *image.RGBA
@@ -59,6 +63,45 @@ func Decode(data []byte, px int) (*Image, error) {
 		draw.Draw(m, m.Rect, src, crop.Min, draw.Src)
 	}
 	return &Image{RGBA: m, Average: average(m)}, nil
+}
+
+// fullY and fullC map VP8's limited range (Y 16–235, Cb and Cr 16–240)
+// to full, rounded.
+var (
+	fullY = rangeTable(16, 235)
+	fullC = rangeTable(16, 240)
+)
+
+func rangeTable(lo, hi int) (t [256]uint8) {
+	for v := range t {
+		x := ((v-lo)*255*2 + hi - lo) / (2 * (hi - lo))
+		t[v] = uint8(min(max(x, 0), 255))
+	}
+	return t
+}
+
+// fullRange expands a lossy WebP's planes in place: x/image/webp returns
+// VP8's limited-range YCbCr, which Go converts as JPEG's full range, ~8
+// levels washed out. Expanded, Go's conversion is libwebp's.
+func fullRange(src image.Image) {
+	var m *image.YCbCr
+	switch src := src.(type) {
+	case *image.YCbCr:
+		m = src
+	case *image.NYCbCrA:
+		m = &src.YCbCr
+	default:
+		return // lossless: RGB already
+	}
+	for i, v := range m.Y {
+		m.Y[i] = fullY[v]
+	}
+	for i, v := range m.Cb {
+		m.Cb[i] = fullC[v]
+	}
+	for i, v := range m.Cr {
+		m.Cr[i] = fullC[v]
+	}
 }
 
 // peekReader reads bytes with the Peek image.Decode looks for: without it,

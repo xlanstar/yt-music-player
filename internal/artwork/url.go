@@ -48,7 +48,8 @@ func SizedURL(u string, px int) string {
 
 // googleSized rewrites the size options after the last '=' of a Google
 // image URL, as "=w544-h544-l90-rj" or "=s120", keeping the others (l90 is
-// the JPEG quality, rj the format).
+// the JPEG quality, rj the format), but those two, which become "rw": WebP
+// at the host's default quality, sharper than "l90-rj" and smaller.
 func googleSized(u string, px int) string {
 	end := len(u)
 	if i := strings.IndexAny(u, "?#"); i >= 0 {
@@ -62,7 +63,7 @@ func googleSized(u string, px int) string {
 	var num [20]byte
 	n := strconv.AppendInt(num[:0], int64(px), 10)
 	var b strings.Builder
-	b.Grow(len(u) + len("w-h") + 2*len(n))
+	b.Grow(len(u) + len("w-h-rw") + 2*len(n))
 	b.WriteString(base)
 	b.WriteString("=w")
 	b.Write(n)
@@ -70,7 +71,7 @@ func googleSized(u string, px int) string {
 	b.Write(n)
 	first := true
 	for opt := range strings.SplitSeq(opts, "-") {
-		if isSizeOpt(opt) {
+		if isSizeOpt(opt) || isEncodingOpt(opt) {
 			continue
 		}
 		// Deliberately, an empty first option drops the rest.
@@ -81,6 +82,7 @@ func googleSized(u string, px int) string {
 		b.WriteByte('-')
 		b.WriteString(opt)
 	}
+	b.WriteString("-rw")
 	b.WriteString(u[end:])
 	return b.String()
 }
@@ -88,6 +90,12 @@ func googleSized(u string, px int) string {
 // isSizeOpt reports a size option: w, h or s and a number of pixels.
 func isSizeOpt(opt string) bool {
 	return len(opt) > 1 && strings.IndexByte("whs", opt[0]) >= 0 && isDigits(opt[1:])
+}
+
+// isEncodingOpt reports a format (rj, rp, rw, rg) or quality (l90) option.
+func isEncodingOpt(opt string) bool {
+	isFormat := len(opt) == 2 && opt[0] == 'r' && strings.IndexByte("jpwg", opt[1]) >= 0
+	return isFormat || len(opt) > 1 && opt[0] == 'l' && isDigits(opt[1:])
 }
 
 func hasSizeOpt(opts string) bool {
