@@ -42,6 +42,8 @@ const (
 	MethodPlaylist
 	MethodHome
 	MethodExplore
+	// Account and Library are legacy, replaced by the account's events;
+	// they stay so that the methods after them keep their numbers.
 	MethodAccount
 	MethodLibrary
 	MethodLike

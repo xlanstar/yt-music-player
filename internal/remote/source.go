@@ -8,9 +8,7 @@ import (
 	"yt-music-player/internal/catalog"
 )
 
-var _ catalog.Source = (*Client)(nil)
-
-// Search implements catalog.Source.
+// Search is catalog.Source's Search, through the daemon.
 func (c *Client) Search(ctx context.Context, query string) (catalog.Results, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodSearch, Query: &api.QueryArgs{Query: query}})
 	switch {
@@ -22,7 +20,7 @@ func (c *Client) Search(ctx context.Context, query string) (catalog.Results, err
 	return *r.Results, nil
 }
 
-// Album implements catalog.Source.
+// Album is catalog.Source's Album, through the daemon.
 func (c *Client) Album(ctx context.Context, id string) (catalog.Album, []catalog.Song, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodAlbum, Ref: &api.RefArgs{ID: id}})
 	switch {
@@ -34,7 +32,7 @@ func (c *Client) Album(ctx context.Context, id string) (catalog.Album, []catalog
 	return r.Album.Album, r.Album.Songs, nil
 }
 
-// Playlist implements catalog.Source.
+// Playlist is catalog.Source's Playlist, through the daemon.
 func (c *Client) Playlist(ctx context.Context, id string) (catalog.Playlist, []catalog.Song, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodPlaylist, Ref: &api.RefArgs{ID: id}})
 	switch {
@@ -46,7 +44,7 @@ func (c *Client) Playlist(ctx context.Context, id string) (catalog.Playlist, []c
 	return r.Playlist.Playlist, r.Playlist.Songs, nil
 }
 
-// Home implements catalog.Source.
+// Home is catalog.Source's Home, through the daemon.
 func (c *Client) Home(ctx context.Context) (catalog.Home, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodHome})
 	switch {
@@ -58,7 +56,7 @@ func (c *Client) Home(ctx context.Context) (catalog.Home, error) {
 	return *r.Home, nil
 }
 
-// Explore implements catalog.Source.
+// Explore is catalog.Source's Explore, through the daemon.
 func (c *Client) Explore(ctx context.Context) (catalog.Explore, error) {
 	r, err := c.Call(ctx, api.Call{Method: api.MethodExplore})
 	switch {
@@ -68,30 +66,6 @@ func (c *Client) Explore(ctx context.Context) (catalog.Explore, error) {
 		return catalog.Explore{}, errNoResult
 	}
 	return *r.Explore, nil
-}
-
-// Account implements catalog.Source.
-func (c *Client) Account(ctx context.Context) (catalog.Account, error) {
-	r, err := c.Call(ctx, api.Call{Method: api.MethodAccount})
-	return account(r, err)
-}
-
-// Library implements catalog.Source.
-func (c *Client) Library(ctx context.Context) (catalog.Library, error) {
-	r, err := c.Call(ctx, api.Call{Method: api.MethodLibrary})
-	switch {
-	case err != nil:
-		return catalog.Library{}, err
-	case r.Library == nil:
-		return catalog.Library{}, errNoResult
-	}
-	return *r.Library, nil
-}
-
-// Like implements catalog.Source.
-func (c *Client) Like(ctx context.Context, songID string, liked bool) error {
-	_, err := c.Call(ctx, api.Call{Method: api.MethodLike, Like: &api.LikeArgs{ID: songID, Liked: liked}})
-	return err
 }
 
 // SignIn has the daemon clean, check and store credentials.

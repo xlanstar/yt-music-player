@@ -143,7 +143,10 @@ func TestDisconnectFailsPending(t *testing.T) {
 			_, err := f.client.Home(t.Context())
 			errs <- err
 		}()
-		go func() { errs <- f.client.Like(t.Context(), "a", true) }()
+		go func() {
+			_, err := f.client.Search(t.Context(), "lofi")
+			errs <- err
+		}()
 		synctest.Wait()
 		d.exit()
 		for range 2 {
