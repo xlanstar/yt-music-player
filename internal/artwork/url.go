@@ -118,12 +118,12 @@ type ytVariant struct {
 }
 
 var ytVariants = [...]ytVariant{
-	{"default", 68, true},
-	{"mqdefault", 180, true},
-	{"hqdefault", 270, true},
-	{"sddefault", 360, false},
-	{"hq720", 720, false},
-	{"maxresdefault", 720, false},
+	{name: "default", side: 68, isUniversal: true},
+	{name: "mqdefault", side: 180, isUniversal: true},
+	{name: "hqdefault", side: 270, isUniversal: true},
+	{name: "sddefault", side: 360, isUniversal: false},
+	{name: "hq720", side: 720, isUniversal: false},
+	{name: "maxresdefault", side: 720, isUniversal: false},
 }
 
 // ytimgSized picks the smallest thumbnail that covers px, never one

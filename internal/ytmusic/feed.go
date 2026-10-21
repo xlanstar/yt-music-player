@@ -258,7 +258,7 @@ func ranked(rows []item) []catalog.Song {
 		if err != nil || rank < 1 {
 			rank = math.MaxInt
 		}
-		entries = append(entries, entry{rank, s})
+		entries = append(entries, entry{rank: rank, song: s})
 	}
 	slices.SortStableFunc(entries, func(a, b entry) int { return cmp.Compare(a.rank, b.rank) })
 	songs := make([]catalog.Song, len(entries))

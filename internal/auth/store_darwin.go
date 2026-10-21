@@ -93,18 +93,18 @@ var loadSecurity = sync.OnceValue(func() (err error) {
 		out   *uintptr
 		deref bool
 	}{
-		{cf, "kCFBooleanTrue", &kCFBooleanTrue, true},
-		{cf, "kCFTypeDictionaryKeyCallBacks", &kCFTypeDictionaryKeyCallBacks, false},
-		{cf, "kCFTypeDictionaryValueCallBacks", &kCFTypeDictionaryValueCallBacks, false},
-		{sec, "kSecClass", &kSecClass, true},
-		{sec, "kSecClassGenericPassword", &kSecClassGenericPassword, true},
-		{sec, "kSecAttrService", &kSecAttrService, true},
-		{sec, "kSecAttrAccount", &kSecAttrAccount, true},
-		{sec, "kSecAttrLabel", &kSecAttrLabel, true},
-		{sec, "kSecValueData", &kSecValueData, true},
-		{sec, "kSecReturnData", &kSecReturnData, true},
-		{sec, "kSecMatchLimit", &kSecMatchLimit, true},
-		{sec, "kSecMatchLimitOne", &kSecMatchLimitOne, true},
+		{lib: cf, name: "kCFBooleanTrue", out: &kCFBooleanTrue, deref: true},
+		{lib: cf, name: "kCFTypeDictionaryKeyCallBacks", out: &kCFTypeDictionaryKeyCallBacks, deref: false},
+		{lib: cf, name: "kCFTypeDictionaryValueCallBacks", out: &kCFTypeDictionaryValueCallBacks, deref: false},
+		{lib: sec, name: "kSecClass", out: &kSecClass, deref: true},
+		{lib: sec, name: "kSecClassGenericPassword", out: &kSecClassGenericPassword, deref: true},
+		{lib: sec, name: "kSecAttrService", out: &kSecAttrService, deref: true},
+		{lib: sec, name: "kSecAttrAccount", out: &kSecAttrAccount, deref: true},
+		{lib: sec, name: "kSecAttrLabel", out: &kSecAttrLabel, deref: true},
+		{lib: sec, name: "kSecValueData", out: &kSecValueData, deref: true},
+		{lib: sec, name: "kSecReturnData", out: &kSecReturnData, deref: true},
+		{lib: sec, name: "kSecMatchLimit", out: &kSecMatchLimit, deref: true},
+		{lib: sec, name: "kSecMatchLimitOne", out: &kSecMatchLimitOne, deref: true},
 	} {
 		addr, err := purego.Dlsym(global.lib, global.name)
 		if err != nil || addr == 0 {
