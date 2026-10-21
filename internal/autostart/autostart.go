@@ -22,6 +22,7 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	"yt-music-player/internal/atomicfile"
 )
 
 const (
@@ -104,26 +105,9 @@ type runner func(name string, args ...string) error
 // writeFile replaces path with data through a rename, so login never reads
 // half an entry.
 func writeFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("autostart: %w", err)
-	}
-	f, err := os.CreateTemp(dir, ".autostart-*")
-	if err != nil {
-		return fmt.Errorf("autostart: %w", err)
-	}
-	_, err = f.Write(data)
-	if err == nil {
-		// CreateTemp's 0600, made the mode service managers' own files have
-		// (launchd refuses a plist others may write).
-		err = f.Chmod(0o644)
-	}
-	err = errors.Join(err, f.Close())
-	if err == nil {
-		err = os.Rename(f.Name(), path)
-	}
-	if err != nil {
-		_ = os.Remove(f.Name())
+	// The mode service managers' own files have (launchd refuses a plist
+	// others may write).
+	if err := atomicfile.WriteFile(path, data, atomicfile.Options{Mode: 0o644}); err != nil {
 		return fmt.Errorf("autostart: %w", err)
 	}
 	return nil

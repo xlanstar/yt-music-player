@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"yt-music-player/internal/atomicfile"
 	"yt-music-player/internal/theme"
 )
 
@@ -86,30 +87,7 @@ func (d Dir) Save(prefs Settings) error {
 	if err != nil {
 		return err
 	}
-	return replaceFile(string(d), fileName, append(data, '\n'))
-}
-
-// replaceFile relies on CreateTemp making the file 0600.
-func replaceFile(dir, name string, data []byte) error {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, "."+name+"-*")
-	if err != nil {
-		return err
-	}
-	_, err = tmp.Write(data)
-	if err == nil {
-		err = tmp.Sync()
-	}
-	err = cmp.Or(err, tmp.Close())
-	if err == nil {
-		err = os.Rename(tmp.Name(), filepath.Join(dir, name))
-	}
-	if err != nil {
-		_ = os.Remove(tmp.Name())
-	}
-	return err
+	return atomicfile.WriteFile(filepath.Join(string(d), fileName), append(data, '\n'), atomicfile.Options{Sync: true})
 }
 
 // UserTheme is a theme file of the user's.

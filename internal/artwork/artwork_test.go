@@ -427,7 +427,7 @@ func TestDiskCachePrunesOldest(t *testing.T) {
 // once it is too old to be another process's write in progress.
 func TestDiskCacheRemovesLeftovers(t *testing.T) {
 	dir := t.TempDir()
-	old, fresh := filepath.Join(dir, "tmp-old"), filepath.Join(dir, "tmp-fresh")
+	old, fresh := filepath.Join(dir, ".old-1"), filepath.Join(dir, ".fresh-2")
 	for _, path := range []string{old, fresh} {
 		if err := os.WriteFile(path, []byte{1}, 0o600); err != nil {
 			t.Fatal(err)

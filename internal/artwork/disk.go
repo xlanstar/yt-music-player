@@ -1,7 +1,6 @@
 package artwork
 
 import (
-	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -9,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 	"time"
+	"yt-music-player/internal/atomicfile"
 )
 
 // DefaultDir returns where the app keeps fetched images between runs.
@@ -67,21 +66,8 @@ func (d *disk) put(u string, data []byte) {
 	if d == nil {
 		return
 	}
-	if err := os.MkdirAll(d.dir, 0o700); err != nil {
-		return
-	}
-	// Rename is atomic, so readers never see half a file, even after a crash.
-	f, err := os.CreateTemp(d.dir, "tmp-*")
-	if err != nil {
-		return
-	}
-	_, err = f.Write(data)
-	err = cmp.Or(err, f.Close())
-	if err == nil {
-		err = os.Rename(f.Name(), d.path(u))
-	}
-	if err != nil {
-		_ = os.Remove(f.Name())
+	// Readers never see half a file, even after a crash.
+	if err := atomicfile.WriteFile(d.path(u), data, atomicfile.Options{}); err != nil {
 		return
 	}
 	d.mu.Lock()
@@ -144,7 +130,7 @@ func (d *disk) info(e fs.DirEntry) fs.FileInfo {
 	if err != nil || !info.Mode().IsRegular() {
 		return nil
 	}
-	if strings.HasPrefix(e.Name(), "tmp-") && time.Since(info.ModTime()) > time.Hour {
+	if atomicfile.IsTemp(e.Name()) && time.Since(info.ModTime()) > time.Hour {
 		_ = os.Remove(filepath.Join(d.dir, e.Name()))
 		return nil
 	}

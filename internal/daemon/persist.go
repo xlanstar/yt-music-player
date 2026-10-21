@@ -1,17 +1,16 @@
 package daemon
 
 import (
-	"cmp"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/atomicfile"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/player"
 
@@ -266,33 +265,8 @@ func (w *store) wait() {
 func (w *store) write(st *savedState) {
 	// Encoded into the file, not to bytes first: a long queue's state runs
 	// to hundreds of KB (BenchmarkWrite).
-	err := replaceFile(w.path, func(f io.Writer) error { return json.MarshalWrite(f, st) })
+	err := atomicfile.Write(w.path, atomicfile.Options{Sync: true}, func(f io.Writer) error { return json.MarshalWrite(f, st) })
 	if err != nil {
 		log.Warn().Err(err).Msg("save state")
 	}
-}
-
-// replaceFile renames a temporary file, filled by write, over path, which
-// a failure or crash midway leaves as it was. CreateTemp makes it 0600.
-func replaceFile(path string, write func(io.Writer) error) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+"-*")
-	if err != nil {
-		return err
-	}
-	err = write(tmp)
-	if err == nil {
-		err = tmp.Sync()
-	}
-	err = cmp.Or(err, tmp.Close())
-	if err == nil {
-		err = os.Rename(tmp.Name(), path)
-	}
-	if err != nil {
-		_ = os.Remove(tmp.Name())
-	}
-	return err
 }

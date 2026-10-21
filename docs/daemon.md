@@ -80,7 +80,7 @@ AF_UNIX stream sockets on every OS (Windows 10 1803+), one gob stream per direct
 
 ## Saved state
 
-`<cfg>/daemon.json`: the queue and its songs, play order, index, position, volume, mute, repeat, shuffle, and a hand-off's resume note (package `daemon`). Written to a temporary file renamed over it.
+`<cfg>/daemon.json`: the queue and its songs, play order, index, position, volume, mute, repeat, shuffle, and a hand-off's resume note (package `daemon`). Written whole (package `atomicfile`).
 
 - The queue and settings save 2 s after a change (a burst saves once); the position only on a pause, seek, new song, stop or hand-off.
 - A file that fails to read, or of another version, becomes `daemon.json.bad`, and ytmd starts empty; with none, from the build's seed (the placeholder's queue), paused.

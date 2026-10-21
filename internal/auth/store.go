@@ -3,10 +3,11 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"sync"
+	"yt-music-player/internal/atomicfile"
 )
 
 // ErrNotStored is returned by Store.Load when no credentials are saved.
@@ -86,39 +87,14 @@ func (f *fileStore) Save(c Credentials) error {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	dir := filepath.Dir(f.path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("auth: save: %w", err)
-	}
-	tmp, err := os.CreateTemp(dir, ".credentials-*")
-	if err != nil {
-		return fmt.Errorf("auth: save: %w", err)
-	}
-	defer func() { _ = os.Remove(tmp.Name()) }() // Fails harmlessly once renamed.
-	err = writeSecret(tmp, c.Secret())
-	if closeErr := tmp.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil {
-		err = os.Rename(tmp.Name(), f.path)
-	}
+	err := atomicfile.Write(f.path, atomicfile.Options{Sync: true}, func(w io.Writer) error {
+		_, err := io.WriteString(w, c.Secret())
+		return err
+	})
 	if err != nil {
 		return fmt.Errorf("auth: save: %w", err)
 	}
 	return nil
-}
-
-// writeSecret writes secret to tmp and syncs it; the caller closes tmp.
-func writeSecret(tmp *os.File, secret string) error {
-	// CreateTemp already makes it 0600; Chmod guards against an umask or
-	// filesystem that did otherwise.
-	if err := tmp.Chmod(0o600); err != nil {
-		return err
-	}
-	if _, err := tmp.WriteString(secret); err != nil {
-		return err
-	}
-	return tmp.Sync()
 }
 
 func (f *fileStore) Clear() error {
