@@ -84,26 +84,35 @@ type Playback struct {
 	// notice is the next failure to tell; only the last matters.
 	notice notice.Notice
 
-	next          prefetch
-	prefetching   job.Job
-	prefetchTimer *time.Timer
-
-	releaseTimer *time.Timer
+	prefetch prefetcher
+	release  releaser
 	// state tracks how far loading song has progressed.
 	state      loadState
 	isStalled  bool
 	hasRetried bool
 	// isPlaying caches the last playing state sent to the engine to detect changes.
 	isPlaying bool
-	// holds includes the current or previous stream still held by the engine.
-	// isReleasing means releaseTimer is armed for that paused stream.
-	holds, isReleasing bool
+}
+
+// prefetcher resolves the song up next near the end of this one.
+type prefetcher struct {
+	next  prefetch
+	job   job.Job
+	timer *time.Timer
 }
 
 type prefetch struct {
 	song       string
 	stream     stream.Stream
 	isResolved bool
+}
+
+// releaser has the engine let go of a stream paused for releaseAfter.
+type releaser struct {
+	timer *time.Timer
+	// holds includes the current or previous stream still held by the engine.
+	// isArmed means timer runs for that paused stream.
+	holds, isArmed bool
 }
 
 // New returns a Playback following p, whose songs cat describes; it is
@@ -227,7 +236,7 @@ func (pb *Playback) resolve() {
 		pb.resolved(pb.stream, nil)
 		return
 	}
-	if s, ok := pb.prefetched(pb.song); ok {
+	if s, ok := pb.prefetch.take(pb.song); ok {
 		pb.resolved(s, nil)
 		return
 	}
@@ -256,7 +265,7 @@ func (pb *Playback) resolved(s stream.Stream, err error) {
 		Seconds: float64(song.Seconds),
 	})
 	pb.engine.Load(audio.Media{URL: s.URL, Seconds: s.Seconds, Header: s.Header}, p.Position)
-	pb.pos, pb.holds = p.Position, true
+	pb.pos, pb.release.holds = p.Position, true
 	if pb.isPlaying {
 		pb.engine.Play()
 	}
@@ -398,16 +407,16 @@ func (pb *Playback) armPrefetch(pos float64) {
 	}
 	untilPrefetch := pb.seconds - pos - prefetchLead
 	if untilPrefetch <= 0 {
-		pb.prefetch()
+		pb.startPrefetch()
 		return
 	}
 	d := time.Duration(untilPrefetch * float64(time.Second))
-	if pb.prefetchTimer != nil {
-		pb.prefetchTimer.Reset(d)
+	if pb.prefetch.timer != nil {
+		pb.prefetch.timer.Reset(d)
 		return
 	}
 	post := pb.post
-	pb.prefetchTimer = time.AfterFunc(d, func() { post(pb.prefetchDue) })
+	pb.prefetch.timer = time.AfterFunc(d, func() { post(pb.prefetchDue) })
 }
 
 // prefetchDue runs when the prefetch timer fires; the song may have
@@ -419,64 +428,79 @@ func (pb *Playback) prefetchDue() {
 	pb.armPrefetch(pb.engine.Position())
 }
 
-func (pb *Playback) prefetch() {
+func (pb *Playback) startPrefetch() {
 	// Called at every step near the end: keep the buffer on the stack.
 	var buf [1]string
 	upNext := pb.player.AppendUpNext(buf[:0], 1)
-	if len(upNext) == 0 || upNext[0] == pb.song || upNext[0] == pb.next.song {
+	f := &pb.prefetch
+	if len(upNext) == 0 || upNext[0] == pb.song || upNext[0] == f.next.song {
 		return
 	}
 	id := upNext[0]
-	pb.next = prefetch{song: id}
+	f.next = prefetch{song: id}
 	// A failure shows later, when the song plays and resolves again.
-	job.Run(&pb.prefetching, pb.post, pb.resolveFunc(id), func(s stream.Stream, err error) {
+	job.Run(&f.job, pb.post, pb.resolveFunc(id), func(s stream.Stream, err error) {
 		if err != nil {
 			log.Debug().Str("song", id).Err(err).Msg("prefetch failed")
 		}
-		pb.next.stream, pb.next.isResolved = s, err == nil
+		f.next.stream, f.next.isResolved = s, err == nil
 	})
 }
 
-// prefetched takes the stream prefetched for id, unless it expires soon.
-func (pb *Playback) prefetched(id string) (stream.Stream, bool) {
-	next := pb.next
+// take takes the stream prefetched for id, unless it expires soon.
+func (f *prefetcher) take(id string) (stream.Stream, bool) {
+	next := f.next
 	if next.song != id {
 		return stream.Stream{}, false
 	}
-	pb.prefetching.Stop()
-	pb.next = prefetch{}
+	f.job.Stop()
+	f.next = prefetch{}
 	return next.stream, next.isResolved && !expiring(next.stream)
+}
+
+func (f *prefetcher) stop() {
+	f.job.Stop()
+	if f.timer != nil {
+		f.timer.Stop()
+	}
 }
 
 // armRelease runs the release timer while the engine holds a paused
 // stream: from the pause, not pushed back by what else the loop does.
 func (pb *Playback) armRelease() {
-	isPaused := pb.holds && !pb.isPlaying
-	if isPaused == pb.isReleasing {
+	r := &pb.release
+	isPaused := r.holds && !pb.isPlaying
+	if isPaused == r.isArmed {
 		return
 	}
-	pb.isReleasing = isPaused
+	r.isArmed = isPaused
 	switch {
 	case !isPaused:
-		pb.releaseTimer.Stop()
-	case pb.releaseTimer == nil:
+		r.timer.Stop()
+	case r.timer == nil:
 		post := pb.post
-		pb.releaseTimer = time.AfterFunc(releaseAfter, func() { post(pb.releaseDue) })
+		r.timer = time.AfterFunc(releaseAfter, func() { post(pb.releaseDue) })
 	default:
-		pb.releaseTimer.Reset(releaseAfter)
+		r.timer.Reset(releaseAfter)
 	}
 }
 
 // releaseDue runs when the release timer fires: the stream may play again
 // since it was set.
 func (pb *Playback) releaseDue() {
-	if !pb.isReleasing || pb.engine == nil {
+	if !pb.release.isArmed || pb.engine == nil {
 		return
 	}
-	pb.isReleasing, pb.holds = false, false
+	pb.release.isArmed, pb.release.holds = false, false
 	pb.engine.Release()
 	if pb.state >= loading {
 		pb.state, pb.isStalled = released, false
+	}
+}
+
+func (r *releaser) stop() {
+	if r.timer != nil {
+		r.timer.Stop()
 	}
 }
 
@@ -498,13 +522,8 @@ func (pb *Playback) SongLength(s catalog.Song) float64 {
 // nothing plays after.
 func (pb *Playback) Stop() {
 	pb.resolving.Stop()
-	pb.prefetching.Stop()
-	if pb.prefetchTimer != nil {
-		pb.prefetchTimer.Stop()
-	}
-	if pb.releaseTimer != nil {
-		pb.releaseTimer.Stop()
-	}
+	pb.prefetch.stop()
+	pb.release.stop()
 	if pb.engine != nil {
 		pb.engine.Close()
 		pb.engine = nil

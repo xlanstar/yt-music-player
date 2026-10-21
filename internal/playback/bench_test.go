@@ -79,7 +79,7 @@ func BenchmarkIdle(b *testing.B) {
 func nextSong(x *fixture, prefetched bool) {
 	x.player.Next()
 	if prefetched {
-		x.pb.next = prefetch{song: x.player.Current(), stream: x.pb.stream, isResolved: true}
+		x.pb.prefetch.next = prefetch{song: x.player.Current(), stream: x.pb.stream, isResolved: true}
 	}
 	x.pb.Follow()
 	if !prefetched {

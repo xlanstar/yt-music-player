@@ -535,7 +535,7 @@ func TestExpiringPrefetchResolvesAnew(t *testing.T) {
 	next := x.player.AppendUpNext(nil, 1)[0]
 	x.turn(185)
 	x.run(t)
-	if !x.pb.next.isResolved {
+	if !x.pb.prefetch.next.isResolved {
 		t.Fatal("the prefetched stream was not kept")
 	}
 	asked := len(res.Asked())
@@ -620,7 +620,7 @@ func TestPrefetchesOnItsTimer(t *testing.T) {
 	if got := res.Asked(); got[len(got)-1] != next {
 		t.Fatalf("resolved %q, want %q prefetched", got, next)
 	}
-	if !x.pb.next.isResolved {
+	if !x.pb.prefetch.next.isResolved {
 		t.Error("the prefetched stream was not kept")
 	}
 }
