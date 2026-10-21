@@ -2,6 +2,8 @@ module yt-music-player
 
 go 1.27.2
 
+toolchain go1.27.3
+
 tool github.com/egoist/mygo/cmd/mygo
 
 require (

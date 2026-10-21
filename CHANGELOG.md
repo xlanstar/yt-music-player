@@ -12,6 +12,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ### Fixed
 
+- Built with Go 1.27.3, which distrusts compromised intermediate certificates (GO-2026-6809) on every connection to YouTube.
 - The background player's memory no longer grows with every song played: it kept about half a megabyte of each until it stopped.
 - After an update, music keeps playing even while another window or `ytm` is slow to let go of the old background player.
 - In `ytm`, covers in iTerm2, WezTerm and Sixel terminals no longer vanish beside wide characters, such as a Japanese song title, a moment after showing.

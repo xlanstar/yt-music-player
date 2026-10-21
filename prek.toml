@@ -53,13 +53,13 @@ pass_filenames = false
 
 # Known vulnerabilities reachable from our code, in dependencies or the
 # standard library. It downloads the database, so it runs only when the
-# dependencies change; pinned like golangci-lint.
+# dependencies or the toolchain change; pinned like golangci-lint.
 [[repos.hooks]]
 id = "govulncheck"
 name = "Go vulnerabilities (govulncheck)"
 language = "system"
 entry = "go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./..."
-files = '^go\.(mod|sum)$'
+files = '^(go\.(mod|sum)|\.tool-versions)$'
 pass_filenames = false
 
 # The catalogs of messages parse in every language, and the accessors

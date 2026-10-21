@@ -1,5 +1,6 @@
 # The project's one check, prek, on every push to main and pull request;
-# the Release workflow calls it too before it builds a tag.
+# the Release workflow calls it too before it builds a tag. Weekly, only
+# govulncheck, for advisories published while main stands still.
 name: CI
 
 on:
@@ -7,6 +8,8 @@ on:
     branches: [main]
   pull_request:
   workflow_call:
+  schedule:
+    - cron: "0 6 * * 1"
 
 permissions:
   contents: read
@@ -55,7 +58,11 @@ jobs:
             ci-${{ runner.os }}-${{ hashFiles('.tool-versions', 'go.sum', 'prek.toml') }}-
             ci-${{ runner.os }}-
 
-      - run: prek run --all-files --show-diff-on-failure
+      - if: github.event_name != 'schedule'
+        run: prek run --all-files --show-diff-on-failure
+
+      - if: github.event_name == 'schedule'
+        run: prek run govulncheck --all-files
 
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
