@@ -41,7 +41,7 @@ func (a *app) nowPlaying(c *ui.Context, offset float32) {
 		header.Children(func() {
 			a.panelTabs(c)
 			ui.Spacer(c)
-			if iconButton(c, "close-panel", icPanel, locales.HidePanel(), btnPanel, iconOpts{}).Clicked() {
+			if iconButton(c, "close-panel", icPanel, locales.HidePanel(), btnCompact, iconOpts{}).Clicked() {
 				a.panel.isShown = false
 			}
 		})
@@ -87,7 +87,7 @@ func (a *app) queueView(c *ui.Context) {
 				heading(c, s.Title, th.Type.Section, 2).MaxLines(2)
 				ui.Text(c, s.Artist).FontSize(th.Type.Lead).TextColor(th.Color.Muted).SingleLine()
 			})
-			a.likeButton(c, s.ID, 36)
+			a.likeButton(c, s.ID, btnChrome)
 			iconButton(c, "more", icMore, locales.More(), btnChrome, iconOpts{})
 		})
 		ui.Column(c).Gap(th.Space(1)).Margin(th.Space(1.5), 0, 0, 0).Children(func() {

@@ -23,11 +23,11 @@ func (a *app) topBar(c *ui.Context, width, panelShown float32) {
 	bar.Children(func() {
 		ui.Row(c).Gap(th.Space(2)).AlignItems(ui.Center).FocusGroup(ui.Horizontal).Children(func() {
 			history := iconOpts{bg: th.Color.Shadow.Alpha(0.25), isDisabled: !a.router.CanGoBack(), keys: hints.back}
-			if iconButton(c, "back", icChevronLeft, locales.NavBack(), btnNav, history).Clicked() {
+			if iconButton(c, "back", icChevronLeft, locales.NavBack(), btnBar, history).Clicked() {
 				a.router.Back()
 			}
 			history.isDisabled, history.keys = !a.router.CanGoForward(), hints.forward
-			if iconButton(c, "forward", icChevronRight, locales.NavForward(), btnNav, history).Clicked() {
+			if iconButton(c, "forward", icChevronRight, locales.NavForward(), btnBar, history).Clicked() {
 				a.router.Forward()
 			}
 		})
@@ -70,7 +70,7 @@ func (a *app) searchBox(c *ui.Context, roomy bool) {
 			a.leaveSearch()
 		}
 		if a.search.query != "" {
-			if iconButton(c, "clear", icClose, locales.ClearSearch(), btnClear, iconOpts{}).Clicked() {
+			if iconButton(c, "clear", icClose, locales.ClearSearch(), btnSmall, iconOpts{}).Clicked() {
 				a.search.query = ""
 				a.leaveSearch()
 				a.search.field.Focus(c)

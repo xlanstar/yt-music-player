@@ -64,7 +64,7 @@ func (a *app) songZone(c *ui.Context, song catalog.Song, onTop bool) {
 			ui.Text(c, song.Title).FontSize(th.Type.Title).FontWeight(600).SingleLine()
 			ui.Text(c, song.Artist).FontSize(th.Type.Sub).TextColor(th.Color.Muted).SingleLine()
 		})
-		a.likeButton(c, song.ID, 34)
+		a.likeButton(c, song.ID, btnBar)
 	})
 }
 

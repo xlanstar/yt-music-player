@@ -117,7 +117,7 @@ func (a *app) songTitle(c *ui.Context, s catalog.Song, text *rowText, opts songR
 func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hovered bool) {
 	like := func() {
 		if opts.hasActions && (hovered || a.session.Liked(s.ID)) {
-			a.likeButton(c, s.ID, 32)
+			a.likeButton(c, s.ID, btnCompact)
 		}
 	}
 	if opts.isInTable {
@@ -128,7 +128,7 @@ func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hover
 	}
 	like()
 	if opts.hasActions && hovered {
-		iconButton(c, "more", icMore, locales.More(), btnRow, iconOpts{})
+		iconButton(c, "more", icMore, locales.More(), btnCompact, iconOpts{})
 		return
 	}
 	size := th.Type.Sub

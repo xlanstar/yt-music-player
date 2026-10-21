@@ -12,17 +12,14 @@ import (
 // btnSize is a round icon button's diameter and its icon's side.
 type btnSize struct{ box, glyph float32 }
 
-// The icon buttons' sizes, by where they sit.
+// The icon buttons' sizes, smallest first.
 var (
-	btnClear  = btnSize{box: 28, glyph: 14} // in the search field
-	btnSmall  = btnSize{box: 28, glyph: 16} // beside a sidebar heading
-	btnPanel  = btnSize{box: 32, glyph: 17} // the side panel's header
-	btnRow    = btnSize{box: 32, glyph: 18} // a song row's actions
-	btnNav    = btnSize{box: 34, glyph: 18} // Back and Forward
-	btnBar    = btnSize{box: 34, glyph: 17} // the player bar's shuffle and repeat
-	btnChrome = btnSize{box: 36, glyph: 18} // the top bar's, the player bar's and the panel's
-	btnSkip   = btnSize{box: 38, glyph: 20} // Previous and Next
-	btnAction = btnSize{box: 42, glyph: 22} // under a collection's title
+	btnSmall   = btnSize{box: 28, glyph: 16} // in the search field, beside a sidebar heading
+	btnCompact = btnSize{box: 32, glyph: 18} // a song row's actions, the side panel's header
+	btnBar     = btnSize{box: 34, glyph: 17} // Back and Forward, shuffle and repeat, the bar's Like
+	btnChrome  = btnSize{box: 36, glyph: 18} // the top bar's, the player bar's and the panel's
+	btnSkip    = btnSize{box: 38, glyph: 20} // Previous and Next
+	btnAction  = btnSize{box: 42, glyph: 22} // under a collection's title
 )
 
 // iconOpts are an iconButton's options. Disabled changes input, so
@@ -83,13 +80,13 @@ func iconButton(c *ui.Context, key any, icon *ui.SVG, label string, size btnSize
 }
 
 // likeButton's label stays Like, pressed while liked.
-func (a *app) likeButton(c *ui.Context, id string, size float32) {
+func (a *app) likeButton(c *ui.Context, id string, size btnSize) {
 	liked := a.session.Liked(id)
 	icon, opts := icHeart, iconOpts{isToggle: true, isChecked: liked}
 	if liked {
 		icon, opts.tip, opts.fg = icHeartFilled, locales.Unlike(), th.Color.Accent
 	}
-	if iconButton(c, "like", icon, locales.Like(), btnSize{box: size, glyph: size * 0.5}, opts).Clicked() {
+	if iconButton(c, "like", icon, locales.Like(), size, opts).Clicked() {
 		a.session.SetLiked(id, !liked)
 	}
 }
