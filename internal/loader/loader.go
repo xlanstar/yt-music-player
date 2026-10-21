@@ -1,6 +1,6 @@
 // Package loader fetches what pages show (albums, playlists, the home and
-// explore feeds, search results) from a catalog.Source. Only the shown
-// page fetches, each resource once per session; leaving a page cancels its
+// explore feeds, search results) from a Source. Only the shown page
+// fetches, each resource once per session; leaving a page cancels its
 // fetch and drops its result.
 //
 // A Loader belongs to the UI thread, which owns the catalog. Fetches run
@@ -39,9 +39,19 @@ type Found struct {
 	Err         error
 }
 
+// Source is where the pages' music comes from: a catalog.Source, or ytmd
+// through remote.Client. Methods are called off the UI thread.
+type Source interface {
+	Search(ctx context.Context, query string) (catalog.Results, error)
+	Album(ctx context.Context, id string) (catalog.Album, []catalog.Song, error)
+	Playlist(ctx context.Context, id string) (catalog.Playlist, []catalog.Song, error)
+	Home(ctx context.Context) (catalog.Home, error)
+	Explore(ctx context.Context) (catalog.Explore, error)
+}
+
 // Loader fetches the pages' resources and searches.
 type Loader struct {
-	src    catalog.Source
+	src    Source
 	states *fetchstate.Registry
 	cat    *catalog.Catalog
 	post   func(func())
@@ -73,7 +83,7 @@ type loadCallback struct {
 // New returns a Loader that fetches from src into cat and records each
 // fetch in states. post runs a func on the UI thread; it is first called
 // only once the app shows or searches something.
-func New(src catalog.Source, states *fetchstate.Registry, cat *catalog.Catalog, post func(func())) *Loader {
+func New(src Source, states *fetchstate.Registry, cat *catalog.Catalog, post func(func())) *Loader {
 	return &Loader{src: src, states: states, cat: cat, post: post, Debounce: SearchDebounce}
 }
 
@@ -132,7 +142,7 @@ func (l *Loader) Forget(res fetchstate.Resource) {
 func (l *Loader) OnLoad(res fetchstate.Resource, fn func()) { l.onLoad = loadCallback{res, fn} }
 
 // fetch runs off the UI thread; keep stores the result on the UI thread.
-func fetch(ctx context.Context, src catalog.Source, res fetchstate.Resource) (keep func(*Loader), err error) {
+func fetch(ctx context.Context, src Source, res fetchstate.Resource) (keep func(*Loader), err error) {
 	switch res.Kind {
 	case fetchstate.Album:
 		album, tracks, err := src.Album(ctx, res.ID)
@@ -285,7 +295,7 @@ func (l *Loader) startSearch(query string, delay time.Duration) {
 		func(results catalog.Results, err error) { l.finishSearch(query, results, err) })
 }
 
-func debouncedSearch(ctx context.Context, src catalog.Source, query string, delay time.Duration) (catalog.Results, error) {
+func debouncedSearch(ctx context.Context, src Source, query string, delay time.Duration) (catalog.Results, error) {
 	if delay > 0 {
 		timer := time.NewTimer(delay)
 		defer timer.Stop()
