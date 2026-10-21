@@ -14,7 +14,6 @@ import (
 	"errors"
 	"net"
 	"os"
-	"sync"
 	"time"
 	"yt-music-player/internal/account"
 	"yt-music-player/internal/audio"
@@ -93,11 +92,10 @@ type Service struct {
 	lis  net.Listener
 	lock *ipc.Lock
 
-	// mu guards live and closed.
-	mu     sync.Mutex
-	live   map[*ipc.Conn]struct{} // every connection served
-	done   chan struct{}
-	closed bool // no more connections
+	// live is shared with Serve's goroutines; done closes once finish
+	// drained it.
+	live liveConns
+	done chan struct{}
 
 	// resume continues a hand-off's playback at Start.
 	resume   bool
@@ -126,7 +124,6 @@ func newService(opts Options) *Service {
 		now:   opts.Now,
 		src:   opts.Source,
 		conns: map[*conn]struct{}{},
-		live:  map[*ipc.Conn]struct{}{},
 		done:  make(chan struct{}),
 	}
 	if s.now == nil {
@@ -284,21 +281,6 @@ func (s *Service) finish() {
 			log.Debug().Err(err).Msg("unlock")
 		}
 	}
-	s.mu.Lock()
-	s.closed = true
-	live := make([]*ipc.Conn, len(s.live))
-	i := 0
-	for c := range s.live {
-		live[i] = c
-		i++
-	}
-	s.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), flushTimeout)
-	var wg sync.WaitGroup
-	for _, c := range live {
-		wg.Go(func() { _ = c.Shutdown(ctx) })
-	}
-	wg.Wait()
-	cancel()
+	s.live.drain(flushTimeout)
 	close(s.done)
 }

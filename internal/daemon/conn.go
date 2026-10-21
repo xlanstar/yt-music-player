@@ -1,8 +1,11 @@
 package daemon
 
 import (
+	"context"
 	"net"
 	"strconv"
+	"sync"
+	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/version"
@@ -49,10 +52,10 @@ func (c *conn) cancelAll() {
 func (s *Service) Serve(nc net.Conn) {
 	ic := ipc.NewConn(nc)
 	defer ic.Close() //nolint:errcheck // always nil
-	if !s.track(ic) {
+	if !s.live.track(ic) {
 		return
 	}
-	defer s.untrack(ic)
+	defer s.live.untrack(ic)
 	var f api.Frame
 	if err := ic.Receive(&f); err != nil {
 		log.Debug().Err(err).Msg("hello")
@@ -89,22 +92,51 @@ func (s *Service) Serve(nc net.Conn) {
 	}
 }
 
-// track adds ic to the connections a stopping Service closes; false once
-// it stopped.
-func (s *Service) track(ic *ipc.Conn) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
+// liveConns are the connections Serve runs, which a stopping Service
+// closes; safe from any goroutine.
+type liveConns struct {
+	mu     sync.Mutex
+	conns  map[*ipc.Conn]struct{}
+	closed bool // no more connections
+}
+
+// track adds ic; false once drained.
+func (l *liveConns) track(ic *ipc.Conn) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
 		return false
 	}
-	s.live[ic] = struct{}{}
+	if l.conns == nil {
+		l.conns = map[*ipc.Conn]struct{}{}
+	}
+	l.conns[ic] = struct{}{}
 	return true
 }
 
-func (s *Service) untrack(ic *ipc.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.live, ic)
+func (l *liveConns) untrack(ic *ipc.Conn) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.conns, ic)
+}
+
+// drain takes no more connections and shuts down those live, giving them
+// up to timeout to flush what was sent.
+func (l *liveConns) drain(timeout time.Duration) {
+	l.mu.Lock()
+	l.closed = true
+	live := make([]*ipc.Conn, 0, len(l.conns))
+	for c := range l.conns {
+		live = append(live, c)
+	}
+	l.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	var wg sync.WaitGroup
+	for _, c := range live {
+		wg.Go(func() { _ = c.Shutdown(ctx) })
+	}
+	wg.Wait()
 }
 
 func (s *Service) register(c *conn) {
