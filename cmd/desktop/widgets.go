@@ -21,6 +21,7 @@ var (
 	btnSkip    = btnSize{box: 38, glyph: 20} // Previous and Next
 	btnAction  = btnSize{box: 42, glyph: 22} // under a collection's title
 	btnPlay    = btnSize{box: 44, glyph: 18} // the player bar's Play
+	btnPlayAll = btnSize{box: 56, glyph: 22} // a collection's Play
 )
 
 // iconOpts are an iconButton's options. Disabled changes input, so

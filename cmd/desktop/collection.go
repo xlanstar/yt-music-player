@@ -193,12 +193,11 @@ func (a *app) collectionActions(c *ui.Context, songs []catalog.Song) {
 		if holdsCurrent && a.isPlaying() {
 			icon, label = icPause, locales.Pause()
 		}
-		play := ui.ButtonBase(c.Key("play-all")).Size(56, 56).Radius(28).Center().Background(th.Color.Accent).
-			Label(label).Cursor(ui.CursorPointer).KeepFocus().Shadow(0, 8, 24, 0, th.Color.Accent.Alpha(0.35))
+		play := roundPlayButton(c, "play-all", icon, label, btnPlayAll, th.Color.Accent, th.Color.AccentText).
+			Shadow(0, 8, 24, 0, th.Color.Accent.Alpha(0.35))
 		if play.Hovered() {
-			play.Scale(1.04, 1.04).Background(th.Color.Accent.Mix(th.Color.Light, 0.08))
+			play.Background(th.Color.Accent.Mix(th.Color.Light, 0.08))
 		}
-		play.Children(func() { ui.Icon(c, icon).Size(22, 22).TextColor(th.Color.AccentText) })
 		if play.Clicked() && len(songs) > 0 {
 			if holdsCurrent {
 				a.client.Toggle()
