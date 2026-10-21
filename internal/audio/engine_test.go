@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -532,4 +533,24 @@ func (x *engineFixture) src() *httpSource {
 	x.mu.Lock()
 	defer x.mu.Unlock()
 	return x.lastSrc
+}
+
+func TestSeconds(t *testing.T) {
+	for _, tc := range []struct {
+		in   float64
+		want time.Duration
+	}{
+		{2.5, 2500 * time.Millisecond},
+		{0, 0},
+		{-1, -time.Second},
+		{math.NaN(), 0},
+		{1e300, math.MaxInt64},
+		{math.Inf(1), math.MaxInt64},
+		{-1e300, math.MinInt64},
+		{math.Inf(-1), math.MinInt64},
+	} {
+		if got := seconds(tc.in); got != tc.want {
+			t.Errorf("seconds(%v) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
 }

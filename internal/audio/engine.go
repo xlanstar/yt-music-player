@@ -2,6 +2,7 @@ package audio
 
 import (
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"sync"
@@ -164,7 +165,20 @@ func (e *engine) open(l *load) {
 	e.publish()
 }
 
-func seconds(sec float64) time.Duration { return time.Duration(sec * float64(time.Second)) }
+// seconds saturates: converting a float out of int64's range gives what
+// the architecture gives (arm64 saturates, amd64 goes negative).
+func seconds(sec float64) time.Duration {
+	ns := sec * float64(time.Second)
+	switch {
+	case math.IsNaN(ns):
+		return 0
+	case ns >= math.MaxInt64:
+		return math.MaxInt64
+	case ns <= math.MinInt64:
+		return math.MinInt64
+	}
+	return time.Duration(ns)
+}
 
 // dropLocked stops the current stream; the caller holds mu.
 func (e *engine) dropLocked() {
