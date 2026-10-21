@@ -139,7 +139,9 @@ func (l *Loader) Forget(res fetchstate.Resource) {
 // unless that fetch fails or is canceled. Only one fn waits: a later call
 // replaces it, whatever its resource, because only the last clicked
 // playlist should play.
-func (l *Loader) OnLoad(res fetchstate.Resource, fn func()) { l.onLoad = loadCallback{res, fn} }
+func (l *Loader) OnLoad(res fetchstate.Resource, fn func()) {
+	l.onLoad = loadCallback{res: res, fn: fn}
+}
 
 // fetch runs off the UI thread; keep stores the result on the UI thread.
 func fetch(ctx context.Context, src Source, res fetchstate.Resource) (keep func(*Loader), err error) {
