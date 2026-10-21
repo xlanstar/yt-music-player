@@ -2,9 +2,11 @@ package innertube
 
 import (
 	"context"
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -94,6 +96,41 @@ func TestCallRequest(t *testing.T) {
 	if !regexp.MustCompile(`^1\.\d{8}\.01\.00$`).MatchString(version) {
 		t.Errorf("clientVersion = %q", version)
 	}
+}
+
+// The payload is the body's members and the client's context, as the
+// map payload used to make; members are compared in canonical order,
+// which the map's encoding never kept.
+func TestPayload(t *testing.T) {
+	c := benchClient()
+	bodies := []map[string]any{nil, {"query": "q", "params": "EgWKAQIIAWoMEA4QChADEAQQCRAF", "n": 2.5}}
+	for _, tc := range benchBodies {
+		bodies = append(bodies, tc.body)
+	}
+	for _, body := range bodies {
+		got, err := c.payload(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		withContext := map[string]any{"context": c.context()}
+		maps.Copy(withContext, body)
+		want, err := json.Marshal(withContext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, w := canonical(t, got), canonical(t, want); g != w {
+			t.Errorf("payload of %v:\n%s\nwant\n%s", body, g, w)
+		}
+	}
+}
+
+func canonical(t *testing.T, data []byte) string {
+	t.Helper()
+	v := jsontext.Value(data)
+	if err := v.Canonicalize(); err != nil {
+		t.Fatal(err)
+	}
+	return string(v)
 }
 
 func TestCallRetries5xx(t *testing.T) {
