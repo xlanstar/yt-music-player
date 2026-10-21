@@ -132,14 +132,11 @@ func parseYTDLP(data []byte, now time.Time) (Stream, error) {
 	}
 	s := Stream{
 		URL:      info.URL,
-		MimeType: "audio/webm",
+		MimeType: `audio/webm; codecs="opus"`,
 		Bitrate:  int(math.Round(max(info.ABR, info.TBR) * 1000)),
 		Size:     info.Filesize,
 		Seconds:  info.Duration,
 		Expires:  expiry(info.URL, 0, now),
-	}
-	if info.ACodec != "" && info.ACodec != "none" {
-		s.MimeType += `; codecs="` + info.ACodec + `"`
 	}
 	if s.Size == 0 {
 		s.Size = info.FilesizeApprox

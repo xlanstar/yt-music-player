@@ -76,8 +76,8 @@ func TestBudgetPlayability(t *testing.T) {
 func TestBudgetParseYTDLP(t *testing.T) {
 	data := testdata(t, "ytdlp.json")
 	now := time.Unix(1_000_000, 0)
-	// 13 allocs today.
-	budget.Allocs(t, 15, 100, func() { sinkStream, sinkErr = parseYTDLP(data, now) })
+	// 12 allocs today.
+	budget.Allocs(t, 14, 100, func() { sinkStream, sinkErr = parseYTDLP(data, now) })
 }
 
 // A cache hit should cost little more than the copy of its Header.
