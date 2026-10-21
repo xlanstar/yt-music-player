@@ -103,3 +103,21 @@ func TestNewTimeout(t *testing.T) {
 		t.Errorf("Timeout = %v, want none", got)
 	}
 }
+
+// A program that put another RoundTripper in http.DefaultTransport still
+// gets a Transport of its own, with net/http's defaults.
+func TestNewWithoutTheDefaultTransport(t *testing.T) {
+	saved := http.DefaultTransport
+	http.DefaultTransport = struct{ http.RoundTripper }{saved}
+	t.Cleanup(func() { http.DefaultTransport = saved })
+	tr, ok := New(0).Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("no Transport of its own")
+	}
+	if tr.Proxy == nil || tr.DialContext == nil || !tr.ForceAttemptHTTP2 || tr.TLSHandshakeTimeout == 0 {
+		t.Errorf("not net/http's defaults: %+v", tr)
+	}
+	if tr.MaxConnsPerHost != 1 || tr.IdleConnTimeout != idleTimeout {
+		t.Errorf("not tuned: %d connections a host, idle %v", tr.MaxConnsPerHost, tr.IdleConnTimeout)
+	}
+}
