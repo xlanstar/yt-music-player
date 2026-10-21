@@ -379,9 +379,6 @@ func (a *Account) finishSignIn(isCurrent bool, account catalog.Account, err erro
 	done(account, nil)
 }
 
-// IsSigningIn reports whether a sign-in is in flight.
-func (a *Account) IsSigningIn() bool { return a.signInCtx != nil }
-
 // CancelSignIn gives up the sign-in in flight; its failure never comes.
 func (a *Account) CancelSignIn() {
 	if a.stopSignIn == nil {
@@ -417,17 +414,6 @@ func (a *Account) finishSignOut(err error, done func(error)) {
 
 // IsSigningOut reports whether a sign-out is in flight.
 func (a *Account) IsSigningOut() bool { return a.signOutJob.IsRunning() }
-
-// IsBusy reports whether a fetch, a like, or a sign-in or sign-out is in
-// flight.
-func (a *Account) IsBusy() bool {
-	for i := range a.fetches {
-		if a.fetches[i].IsRunning() {
-			return true
-		}
-	}
-	return len(a.liking) > 0 || a.IsSigningIn() || a.signOutJob.IsRunning()
-}
 
 // Stop cancels all work in flight, whose results then never come.
 func (a *Account) Stop() {
