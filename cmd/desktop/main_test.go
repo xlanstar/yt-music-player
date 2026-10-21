@@ -393,7 +393,7 @@ func TestEveryPage(t *testing.T) {
 			[]string{"TITLE", "Midnight Arcade"},
 		},
 		{"liked", func(a *app) { a.router.Push(pathLiked) }, []string{"Auto playlist", "Gravity Well"}},
-		{"liked empty", func(a *app) { a.session.KeepLikes(nil); a.router.Push(pathLiked) }, []string{"Nothing here yet"}},
+		{"liked empty", func(a *app) { a.session.KeepLikes(nil); a.router.Push(pathLiked) }, []string{"Nothing here yet", likedEmpty}},
 		{"search", func(a *app) { a.router.Push(searchPath("orbit")) }, []string{"Top result", "Gravity Well"}},
 		{"search empty", func(a *app) { a.router.Push(searchPath("zzz")) }, []string{"No results for “zzz”"}},
 	} {
