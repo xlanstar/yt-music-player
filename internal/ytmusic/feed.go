@@ -83,8 +83,8 @@ func parseShelf(sh *shelf) (catalog.Shelf, bool) {
 	if sh == nil {
 		return catalog.Shelf{}, false
 	}
-	header := &sh.Header.Basic
-	s := catalog.Shelf{Title: header.Title.Runs.String(), Strapline: header.Strapline.Runs.String()}
+	h := &sh.Header.Basic
+	s := catalog.Shelf{Title: h.Title.Runs.String(), Strapline: h.Strapline.Runs.String()}
 	// Some headers, like "More from", carry only a strapline.
 	if s.Title == "" {
 		s.Title, s.Strapline = s.Strapline, ""

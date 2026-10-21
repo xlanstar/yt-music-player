@@ -218,20 +218,20 @@ func (c *Client) Album(ctx context.Context, id string) (catalog.Album, []catalog
 }
 
 func albumPage(id string, resp *response) (catalog.Album, []catalog.Song, bool) {
-	var header *header
+	var h *header
 	if sections := headerColumn(resp); len(sections) > 0 {
-		header = sections[0].Header
+		h = sections[0].Header
 	}
-	if header == nil {
-		header = resp.Header.Detail
+	if h == nil {
+		h = resp.Header.Detail
 	}
-	if header == nil {
+	if h == nil {
 		return catalog.Album{}, nil, false
 	}
-	album := catalog.Album{ID: id, Title: header.Title.Runs.String(), Art: header.art()}
-	album.Kind, album.Artist, album.Year = subtitle(header.Subtitle.Runs)
+	album := catalog.Album{ID: id, Title: h.Title.Runs.String(), Art: h.art()}
+	album.Kind, album.Artist, album.Year = subtitle(h.Subtitle.Runs)
 	var strapline meta
-	strapline.read(header.StraplineTextOne.Runs, true)
+	strapline.read(h.StraplineTextOne.Runs, true)
 	if a := strapline.artist(); a != "" {
 		album.Artist = a
 	}
@@ -344,23 +344,23 @@ func playlistPage(id string, resp *response) (catalog.Playlist, []item, bool) {
 		h = cmp.Or(sections[0].Header, sections[0].EditableHeader.Header.Header)
 	}
 	h = cmp.Or(h, resp.Header.Detail)
-	var shelf *shelf
+	var playlistShelf *shelf
 	for _, sec := range listColumn(resp) {
-		if shelf = sec.PlaylistShelf; shelf != nil {
+		if playlistShelf = sec.PlaylistShelf; playlistShelf != nil {
 			break
 		}
 	}
-	if h == nil && shelf == nil {
+	if h == nil && playlistShelf == nil {
 		return catalog.Playlist{}, nil, false
 	}
 	if h == nil {
 		h = &header{}
 	}
 	playlist := catalog.Playlist{ID: id, Name: h.Title.Runs.String(), Owner: owner(h), Art: h.art()}
-	if shelf == nil {
+	if playlistShelf == nil {
 		return playlist, nil, true
 	}
-	return playlist, shelf.Contents, true
+	return playlist, playlistShelf.Contents, true
 }
 
 func playlistSongs(songs []catalog.Song, rows []item) []catalog.Song {
