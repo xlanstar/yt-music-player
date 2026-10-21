@@ -292,8 +292,8 @@ func (s *Session) finishLibrary(lib catalog.Library, err error) {
 	s.saveCache()
 }
 
-// likedMusic is Liked music fetched: its songs' IDs, newest first, once
-// each, and what the source knows of them.
+// likedMusic is Liked music fetched: its songs' IDs, newest first, and
+// what the source knows of them.
 type likedMusic struct {
 	ids   []string
 	songs []catalog.Song
@@ -334,7 +334,7 @@ func fetchLikes(ctx context.Context, src Source) (likedMusic, error) {
 	}
 	// Decoded for this fetch, so ours to share: the catalog keeps them.
 	catalog.ShareStrings(songs)
-	return likedMusic{ids: loader.Unique(ids, func(id string) string { return id }), songs: songs}, nil
+	return likedMusic{ids: ids, songs: songs}, nil
 }
 
 func (s *Session) finishLikes(likes likedMusic, err error) {
@@ -445,15 +445,25 @@ func (s *Session) setLibrary(lib catalog.Library) {
 	s.library = lib
 }
 
-// seedLikes makes ids, newest first, the liked songs. The likes told
-// meanwhile, then the pending ones, are reapplied: they are newer.
+// seedLikes makes ids, newest first and edited in place, the liked songs,
+// once each. The likes told meanwhile, then the pending ones, are
+// reapplied: they are newer.
 func (s *Session) seedLikes(ids []string) {
-	s.likeOrder = ids
-	s.likesGen++
-	s.liked = make(map[string]bool, len(ids))
-	for _, id := range ids {
-		s.liked[id] = true
+	// Made to size when empty, as at the first seed; else reused, as every
+	// refetch seeds as many. None lets a large one go.
+	if len(s.liked) == 0 || len(ids) == 0 {
+		s.liked = make(map[string]bool, len(ids))
+	} else {
+		clear(s.liked)
 	}
+	s.likeOrder = slices.DeleteFunc(ids, func(id string) bool {
+		if s.liked[id] {
+			return true
+		}
+		s.liked[id] = true
+		return false
+	})
+	s.likesGen++
 	for _, like := range s.told {
 		s.keepLike(like.id, like.liked)
 	}

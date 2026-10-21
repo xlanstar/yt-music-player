@@ -162,12 +162,59 @@ func BenchmarkApplyLike(b *testing.B) {
 	}
 }
 
+// BenchmarkSeedLikes seeds bigLikes likes into a Session's first map, as a
+// start or a sign-in does, and again, as each refetch does.
 func BenchmarkSeedLikes(b *testing.B) {
 	s := idleSession(b)
 	ids := s.likeOrder
+	b.Run("first", func(b *testing.B) {
+		benchFresh(b, newSessions, func(s *Session) { s.seedLikes(ids) })
+	})
+	b.Run("again", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			s.seedLikes(ids)
+		}
+	})
+}
+
+// newSessions makes n Sessions over the placeholder and an empty catalog.
+func newSessions(n int) []*Session {
+	sessions := make([]*Session, n)
+	for i := range sessions {
+		sessions[i], _ = newSession(catalog.New(nil, nil, nil))
+	}
+	return sessions
+}
+
+// freshBatch is how many Sessions benchFresh makes at a time.
+const freshBatch = 16
+
+// benchFresh measures call on Sessions used once, which newBatch makes outside
+// the timer, a batch at a time.
+func benchFresh(b *testing.B, newBatch func(n int) []*Session, call func(*Session)) {
+	var batch []*Session
 	b.ReportAllocs()
 	for b.Loop() {
-		s.seedLikes(ids)
+		if len(batch) == 0 {
+			b.StopTimer()
+			batch = newBatch(freshBatch)
+			b.StartTimer()
+		}
+		call(batch[0])
+		// Dropped, so that used ones do not pile up.
+		batch[0], batch = nil, batch[1:]
+	}
+}
+
+// fresh returns a func handing out n Sessions made by newBatch beforehand, one
+// a call, so a budget counts only what is done with each.
+func fresh(n int, newBatch func(n int) []*Session) func() *Session {
+	batch := newBatch(n)
+	return func() *Session {
+		s := batch[0]
+		batch[0], batch = nil, batch[1:]
+		return s
 	}
 }
 
@@ -218,15 +265,13 @@ var retryCases = []struct {
 	session func() (*Session, chan func())
 	limit   float64
 }{
-	// 15 allocs today: the job's context, goroutine and post, the source's
-	// copies, the maps of ShareStrings, Unique and the likes. 3 when ytmd
-	// fetched them and sent the event.
-	{"placeholder", func() (*Session, chan func()) { return newSession(catalog.Placeholder()) }, 18},
-	// 59 allocs today, most of them the maps of ShareStrings, Unique and
-	// the likes.
+	// 13 allocs today: the job's context, goroutine and post, the source's
+	// copies, the maps of ShareStrings.
+	{"placeholder", func() (*Session, chan func()) { return newSession(catalog.Placeholder()) }, 15},
+	// 24 allocs today, most of them the map of ShareStrings.
 	{"5000", func() (*Session, chan func()) {
 		return sessionOver(newServedLikes(5000), catalog.New(nil, nil, nil))
-	}, 68},
+	}, 28},
 }
 
 // retrySession makes a Session, signs it in as Lan and fetches its likes
@@ -261,26 +306,44 @@ func (nopCache) Remove() error                     { return nil }
 // cachedSession is a Session signed in as Lan, using nopCache, and a cache
 // of 5000 liked songs as accountcache loads them.
 func cachedSession() (*Session, chan func(), accountcache.Saved) {
+	s, q := lanSession()
+	return s, q, lanCached()
+}
+
+// lanSession is a Session signed in as Lan, using nopCache, with nothing
+// shown yet.
+func lanSession() (*Session, chan func()) {
 	s, q := newSession(catalog.New(nil, nil, nil))
 	s.cache = nopCache{}
-	lan := catalog.Account{Name: "Lan"}
-	s.setAccount(lan)
+	s.setAccount(catalog.Account{Name: "Lan"})
+	return s, q
+}
+
+// lanCached is a cache of 5000 liked songs as accountcache loads them.
+func lanCached() accountcache.Saved {
 	liked := catalogtest.Decoded(5000)
 	catalog.ShareStrings(liked)
 	ids := make([]string, len(liked))
 	for i, song := range liked {
 		ids[i] = song.ID
 	}
-	return s, q, accountcache.Saved{Account: lan, Liked: ids, LikedSongs: liked}
+	return accountcache.Saved{Account: catalog.Account{Name: "Lan"}, Liked: ids, LikedSongs: liked}
 }
 
-// BenchmarkCacheRead is showing the cache at a start, on the UI thread.
-func BenchmarkCacheRead(b *testing.B) {
-	s, _, saved := cachedSession()
-	b.ReportAllocs()
-	for b.Loop() {
-		s.cacheRead(saved, nil)
+// lanSessions makes n lanSessions, as a start has.
+func lanSessions(n int) []*Session {
+	sessions := make([]*Session, n)
+	for i := range sessions {
+		sessions[i], _ = lanSession()
 	}
+	return sessions
+}
+
+// BenchmarkCacheRead is showing the cache at a start, on the UI thread,
+// once a run: into an empty catalog and a Session's first likes.
+func BenchmarkCacheRead(b *testing.B) {
+	saved := lanCached()
+	benchFresh(b, lanSessions, func(s *Session) { s.cacheRead(saved, nil) })
 }
 
 // BenchmarkSaveCache is what the UI thread does to save once fetched.

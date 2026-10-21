@@ -8,7 +8,6 @@ import (
 	"time"
 	"yt-music-player/internal/accountcache"
 	"yt-music-player/internal/fetchstate"
-	"yt-music-player/internal/loader"
 
 	"github.com/rs/zerolog/log"
 )
@@ -62,7 +61,7 @@ func (s *Session) cacheRead(saved accountcache.Saved, err error) {
 	}
 	if !s.isLikesFresh {
 		s.cat.Add(saved.LikedSongs, nil, nil)
-		s.seedLikes(loader.Unique(saved.Liked, func(id string) string { return id }))
+		s.seedLikes(saved.Liked)
 		s.fetches.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded, Err: s.fetches.Get(LikedRes).Err})
 	}
 }

@@ -34,8 +34,12 @@ func TestBudgetLikes(t *testing.T) {
 		on = !on
 	})
 	ids := s.likeOrder
-	// 10 allocs today: the map of bigLikes likes.
-	budget.Allocs(t, 12, 20, func() { s.seedLikes(ids) })
+	// 0 allocs today: the map of the likes is reused.
+	budget.Allocs(t, 0, 20, func() { s.seedLikes(ids) })
+	// One a call: budget.Measure's warm-up and 20 runs.
+	next := fresh(21, newSessions)
+	// 10 allocs today: bigLikes into a Session's first map, made to size.
+	budget.Allocs(t, 12, 20, func() { next().seedLikes(ids) })
 }
 
 func TestBudgetSetLiked(t *testing.T) {
@@ -62,9 +66,11 @@ func TestBudgetRetry(t *testing.T) {
 }
 
 func TestBudgetCacheRead(t *testing.T) {
-	s, _, saved := cachedSession()
-	// 35 allocs today, for 5000 liked: the maps of Unique and the likes.
-	budget.Allocs(t, 41, 20, func() { s.cacheRead(saved, nil) })
+	saved := lanCached()
+	next := fresh(21, lanSessions)
+	// 81 allocs and 2.5 MB today for 5000 liked, once a start, into an
+	// empty catalog and the Session's first map of the likes.
+	budget.Within(t, budget.Cost{Allocs: 94, Bytes: 2.87e6}, 20, func() { next().cacheRead(saved, nil) })
 }
 
 func TestBudgetSaveCache(t *testing.T) {

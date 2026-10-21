@@ -447,6 +447,11 @@ func TestLiked(t *testing.T) {
 	if s.IsLiked("b") || s.IsLiked("c") || s.IsLiked("a") || !s.IsLiked("d") {
 		t.Error("seedLikes did not replace the likes, or follows its argument")
 	}
+	// A repeat keeps its newest place.
+	s.seedLikes([]string{"e", "f", "e"})
+	if got := s.likeOrder; !slices.Equal(got, []string{"e", "f"}) || s.LikedCount() != 2 {
+		t.Errorf("seedLikes kept %q, %d liked; want [e f], 2", got, s.LikedCount())
+	}
 	s.seedLikes(nil)
 	if s.IsLiked("d") {
 		t.Error("seedLikes(nil) left a like")
