@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"yt-music-player/internal/api"
@@ -202,13 +203,27 @@ func TestSearchNone(t *testing.T) {
 type failing struct {
 	*catalog.PlaceholderSource
 	err error
-	// calls counts the requests, made on the loader's goroutines.
-	calls atomic.Int32
+	// calls counts the album fetches, searches each query's searches, made
+	// on the loader's goroutines: a search typed past may come late.
+	calls    atomic.Int32
+	mu       sync.Mutex
+	searches map[string]int
 }
 
-func (f *failing) Search(context.Context, string) (catalog.Results, error) {
-	f.calls.Add(1)
+func (f *failing) Search(_ context.Context, query string) (catalog.Results, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.searches == nil {
+		f.searches = map[string]int{}
+	}
+	f.searches[query]++
 	return catalog.Results{}, f.err
+}
+
+func (f *failing) searched(query string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.searches[query]
 }
 
 func (f *failing) Album(context.Context, string) (catalog.Album, []catalog.Song, error) {
@@ -224,11 +239,11 @@ func TestSearchFailed(t *testing.T) {
 	h.loaded()
 	h.press("enter")
 	h.screenHas("/ moon", "Couldn’t search for “moon”", "the network is down", "enter Retry")
-	calls := src.calls.Load()
+	searches := src.searched("moon")
 	h.press("enter")
 	h.loaded()
-	if got := src.calls.Load(); got != calls+1 {
-		t.Errorf("enter did not retry: %d searches, want %d", got, calls+1)
+	if got := src.searched("moon"); got != searches+1 {
+		t.Errorf("enter did not retry: %d searches for moon, want %d", got, searches+1)
 	}
 }
 
