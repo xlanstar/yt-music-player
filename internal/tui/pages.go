@@ -212,7 +212,7 @@ func (m *model) libraryPage() page {
 // accountPage returns the page of res, the session's, unless it loaded:
 // signed out, failed (enter retries), or loading.
 func (m *model) accountPage(res fetchstate.Resource, failed string) (page, bool) {
-	f := m.states.State(res)
+	f := m.fetches.Get(res)
 	switch f.State {
 	case fetchstate.Loaded:
 		return page{}, true
@@ -251,7 +251,7 @@ func (m *model) collectionPage(o opened) page {
 			kind, failed = fetchstate.Playlist, locales.PlaylistFailed()
 		}
 		res := fetchstate.Resource{Kind: kind, ID: o.id}
-		switch f := m.states.State(res); f.State {
+		switch f := m.fetches.Get(res); f.State {
 		case fetchstate.Loaded:
 		case fetchstate.Missing:
 			return page{title: locales.NotFoundTitle(), detail: locales.NotFoundDetail()}

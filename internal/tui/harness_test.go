@@ -157,9 +157,9 @@ type harness struct {
 func newHarness(t testing.TB, src catalog.Source) *harness {
 	t.Helper()
 	posts := newPoster()
-	states := &fetchstate.Registry{}
+	fetches := &fetchstate.Registry{}
 	cat := catalog.New(nil, nil, nil)
-	load := loader.New(src, states, cat, posts.post)
+	load := loader.New(src, fetches, cat, posts.post)
 	load.Debounce = 0
 	h := &harness{t: t, ctl: &fakeCtl{}, mirror: &fakeMirror{}, sup: &fakeSup{}, daemon: &fakeDaemon{}, clock: epoch}
 	h.mirror.setQueue(catalog.Placeholder().Songs)
@@ -167,10 +167,10 @@ func newHarness(t testing.TB, src catalog.Source) *harness {
 		ctl:     h.ctl,
 		mirror:  h.mirror,
 		sup:     h.sup,
-		session: session.New(h.daemon, states, load, cat),
+		session: session.New(h.daemon, fetches, load, cat),
 		loader:  load,
 		cat:     cat,
-		states:  states,
+		fetches: fetches,
 		posts:   posts,
 		now:     func() time.Time { return h.clock },
 		openDesktop: func() error {

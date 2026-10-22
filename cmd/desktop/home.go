@@ -31,7 +31,7 @@ func greeting(now time.Time) string {
 // feedState reports a feed not asked for yet (as before the window attaches)
 // as loading.
 func (a *app) feedState(res fetchstate.Resource) fetchstate.Fetch {
-	f := a.fetches.State(res)
+	f := a.fetches.Get(res)
 	if f.State == fetchstate.Idle {
 		f.State = fetchstate.Loading
 	}

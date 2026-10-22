@@ -27,7 +27,7 @@ func anonApp(tb testing.TB) (catalogtest.Source, *app, posts) {
 	src := catalogtest.New(tb)
 	a, q := startApp(tb, src, ytmdOptions{signedOut: true})
 	q.ytmd.until(tb, "signed out", func() bool {
-		return a.fetches.State(session.AccountRes).State == fetchstate.SignedOut
+		return a.fetches.Get(session.AccountRes).State == fetchstate.SignedOut
 	})
 	return src, a, q
 }
@@ -279,7 +279,7 @@ func TestStaleFetchRejected(t *testing.T) {
 	tt.Frame()
 	finish()
 	tt.Frame()
-	gone := a.fetches.State(fetchstate.Resource{Kind: fetchstate.Album, ID: "gone"})
+	gone := a.fetches.Get(fetchstate.Resource{Kind: fetchstate.Album, ID: "gone"})
 	if gone.State != fetchstate.Idle || !tt.HasText("Far Signals") {
 		t.Errorf("a canceled fetch's error was recorded, texts %q", tt.Texts())
 	}

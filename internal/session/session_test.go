@@ -80,31 +80,31 @@ func (d *fakeDaemon) next(t *testing.T, want string) request {
 // fixture is a Session over a fakeDaemon, as the app starts: ytmd fetches
 // the account's resources and sends them.
 type fixture struct {
-	d      *fakeDaemon
-	s      *Session
-	states fetchstate.Registry
-	cat    *catalog.Catalog
+	d       *fakeDaemon
+	s       *Session
+	fetches fetchstate.Registry
+	cat     *catalog.Catalog
 }
 
 func newFixture(tb testing.TB) *fixture {
 	f := &fixture{d: &fakeDaemon{}, cat: catalog.New(nil, nil, nil)}
 	// The loader only forgets Home here: it never runs its post.
-	load := loader.New(catalogtest.New(tb), &f.states, f.cat, func(func()) { panic("the loader fetched") })
-	f.s = New(f.d, &f.states, load, f.cat)
+	load := loader.New(catalogtest.New(tb), &f.fetches, f.cat, func(func()) { panic("the loader fetched") })
+	f.s = New(f.d, &f.fetches, load, f.cat)
 	// Loaded so changed can see an account change forget it.
-	f.states.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	f.fetches.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
 	for _, res := range Resources {
-		f.states.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
+		f.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	}
 	return f
 }
 
 // changed reports whether an account change forgot Home.
-func (f *fixture) changed() bool { return f.states.State(loader.HomeFeed).State == fetchstate.Idle }
+func (f *fixture) changed() bool { return f.fetches.Get(loader.HomeFeed).State == fetchstate.Idle }
 
 func wantState(t *testing.T, f *fixture, res fetchstate.Resource, want fetchstate.State) {
 	t.Helper()
-	if got := f.states.State(res); got.State != want {
+	if got := f.fetches.Get(res); got.State != want {
 		t.Fatalf("%+v is %d (%v), want %d", res, got.State, got.Err, want)
 	}
 }
@@ -265,7 +265,7 @@ func TestLibraryFailsAndRetries(t *testing.T) {
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal, Detail: "network is down"}})
 	f.s.ApplyLikes(adaLikes)
 	wantState(t, f, LibraryRes, fetchstate.Failed)
-	err := f.states.State(LibraryRes).Err
+	err := f.fetches.Get(LibraryRes).Err
 	if !errors.Is(err, api.ErrInternal) || err.Error() != "api: ytmd failed: network is down" {
 		t.Errorf("error %v", err)
 	}
@@ -289,7 +289,7 @@ func TestRefreshFails(t *testing.T) {
 	f := signedIn(t)
 	f.s.Retry(LibraryRes)
 	f.d.next(t, "refresh library").done(api.ErrDisconnected)
-	if err := f.states.State(LibraryRes).Err; !errors.Is(err, api.ErrDisconnected) {
+	if err := f.fetches.Get(LibraryRes).Err; !errors.Is(err, api.ErrDisconnected) {
 		t.Errorf("library %v, want the request's failure", err)
 	}
 	// An answer after the event changes nothing.
@@ -309,7 +309,7 @@ func TestFailedEventChecked(t *testing.T) {
 		wantState(t, f, res, fetchstate.Loaded)
 	}
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLiked})
-	if err := f.states.State(LikedRes).Err; !errors.Is(err, api.ErrInternal) {
+	if err := f.fetches.Get(LikedRes).Err; !errors.Is(err, api.ErrInternal) {
 		t.Errorf("a failure without its error is %v", err)
 	}
 }

@@ -33,13 +33,13 @@ func BenchmarkState(b *testing.B) {
 		b.Run("loaded/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkFetch = r.State(benchLoaded)
+				sinkFetch = r.Get(benchLoaded)
 			}
 		})
 		b.Run("idle/"+strconv.Itoa(n), func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				sinkFetch = r.State(benchIdle)
+				sinkFetch = r.Get(benchIdle)
 			}
 		})
 	}

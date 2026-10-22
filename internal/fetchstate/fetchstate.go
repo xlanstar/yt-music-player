@@ -62,8 +62,8 @@ type Registry struct {
 	fetches map[Resource]Fetch
 }
 
-// State returns res's Fetch: Idle when never asked for.
-func (r *Registry) State(res Resource) Fetch { return r.fetches[res] }
+// Get returns res's Fetch: Idle when never asked for.
+func (r *Registry) Get(res Resource) Fetch { return r.fetches[res] }
 
 // Set records res's Fetch. Idle deletes res so forgotten resources cost
 // no memory.

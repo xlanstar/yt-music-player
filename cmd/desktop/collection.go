@@ -48,7 +48,7 @@ func (a *app) itemPage(c *ui.Context, w float32, r *ui.Route, res fetchstate.Res
 	if res.Kind == fetchstate.Playlist {
 		label, failed = locales.Playlist(), locales.PlaylistFailed()
 	}
-	f := a.fetches.State(res)
+	f := a.fetches.Get(res)
 	switch f.State {
 	case fetchstate.Missing:
 		notFound(c)

@@ -118,16 +118,16 @@ func newApp(cfg Config, out *termOut) *app {
 		return artwork.New(artwork.Options{Post: posts.post, Dir: dir, MemoryBytes: artMemory, Workers: artWorkers})
 	}}
 	c := remote.NewClient(posts.post, remote.Handler{Notice: m.tell, Link: m.setLink})
-	states := &fetchstate.Registry{}
+	fetches := &fetchstate.Registry{}
 	cat := catalog.New(nil, nil, nil)
-	load := loader.New(c, states, cat, posts.post)
+	load := loader.New(c, fetches, cat, posts.post)
 	m.deps = deps{
 		ctl:         c,
 		mirror:      c.Mirror(),
-		session:     session.New(remote.NewAccount(c), states, load, cat),
+		session:     session.New(remote.NewAccount(c), fetches, load, cat),
 		loader:      load,
 		cat:         cat,
-		states:      states,
+		fetches:     fetches,
 		posts:       posts,
 		now:         time.Now,
 		openDesktop: openDesktop,

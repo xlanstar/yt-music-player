@@ -58,10 +58,10 @@ type Daemon interface {
 
 // Session is the signed-in account, or none, and what it has.
 type Session struct {
-	daemon Daemon
-	states *fetchstate.Registry
-	loader *loader.Loader
-	cat    *catalog.Catalog
+	daemon  Daemon
+	fetches *fetchstate.Registry
+	loader  *loader.Loader
+	cat     *catalog.Catalog
 
 	account catalog.Account
 	// displayName is made once rather than every build.
@@ -92,13 +92,13 @@ type pendingLike struct {
 	seq   uint64
 }
 
-// New returns a Session that records fetches in states, has load refetch
+// New returns a Session that records each fetch in fetches, has load refetch
 // Home when the account changes, and adds music to cat. The account's
 // events must go to its Apply methods.
-func New(d Daemon, states *fetchstate.Registry, load *loader.Loader, cat *catalog.Catalog) *Session {
+func New(d Daemon, fetches *fetchstate.Registry, load *loader.Loader, cat *catalog.Catalog) *Session {
 	return &Session{
 		daemon:  d,
-		states:  states,
+		fetches: fetches,
 		loader:  load,
 		cat:     cat,
 		liked:   map[string]bool{},
@@ -114,7 +114,7 @@ func (s *Session) Retry(res fetchstate.Resource) {
 			s.fetch(parts[i])
 		}
 	}
-	if s.states.State(AccountRes).State == fetchstate.Failed {
+	if s.fetches.Get(AccountRes).State == fetchstate.Failed {
 		s.fetch(api.PartAccount)
 	}
 }
@@ -122,27 +122,27 @@ func (s *Session) Retry(res fetchstate.Resource) {
 // RetryFailed fetches again the Resources that failed.
 func (s *Session) RetryFailed() {
 	for i, res := range Resources {
-		if s.states.State(res).State == fetchstate.Failed {
+		if s.fetches.Get(res).State == fetchstate.Failed {
 			s.fetch(parts[i])
 		}
 	}
 }
 
 func (s *Session) fetch(p api.Part) {
-	s.states.Set(Resources[p-1], fetchstate.Fetch{State: fetchstate.Loading})
+	s.fetches.Set(Resources[p-1], fetchstate.Fetch{State: fetchstate.Loading})
 	s.daemon.Refresh(p, func(err error) { s.refreshed(p, err) })
 }
 
 // refreshed fails p's fetch whose request failed, unless an event came
 // since.
 func (s *Session) refreshed(p api.Part, err error) {
-	if err != nil && s.states.State(Resources[p-1]).State == fetchstate.Loading {
+	if err != nil && s.fetches.Get(Resources[p-1]).State == fetchstate.Loading {
 		s.fail(p, err)
 	}
 }
 
 func (s *Session) fail(p api.Part, err error) {
-	s.states.Set(Resources[p-1], fetchstate.Fetch{State: fetchstate.Failed, Err: err})
+	s.fetches.Set(Resources[p-1], fetchstate.Fetch{State: fetchstate.Failed, Err: err})
 }
 
 // ApplyAccount keeps who is signed in (remote.AccountEvents).
@@ -154,19 +154,19 @@ func (s *Session) ApplyAccount(status api.AccountEvent) {
 		s.setAccount(status.Account)
 		s.clearLibrary()
 		for _, res := range Resources {
-			s.states.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
+			s.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 		}
 		s.loader.Forget(loader.HomeFeed)
 	default:
 		s.setAccount(status.Account)
-		s.states.Set(AccountRes, fetchstate.Fetch{State: fetchstate.Loaded})
+		s.fetches.Set(AccountRes, fetchstate.Fetch{State: fetchstate.Loaded})
 	}
 }
 
 // ApplyLibrary keeps the library fetched (remote.AccountEvents).
 func (s *Session) ApplyLibrary(lib catalog.Library) {
 	s.setLibrary(lib)
-	s.states.Set(LibraryRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	s.fetches.Set(LibraryRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // ApplyFailed keeps a fetch that failed (remote.AccountEvents); the
@@ -191,7 +191,7 @@ func (s *Session) ApplyLikes(likes api.Likes) {
 	if likes.Full {
 		s.cat.Add(likes.Songs, nil, nil)
 		s.seedLikes(loader.Unique(likes.IDs, func(id string) string { return id }))
-		s.states.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded})
+		s.fetches.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded})
 		return
 	}
 	for _, id := range likes.Added {
@@ -215,15 +215,15 @@ func (s *Session) keepLike(id string, liked bool) {
 func (s *Session) KeepAccount(user catalog.Account, lib catalog.Library) {
 	s.setAccount(user)
 	s.setLibrary(lib)
-	s.states.Set(AccountRes, fetchstate.Fetch{State: fetchstate.Loaded})
-	s.states.Set(LibraryRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	s.fetches.Set(AccountRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	s.fetches.Set(LibraryRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // KeepLikes stores ids, newest first, as the liked songs as if fetched;
 // the catalog must have the songs already.
 func (s *Session) KeepLikes(ids []string) {
 	s.seedLikes(ids)
-	s.states.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	s.fetches.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 func (s *Session) setAccount(user catalog.Account) {
@@ -327,7 +327,7 @@ func (s *Session) SetLiked(id string, liked bool) {
 	if id == "" || s.Liked(id) == liked {
 		return
 	}
-	if s.states.State(AccountRes).State == fetchstate.SignedOut {
+	if s.fetches.Get(AccountRes).State == fetchstate.SignedOut {
 		s.notify(signInToLike())
 		return
 	}
@@ -396,7 +396,7 @@ func (s *Session) TakeNotices() []notice.Notice {
 func (s *Session) forget() {
 	wasSignedIn := s.isSignedIn
 	for _, res := range Resources {
-		s.states.Set(res, fetchstate.Fetch{State: fetchstate.SignedOut})
+		s.fetches.Set(res, fetchstate.Fetch{State: fetchstate.SignedOut})
 	}
 	s.isSignedIn, s.account, s.displayName = false, catalog.Account{}, ""
 	s.clearLibrary()
@@ -483,7 +483,7 @@ func (s *Session) IsBusy() bool {
 		return true
 	}
 	for _, res := range Resources {
-		if s.states.State(res).State == fetchstate.Loading {
+		if s.fetches.Get(res).State == fetchstate.Loading {
 			return true
 		}
 	}

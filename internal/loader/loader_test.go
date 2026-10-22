@@ -45,7 +45,7 @@ func drain(queue posts) {
 
 func wantState(t *testing.T, l *Loader, res fetchstate.Resource, want fetchstate.State) {
 	t.Helper()
-	if got := l.states.State(res); got.State != want {
+	if got := l.fetches.Get(res); got.State != want {
 		t.Fatalf("%+v is %d (%v), want %d", res, got.State, got.Err, want)
 	}
 }
@@ -126,7 +126,7 @@ func TestFailedThenRetry(t *testing.T) {
 	l.Show(res)
 	src.Next(t, nil, "playlist", res.ID).Reply <- catalogtest.Reply{Err: errors.New("network is down")}
 	held(t, queue)()
-	if fetch := l.states.State(res); fetch.State != fetchstate.Failed || fetch.Err == nil || fetch.Err.Error() != "network is down" {
+	if fetch := l.fetches.Get(res); fetch.State != fetchstate.Failed || fetch.Err == nil || fetch.Err.Error() != "network is down" {
 		t.Fatalf("state %+v", fetch)
 	}
 	// A failure is not retried behind the user's back.

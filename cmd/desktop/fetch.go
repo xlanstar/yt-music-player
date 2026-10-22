@@ -64,7 +64,7 @@ func (a *app) playPlaylist(id string) {
 		return
 	}
 	res := fetchstate.Resource{Kind: fetchstate.Playlist, ID: id}
-	switch a.fetches.State(res).State {
+	switch a.fetches.Get(res).State {
 	case fetchstate.Idle, fetchstate.Loading, fetchstate.Failed:
 		a.loader.OnLoad(res, func() {
 			pl, _ := a.cat.Playlist(id)

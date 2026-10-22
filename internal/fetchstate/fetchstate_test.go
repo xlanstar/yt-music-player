@@ -8,25 +8,25 @@ import (
 func TestSetAndForget(t *testing.T) {
 	var r Registry
 	acct := Resource{Kind: Account}
-	if got := r.State(acct); got.State != Idle {
+	if got := r.Get(acct); got.State != Idle {
 		t.Fatalf("an empty registry has %+v", got)
 	}
 	r.Set(acct, Fetch{State: SignedOut})
-	if got := r.State(acct); got.State != SignedOut {
+	if got := r.Get(acct); got.State != SignedOut {
 		t.Fatalf("state %+v", got)
 	}
 	err := errors.New("network is down")
 	album := Resource{Kind: Album, ID: "remote"}
 	r.Set(album, Fetch{State: Failed, Err: err})
-	if got := r.State(album); got.State != Failed || !errors.Is(got.Err, err) {
+	if got := r.Get(album); got.State != Failed || !errors.Is(got.Err, err) {
 		t.Fatalf("state %+v", got)
 	}
-	if got := r.State(Resource{Kind: Playlist, ID: "remote"}); got.State != Idle {
+	if got := r.Get(Resource{Kind: Playlist, ID: "remote"}); got.State != Idle {
 		t.Errorf("another kind has %+v", got)
 	}
 	r.Set(acct, Fetch{})
 	r.Set(album, Fetch{})
-	if len(r.fetches) != 0 || r.State(acct).State != Idle {
+	if len(r.fetches) != 0 || r.Get(acct).State != Idle {
 		t.Errorf("Idle kept %d resources", len(r.fetches))
 	}
 }

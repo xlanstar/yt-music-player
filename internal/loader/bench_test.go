@@ -27,8 +27,8 @@ func idleLoader(tb testing.TB) (*Loader, posts) {
 	}
 	l.Search("lumen")
 	(<-queue)()
-	if l.states.State(benchAlbum).State != fetchstate.Loaded || l.Found().Query != "lumen" {
-		tb.Fatalf("not loaded: %+v, found %q", l.states.State(benchAlbum), l.Found().Query)
+	if l.fetches.Get(benchAlbum).State != fetchstate.Loaded || l.Found().Query != "lumen" {
+		tb.Fatalf("not loaded: %+v, found %q", l.fetches.Get(benchAlbum), l.Found().Query)
 	}
 	return l, queue
 }

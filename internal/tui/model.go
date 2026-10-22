@@ -71,7 +71,7 @@ type deps struct {
 	session *session.Session
 	loader  *loader.Loader
 	cat     *catalog.Catalog
-	states  *fetchstate.Registry
+	fetches *fetchstate.Registry
 	posts   *poster
 	// now is the clock the progress reads.
 	now func() time.Time
@@ -512,7 +512,7 @@ func (m *model) openDesktopCmd() tea.Cmd {
 
 // isSignedOut reports that the daemon says no one is signed in.
 func (m *model) isSignedOut() bool {
-	return m.states.State(session.AccountRes).State == fetchstate.SignedOut
+	return m.fetches.Get(session.AccountRes).State == fetchstate.SignedOut
 }
 
 // pageRows is how far PgUp and PgDn move: the body's lines but one.

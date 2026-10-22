@@ -12,8 +12,8 @@ func TestBudgetState(t *testing.T) {
 		call func()
 	}{
 		// 0 allocs today for each.
-		{"State/loaded", func() { sinkFetch = r.State(benchLoaded) }},
-		{"State/idle", func() { sinkFetch = r.State(benchIdle) }},
+		{"State/loaded", func() { sinkFetch = r.Get(benchLoaded) }},
+		{"State/idle", func() { sinkFetch = r.Get(benchIdle) }},
 		{"Set", func() {
 			r.Set(benchLoaded, Fetch{State: Loading})
 			r.Set(benchLoaded, Fetch{State: Loaded})

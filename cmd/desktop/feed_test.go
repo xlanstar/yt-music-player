@@ -235,7 +235,7 @@ func TestStaleFeedRejected(t *testing.T) {
 	// A late failure of the page left is dropped too.
 	explore.Reply <- reply{Err: errors.New("late")}
 	runPosts(t, tt, q)
-	if a.fetches.State(loader.ExploreFeed).State != fetchstate.Idle {
+	if a.fetches.Get(loader.ExploreFeed).State != fetchstate.Idle {
 		t.Error("a canceled fetch's error was recorded")
 	}
 	answer(t, tt, q, second, reply{Home: remoteHome()})

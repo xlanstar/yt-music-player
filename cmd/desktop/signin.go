@@ -18,7 +18,7 @@ const musicURL = "https://music.youtube.com"
 // failed: the library page reports that.
 func (a *app) accountButton(c *ui.Context) {
 	if !a.session.IsSignedIn() {
-		if a.fetches.State(session.AccountRes).State != fetchstate.SignedOut {
+		if a.fetches.Get(session.AccountRes).State != fetchstate.SignedOut {
 			return
 		}
 		signIn := pill(c, "sign-in", nil, locales.SignIn(), pillOpts{style: pillLight, size: pillMedium}).

@@ -83,7 +83,7 @@ What each binary must not link: `docs/daemon.md` (Programs), held by `TestDeps`.
 ### UI
 
 - Read every color, font size, spacing and radius from `th`, never literals (circles' and skeletons' geometry aside).
-- Pages read `a.fetches.State`; failures show Retry, `Missing` shows `notFound`. Loading states are static (no shimmer).
+- Pages read `a.fetches.Get`; failures show Retry, `Missing` shows `notFound`. Loading states are static (no shimmer).
 - Every `notice.Notice` goes through `tell`.
 - Every word the user reads comes from `locales` (`locales.Play()`), in both catalogs; names from YouTube and keys stay as they are. Text kept between builds is dropped when the language changes (`syncLanguage`); a message of string arguments said often is a `phrase`.
 - Icons only from Lucide, under Lucide's names: `scripts/fetch-lucide-icons.sh <name>…` fetches and compresses them; a filled one is `mustFilledIcon`, never drawn by hand.

@@ -42,11 +42,11 @@ type remoteFixture struct {
 
 // frontEnd is a Session over remote.Account, as a front-end has it.
 type frontEnd struct {
-	s      *Session
-	c      *remote.Client
-	states fetchstate.Registry
-	cat    *catalog.Catalog
-	q      chan func()
+	s       *Session
+	c       *remote.Client
+	fetches fetchstate.Registry
+	cat     *catalog.Catalog
+	q       chan func()
 }
 
 func newRemoteFixture(t *testing.T) *remoteFixture {
@@ -66,8 +66,8 @@ func (f *remoteFixture) connect(t *testing.T) *frontEnd {
 	post := func(fn func()) { fe.q <- fn }
 	c := remote.NewClient(post, remote.Handler{})
 	fe.c = c
-	load := loader.New(c, &fe.states, fe.cat, post)
-	fe.s = New(remote.NewAccount(c), &fe.states, load, fe.cat)
+	load := loader.New(c, &fe.fetches, fe.cat, post)
+	fe.s = New(remote.NewAccount(c), &fe.fetches, load, fe.cat)
 	c.SetAccountEvents(fe.s)
 	sup := remote.Supervise(c, remote.Options{
 		Role: api.RoleDesktop, Version: "1.2.3", Dialer: pipeDialer{f.svc},
@@ -114,7 +114,7 @@ func (f *remoteFixture) signedInLiking(t *testing.T, ids []string, songs []catal
 	}
 	f.until(t, "fetched Ada's account", func() bool {
 		for _, res := range Resources {
-			if f.states.State(res).State != fetchstate.Loaded {
+			if f.fetches.Get(res).State != fetchstate.Loaded {
 				return false
 			}
 		}
@@ -152,7 +152,7 @@ func TestRemoteCancelSignIn(t *testing.T) {
 	for _, call := range calls {
 		call.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
 	}
-	f.until(t, "signed out", func() bool { return f.states.State(AccountRes).State == fetchstate.SignedOut })
+	f.until(t, "signed out", func() bool { return f.fetches.Get(AccountRes).State == fetchstate.SignedOut })
 	canceled := func(call catalogtest.Call) {
 		t.Helper()
 		select {
@@ -194,7 +194,7 @@ func TestRemoteSignIn(t *testing.T) {
 	for _, call := range calls {
 		call.Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
 	}
-	f.until(t, "signed out", func() bool { return f.states.State(AccountRes).State == fetchstate.SignedOut })
+	f.until(t, "signed out", func() bool { return f.fetches.Get(AccountRes).State == fetchstate.SignedOut })
 
 	// A sign-in canceled says nothing, though the daemon answers.
 	f.s.SignIn("SID=first")
@@ -213,7 +213,7 @@ func TestRemoteSignIn(t *testing.T) {
 	if !reflect.DeepEqual(notices, want) {
 		t.Errorf("notices %+v, want %+v", notices, want)
 	}
-	if !f.s.IsSignedIn() || f.states.State(LibraryRes).State != fetchstate.Loading {
+	if !f.s.IsSignedIn() || f.fetches.Get(LibraryRes).State != fetchstate.Loading {
 		t.Error("not signed in, or the library not fetched anew")
 	}
 
@@ -221,8 +221,8 @@ func TestRemoteSignIn(t *testing.T) {
 	f.signedIn(t)
 	f.s.Retry(LibraryRes)
 	f.next(t, "library", "").Reply <- catalogtest.Reply{Err: errors.New("network is down")}
-	f.until(t, "failed", func() bool { return f.states.State(LibraryRes).State == fetchstate.Failed })
-	if err := f.states.State(LibraryRes).Err; !errors.Is(err, api.ErrInternal) {
+	f.until(t, "failed", func() bool { return f.fetches.Get(LibraryRes).State == fetchstate.Failed })
+	if err := f.fetches.Get(LibraryRes).Err; !errors.Is(err, api.ErrInternal) {
 		t.Errorf("library failed with %v", err)
 	}
 }

@@ -54,8 +54,8 @@ func placeholderLikes(tb testing.TB) api.Likes {
 func idleSession(tb testing.TB, likeCount int) *Session {
 	tb.Helper()
 	cat, src := catalog.Placeholder(), catalog.NewPlaceholderSource(0)
-	var states fetchstate.Registry
-	s := New(instantDaemon{}, &states, loader.New(src, &states, cat, func(func()) {}), cat)
+	var fetches fetchstate.Registry
+	s := New(instantDaemon{}, &fetches, loader.New(src, &fetches, cat, func(func()) {}), cat)
 	user, err := src.Account(context.Background())
 	if err != nil {
 		tb.Fatal(err)

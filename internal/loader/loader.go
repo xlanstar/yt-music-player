@@ -51,10 +51,10 @@ type Source interface {
 
 // Loader fetches the pages' resources and searches.
 type Loader struct {
-	src    Source
-	states *fetchstate.Registry
-	cat    *catalog.Catalog
-	post   func(func())
+	src     Source
+	fetches *fetchstate.Registry
+	cat     *catalog.Catalog
+	post    func(func())
 
 	// Debounce is how long Search waits for typing to pause. Tests
 	// lengthen it because the race detector slows typing past it.
@@ -81,10 +81,10 @@ type loadCallback struct {
 }
 
 // New returns a Loader that fetches from src into cat and records each
-// fetch in states. post runs a func on the UI thread; it is first called
+// fetch in fetches. post runs a func on the UI thread; it is first called
 // only once the app shows or searches something.
-func New(src Source, states *fetchstate.Registry, cat *catalog.Catalog, post func(func())) *Loader {
-	return &Loader{src: src, states: states, cat: cat, post: post, Debounce: SearchDebounce}
+func New(src Source, fetches *fetchstate.Registry, cat *catalog.Catalog, post func(func())) *Loader {
+	return &Loader{src: src, fetches: fetches, cat: cat, post: post, Debounce: SearchDebounce}
 }
 
 // Show fetches res, the shown page's resource (zero for none), and
@@ -97,7 +97,7 @@ func (l *Loader) Show(res fetchstate.Resource) {
 	if res == (fetchstate.Resource{}) {
 		return
 	}
-	if state := l.states.State(res).State; state == fetchstate.Idle || state == fetchstate.Failed {
+	if state := l.fetches.Get(res).State; state == fetchstate.Idle || state == fetchstate.Failed {
 		l.Retry(res)
 	}
 }
@@ -106,7 +106,7 @@ func (l *Loader) Show(res fetchstate.Resource) {
 func (l *Loader) Retry(res fetchstate.Resource) {
 	l.stopPage()
 	l.shown = res
-	l.states.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
+	l.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	src := l.src
 	job.Run(&l.pageJob, l.post,
 		func(ctx context.Context) (func(*Loader), error) { return fetch(ctx, src, res) },
@@ -117,7 +117,7 @@ func (l *Loader) Retry(res fetchstate.Resource) {
 // resource and the search page's query, as when the computer is back
 // online.
 func (l *Loader) RetryFailed() {
-	if l.shown != (fetchstate.Resource{}) && l.states.State(l.shown).State == fetchstate.Failed {
+	if l.shown != (fetchstate.Resource{}) && l.fetches.Get(l.shown).State == fetchstate.Failed {
 		l.Retry(l.shown)
 	}
 	if l.found.Err != nil && l.found.FailedQuery == l.wanted {
@@ -132,7 +132,7 @@ func (l *Loader) Forget(res fetchstate.Resource) {
 		l.Retry(res)
 		return
 	}
-	l.states.Set(res, fetchstate.Fetch{})
+	l.fetches.Set(res, fetchstate.Fetch{})
 }
 
 // OnLoad runs fn once res loads, by the fetch in flight or the next,
@@ -171,13 +171,13 @@ func (l *Loader) finish(res fetchstate.Resource, keep func(*Loader), err error) 
 	switch {
 	case errors.Is(err, catalog.ErrNotFound):
 		log.Debug().Stringer("kind", res.Kind).Str("id", res.ID).Msg("fetch found nothing")
-		l.states.Set(res, fetchstate.Fetch{State: fetchstate.Missing})
+		l.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Missing})
 	case err != nil:
 		log.Debug().Stringer("kind", res.Kind).Str("id", res.ID).Err(err).Msg("fetch failed")
-		l.states.Set(res, fetchstate.Fetch{State: fetchstate.Failed, Err: err})
+		l.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Failed, Err: err})
 	default:
 		keep(l)
-		l.states.Set(res, fetchstate.Fetch{State: fetchstate.Loaded})
+		l.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loaded})
 		if waiting.res == res {
 			waiting.fn()
 		}
@@ -191,7 +191,7 @@ func (l *Loader) stopPage() {
 		return
 	}
 	l.pageJob.Stop()
-	l.states.Set(l.shown, fetchstate.Fetch{})
+	l.fetches.Set(l.shown, fetchstate.Fetch{})
 	if l.onLoad.res == l.shown {
 		l.onLoad = loadCallback{}
 	}
@@ -213,7 +213,7 @@ func (l *Loader) KeepHome(home catalog.Home) {
 	}
 	l.home = home
 	l.cat.Add(shelfMusic(home.Shelves))
-	l.states.Set(HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	l.fetches.Set(HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // KeepExplore stores explore as the loaded explore feed; see KeepHome.
@@ -223,7 +223,7 @@ func (l *Loader) KeepExplore(explore catalog.Explore) {
 	explore.Trending = Unique(explore.Trending, func(song catalog.Song) string { return song.ID })
 	l.explore = explore
 	l.cat.Add(explore.Trending, explore.NewReleases, nil)
-	l.states.Set(ExploreFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	l.fetches.Set(ExploreFeed, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // Unique removes items whose key repeats an earlier item's, in place.
