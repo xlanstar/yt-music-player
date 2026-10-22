@@ -49,7 +49,7 @@ func newMyGoOutput(d mygoaudio.Decoder) output { return mygoOutput{mygoaudio.New
 // engine plays WebM Opus streams through an httpSource, an opusStream and
 // MyGo's audio output. Its methods come from one thread (ytmd's loop); its
 // goroutines and timers send events holding mu, which keeps them in order (a
-// stall's Buffering before its Playing), never from a method.
+// stall's StreamBuffering before its StreamPlaying), never from a method.
 type engine struct {
 	events    func(Event)
 	client    *http.Client
@@ -160,7 +160,7 @@ func (e *engine) open(l *load) {
 	if l.wantsPlay {
 		e.startLocked(l)
 	}
-	e.emitLocked(l, Event{Kind: Ready})
+	e.emitLocked(l, Event{Kind: StreamReady})
 	e.mu.Unlock()
 	e.publish()
 }
@@ -382,7 +382,7 @@ func (e *engine) checkEnd(l *load) {
 	// The end pauses, as the system players do.
 	l.wantsPlay = false
 	stopTimer(l.stallTimer)
-	e.emitLocked(l, Event{Kind: Ended})
+	e.emitLocked(l, Event{Kind: StreamEnded})
 	e.mu.Unlock()
 	e.publish()
 }
@@ -431,7 +431,7 @@ func (e *engine) checkStall(l *load) {
 	case l.isStalled && (ahead >= resumeAhead || l.stream.atEnd.Load()):
 		l.isStalled = false
 		e.armEndLocked(l)
-		e.emitLocked(l, Event{Kind: Playing})
+		e.emitLocked(l, Event{Kind: StreamPlaying})
 	case l.isStalled:
 		e.armStallLocked(l, stallPoll)
 		e.mu.Unlock()
@@ -447,7 +447,7 @@ func (e *engine) checkStall(l *load) {
 	default:
 		l.isStalled = true
 		e.armStallLocked(l, stallPoll)
-		e.emitLocked(l, Event{Kind: Buffering})
+		e.emitLocked(l, Event{Kind: StreamBuffering})
 	}
 	e.mu.Unlock()
 	e.publish()
@@ -464,7 +464,7 @@ func (e *engine) fail(n uint64, err error) {
 	l.isDone, l.wantsPlay = true, false
 	stopTimer(l.endTimer)
 	stopTimer(l.stallTimer)
-	e.emitLocked(l, Event{Kind: Failed, Err: err})
+	e.emitLocked(l, Event{Kind: StreamFailed, Err: err})
 	e.mu.Unlock()
 	e.publish()
 }

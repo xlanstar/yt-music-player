@@ -185,7 +185,7 @@ func TestEngineLoadsAndPlays(t *testing.T) {
 			t.Errorf("before ready, at %v", p)
 		}
 		x.Play()
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		o := x.out()
 		if !o.Playing() || o.volume != 0.4 || len(o.seeks) != 1 || o.seeks[0] != 2500*time.Millisecond {
 			t.Errorf("output playing %v, volume %v, seeks %v", o.Playing(), o.volume, o.seeks)
@@ -214,11 +214,11 @@ func TestEngineEnds(t *testing.T) {
 		srv := serveTone(t)
 		x := newEngineFixture(t, srv.Client())
 		x.Load(Media{URL: srv.URL}, 0)
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		x.Seek(5.9)
 		x.Play()
 		x.out().end()
-		x.expect(t, Ended, 1)
+		x.expect(t, StreamEnded, 1)
 		// The end pauses: Play starts it again.
 		x.Seek(0)
 		x.Play()
@@ -248,7 +248,7 @@ func TestEngineFails(t *testing.T) {
 				x := newEngineFixture(t, srv.Client())
 				x.Load(Media{URL: cmp.Or(tc.url, srv.URL)}, 0)
 				x.Play()
-				if ev := x.expect(t, Failed, 1); ev.Err == nil {
+				if ev := x.expect(t, StreamFailed, 1); ev.Err == nil {
 					t.Error("no error")
 				}
 			})
@@ -263,8 +263,8 @@ func TestEngineFailsMidSong(t *testing.T) {
 		x := newEngineFixture(t, srv.Client())
 		x.Load(Media{URL: srv.URL}, 0)
 		x.Play()
-		x.expect(t, Ready, 1)
-		if ev := x.expect(t, Failed, 1); !errors.Is(ev.Err, io.ErrUnexpectedEOF) {
+		x.expect(t, StreamReady, 1)
+		if ev := x.expect(t, StreamFailed, 1); !errors.Is(ev.Err, io.ErrUnexpectedEOF) {
 			t.Errorf("err %v", ev.Err)
 		}
 	})
@@ -286,7 +286,7 @@ func TestEngineDropsTheLoadItReplaced(t *testing.T) {
 		x.Load(Media{URL: srv.URL + "/slow"}, 0)
 		x.Play()
 		x.Load(Media{URL: srv.URL}, 0)
-		x.expect(t, Ready, 2)
+		x.expect(t, StreamReady, 2)
 		x.none(t)
 	})
 }
@@ -318,7 +318,7 @@ func TestEngineFreesWhatItDrops(t *testing.T) {
 				})
 				t.Cleanup(e.Close)
 				e.Load(Media{URL: srv.URL}, 0)
-				if ev := <-ready; ev.Kind != Ready {
+				if ev := <-ready; ev.Kind != StreamReady {
 					t.Fatalf("event %+v", ev)
 				}
 				first := <-outs
@@ -368,10 +368,10 @@ func TestEngineBuffers(t *testing.T) {
 		x := newEngineFixture(t, srv.Client())
 		x.Load(Media{URL: srv.URL}, 0)
 		x.Play()
-		x.expect(t, Ready, 1)
-		x.expect(t, Buffering, 1)
+		x.expect(t, StreamReady, 1)
+		x.expect(t, StreamBuffering, 1)
 		close(release)
-		x.expect(t, Playing, 1)
+		x.expect(t, StreamPlaying, 1)
 		x.none(t)
 	})
 }
@@ -383,7 +383,7 @@ func TestEngineIgnoresShortWaits(t *testing.T) {
 		x := newEngineFixture(t, srv.Client())
 		x.Load(Media{URL: srv.URL}, 0)
 		x.Play()
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		time.AfterFunc(stallGrace/4, func() { close(release) })
 		x.none(t)
 		time.Sleep(stallGrace)
@@ -397,7 +397,7 @@ func TestEngineIgnoresStallsWhilePaused(t *testing.T) {
 		srv, release := stallServer(t, data, 1000)
 		x := newEngineFixture(t, srv.Client())
 		x.Load(Media{URL: srv.URL}, 0)
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		x.none(t)
 		close(release)
 		x.none(t)
@@ -409,7 +409,7 @@ func TestEngineCloses(t *testing.T) {
 		srv := serveTone(t)
 		x := newEngineFixture(t, srv.Client())
 		x.Load(Media{URL: srv.URL}, 0)
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		x.Close()
 		if !x.out().isClosed {
 			t.Error("output left open")
@@ -495,7 +495,7 @@ func TestEnginePublishes(t *testing.T) {
 		if np := c.get(); np.state != statePlaying || np.advancing {
 			t.Errorf("playing before ready: %+v", np)
 		}
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		c.await(t, func(np nowPlaying) bool {
 			return np.Info == info && np.state == statePlaying && np.advancing && np.duration > 6 && np.duration < 6.05
 		})
@@ -514,7 +514,7 @@ func TestEngineReleases(t *testing.T) {
 		x.controls = c
 		x.Load(Media{URL: srv.URL}, 0)
 		x.Play()
-		x.expect(t, Ready, 1)
+		x.expect(t, StreamReady, 1)
 		o := x.out()
 		o.Seek(3 * time.Second)
 		// A stream that plays is kept.
@@ -548,7 +548,7 @@ func TestEngineReleases(t *testing.T) {
 		// A Load plays on.
 		x.Load(Media{URL: srv.URL}, x.Position())
 		x.Play()
-		x.expect(t, Ready, 2)
+		x.expect(t, StreamReady, 2)
 		if o := x.out(); !o.Playing() || len(o.seeks) != 1 || o.seeks[0] != 4*time.Second {
 			t.Errorf("loaded again: playing %v, seeks %v", o.Playing(), o.seeks)
 		}

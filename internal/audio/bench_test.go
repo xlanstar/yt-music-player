@@ -37,7 +37,7 @@ func fakeCalls(f *Fake) []fakeCall {
 		{"PlayPause", 0, func() { f.Play(); f.Pause() }},
 		{"Position", 0, func() { sinkFloat = f.Position() }},
 		{"SetInfo", 0, func() { f.SetInfo(Info{Title: "Midnight Arcade", Artist: "Lumen Drive", Seconds: 227}) }},
-		{"Emit", 0, func() { f.Emit(Ready) }},
+		{"Emit", 0, func() { f.Emit(StreamReady) }},
 	}
 }
 

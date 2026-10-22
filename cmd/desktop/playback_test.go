@@ -54,7 +54,7 @@ func startPlaying(tb testing.TB, a *app, q posts, e *testEngine) {
 	a.client.Resume()
 	q.ytmd.until(tb, "loaded", func() bool { return e.loads() > 0 })
 	e.do(func(f *audio.Fake) { f.Dur = 200 })
-	e.emit(audio.Ready)
+	e.emit(audio.StreamReady)
 	syncDaemon(tb, q)
 	e.do(func(f *audio.Fake) { f.TakeCalls() })
 }

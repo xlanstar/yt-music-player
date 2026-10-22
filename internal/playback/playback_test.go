@@ -121,7 +121,7 @@ func (x *fixture) startPlaying(t testing.TB) {
 	x.pb.Follow()
 	x.run(t)
 	x.f.Dur = 200
-	x.f.Emit(audio.Ready)
+	x.f.Emit(audio.StreamReady)
 	x.run(t)
 	x.f.TakeCalls()
 }
@@ -154,7 +154,7 @@ func TestLoadsAndPlays(t *testing.T) {
 		t.Errorf("at %v before the stream is ready, want 84", x.player.Position())
 	}
 	x.f.Dur, x.f.Pos = 201.5, 84.25
-	x.f.Emit(audio.Ready)
+	x.f.Emit(audio.StreamReady)
 	x.run(t)
 	song, _ := x.cat.Song(first)
 	if got := x.pb.SongLength(song); got != 201.5 {
@@ -243,7 +243,7 @@ func TestEndedMovesOnOrRepeats(t *testing.T) {
 	x := newFixture(&instantResolver{})
 	x.startPlaying(t)
 	first := x.player.Current()
-	x.f.Emit(audio.Ended)
+	x.f.Emit(audio.StreamEnded)
 	x.run(t)
 	x.run(t)
 	if x.player.Current() == first || !x.player.IsPlaying() {
@@ -252,11 +252,11 @@ func TestEndedMovesOnOrRepeats(t *testing.T) {
 	// The engine already paused at the end; pausing again is harmless.
 	x.wantCalls(t, "pause", "load https://audio/"+x.player.Current()+" at 0", "play")
 
-	x.f.Emit(audio.Ready)
+	x.f.Emit(audio.StreamReady)
 	x.run(t)
 	setRepeat(x.player, player.RepeatOne)
 	x.f.Pos = 200
-	x.f.Emit(audio.Ended)
+	x.f.Emit(audio.StreamEnded)
 	x.run(t)
 	x.wantCalls(t, "seek 0", "play")
 	if x.player.Position() != 0 || !x.player.IsPlaying() {
@@ -264,7 +264,7 @@ func TestEndedMovesOnOrRepeats(t *testing.T) {
 	}
 	// Events of a stream replaced since are stale.
 	setRepeat(x.player, player.RepeatOff)
-	x.pb.audioEvent(audio.Event{Kind: audio.Ended, Load: x.f.Loads - 1})
+	x.pb.audioEvent(audio.Event{Kind: audio.StreamEnded, Load: x.f.Loads - 1})
 	x.wantCalls(t)
 }
 
@@ -272,7 +272,7 @@ func TestEndOfQueueStops(t *testing.T) {
 	x := newFixture(&instantResolver{})
 	x.player.PlayAll([]string{x.cat.SongIDs()[0]}, 0)
 	x.startPlaying(t)
-	x.f.Emit(audio.Ended)
+	x.f.Emit(audio.StreamEnded)
 	x.run(t)
 	if x.player.IsPlaying() {
 		t.Error("still playing past the end of the queue")
@@ -283,7 +283,7 @@ func TestEndOfQueueStops(t *testing.T) {
 	x.player.Resume()
 	x.pb.Follow()
 	x.f.TakeCalls()
-	x.f.Emit(audio.Ended)
+	x.f.Emit(audio.StreamEnded)
 	x.run(t)
 	x.wantCalls(t, "seek 0", "play")
 }
@@ -344,7 +344,7 @@ func TestFailuresSkipThenStop(t *testing.T) {
 		t.Errorf("a failed stream left %q, notice %+v", x.player.Current(), n)
 	}
 	x.run(t)
-	x.f.Emit(audio.Ready)
+	x.f.Emit(audio.StreamReady)
 	x.run(t)
 	if x.pb.failures != 0 {
 		t.Errorf("%d failures after a song played", x.pb.failures)
@@ -445,12 +445,12 @@ func TestPositionStandsStill(t *testing.T) {
 
 	x.player.TogglePlay()
 	x.pb.Follow()
-	x.f.Emit(audio.Buffering)
+	x.f.Emit(audio.StreamBuffering)
 	x.run(t)
 	if x.turn(40); x.player.Position() != 30 {
 		t.Errorf("buffering at %v, want 30", x.player.Position())
 	}
-	x.f.Emit(audio.Playing)
+	x.f.Emit(audio.StreamPlaying)
 	x.run(t)
 	if x.turn(41); x.player.Position() != 41 {
 		t.Errorf("playing on at %v, want 41", x.player.Position())
@@ -471,7 +471,7 @@ func TestExpiredStreamResolvesAnew(t *testing.T) {
 	x.wantCalls(t, "pause", "load https://audio/"+cur+" at 50", "play")
 
 	// A stream failing once expired resolves anew, once, then skips.
-	x.f.Emit(audio.Ready)
+	x.f.Emit(audio.StreamReady)
 	x.run(t)
 	x.f.Fail(errors.New("403"))
 	x.run(t)
@@ -528,7 +528,7 @@ func TestPrefetchesTheNextSong(t *testing.T) {
 		t.Fatalf("resolved %q, want %q prefetched", got, next)
 	}
 	asked := len(res.Asked())
-	x.f.Emit(audio.Ended)
+	x.f.Emit(audio.StreamEnded)
 	x.run(t)
 	// Prefetched, the next song loads with no post.
 	x.wantCalls(t, "pause", "load https://audio/"+next+" at 0", "play")
@@ -548,7 +548,7 @@ func TestExpiringPrefetchResolvesAnew(t *testing.T) {
 		t.Fatal("the prefetched stream was not kept")
 	}
 	asked := len(res.Asked())
-	x.f.Emit(audio.Ended)
+	x.f.Emit(audio.StreamEnded)
 	x.run(t)
 	x.run(t)
 	if got := res.Asked(); len(got) != asked+1 || got[asked] != next {
@@ -664,17 +664,17 @@ func TestWaiting(t *testing.T) {
 		t.Error("not waiting while loading")
 	}
 	x.f.Dur = 200
-	x.f.Emit(audio.Ready)
+	x.f.Emit(audio.StreamReady)
 	x.run(t)
 	if x.pb.IsWaiting() {
 		t.Error("waiting once ready")
 	}
-	x.f.Emit(audio.Buffering)
+	x.f.Emit(audio.StreamBuffering)
 	x.run(t)
 	if !x.pb.IsWaiting() {
 		t.Error("not waiting while stalled")
 	}
-	x.f.Emit(audio.Playing)
+	x.f.Emit(audio.StreamPlaying)
 	x.run(t)
 	if x.pb.IsWaiting() {
 		t.Error("waiting after the stall")
@@ -748,7 +748,7 @@ func TestReleasesAPausedStream(t *testing.T) {
 		if !x.pb.IsWaiting() {
 			t.Error("not waiting while it loads again")
 		}
-		x.f.Emit(audio.Ready)
+		x.f.Emit(audio.StreamReady)
 		x.posted(t)
 		if x.pb.IsWaiting() {
 			t.Error("waiting once ready")

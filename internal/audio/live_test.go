@@ -37,7 +37,7 @@ func newLive(t *testing.T) *liveEngine {
 	return &liveEngine{e, events}
 }
 
-// wait fails on Failed or timeout.
+// wait fails on StreamFailed or timeout.
 func (l *liveEngine) wait(t *testing.T, k Kind, d time.Duration) {
 	t.Helper()
 	timeout := time.After(d)
@@ -48,7 +48,7 @@ func (l *liveEngine) wait(t *testing.T, k Kind, d time.Duration) {
 			if e.Kind == k {
 				return
 			}
-			if e.Kind == Failed {
+			if e.Kind == StreamFailed {
 				t.Fatalf("failed: %v", e.Err)
 			}
 		case <-timeout:
@@ -65,7 +65,7 @@ func TestLiveBadURL(t *testing.T) {
 	for {
 		select {
 		case e := <-l.ev:
-			if e.Kind == Failed {
+			if e.Kind == StreamFailed {
 				t.Logf("failed as expected: %v", e.Err)
 				return
 			}
@@ -112,7 +112,7 @@ func TestLiveStream(t *testing.T) {
 	start := time.Now()
 	l.Load(s, 2)
 	l.Play()
-	l.wait(t, Ready, 20*time.Second)
+	l.wait(t, StreamReady, 20*time.Second)
 	t.Logf("ready after %v, duration %.2f (stream says %.2f)", time.Since(start), l.Duration(), s.Seconds)
 	if s.Seconds > 0 && math.Abs(l.Duration()-s.Seconds) > 1.5 {
 		t.Errorf("duration %v, want about %v", l.Duration(), s.Seconds)
@@ -142,7 +142,7 @@ func TestLiveStream(t *testing.T) {
 	l.Seek(l.Duration() - 2)
 	l.Play()
 	start = time.Now()
-	l.wait(t, Ended, 10*time.Second)
+	l.wait(t, StreamEnded, 10*time.Second)
 	if d := time.Since(start); d < 1500*time.Millisecond || d > 3500*time.Millisecond {
 		t.Errorf("ended %v after seeking 2 s from the end", d)
 	}

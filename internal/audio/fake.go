@@ -65,7 +65,7 @@ func (f *Fake) Close() { f.Closed = true; f.note("close") }
 func (f *Fake) Emit(k Kind) { f.events(Event{Kind: k, Load: f.Loads}) }
 
 // Fail reports the last Load failed with err.
-func (f *Fake) Fail(err error) { f.events(Event{Kind: Failed, Load: f.Loads, Err: err}) }
+func (f *Fake) Fail(err error) { f.events(Event{Kind: StreamFailed, Load: f.Loads, Err: err}) }
 
 // Command reports a system command.
 func (f *Fake) Command(k Kind, at float64) { f.events(Event{Kind: k, At: at}) }

@@ -305,14 +305,14 @@ func TestStateCoalescing(t *testing.T) {
 		t.Errorf("after a seek: %+v", st)
 	}
 	// A stall stops the clock, and says so.
-	h.do(func() { h.fake.Emit(audio.Buffering) })
+	h.do(func() { h.fake.Emit(audio.StreamBuffering) })
 	if st := c.state(); !st.Waiting {
 		t.Errorf("stalled: %+v", st)
 	}
 	h.clock.advance(5 * time.Second)
 	c.ping()
 	c.none(30 * time.Millisecond)
-	h.do(func() { h.fake.Emit(audio.Playing) })
+	h.do(func() { h.fake.Emit(audio.StreamPlaying) })
 	if st := c.state(); st.Waiting || st.Position != 100 {
 		t.Errorf("playing again: %+v", st)
 	}

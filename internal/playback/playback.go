@@ -315,16 +315,16 @@ func (pb *Playback) audioEvent(ev audio.Event) {
 		return
 	}
 	switch ev.Kind {
-	case audio.Ready:
+	case audio.StreamReady:
 		pb.state, pb.isStalled, pb.failures, pb.hasRetried = loaded, false, 0, false
 		pb.seconds = pb.engine.Duration()
-	case audio.Buffering:
+	case audio.StreamBuffering:
 		pb.isStalled = true
-	case audio.Playing:
+	case audio.StreamPlaying:
 		pb.isStalled = false
-	case audio.Ended:
+	case audio.StreamEnded:
 		pb.songEnded()
-	case audio.Failed:
+	case audio.StreamFailed:
 		pb.playFailed(ev.Err)
 	}
 	pb.Follow()

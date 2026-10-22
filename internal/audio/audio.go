@@ -63,14 +63,15 @@ type Kind uint8
 // Stream events, then the system's commands (media keys, Now Playing).
 // Commands must stay last: IsCommand compares against CommandPlay.
 const (
-	// Ready means the stream loaded: Duration is known and Seek works.
-	Ready Kind = iota
-	// Buffering means playback waits for data; Playing that it resumed.
-	Buffering
-	Playing
-	Ended
-	// Failed means the stream cannot play; Err says why.
-	Failed
+	// StreamReady means the stream loaded: Duration is known and Seek works.
+	StreamReady Kind = iota
+	// StreamBuffering means playback waits for data; StreamPlaying that it
+	// resumed.
+	StreamBuffering
+	StreamPlaying
+	StreamEnded
+	// StreamFailed means the stream cannot play; Err says why.
+	StreamFailed
 
 	CommandPlay
 	CommandPause

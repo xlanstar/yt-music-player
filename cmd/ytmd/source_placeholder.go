@@ -64,7 +64,7 @@ func (e *clockEngine) Load(m audio.Media, at float64) {
 	e.at, e.since = at, time.Time{}
 	e.Calls = nil
 	// Never from within a method, as Engine says.
-	ready := audio.Event{Kind: audio.Ready, Load: e.Loads}
+	ready := audio.Event{Kind: audio.StreamReady, Load: e.Loads}
 	go e.events(ready)
 }
 
@@ -121,7 +121,7 @@ func (e *clockEngine) armEnd() {
 	if e.Dur <= 0 {
 		return
 	}
-	ended := audio.Event{Kind: audio.Ended, Load: e.Loads}
+	ended := audio.Event{Kind: audio.StreamEnded, Load: e.Loads}
 	left := time.Duration((e.Dur - e.Position()) * float64(time.Second))
 	e.end = time.AfterFunc(left, func() { e.events(ended) })
 }

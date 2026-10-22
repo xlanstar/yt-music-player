@@ -387,7 +387,7 @@ func (h *harness) ready() {
 	h.loaded()
 	h.do(func() {
 		h.fake.Dur = 200
-		h.fake.Emit(audio.Ready)
+		h.fake.Emit(audio.StreamReady)
 	})
 }
 
