@@ -140,7 +140,8 @@ func TestRemove(t *testing.T) {
 }
 
 // Decoded, each song's strings are copies of their own; loaded, the
-// songs share those they repeat, as fetched ones do.
+// songs share those they repeat, and the liked IDs their songs', as
+// fetched ones do.
 func TestLoadShares(t *testing.T) {
 	f := testFile(t)
 	songs := catalogtest.Decoded(100)
@@ -154,6 +155,11 @@ func TestLoadShares(t *testing.T) {
 	got, err := f.Load()
 	if err != nil {
 		t.Fatal(err)
+	}
+	for i, id := range got.Liked {
+		if unsafe.StringData(id) != unsafe.StringData(got.LikedSongs[i].ID) {
+			t.Fatalf("liked %q held apart from its song's ID", id)
+		}
 	}
 	for _, list := range [][]catalog.Song{got.Library.Songs, got.LikedSongs} {
 		byArtist := map[string]*byte{}

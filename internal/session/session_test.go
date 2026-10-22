@@ -247,7 +247,8 @@ func TestFetched(t *testing.T) {
 }
 
 // Liked music answered without its IDs, or not found as for an account
-// that never liked a song, still loads; its songs share their strings.
+// that never liked a song, still loads; its songs share their strings,
+// and its IDs their songs'.
 func TestFetchedLiked(t *testing.T) {
 	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
@@ -269,6 +270,20 @@ func TestFetchedLiked(t *testing.T) {
 	a, b := f.s.LikedSongs()[0], f.s.LikedSongs()[1]
 	if unsafe.StringData(a.Artist) != unsafe.StringData(b.Artist) || unsafe.StringData(a.Album) != unsafe.StringData(b.Album) {
 		t.Error("liked songs keep a copy each of their artist and album")
+	}
+
+	// With its IDs, each a copy of its own, they share their songs'.
+	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
+	library, liked = f.takeFetches(t)
+	library.Reply <- catalogtest.Reply{}
+	ids := []string{strings.Clone("far-1"), strings.Clone("far-2")}
+	liked.Reply <- catalogtest.Reply{Playlist: catalog.Playlist{ID: catalog.LikedID, Songs: ids}, Songs: described()}
+	f.run(t)
+	f.run(t)
+	for _, song := range f.s.LikedSongs() {
+		if i := slices.Index(f.s.likeOrder, song.ID); unsafe.StringData(f.s.likeOrder[i]) != unsafe.StringData(song.ID) {
+			t.Errorf("liked %q held apart from its song's ID", song.ID)
+		}
 	}
 
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})

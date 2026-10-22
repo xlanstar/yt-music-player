@@ -127,6 +127,12 @@ func TestBudgetKeepSongs(t *testing.T) {
 	})
 }
 
+func TestBudgetShareIDs(t *testing.T) {
+	songs, ids := decodedIDs(bigSongs)
+	// 0 allocs today.
+	budget.Allocs(t, 0, 10, func() { ShareIDs(ids, songs) })
+}
+
 func TestBudgetShareStrings(t *testing.T) {
 	album := decodedTracks()
 	// 4 allocs today: the map of its few strings.

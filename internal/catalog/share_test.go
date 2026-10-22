@@ -39,3 +39,31 @@ func TestShareStrings(t *testing.T) {
 		}
 	}
 }
+
+func TestShareIDs(t *testing.T) {
+	songs := decodedTracks()
+	ids := make([]string, 0, len(songs)+1)
+	for _, s := range songs {
+		ids = append(ids, strings.Clone(s.ID))
+	}
+	// An ID without its song keeps its own, as does one whose song came
+	// late: the last two swapped.
+	ids = slices.Insert(ids, 1, "undescribed")
+	last := len(songs) - 1
+	songs[last-1], songs[last] = songs[last], songs[last-1]
+	want := slices.Clone(ids)
+	ShareIDs(ids, songs)
+	if !slices.Equal(ids, want) {
+		t.Fatalf("IDs changed: %q, want %q", ids, want)
+	}
+	byID := map[string]*byte{}
+	for _, s := range songs {
+		byID[s.ID] = unsafe.StringData(s.ID)
+	}
+	for i, id := range ids {
+		isShared := unsafe.StringData(id) == byID[id]
+		if wantShared := id != "undescribed" && id != songs[last].ID; isShared != wantShared {
+			t.Errorf("ID %d, %q: shared %v, want %v", i, id, isShared, wantShared)
+		}
+	}
+}

@@ -102,8 +102,9 @@ func TestBudgetLiveLikes(t *testing.T) {
 	}
 	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 1845 to 1850 KB today; 2317 without catalog.ShareStrings.
-	if live > 2130 {
-		t.Errorf("%d KB live, budget 2130", live)
+	// 1767 to 1772 KB today; 1850 without catalog.ShareIDs, 2317 without
+	// catalog.ShareStrings either.
+	if live > 2040 {
+		t.Errorf("%d KB live, budget 2040", live)
 	}
 }

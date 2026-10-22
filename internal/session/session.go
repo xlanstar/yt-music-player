@@ -334,6 +334,7 @@ func fetchLikes(ctx context.Context, src Source) (likedMusic, error) {
 	}
 	// Decoded for this fetch, so ours to share: the catalog keeps them.
 	catalog.ShareStrings(songs)
+	catalog.ShareIDs(ids, songs)
 	return likedMusic{ids: ids, songs: songs}, nil
 }
 

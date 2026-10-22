@@ -37,3 +37,17 @@ func (s *sharedStrings) of(v string) string {
 	s.first[v] = v
 	return v
 }
+
+// ShareIDs has ids, edited in place, hold their songs' ID strings, where
+// songs describe them in their order, some maybe not, as a playlist's
+// details do: a long list then keeps one copy of each. A walk, not a map:
+// songs out of order share less, never wrongly.
+func ShareIDs(ids []string, songs []Song) {
+	j := 0
+	for i, id := range ids {
+		if j < len(songs) && id == songs[j].ID {
+			ids[i] = songs[j].ID
+			j++
+		}
+	}
+}

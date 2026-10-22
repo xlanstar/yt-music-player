@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -351,6 +352,30 @@ func BenchmarkShareStrings(b *testing.B) {
 			}
 		})
 	}
+}
+
+// BenchmarkShareIDs is a large playlist's IDs as decoded, each a copy of
+// its own, reset every run, and its songs.
+func BenchmarkShareIDs(b *testing.B) {
+	songs, decoded := decodedIDs(bigSongs)
+	ids := make([]string, len(decoded))
+	b.Run(strconv.Itoa(bigSongs), func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			copy(ids, decoded)
+			ShareIDs(ids, songs)
+		}
+	})
+}
+
+// decodedIDs returns n songs and their IDs, each a copy of its own.
+func decodedIDs(n int) ([]Song, []string) {
+	songs := scaledSongs(n)
+	ids := make([]string, len(songs))
+	for i, song := range songs {
+		ids[i] = strings.Clone(song.ID)
+	}
+	return songs, ids
 }
 
 // BenchmarkKeepSongs is a daemon's queue catalog after a song left the

@@ -45,8 +45,8 @@ type file struct {
 type File string
 
 // Load reads the cache: fs.ErrNotExist without one, another error if it
-// is unreadable. The songs share the strings they repeat
-// (catalog.ShareStrings), as the session keeps them long.
+// is unreadable. The songs share the strings they repeat, and the liked
+// IDs their songs' (catalog.ShareIDs), as the session keeps them long.
 func (f File) Load() (Saved, error) {
 	if f == "" {
 		return Saved{}, fs.ErrNotExist
@@ -66,6 +66,7 @@ func (f File) Load() (Saved, error) {
 	}
 	catalog.ShareStrings(in.Library.Songs)
 	catalog.ShareStrings(in.LikedSongs)
+	catalog.ShareIDs(in.Liked, in.LikedSongs)
 	return Saved{
 		Account:    catalog.Account{ID: in.Account.ID},
 		Library:    in.Library,
