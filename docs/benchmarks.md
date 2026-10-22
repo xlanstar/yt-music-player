@@ -9,7 +9,8 @@
 
 ## Budgets
 
-- `TestBudget<Function>` holds allocations, which are deterministic where time is not: `budget.Allocs(t, limit, runs, f)` (skipped under `-race`). Where bytes set the footprint, `budget.Within(t, budget.Cost{Allocs: …, Bytes: …}, runs, f)` holds both. `budget.Measure` gives the numbers; it runs on one P after a GC, so the runtime's own allocations stay out.
+- `TestBudget<Function>` holds allocations, which are deterministic where time is not: `budget.Allocs(t, limit, runs, f)` (skipped under `-race`). Where bytes set the footprint, `budget.Within(t, budget.Cost{Allocs: …, Bytes: …}, runs, f)` holds both.
+- `budget.Measure` gives the numbers. It runs on one P after a GC that also returns the freed memory to the OS (`debug.FreeOSMemory`), so the runtime's own allocations stay out: with nothing to return, the background scavenger never takes that P to grow its timer heap.
 - Averages keep their fraction: a slice growing once in 100 calls is 0.01, and a 0 budget fails on it. Hot paths assert an interface once, not per call, converting one to another too (an `io.ReadSeeker` passed as an `io.Reader`): the runtime builds its assertion cache now and then (1 call in 1024).
 - A ceiling is about 1.15× today's count, rounded up, 0–2 held exactly, today's in a comment (`// 27 allocs today.`, `// 2.17 MB today.`); one that varies between runs (a map's random hash seed) is 1.15× the most seen, its range in the comment. Lower one with an improvement; raising one needs its reason in the same change.
 - No budgets on calls over a socket, loopback `httptest` included: unlike an in-memory `RoundTripper`, it is not deterministic.

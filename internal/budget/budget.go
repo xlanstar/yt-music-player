@@ -5,6 +5,7 @@ package budget
 
 import (
 	"runtime"
+	"runtime/debug"
 	"testing"
 )
 
@@ -55,7 +56,9 @@ func Measure(runs int, f func()) Cost {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	// The runtime allocates too when a GC first starts on this many Ps (a
 	// mark worker, threads to wake): a GC now keeps that out of the count.
-	runtime.GC()
+	// Returning the freed memory too leaves the background scavenger nothing
+	// to do: otherwise it may run on this P and grow its timer heap.
+	debug.FreeOSMemory()
 	f()
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
