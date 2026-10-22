@@ -138,7 +138,7 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 		Shuffled: saved.Shuffled,
 	})
 	s.player = p
-	s.resume = saved.ResumePlaying && s.now().Before(saved.ResumeBefore) && p.Current() != ""
+	s.shouldResume = saved.ResumePlaying && s.now().Before(saved.ResumeBefore) && p.Current() != ""
 }
 
 // saved is the state now, in slices of its own: it is written off the
@@ -182,7 +182,7 @@ func (s *Service) persist(st, last api.State, jumped bool) {
 }
 
 func (s *Service) saveDue() {
-	if !s.stopping && s.mark() != s.saves.saved {
+	if !s.isStopping && s.mark() != s.saves.saved {
 		s.save()
 	}
 }

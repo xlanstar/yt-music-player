@@ -147,7 +147,7 @@ func (c *macControls) apply(np nowPlaying) {
 		set(keys.duration, nsNumber(np.duration))
 	}
 	rate := 0.0
-	if np.advancing {
+	if np.isAdvancing {
 		rate = 1
 	}
 	set(keys.elapsed, nsNumber(np.elapsed))

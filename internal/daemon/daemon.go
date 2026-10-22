@@ -69,7 +69,8 @@ type Service struct {
 	pid  int
 	now  func() time.Time
 
-	// src through quiet belong to the loop, as do resume and stopping below.
+	// src through quiet belong to the loop, as do shouldResume and
+	// isStopping below.
 	src    catalog.Source
 	cat    *catalog.Catalog // the queue's songs only
 	player *player.Player
@@ -98,9 +99,9 @@ type Service struct {
 	live liveConns
 	done chan struct{}
 
-	// resume continues a hand-off's playback at Start.
-	resume   bool
-	stopping bool
+	// shouldResume continues a hand-off's playback at Start.
+	shouldResume bool
+	isStopping   bool
 	// isStarted: Start ran. hasLibrary: the library and likes were
 	// fetched, or a sign-in fetches them (fetchLibrary).
 	isStarted  bool
@@ -190,8 +191,8 @@ func (s *Service) Start() {
 
 func (s *Service) start() {
 	s.quiet.Start()
-	if s.resume {
-		s.resume = false
+	if s.shouldResume {
+		s.shouldResume = false
 		s.player.Resume()
 		// Saved anew without resumePlaying: read once.
 		s.save()
@@ -199,7 +200,7 @@ func (s *Service) start() {
 	s.isStarted = true
 	s.acct.Fetch(account.PartAccount)
 	for c := range s.conns {
-		if c.subscribed {
+		if c.isSubscribed {
 			s.fetchLibrary()
 			break
 		}
@@ -250,10 +251,10 @@ func (s *Service) Done() <-chan struct{} { return s.done }
 // stop pauses, saves and stops the loop; a hand-off has the next daemon
 // resume until resumeBefore. The connections close off the loop.
 func (s *Service) stop(resumeBefore time.Time) {
-	if s.stopping {
+	if s.isStopping {
 		return
 	}
-	s.stopping = true
+	s.isStopping = true
 	wasPlaying := s.player.IsPlaying()
 	s.player.Pause()
 	s.pb.Follow()

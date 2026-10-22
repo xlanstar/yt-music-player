@@ -58,11 +58,11 @@ func fp(path string) string { return filepath.FromSlash(path) }
 func TestSocketPaths(t *testing.T) {
 	long := "/Users/" + strings.Repeat("a", 80)
 	for _, tc := range []struct {
-		name   string
-		goos   string
-		roots  Roots
-		want   string
-		shared bool
+		name     string
+		goos     string
+		roots    Roots
+		want     string
+		isShared bool
 	}{
 		{
 			"darwin", "darwin",
@@ -105,8 +105,8 @@ func TestSocketPaths(t *testing.T) {
 			t.Errorf("%s: %v", tc.name, err)
 			continue
 		}
-		if p.Socket != fp(tc.want) || p.shared != tc.shared {
-			t.Errorf("%s: socket %q (shared %v), want %q (%v)", tc.name, p.Socket, p.shared, tc.want, tc.shared)
+		if p.Socket != fp(tc.want) || p.isShared != tc.isShared {
+			t.Errorf("%s: socket %q (shared %v), want %q (%v)", tc.name, p.Socket, p.isShared, tc.want, tc.isShared)
 		}
 		if p.Lock != filepath.Join(filepath.Dir(p.Socket), "ytmd.lock") {
 			t.Errorf("%s: lock %q is not next to the socket", tc.name, p.Lock)
@@ -121,7 +121,7 @@ func TestSocketPathLimit(t *testing.T) {
 		fits := "/" + strings.Repeat("a", limit-len(name)-1)
 		roots := Roots{Config: fits, Cache: fits, Runtime: fits, Temp: "/t", UID: 1}
 		p, err := resolve(roots, goos, "")
-		if err != nil || len(p.Socket) != limit || p.shared {
+		if err != nil || len(p.Socket) != limit || p.isShared {
 			t.Errorf("%s: %d bytes: socket %q, err %v", goos, limit, p.Socket, err)
 		}
 		over := fits + "a"

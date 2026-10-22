@@ -75,7 +75,7 @@ func (s *Service) state() api.State {
 // subscribers hear what changed and the state saves. A batch that changed
 // nothing allocates nothing.
 func (s *Service) settle() {
-	if s.stopping {
+	if s.isStopping {
 		return
 	}
 	s.pb.Follow()

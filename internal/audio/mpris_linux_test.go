@@ -25,7 +25,7 @@ func TestMPRIS(t *testing.T) {
 	t.Cleanup(c.close)
 	c.publish(nowPlaying{
 		Title: "Tone", Artist: "ffmpeg", Album: "Tests",
-		duration: 6, elapsed: 2, state: statePlaying, advancing: true,
+		duration: 6, elapsed: 2, state: statePlaying, isAdvancing: true,
 	})
 	obj := client.Object(mprisName, mprisPath)
 

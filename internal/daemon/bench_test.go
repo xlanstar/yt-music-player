@@ -40,7 +40,7 @@ func benchSongs(n int) []catalog.Song {
 // seededService is benchService over seed, the queue it starts with.
 func seededService(seed []catalog.Song) (*Service, *conn) {
 	s := newService(Options{Source: catalog.NewPlaceholderSource(0), Seed: seed})
-	c := &conn{out: sink{}, compatible: true, subscribed: true, calls: map[uint32]func(){}}
+	c := &conn{out: sink{}, isCompatible: true, isSubscribed: true, calls: map[uint32]func(){}}
 	s.conns[c] = struct{}{}
 	return s, c
 }

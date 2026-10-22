@@ -488,16 +488,16 @@ func TestEnginePublishes(t *testing.T) {
 		info := Info{Title: "Tone", Artist: "ffmpeg", Seconds: 7}
 		x.SetInfo(info)
 		x.Load(Media{URL: srv.URL}, 1)
-		if np := c.get(); np.state != statePaused || np.duration != 7 || np.elapsed != 1 || np.advancing {
+		if np := c.get(); np.state != statePaused || np.duration != 7 || np.elapsed != 1 || np.isAdvancing {
 			t.Errorf("loading: %+v", np)
 		}
 		x.Play()
-		if np := c.get(); np.state != statePlaying || np.advancing {
+		if np := c.get(); np.state != statePlaying || np.isAdvancing {
 			t.Errorf("playing before ready: %+v", np)
 		}
 		x.expect(t, StreamReady, 1)
 		c.await(t, func(np nowPlaying) bool {
-			return np.Info == info && np.state == statePlaying && np.advancing && np.duration > 6 && np.duration < 6.05
+			return np.Info == info && np.state == statePlaying && np.isAdvancing && np.duration > 6 && np.duration < 6.05
 		})
 		x.Close()
 		if np := c.get(); np.state != stateStopped || !c.isClosed || c.claims != 1 {
@@ -528,7 +528,7 @@ func TestEngineReleases(t *testing.T) {
 			t.Error("output left open")
 		}
 		x.src().mu.Lock()
-		isClosed := x.src().closed
+		isClosed := x.src().isClosed
 		x.src().mu.Unlock()
 		if !isClosed {
 			t.Error("source left open")
@@ -536,7 +536,7 @@ func TestEngineReleases(t *testing.T) {
 		if p, d := x.Position(), x.Duration(); p != 3 || d < 6 || d > 6.05 {
 			t.Errorf("released: at %v of %v, want 3 of 6", p, d)
 		}
-		if np := c.get(); np.state != statePaused || np.elapsed != 3 || np.duration < 6 || np.advancing {
+		if np := c.get(); np.state != statePaused || np.elapsed != 3 || np.duration < 6 || np.isAdvancing {
 			t.Errorf("released: shows %+v", np)
 		}
 		x.Seek(4)

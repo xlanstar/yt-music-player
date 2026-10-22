@@ -46,9 +46,9 @@ type opusStream struct {
 	// out is what pcm holds still to hand out; next is the position of
 	// out's first frame, valid once synced (after the first packet
 	// following a seek, whose timestamp sets it).
-	out    []float32
-	next   int64
-	synced bool
+	out      []float32
+	next     int64
+	isSynced bool
 	// target drops the frames before it, after a seek or at the start.
 	target int64
 
@@ -149,8 +149,8 @@ func (s *opusStream) decodeNext() error {
 	if err != nil {
 		return fmt.Errorf("audio: decoding Opus: %w", err)
 	}
-	if !s.synced {
-		s.next, s.synced = s.place(f.Time, int64(n)), true
+	if !s.isSynced {
+		s.next, s.isSynced = s.place(f.Time, int64(n)), true
 	}
 	frames := s.pcm[:2*n]
 	if pad := frameAt(f.DiscardPadding); pad > 0 {
@@ -195,7 +195,7 @@ func (s *opusStream) SetPosition(frame int64) error {
 	if err := s.dec.Init(opusRate, 2); err != nil {
 		return err
 	}
-	s.out, s.synced, s.target, s.next = nil, false, frame, frame
+	s.out, s.isSynced, s.target, s.next = nil, false, frame, frame
 	s.decoded.Store(frame)
 	s.atEnd.Store(false)
 	return nil

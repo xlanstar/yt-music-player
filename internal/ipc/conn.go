@@ -36,9 +36,9 @@ type Conn struct {
 	// state is the index in queue of the State event not yet taken by
 	// the writer, -1 if none.
 	state int
-	// draining is set by Shutdown: the writer closes once queue is empty.
-	draining bool
-	err      error // why the Conn closed; nil while open
+	// isDraining is set by Shutdown: the writer closes once queue is empty.
+	isDraining bool
+	err        error // why the Conn closed; nil while open
 
 	wake    chan struct{} // the writer has frames to take; buffered 1
 	quit    chan struct{} // closed with the Conn
@@ -71,7 +71,7 @@ func (c *Conn) Send(f api.Frame) error {
 		err := c.err
 		c.mu.Unlock()
 		return err
-	case c.draining:
+	case c.isDraining:
 		c.mu.Unlock()
 		return ErrClosed
 	}
@@ -117,7 +117,7 @@ func (c *Conn) write() {
 		c.mu.Lock()
 		batch, c.queue = c.queue, batch
 		c.state = -1
-		draining := c.draining
+		draining := c.isDraining
 		c.mu.Unlock()
 
 		if len(batch) == 0 {
@@ -182,7 +182,7 @@ func (c *Conn) Close() error {
 // what closed the Conn before it drained, nil for nothing.
 func (c *Conn) Shutdown(ctx context.Context) error {
 	c.mu.Lock()
-	c.draining = true
+	c.isDraining = true
 	c.mu.Unlock()
 	select {
 	case c.wake <- struct{}{}:

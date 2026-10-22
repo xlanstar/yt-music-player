@@ -510,7 +510,7 @@ func (e *engine) publish() {
 		np.state = statePaused
 		if l != nil && l.wantsPlay {
 			np.state = statePlaying
-			np.advancing = l.isReady && !l.isStalled
+			np.isAdvancing = l.isReady && !l.isStalled
 		}
 	}
 	e.mu.Unlock()

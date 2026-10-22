@@ -60,12 +60,12 @@ type httpSource struct {
 	// chunks are each a prefix of their chunkSize bytes, from the
 	// chunk's start; those outside the window around the reader go to
 	// free, for the next ones, so that a song allocates its window once.
-	chunks  map[int64][]byte
-	free    [][]byte
-	pos     int64
-	err     error // ends the stream past what is kept
-	closed  bool
-	waiting bool
+	chunks   map[int64][]byte
+	free     [][]byte
+	pos      int64
+	err      error // ends the stream past what is kept
+	isClosed bool
+	waiting  bool
 }
 
 // newHTTPSource starts downloading url, whose length the first response
@@ -135,7 +135,7 @@ func (s *httpSource) Read(p []byte) (int, error) {
 // false when it must wait for the network; the caller holds mu.
 func (s *httpSource) readLocked(p []byte) (n int, done bool, err error) {
 	switch {
-	case s.closed:
+	case s.isClosed:
 		return 0, true, errClosed
 	case s.size >= 0 && s.pos >= s.size:
 		return 0, true, io.EOF
@@ -187,7 +187,7 @@ func (s *httpSource) Seek(offset int64, whence int) (int64, error) {
 // Close stops the download and fails reads, the one waiting included.
 func (s *httpSource) Close() error {
 	s.mu.Lock()
-	s.closed = true
+	s.isClosed = true
 	s.chunks, s.free = nil, nil
 	s.cond.Broadcast()
 	s.mu.Unlock()
@@ -236,7 +236,7 @@ func (s *httpSource) nextRange() (start, end int64, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for {
-		if s.closed || s.err != nil {
+		if s.isClosed || s.err != nil {
 			return 0, 0, false
 		}
 		start, ok = s.firstMissing()
@@ -394,7 +394,7 @@ func (s *httpSource) knownEnd() int64 {
 func (s *httpSource) put(at int64, b []byte) (moved, closed bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed {
+	if s.isClosed {
 		return false, true
 	}
 	for len(b) > 0 {

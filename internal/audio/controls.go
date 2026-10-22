@@ -26,9 +26,9 @@ type nowPlaying struct {
 	// duration and elapsed are in seconds.
 	duration, elapsed float64
 	state             playState
-	// advancing: elapsed moves with the clock, which the system
+	// isAdvancing: elapsed moves with the clock, which the system
 	// extrapolates rather than being told every second.
-	advancing bool
+	isAdvancing bool
 }
 
 // noControls is for systems without media controls.

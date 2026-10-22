@@ -111,7 +111,7 @@ func (m *mpris) close() { _ = m.conn.Close() }
 // positionLocked is where the song is now, in seconds; the caller holds mu.
 func (m *mpris) positionLocked(now time.Time) float64 {
 	pos := m.np.elapsed
-	if m.np.advancing {
+	if m.np.isAdvancing {
 		pos += now.Sub(m.at).Seconds()
 	}
 	if m.np.duration > 0 {

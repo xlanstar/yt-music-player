@@ -40,9 +40,9 @@ type Paths struct {
 
 	suffix string
 	uid    int
-	// shared reports the socket's directory in a directory others write
+	// isShared reports the socket's directory in a directory others write
 	// to (/tmp): someone else may have made it first.
-	shared bool
+	isShared bool
 }
 
 // Default returns the paths in the OS's directories; dev reports a
@@ -102,7 +102,7 @@ func resolve(r Roots, goos, suffix string) (Paths, error) {
 		if r.UID >= 0 {
 			dir += "-" + strconv.Itoa(r.UID)
 		}
-		p.shared = goos != "windows"
+		p.isShared = goos != "windows"
 	}
 	p.Socket = filepath.Join(dir, sock)
 	if len(p.Socket) > maxSocketPath(goos) {
@@ -129,7 +129,7 @@ func (p Paths) Log(name string) string {
 // private (0700, the user's own; in /tmp, one someone else made is
 // refused). The log's makes its Writer (package logfile).
 func (p Paths) Prepare() error {
-	if err := privateDir(filepath.Dir(p.Socket), p.uid, p.shared); err != nil {
+	if err := privateDir(filepath.Dir(p.Socket), p.uid, p.isShared); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(p.State), 0o700); err != nil {

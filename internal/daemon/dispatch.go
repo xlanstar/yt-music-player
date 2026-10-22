@@ -27,10 +27,10 @@ var (
 // dispatch answers a request. A stopping Service answers none: after a
 // hand-off, its peers wait for the next daemon.
 func (s *Service) dispatch(c *conn, id uint32, cl *api.Call) {
-	if s.stopping {
+	if s.isStopping {
 		return
 	}
-	if !c.compatible {
+	if !c.isCompatible {
 		s.bootstrap(c, id, cl)
 		return
 	}

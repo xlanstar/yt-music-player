@@ -13,9 +13,9 @@ const initialCap = 16
 type Loop struct {
 	after func()
 
-	mu      sync.Mutex
-	queue   []func() // FIFO; Run swaps it with its emptied batch
-	stopped bool
+	mu         sync.Mutex
+	queue      []func() // FIFO; Run swaps it with its emptied batch
+	hasStopped bool
 
 	wake chan struct{} // the queue has funcs or Stop was called; buffered 1
 }
@@ -35,7 +35,7 @@ func New(after func()) *Loop {
 // drops fn: nothing runs any more.
 func (l *Loop) Post(fn func()) {
 	l.mu.Lock()
-	if l.stopped {
+	if l.hasStopped {
 		l.mu.Unlock()
 		return
 	}
@@ -55,7 +55,7 @@ func (l *Loop) Run() {
 	for {
 		l.mu.Lock()
 		batch, l.queue = l.queue, batch
-		stopped := l.stopped
+		stopped := l.hasStopped
 		l.mu.Unlock()
 		if stopped {
 			return
@@ -82,14 +82,14 @@ func (l *Loop) Run() {
 func (l *Loop) isStopped() bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.stopped
+	return l.hasStopped
 }
 
 // Stop has Run return and Post drop its funcs from now on. It returns at
 // once, so the loop may call it too.
 func (l *Loop) Stop() {
 	l.mu.Lock()
-	l.stopped = true
+	l.hasStopped = true
 	clear(l.queue)
 	l.queue = l.queue[:0]
 	l.mu.Unlock()

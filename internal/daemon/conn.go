@@ -21,10 +21,10 @@ type sender interface{ Send(api.Frame) error }
 type conn struct {
 	out   sender
 	hello api.Hello
-	// compatible: the peer speaks this Proto, else it may only Ping,
+	// isCompatible: the peer speaks this Proto, else it may only Ping,
 	// Handoff and Shutdown.
-	compatible bool
-	subscribed bool
+	isCompatible bool
+	isSubscribed bool
 	// calls cancel its catalog requests and SignIn in flight, by ID, as a
 	// Cancel or the connection's end does.
 	calls map[uint32]func()
@@ -70,10 +70,10 @@ func (s *Service) Serve(nc net.Conn) {
 		return
 	}
 	c := &conn{
-		out:        ic,
-		hello:      *f.Hello,
-		compatible: f.Hello.Proto == api.Proto,
-		calls:      map[uint32]func(){},
+		out:          ic,
+		hello:        *f.Hello,
+		isCompatible: f.Hello.Proto == api.Proto,
+		calls:        map[uint32]func(){},
 	}
 	s.post(func() { s.register(c) })
 	defer s.post(func() { s.unregister(c) })
@@ -95,16 +95,16 @@ func (s *Service) Serve(nc net.Conn) {
 // liveConns are the connections Serve runs, which a stopping Service
 // closes; safe from any goroutine.
 type liveConns struct {
-	mu     sync.Mutex
-	conns  map[*ipc.Conn]struct{}
-	closed bool // no more connections
+	mu       sync.Mutex
+	conns    map[*ipc.Conn]struct{}
+	isClosed bool // no more connections
 }
 
 // track adds ic; false once drained.
 func (l *liveConns) track(ic *ipc.Conn) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.closed {
+	if l.isClosed {
 		return false
 	}
 	if l.conns == nil {
@@ -124,7 +124,7 @@ func (l *liveConns) untrack(ic *ipc.Conn) {
 // up to timeout to flush what was sent.
 func (l *liveConns) drain(timeout time.Duration) {
 	l.mu.Lock()
-	l.closed = true
+	l.isClosed = true
 	live := make([]*ipc.Conn, 0, len(l.conns))
 	for c := range l.conns {
 		live = append(live, c)
@@ -140,15 +140,15 @@ func (l *liveConns) drain(timeout time.Duration) {
 }
 
 func (s *Service) register(c *conn) {
-	if s.stopping {
+	if s.isStopping {
 		return
 	}
 	s.conns[c] = struct{}{}
 	c.send(api.Frame{Hello: &api.Hello{
 		Proto: api.Proto, Version: version.Version, Role: api.RoleDaemon, PID: s.pid,
 	}})
-	if c.hello.Subscribe && c.compatible {
-		c.subscribed = true
+	if c.hello.Subscribe && c.isCompatible {
+		c.isSubscribed = true
 		for _, f := range s.snapshot() {
 			c.send(f)
 		}
@@ -173,7 +173,7 @@ func (s *Service) cancelCall(c *conn, id uint32) {
 func (s *Service) broadcast(ev *api.Event) {
 	ahead := carry(nil, ev)
 	for c := range s.conns {
-		if !c.subscribed {
+		if !c.isSubscribed {
 			continue
 		}
 		for _, f := range ahead {
