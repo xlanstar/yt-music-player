@@ -108,6 +108,10 @@ func loadState(path string) (st savedState, ok bool) {
 // restore makes the player and the catalog from saved, or from seed when
 // nothing was saved: paused, unless a hand-off asked to play on in time.
 func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
+	if ok && saved.V != stateVersion {
+		// Unreadable, set aside: nothing queued, at the default volume.
+		ok, seed = false, nil
+	}
 	if !ok {
 		ids := make([]string, len(seed))
 		for i, song := range seed {
@@ -123,17 +127,16 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	}
 	catalog.ShareStrings(songs)
 	s.cat = catalog.New(songs, nil, nil)
-	p := player.Restore(saved.Queue, saved.Order, saved.Index, saved.Shuffled)
-	if p.Current() != "" {
-		p.Position = max(saved.Position, 0)
-	}
-	// Else unreadable: the default volume.
-	if saved.V == stateVersion {
-		p.Volume, p.Muted = min(max(saved.Volume, 0), 1), saved.Muted
-	}
-	if saved.Repeat.Valid() {
-		p.Repeat = saved.Repeat
-	}
+	p := player.Restore(player.Saved{
+		Queue:    saved.Queue,
+		Order:    saved.Order,
+		Index:    saved.Index,
+		Position: saved.Position,
+		Volume:   saved.Volume,
+		Muted:    saved.Muted,
+		Repeat:   saved.Repeat,
+		Shuffled: saved.Shuffled,
+	})
 	s.player = p
 	s.resume = saved.ResumePlaying && s.now().Before(saved.ResumeBefore) && p.Current() != ""
 }

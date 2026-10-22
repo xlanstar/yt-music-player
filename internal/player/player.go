@@ -69,19 +69,39 @@ func New(queue []string) *Player {
 	return p
 }
 
-// Restore returns a paused player over queue as Queued and Order gave it,
-// at index in play order: what a daemon saved. An order that is not one of
-// queue's is put back in sequence, unshuffled; a song queued more than once
-// keeps its first place.
-func Restore(queue []string, order []int, index int, shuffled bool) *Player {
-	p := &Player{Volume: defaultVolume, queue: slices.Clone(queue)}
-	if isPermutation(order, len(queue)) {
-		p.order, p.isShuffled = slices.Clone(order), shuffled
+// Saved is the state a daemon keeps of a player between runs.
+type Saved struct {
+	// Queue and Order are as Queued and Order gave them; Index is the
+	// current song's in play order.
+	Queue    []string
+	Order    []int
+	Index    int
+	Position float64
+	Volume   float64
+	Muted    bool
+	Repeat   Repeat
+	Shuffled bool
+}
+
+// Restore returns a paused player as s saved it, over copies of its slices.
+// What a file may hold is put right: an order not the queue's is put back
+// in sequence, unshuffled; a song queued twice keeps its first place; the
+// position and volume are kept in range; an unknown repeat mode is off.
+func Restore(s Saved) *Player {
+	p := &Player{queue: slices.Clone(s.Queue)}
+	if isPermutation(s.Order, len(s.Queue)) {
+		p.order, p.isShuffled = slices.Clone(s.Order), s.Shuffled
 	} else {
 		p.resetOrder()
 	}
-	p.at = min(max(index, 0), max(len(p.order)-1, 0))
+	p.at = min(max(s.Index, 0), max(len(p.order)-1, 0))
 	p.dropRepeats()
+	p.Seek(s.Position)
+	p.SetVolume(s.Volume)
+	p.Muted = s.Muted
+	if s.Repeat.Valid() {
+		p.Repeat = s.Repeat
+	}
 	return p
 }
 

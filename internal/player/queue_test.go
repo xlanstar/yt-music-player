@@ -171,19 +171,27 @@ func TestRestore(t *testing.T) {
 	p := New(abcd)
 	p.ToggleShuffle()
 	p.Next()
-	r := Restore(p.Queued(), p.Order(), p.Index(), p.IsShuffled())
+	r := Restore(Saved{Queue: p.Queued(), Order: p.Order(), Index: p.Index(), Shuffled: p.IsShuffled()})
 	checkQueue(t, r, playOrder(p), p.Current())
 	if r.Playing || !r.IsShuffled() {
 		t.Errorf("restored playing %v, shuffled %v", r.Playing, r.IsShuffled())
 	}
 	for _, order := range [][]int{{0, 1}, {0, 1, 2, 2}, {0, 1, 2, 4}, nil} {
-		bad := Restore(abcd, order, 9, true)
+		bad := Restore(Saved{Queue: abcd, Order: order, Index: 9, Shuffled: true})
 		checkQueue(t, bad, abcd, "d")
 		if bad.IsShuffled() {
 			t.Errorf("order %v restored shuffled", order)
 		}
 	}
-	checkQueue(t, Restore(nil, nil, 3, false), nil, "")
+	checkQueue(t, Restore(Saved{Index: 3}), nil, "")
+
+	out := Restore(Saved{Queue: abcd, Position: -1, Volume: 2, Muted: true, Repeat: 7})
+	if out.Position != 0 || out.Volume != 1 || !out.Muted || out.Repeat != RepeatOff {
+		t.Errorf("out of range: at %v, volume %v, muted %v, repeat %d", out.Position, out.Volume, out.Muted, out.Repeat)
+	}
+	if empty := Restore(Saved{Position: 30, Repeat: RepeatOne}); empty.Position != 0 || empty.Repeat != RepeatOne {
+		t.Errorf("nothing queued: at %v, repeat %d", empty.Position, empty.Repeat)
+	}
 }
 
 func TestPauseResumeSeekVolume(t *testing.T) {
@@ -394,7 +402,7 @@ func TestRestoreRepeats(t *testing.T) {
 		{"shuffled", []int{2, 3, 0, 1}, 3, true, []string{"a", "c", "b"}, "b"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := Restore(queue, tc.order, tc.index, tc.shuffled)
+			p := Restore(Saved{Queue: queue, Order: tc.order, Index: tc.index, Shuffled: tc.shuffled})
 			checkQueue(t, p, tc.want, tc.current)
 			checkOnce(t, p)
 			if p.IsShuffled() != tc.shuffled {
@@ -404,7 +412,7 @@ func TestRestoreRepeats(t *testing.T) {
 				t.Error("Restore changed its argument")
 			}
 			// Once restored, it saves as it restores.
-			again := Restore(p.Queued(), p.Order(), p.Index(), p.IsShuffled())
+			again := Restore(Saved{Queue: p.Queued(), Order: p.Order(), Index: p.Index(), Shuffled: p.IsShuffled()})
 			checkQueue(t, again, tc.want, tc.current)
 		})
 	}
@@ -477,7 +485,7 @@ func TestRestoreRepeatsRandom(t *testing.T) {
 		for _, i := range order {
 			play = append(play, queue[i])
 		}
-		p := Restore(queue, order, index, true)
+		p := Restore(Saved{Queue: queue, Order: order, Index: index, Shuffled: true})
 		checkOnce(t, p)
 		checkQueue(t, p, firsts(play), play[index])
 		if got := p.Queued(); !slices.Equal(got, firsts(queue)) {
