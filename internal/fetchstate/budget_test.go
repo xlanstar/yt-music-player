@@ -5,15 +5,15 @@ import (
 	"yt-music-player/internal/budget"
 )
 
-func TestBudgetState(t *testing.T) {
+func TestBudgetRegistry(t *testing.T) {
 	r := benchRegistry(20)
 	for _, tc := range []struct {
 		name string
 		call func()
 	}{
 		// 0 allocs today for each.
-		{"State/loaded", func() { sinkFetch = r.Get(benchLoaded) }},
-		{"State/idle", func() { sinkFetch = r.Get(benchIdle) }},
+		{"Get/loaded", func() { sinkFetch = r.Get(benchLoaded) }},
+		{"Get/idle", func() { sinkFetch = r.Get(benchIdle) }},
 		{"Set", func() {
 			r.Set(benchLoaded, Fetch{State: Loading})
 			r.Set(benchLoaded, Fetch{State: Loaded})

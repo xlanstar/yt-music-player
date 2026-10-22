@@ -56,7 +56,7 @@ var fetchCases = []struct {
 	part  Part
 	limit float64
 }{
-	{"profile", placeholder, PartAccount, 9}, // 7 allocs today.
+	{"account", placeholder, PartAccount, 9}, // 7 allocs today.
 	// 25 allocs today, 7 sharing the songs' strings (shareStrings), which
 	// ytmd keeps.
 	{"library", placeholder, PartLibrary, 29},

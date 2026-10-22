@@ -26,8 +26,8 @@ var (
 	benchIdle   = Resource{Kind: Album, ID: "never-shown"}
 )
 
-// BenchmarkState is read by pages in every build.
-func BenchmarkState(b *testing.B) {
+// BenchmarkGet is read by pages in every build.
+func BenchmarkGet(b *testing.B) {
 	for _, n := range []int{20, 2000} {
 		r := benchRegistry(n)
 		b.Run("loaded/"+strconv.Itoa(n), func(b *testing.B) {
