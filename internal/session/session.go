@@ -28,13 +28,13 @@ var (
 
 // Resources are the account's resources: Resources[p-1] is api.Part p's.
 var Resources = [...]fetchstate.Resource{
-	api.PartProfile - 1: AccountRes,
+	api.PartAccount - 1: AccountRes,
 	api.PartLibrary - 1: LibraryRes,
 	api.PartLiked - 1:   LikedRes,
 }
 
 // parts are the api.Parts, in Resources' order.
-var parts = [...]api.Part{api.PartProfile, api.PartLibrary, api.PartLiked}
+var parts = [...]api.Part{api.PartAccount, api.PartLibrary, api.PartLiked}
 
 // Daemon is what a Session asks of ytmd; tests fake it. Its done funcs
 // run on the Session's thread, each before the events its request caused.
@@ -115,7 +115,7 @@ func (s *Session) Retry(res fetchstate.Resource) {
 		}
 	}
 	if s.states.State(AccountRes).State == fetchstate.Failed {
-		s.fetch(api.PartProfile)
+		s.fetch(api.PartAccount)
 	}
 }
 

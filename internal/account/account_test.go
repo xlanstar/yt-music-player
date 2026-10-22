@@ -95,31 +95,31 @@ var (
 
 func TestFetch(t *testing.T) {
 	f := newFixture(t)
-	f.a.Fetch(Profile)
+	f.a.Fetch(PartAccount)
 	f.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Account: ada}
 	f.run(t)
 	f.want(t, status(ada, false))
 
 	lib := catalog.Library{Songs: tracks}
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: lib}
 	f.run(t)
 	f.want(t, Change{Library: &lib})
 
 	songs := []catalog.Song{tracks[1], tracks[0]}
-	f.a.Fetch(Liked)
+	f.a.Fetch(PartLiked)
 	f.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Playlist: adaLikes, Songs: songs}
 	f.run(t)
 	f.want(t, Change{Likes: &Likes{Full: true, IDs: adaLikes.Songs, Songs: songs}})
 
 	// Without the playlist's IDs, its songs say which are liked.
-	f.a.Fetch(Liked)
+	f.a.Fetch(PartLiked)
 	f.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Songs: tracks}
 	f.run(t)
 	f.want(t, Change{Likes: &Likes{Full: true, IDs: []string{"far-1", "far-2"}, Songs: tracks}})
 
 	// An account that never liked a song may have no such playlist.
-	f.a.Fetch(Liked)
+	f.a.Fetch(PartLiked)
 	f.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Err: catalog.ErrNotFound}
 	f.run(t)
 	f.want(t, Change{Likes: &Likes{Full: true}})
@@ -152,12 +152,12 @@ func TestFetchSharesStrings(t *testing.T) {
 	}
 
 	f := newFixture(t)
-	f.a.Fetch(Liked)
+	f.a.Fetch(PartLiked)
 	f.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Songs: described()}
 	f.run(t)
 	shares(t, f.a.likedSongs)
 
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: catalog.Library{Songs: described()}}
 	f.run(t)
 	shares(t, f.a.library.Songs)
@@ -165,10 +165,10 @@ func TestFetchSharesStrings(t *testing.T) {
 
 func TestFetchFails(t *testing.T) {
 	f := newFixture(t)
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	first := f.src.Next(t, nil, "library", "")
 	// Fetching again drops the fetch in flight.
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	if first.Ctx.Err() == nil || !f.a.IsBusy() {
 		t.Error("fetching again left the first fetch running")
 	}
@@ -176,7 +176,7 @@ func TestFetchFails(t *testing.T) {
 	offline := errors.New("network is down")
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Err: offline}
 	f.run(t)
-	f.want(t, Change{Failed: &Failure{Part: Library, Err: offline}})
+	f.want(t, Change{Failed: &Failure{Part: PartLibrary, Err: offline}})
 	f.none(t)
 }
 
@@ -251,7 +251,7 @@ func TestLaterLikeDecides(t *testing.T) {
 
 func TestLikeSignedOut(t *testing.T) {
 	f := newFixture(t)
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	lib := f.src.Next(t, nil, "library", "")
 	f.like("far-1", true)
 	f.src.Next(t, nil, "like", "+far-1").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
@@ -436,9 +436,9 @@ func TestLatest(t *testing.T) {
 	if st, ok := f.a.Status(); ok {
 		t.Fatalf("status before any fetch %+v", st)
 	}
-	f.a.Fetch(Profile)
-	f.a.Fetch(Library)
-	f.a.Fetch(Liked)
+	f.a.Fetch(PartAccount)
+	f.a.Fetch(PartLibrary)
+	f.a.Fetch(PartLiked)
 	calls := f.src.Take(t, nil, "account", "library", "playlist LM")
 	lib := catalog.Library{Songs: tracks}
 	calls["account"].Reply <- catalogtest.Reply{Account: ada}
@@ -492,16 +492,16 @@ func TestLatest(t *testing.T) {
 
 	// A failure stays until the Part fetches again.
 	boom := errors.New("offline")
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Err: boom}
 	f.run(t)
-	if got := f.a.Latest().Failed; !reflect.DeepEqual(got, []Failure{{Part: Library, Err: boom}}) {
+	if got := f.a.Latest().Failed; !reflect.DeepEqual(got, []Failure{{Part: PartLibrary, Err: boom}}) {
 		t.Errorf("failed %+v", got)
 	}
 	if f.a.Latest().Library == nil {
 		t.Error("a failed fetch dropped the library fetched before")
 	}
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: lib}
 	f.run(t)
 	if got := f.a.Latest().Failed; got != nil {
@@ -509,7 +509,7 @@ func TestLatest(t *testing.T) {
 	}
 
 	// Signed out, nothing is left but the status.
-	f.a.Fetch(Profile)
+	f.a.Fetch(PartAccount)
 	f.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Err: catalog.ErrSignedOut}
 	f.run(t)
 	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{Status: &Status{}}) {
@@ -519,7 +519,7 @@ func TestLatest(t *testing.T) {
 
 func TestLatestAfterSignIn(t *testing.T) {
 	f := newFixture(t)
-	f.a.Fetch(Library)
+	f.a.Fetch(PartLibrary)
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: catalog.Library{Songs: tracks}}
 	f.run(t)
 	f.signIn("SID=good")

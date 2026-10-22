@@ -255,7 +255,7 @@ func TestEnumsRejectZero(t *testing.T) {
 		first        bool
 	}{
 		{"Method", Method(0).Valid(), numMethods.Valid(), MethodPing.Valid()},
-		{"Part", Part(0).Valid(), numParts.Valid(), PartProfile.Valid()},
+		{"Part", Part(0).Valid(), numParts.Valid(), PartAccount.Valid()},
 		{"Repeat", Repeat(0).Valid(), numRepeats.Valid(), RepeatOff.Valid()},
 		{"ErrorCode", ErrorCode(0).Valid(), numCodes.Valid(), CodeNotFound.Valid()},
 	} {
@@ -298,7 +298,7 @@ func TestCallValidate(t *testing.T) {
 		{"no args", Call{Method: MethodToggle}, true},
 		{"its args", Call{Method: MethodEnqueue, IDs: &IDsArgs{IDs: []string{"a"}}}, true},
 		{"handoff", Call{Method: MethodHandoff, Hand: &HandoffArgs{Wait: time.Second}}, true},
-		{"refresh", Call{Method: MethodRefresh, Part: &PartArgs{Part: PartProfile}}, true},
+		{"refresh", Call{Method: MethodRefresh, Part: &PartArgs{Part: PartAccount}}, true},
 		{"zero method", Call{}, false},
 		{"unknown method", Call{Method: numMethods}, false},
 		{"missing args", Call{Method: MethodSeek}, false},

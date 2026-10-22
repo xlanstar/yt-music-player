@@ -35,9 +35,9 @@ func TestWireRepeat(t *testing.T) {
 
 func TestWirePart(t *testing.T) {
 	parts := map[account.Part]api.Part{
-		account.Profile: api.PartProfile,
-		account.Library: api.PartLibrary,
-		account.Liked:   api.PartLiked,
+		account.PartAccount: api.PartAccount,
+		account.PartLibrary: api.PartLibrary,
+		account.PartLiked:   api.PartLiked,
 	}
 	for p, wire := range parts {
 		if got := wirePart(p); got != wire {
@@ -45,7 +45,7 @@ func TestWirePart(t *testing.T) {
 		}
 	}
 	n := 0
-	for wire := api.PartProfile; wire.Valid(); wire++ {
+	for wire := api.PartAccount; wire.Valid(); wire++ {
 		if got := wirePart(accountPart(wire)); got != wire {
 			t.Errorf("part %d comes back as %d", wire, got)
 		}

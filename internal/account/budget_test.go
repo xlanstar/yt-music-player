@@ -60,7 +60,7 @@ func TestBudgetLiveLikes(t *testing.T) {
 		t.Skip("the race detector allocates on its own")
 	}
 	a, q := placeholderAccount(decoded5000())
-	fetchRoundTrip(a, q, Liked)
+	fetchRoundTrip(a, q, PartLiked)
 	if len(a.likedSongs) != 5000 {
 		t.Fatalf("%d liked songs, want 5000", len(a.likedSongs))
 	}

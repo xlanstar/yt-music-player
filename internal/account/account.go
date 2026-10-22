@@ -28,12 +28,12 @@ type Part uint8
 
 // The Parts, in the order a sign-in fetches them.
 const (
-	Profile Part = iota // who is signed in
-	Library
-	Liked // the songs in Liked music
+	PartAccount Part = iota // who is signed in
+	PartLibrary
+	PartLiked // the songs in Liked music
 )
 
-var partNames = [...]string{Profile: "profile", Library: "library", Liked: "liked"}
+var partNames = [...]string{PartAccount: "account", PartLibrary: "library", PartLiked: "liked"}
 
 func (p Part) String() string { return partNames[p] }
 
@@ -78,7 +78,7 @@ type Account struct {
 	post     func(func())
 	report   func(Change)
 
-	fetches [Liked + 1]job.Job
+	fetches [PartLiked + 1]job.Job
 	// liking maps songs to their latest likeSeq; stale replies change nothing.
 	// Credential changes clear it so old likes cannot affect the new account.
 	liking      map[string]uint64
@@ -98,7 +98,7 @@ type Account struct {
 	// likedSongs is replaced whole, never edited.
 	likedSongs []catalog.Song
 	// failed holds each Part's latest fetch failure.
-	failed    [Liked + 1]*Failure
+	failed    [PartLiked + 1]*Failure
 	hasStatus bool
 	hasLikes  bool
 }
@@ -146,10 +146,10 @@ func (a *Account) Fetch(p Part) {
 
 func fetch(ctx context.Context, src catalog.Source, p Part) (Change, error) {
 	switch p {
-	case Profile:
+	case PartAccount:
 		account, err := src.Account(ctx)
 		return Change{Status: &Status{Account: account, SignedIn: true}}, err
-	case Library:
+	case PartLibrary:
 		lib, err := src.Library(ctx)
 		lib.Songs = shareStrings(lib.Songs)
 		return Change{Library: &lib}, err
@@ -273,13 +273,13 @@ func (a *Account) keep(c Change) {
 			a.library, a.likedIDs, a.likedSongs, a.hasLikes = nil, nil, nil, false
 			a.failed = [len(a.failed)]*Failure{}
 		}
-		a.failed[Profile] = nil
+		a.failed[PartAccount] = nil
 	case c.Library != nil:
-		a.library, a.failed[Library] = c.Library, nil
+		a.library, a.failed[PartLibrary] = c.Library, nil
 	case c.Likes != nil && c.Likes.Full:
 		// The Change's IDs go on to others; the Account edits its own.
 		a.likedIDs, a.likedSongs, a.hasLikes = slices.Clone(c.Likes.IDs), c.Likes.Songs, true
-		a.failed[Liked] = nil
+		a.failed[PartLiked] = nil
 	case c.Likes != nil && a.hasLikes:
 		for _, id := range c.Likes.Added {
 			a.likedIDs = slices.Insert(slices.DeleteFunc(a.likedIDs, isID(id)), 0, id)

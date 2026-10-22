@@ -197,7 +197,7 @@ func (s *Service) start() {
 		s.save()
 	}
 	s.isStarted = true
-	s.acct.Fetch(account.Profile)
+	s.acct.Fetch(account.PartAccount)
 	for c := range s.conns {
 		if c.subscribed {
 			s.fetchLibrary()
@@ -216,8 +216,8 @@ func (s *Service) fetchLibrary() {
 	if st, ok := s.acct.Status(); ok && !st.SignedIn {
 		return // a sign-in fetches them
 	}
-	s.acct.Fetch(account.Library)
-	s.acct.Fetch(account.Liked)
+	s.acct.Fetch(account.PartLibrary)
+	s.acct.Fetch(account.PartLiked)
 }
 
 func (s *Service) accept(lis net.Listener) {

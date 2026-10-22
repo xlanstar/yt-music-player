@@ -188,7 +188,7 @@ type Part uint8
 // The parts; add new ones only at the end.
 const (
 	_ Part = iota
-	PartProfile
+	PartAccount
 	PartLibrary
 	PartLiked
 	numParts

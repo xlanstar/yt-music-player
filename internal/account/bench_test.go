@@ -56,18 +56,18 @@ var fetchCases = []struct {
 	part  Part
 	limit float64
 }{
-	{"profile", placeholder, Profile, 9}, // 7 allocs today.
+	{"profile", placeholder, PartAccount, 9}, // 7 allocs today.
 	// 25 allocs today, 7 sharing the songs' strings (shareStrings), which
 	// ytmd keeps.
-	{"library", placeholder, Library, 29},
+	{"library", placeholder, PartLibrary, 29},
 	// Liked: 16 and 10 allocs today: a copy of the IDs the account keeps
 	// (Latest), the songs' new slice, and 5 sharing the strings of songs
 	// described.
-	{"liked", placeholder, Liked, 19},
-	{"liked/2000", bigLikes, Liked, 12},
+	{"liked", placeholder, PartLiked, 19},
+	{"liked/2000", bigLikes, PartLiked, 12},
 	// 56 983 allocs, 3.3 MB today, the source's but 20 and 1 MB:
 	// shareStrings' map and new slice, the copy of the IDs.
-	{"liked/5000-described", decoded5000, Liked, 65531},
+	{"liked/5000-described", decoded5000, PartLiked, 65531},
 }
 
 func placeholder() catalog.Source { return catalog.NewPlaceholderSource(0) }
@@ -118,7 +118,7 @@ var (
 func bigLatest(tb testing.TB) *Account {
 	tb.Helper()
 	a, q := placeholderAccount(bigLikes())
-	fetchRoundTrip(a, q, Liked)
+	fetchRoundTrip(a, q, PartLiked)
 	if !a.hasLikes {
 		tb.Fatal("no likes")
 	}

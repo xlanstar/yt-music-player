@@ -16,7 +16,7 @@ import (
 // request is one the Session made of its Daemon, which the test answers
 // by calling done or signedIn, on its own goroutine as the UI thread.
 type request struct {
-	// what is "refresh profile", "refresh library" or "refresh liked",
+	// what is "refresh account", "refresh library" or "refresh liked",
 	// "like +id" or "like -id", "signin <credentials>" or "signout".
 	what     string
 	done     func(error)
@@ -31,7 +31,7 @@ type fakeDaemon struct {
 	canceled int
 }
 
-var partNames = map[api.Part]string{api.PartProfile: "profile", api.PartLibrary: "library", api.PartLiked: "liked"}
+var partNames = map[api.Part]string{api.PartAccount: "account", api.PartLibrary: "library", api.PartLiked: "liked"}
 
 func (d *fakeDaemon) Refresh(p api.Part, done func(error)) {
 	d.requests = append(d.requests, request{what: "refresh " + partNames[p], done: done})
@@ -261,7 +261,7 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 
 func TestLibraryFailsAndRetries(t *testing.T) {
 	f := newFixture(t)
-	f.s.ApplyFailed(api.FailedEvent{Part: api.PartProfile, Err: &api.Error{Code: api.CodeInternal}})
+	f.s.ApplyFailed(api.FailedEvent{Part: api.PartAccount, Err: &api.Error{Code: api.CodeInternal}})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal, Detail: "network is down"}})
 	f.s.ApplyLikes(adaLikes)
 	wantState(t, f, LibraryRes, fetchstate.Failed)
@@ -276,7 +276,7 @@ func TestLibraryFailsAndRetries(t *testing.T) {
 	// Retrying retries the failed account too.
 	f.s.Retry(LibraryRes)
 	wantState(t, f, LibraryRes, fetchstate.Loading)
-	f.d.take(t, "refresh library", "refresh profile")
+	f.d.take(t, "refresh library", "refresh account")
 	f.s.ApplyLibrary(adaLibrary())
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	wantState(t, f, LibraryRes, fetchstate.Loaded)
