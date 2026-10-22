@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/session"
@@ -143,8 +144,12 @@ func (a *app) albumCards() []cardText {
 	m := &a.memo.libAlbums
 	if m.stale(keyOf(albums)) {
 		m.v = make([]cardText, len(albums))
-		for i := range albums {
-			m.v[i] = cardText{key: albums[i].ID, sub: albumByline(&albums[i])}
+		for i, al := range albums {
+			sub := al.Artist
+			if al.Year > 0 {
+				sub = al.Artist + " · " + strconv.Itoa(al.Year)
+			}
+			m.v[i] = cardText{key: al.ID, sub: sub}
 		}
 	}
 	return m.v

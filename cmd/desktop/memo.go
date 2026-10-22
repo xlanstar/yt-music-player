@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strconv"
-	"strings"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/remote"
@@ -69,49 +67,10 @@ func (a *app) rowText(s *catalog.Song) *rowText {
 		from:  from,
 		key:   s.ID,
 		label: songByArtist.say2(s.Title, s.Artist),
-		sub:   dotJoin(s.Artist, s.Album),
+		sub:   s.Artist + " · " + s.Album,
 	}
 	a.memo.rows[s.ID] = t
 	return t
-}
-
-// dotJoin joins the parts not empty with " · ", in one allocation: a
-// missing album or year leaves no dangling dot.
-func dotJoin(parts ...string) string {
-	const sep = " · "
-	n, shown, last := 0, 0, ""
-	for _, p := range parts {
-		if p != "" {
-			n += len(p)
-			shown++
-			last = p
-		}
-	}
-	if shown <= 1 {
-		return last
-	}
-	var b strings.Builder
-	b.Grow(n + (shown-1)*len(sep))
-	for _, p := range parts {
-		if p == "" {
-			continue
-		}
-		if b.Len() > 0 {
-			b.WriteString(sep)
-		}
-		b.WriteString(p)
-	}
-	return b.String()
-}
-
-// albumByline is the line under an album's title: its artist and year,
-// each when known.
-func albumByline(al *catalog.Album) string {
-	year := ""
-	if al.Year > 0 {
-		year = strconv.Itoa(al.Year)
-	}
-	return dotJoin(al.Artist, year)
 }
 
 // holdsKey identifies a collection's songs as feedKey does a feed, with
