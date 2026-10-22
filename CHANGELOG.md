@@ -14,6 +14,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 - Built with Go 1.27.3, which distrusts compromised intermediate certificates (GO-2026-6809) on every connection to YouTube.
 - A seek from the system's media controls, such as Now Playing on macOS, is checked as the app's own are: one before the start plays from the start, and one with nothing queued or without a position is ignored, rather than leaving the background player at a position it can't save or send to the app.
+- A media key pressed just as the app or `ytm` changed the song no longer starts the new song where the old one was.
 - The app says songs of an hour or more as 1:15:12 rather than 75:12, and an album’s or playlist’s length in minutes rounded to the nearest, as `ytm` does.
 - The background player's memory no longer grows with every song played: it kept about half a megabyte of each until it stopped.
 - After an update, music keeps playing even while another window or `ytm` is slow to let go of the old background player.

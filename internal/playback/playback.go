@@ -332,9 +332,9 @@ func (pb *Playback) audioEvent(ev audio.Event) {
 
 // command applies a media key or Now Playing command to the player.
 func (pb *Playback) command(ev audio.Event) {
-	// The position was read at the last request or event, so it may lag;
-	// Prev depends on it.
-	pb.readPosition()
+	// Catch up first, as the daemon does before a request: a request in
+	// this batch may have changed the song, and Prev reads the position.
+	pb.Follow()
 	p := pb.player
 	switch ev.Kind {
 	case audio.CommandPlay:

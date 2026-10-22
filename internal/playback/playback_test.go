@@ -584,6 +584,19 @@ func TestSystemCommands(t *testing.T) {
 	}
 }
 
+// A command after a request changed the song, in the same batch, acts on
+// the new song, as a request does, not at where the old one was.
+func TestCommandAfterSongChange(t *testing.T) {
+	x := newFixture(&instantResolver{})
+	x.startPlaying(t)
+	x.f.Pos = 50
+	x.player.Next()
+	x.pb.audioEvent(audio.Event{Kind: audio.CommandPause})
+	if x.player.IsPlaying() || x.player.Position() != 0 {
+		t.Errorf("paused %v at %v, want the next song paused at 0", !x.player.IsPlaying(), x.player.Position())
+	}
+}
+
 func TestNoPlaybackWithoutResolver(t *testing.T) {
 	x := newFixture(nil)
 	x.pb.newEngine = func(func(audio.Event)) (audio.Engine, error) {
