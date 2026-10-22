@@ -42,11 +42,11 @@ const (
 // Valid reports whether r is a repeat mode, as one read from a file may not.
 func (r Repeat) Valid() bool { return r < repeatModes }
 
-// Player is the playback state. Exported fields are plain values so UI
-// controls can bind to them; the queue changes only through methods.
+// Player is the playback state. It changes only through its methods, which
+// keep it whole: no position without a song, the volume within 0 to 1.
 type Player struct {
-	Position float64 // seconds into the current song
-	Volume   float64 // 0 to 1
+	position float64 // seconds into the current song
+	volume   float64 // 0 to 1
 
 	queue []string
 	// order is the play order as indices into queue, in sequence or
@@ -56,15 +56,15 @@ type Player struct {
 	// gen counts changes to queue and order.
 	gen uint64
 
-	Playing    bool
-	Muted      bool
-	Repeat     Repeat
+	isPlaying  bool
+	isMuted    bool
+	repeat     Repeat
 	isShuffled bool
 }
 
 // New returns a paused player at the start of queue.
 func New(queue []string) *Player {
-	p := &Player{Volume: defaultVolume}
+	p := &Player{volume: defaultVolume}
 	p.setQueue(queue, 0)
 	return p
 }
@@ -98,9 +98,9 @@ func Restore(s Saved) *Player {
 	p.dropRepeats()
 	p.Seek(s.Position)
 	p.SetVolume(s.Volume)
-	p.Muted = s.Muted
+	p.isMuted = s.Muted
 	if s.Repeat.Valid() {
-		p.Repeat = s.Repeat
+		p.repeat = s.Repeat
 	}
 	return p
 }
@@ -233,7 +233,7 @@ func (p *Player) Order() []int { return slices.Clone(p.order) }
 // current one.
 func (p *Player) Play(id string) {
 	if id == p.Current() && id != "" {
-		p.Playing = !p.Playing
+		p.isPlaying = !p.isPlaying
 		return
 	}
 	queueIndex := slices.Index(p.queue, id)
@@ -241,7 +241,7 @@ func (p *Player) Play(id string) {
 		queueIndex = p.insert(id)
 	}
 	p.at = slices.Index(p.order, queueIndex)
-	p.Position, p.Playing = 0, true
+	p.position, p.isPlaying = 0, true
 }
 
 // PlayAll makes ids the queue and plays it from ids[start]; while
@@ -255,7 +255,7 @@ func (p *Player) PlayAll(ids []string, start int) {
 	if p.isShuffled {
 		p.shuffleRest()
 	}
-	p.Position, p.Playing = 0, true
+	p.position, p.isPlaying = 0, true
 }
 
 // setQueue makes ids, each once, the queue in sequence, at ids[start].
@@ -475,15 +475,15 @@ func (p *Player) Remove(index int) {
 	p.gen++
 	switch {
 	case len(p.order) == 0:
-		p.at, p.Position, p.Playing = 0, 0, false
+		p.at, p.position, p.isPlaying = 0, 0, false
 	case index < p.at:
 		p.at--
 	case index == p.at:
-		p.Position = 0
+		p.position = 0
 		if p.at == len(p.order) {
 			p.at = 0
-			if p.Repeat == RepeatOff {
-				p.Playing = false
+			if p.repeat == RepeatOff {
+				p.isPlaying = false
 			}
 		}
 	}
@@ -542,7 +542,7 @@ func (p *Player) ClearUpNext() {
 // Clear empties the queue and stops.
 func (p *Player) Clear() {
 	p.queue, p.order, p.at = p.queue[:0], p.order[:0], 0
-	p.Position, p.Playing = 0, false
+	p.position, p.isPlaying = 0, false
 	p.gen++
 }
 
@@ -569,18 +569,18 @@ func (p *Player) insert(id string) int {
 }
 
 // TogglePlay pauses, or resumes the current song, if any.
-func (p *Player) TogglePlay() { p.Playing = !p.Playing && p.Current() != "" }
+func (p *Player) TogglePlay() { p.isPlaying = !p.isPlaying && p.Current() != "" }
 
 // Pause pauses.
-func (p *Player) Pause() { p.Playing = false }
+func (p *Player) Pause() { p.isPlaying = false }
 
 // Resume plays the current song, if any.
-func (p *Player) Resume() { p.Playing = p.Current() != "" }
+func (p *Player) Resume() { p.isPlaying = p.Current() != "" }
 
 // Seek moves to sec seconds into the current song, if any.
 func (p *Player) Seek(sec float64) {
 	if p.Current() != "" && !math.IsNaN(sec) {
-		p.Position = max(sec, 0)
+		p.position = max(sec, 0)
 	}
 }
 
@@ -588,7 +588,7 @@ func (p *Player) Seek(sec float64) {
 // volume is meant to be heard.
 func (p *Player) SetVolume(v float64) {
 	if !math.IsNaN(v) {
-		p.Volume, p.Muted = min(max(v, 0), 1), false
+		p.volume, p.isMuted = min(max(v, 0), 1), false
 	}
 }
 
@@ -600,8 +600,8 @@ func (p *Player) Next() { p.advance() }
 // Skip moves past a song that cannot play: as Next, but past the end it
 // stops unless repeating.
 func (p *Player) Skip() {
-	if p.advance() && p.Repeat == RepeatOff {
-		p.Playing = false
+	if p.advance() && p.repeat == RepeatOff {
+		p.isPlaying = false
 	}
 }
 
@@ -611,7 +611,7 @@ func (p *Player) advance() (wrapped bool) {
 	if len(p.order) == 0 {
 		return false
 	}
-	p.Position = 0
+	p.position = 0
 	if p.at+1 < len(p.order) {
 		p.at++
 		return false
@@ -623,15 +623,15 @@ func (p *Player) advance() (wrapped bool) {
 // Prev restarts a song under way, else goes back one song; from the first
 // song it wraps only when repeating.
 func (p *Player) Prev() {
-	restart := p.Position > restartAfter
-	p.Position = 0
+	restart := p.position > restartAfter
+	p.position = 0
 	if restart || len(p.order) == 0 {
 		return
 	}
 	switch {
 	case p.at > 0:
 		p.at--
-	case p.Repeat != RepeatOff:
+	case p.repeat != RepeatOff:
 		p.at = len(p.order) - 1
 	}
 }
@@ -640,8 +640,8 @@ func (p *Player) Prev() {
 // replays the song under RepeatOne and stops past the end unless
 // repeating.
 func (p *Player) Finished() {
-	if p.Repeat == RepeatOne {
-		p.Position = 0
+	if p.repeat == RepeatOne {
+		p.position = 0
 		return
 	}
 	p.Skip()
@@ -654,7 +654,7 @@ func (p *Player) AppendUpNext(dst []string, n int) []string {
 	for ahead := 1; ahead < len(p.order) && ahead <= n; ahead++ {
 		i := p.at + ahead
 		if i >= len(p.order) {
-			if p.Repeat == RepeatOff {
+			if p.repeat == RepeatOff {
 				break
 			}
 			i -= len(p.order)
@@ -663,6 +663,21 @@ func (p *Player) AppendUpNext(dst []string, n int) []string {
 	}
 	return dst
 }
+
+// Position returns how many seconds into the current song it is.
+func (p *Player) Position() float64 { return p.position }
+
+// IsPlaying reports whether the current song plays, rather than paused.
+func (p *Player) IsPlaying() bool { return p.isPlaying }
+
+// Volume returns the volume, 0 to 1, even while muted.
+func (p *Player) Volume() float64 { return p.volume }
+
+// IsMuted reports whether the player is muted, whatever its volume.
+func (p *Player) IsMuted() bool { return p.isMuted }
+
+// Repeat returns what plays after a song or the queue ends.
+func (p *Player) Repeat() Repeat { return p.repeat }
 
 // IsShuffled reports whether the queue plays in random order.
 func (p *Player) IsShuffled() bool { return p.isShuffled }
@@ -695,19 +710,19 @@ func (p *Player) shuffleRest() {
 }
 
 // CycleRepeat goes from off to all to one, then back to off.
-func (p *Player) CycleRepeat() { p.Repeat = (p.Repeat + 1) % repeatModes }
+func (p *Player) CycleRepeat() { p.repeat = (p.repeat + 1) % repeatModes }
 
 // IsSilent reports whether nothing would be heard: muted or at zero volume.
-func (p *Player) IsSilent() bool { return p.Muted || p.Volume == 0 }
+func (p *Player) IsSilent() bool { return p.isMuted || p.volume == 0 }
 
 // ToggleMute mutes or unmutes; unmuting at zero volume also raises it.
 func (p *Player) ToggleMute() {
 	if !p.IsSilent() {
-		p.Muted = true
+		p.isMuted = true
 		return
 	}
-	p.Muted = false
-	if p.Volume == 0 {
-		p.Volume = unmuteVolume
+	p.isMuted = false
+	if p.volume == 0 {
+		p.volume = unmuteVolume
 	}
 }

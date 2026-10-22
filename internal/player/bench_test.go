@@ -55,7 +55,7 @@ func BenchmarkNext(b *testing.B) {
 	for _, r := range repeats {
 		b.Run(r.name, func(b *testing.B) {
 			p := bigPlayer()
-			p.Repeat = r.repeat
+			p.repeat = r.repeat
 			b.ReportAllocs()
 			for b.Loop() {
 				p.Next()
@@ -69,7 +69,7 @@ func BenchmarkPrev(b *testing.B) {
 	for _, r := range repeats[:2] {
 		b.Run(r.name, func(b *testing.B) {
 			p := bigPlayer()
-			p.Repeat = r.repeat
+			p.repeat = r.repeat
 			b.ReportAllocs()
 			for b.Loop() {
 				p.Prev()
@@ -82,7 +82,7 @@ func BenchmarkFinished(b *testing.B) {
 	for _, r := range repeats {
 		b.Run(r.name, func(b *testing.B) {
 			p := bigPlayer()
-			p.Repeat = r.repeat
+			p.repeat = r.repeat
 			b.ReportAllocs()
 			for b.Loop() {
 				p.Finished()

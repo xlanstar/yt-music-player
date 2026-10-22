@@ -62,7 +62,7 @@ type saveMark struct {
 
 func (s *Service) mark() saveMark {
 	p := s.player
-	return saveMark{p.QueueGen(), p.Index(), p.Volume, p.Muted, p.Repeat, p.IsShuffled()}
+	return saveMark{p.QueueGen(), p.Index(), p.Volume(), p.IsMuted(), p.Repeat(), p.IsShuffled()}
 }
 
 // saveTracker compares saveMarks: seen is the latest seen, to save after
@@ -154,10 +154,10 @@ func (s *Service) saved() *savedState {
 		Queue:    p.Queued(),
 		Index:    p.Index(),
 		Order:    p.Order(),
-		Position: p.Position,
-		Volume:   p.Volume,
-		Muted:    p.Muted,
-		Repeat:   p.Repeat,
+		Position: p.Position(),
+		Volume:   p.Volume(),
+		Muted:    p.IsMuted(),
+		Repeat:   p.Repeat(),
 		Shuffled: p.IsShuffled(),
 		Songs:    songs,
 	}

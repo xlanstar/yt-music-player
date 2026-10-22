@@ -28,8 +28,8 @@ func TestPlayAllFrom(t *testing.T) {
 	p := New(nil)
 	p.PlayAll(abcd, 2)
 	checkQueue(t, p, abcd, "c")
-	if !p.Playing || p.Position != 0 {
-		t.Errorf("playing %v at %v", p.Playing, p.Position)
+	if !p.isPlaying || p.position != 0 {
+		t.Errorf("playing %v at %v", p.isPlaying, p.position)
 	}
 	p.PlayAll(abcd, 9)
 	checkQueue(t, p, abcd, "d")
@@ -61,7 +61,7 @@ func TestEnqueue(t *testing.T) {
 	empty := New(nil)
 	empty.Enqueue([]string{"x", "y"}, true)
 	checkQueue(t, empty, []string{"x", "y"}, "x")
-	if empty.Playing {
+	if empty.isPlaying {
 		t.Error("enqueueing started playing")
 	}
 	empty.Enqueue(nil, false)
@@ -87,10 +87,10 @@ func TestEnqueueShuffled(t *testing.T) {
 func TestRemove(t *testing.T) {
 	p := New(abcd)
 	p.Play("c")
-	p.Position = 30
+	p.position = 30
 	p.Remove(0)
 	checkQueue(t, p, []string{"b", "c", "d"}, "c")
-	if p.Position != 30 {
+	if p.position != 30 {
 		t.Error("removing another song moved the current one")
 	}
 	p.Remove(2)
@@ -99,8 +99,8 @@ func TestRemove(t *testing.T) {
 	// the end it wraps and stops.
 	p.Remove(1)
 	checkQueue(t, p, []string{"b"}, "b")
-	if p.Playing || p.Position != 0 {
-		t.Errorf("removed the last song: playing %v at %v", p.Playing, p.Position)
+	if p.isPlaying || p.position != 0 {
+		t.Errorf("removed the last song: playing %v at %v", p.isPlaying, p.position)
 	}
 	p.Remove(5)
 	p.Remove(-1)
@@ -160,8 +160,8 @@ func TestClear(t *testing.T) {
 	p.Play("b")
 	p.Clear()
 	checkQueue(t, p, nil, "")
-	if p.Playing || p.Position != 0 || p.Len() != 0 {
-		t.Errorf("cleared: playing %v at %v, %d songs", p.Playing, p.Position, p.Len())
+	if p.isPlaying || p.position != 0 || p.Len() != 0 {
+		t.Errorf("cleared: playing %v at %v, %d songs", p.isPlaying, p.position, p.Len())
 	}
 	p.Enqueue([]string{"x"}, false)
 	checkQueue(t, p, []string{"x"}, "x")
@@ -173,8 +173,8 @@ func TestRestore(t *testing.T) {
 	p.Next()
 	r := Restore(Saved{Queue: p.Queued(), Order: p.Order(), Index: p.Index(), Shuffled: p.IsShuffled()})
 	checkQueue(t, r, playOrder(p), p.Current())
-	if r.Playing || !r.IsShuffled() {
-		t.Errorf("restored playing %v, shuffled %v", r.Playing, r.IsShuffled())
+	if r.isPlaying || !r.IsShuffled() {
+		t.Errorf("restored playing %v, shuffled %v", r.isPlaying, r.IsShuffled())
 	}
 	for _, order := range [][]int{{0, 1}, {0, 1, 2, 2}, {0, 1, 2, 4}, nil} {
 		bad := Restore(Saved{Queue: abcd, Order: order, Index: 9, Shuffled: true})
@@ -186,11 +186,11 @@ func TestRestore(t *testing.T) {
 	checkQueue(t, Restore(Saved{Index: 3}), nil, "")
 
 	out := Restore(Saved{Queue: abcd, Position: -1, Volume: 2, Muted: true, Repeat: 7})
-	if out.Position != 0 || out.Volume != 1 || !out.Muted || out.Repeat != RepeatOff {
-		t.Errorf("out of range: at %v, volume %v, muted %v, repeat %d", out.Position, out.Volume, out.Muted, out.Repeat)
+	if out.position != 0 || out.volume != 1 || !out.isMuted || out.repeat != RepeatOff {
+		t.Errorf("out of range: at %v, volume %v, muted %v, repeat %d", out.position, out.volume, out.isMuted, out.repeat)
 	}
-	if empty := Restore(Saved{Position: 30, Repeat: RepeatOne}); empty.Position != 0 || empty.Repeat != RepeatOne {
-		t.Errorf("nothing queued: at %v, repeat %d", empty.Position, empty.Repeat)
+	if empty := Restore(Saved{Position: 30, Repeat: RepeatOne}); empty.position != 0 || empty.repeat != RepeatOne {
+		t.Errorf("nothing queued: at %v, repeat %d", empty.position, empty.repeat)
 	}
 }
 
@@ -199,36 +199,36 @@ func TestPauseResumeSeekVolume(t *testing.T) {
 	p.Resume()
 	p.TogglePlay()
 	p.Seek(30)
-	if p.Playing || p.Position != 0 {
-		t.Errorf("empty queue: playing %v at %v", p.Playing, p.Position)
+	if p.isPlaying || p.position != 0 {
+		t.Errorf("empty queue: playing %v at %v", p.isPlaying, p.position)
 	}
 	p = New(abcd)
 	p.Resume()
-	if !p.Playing {
+	if !p.isPlaying {
 		t.Error("not resumed")
 	}
 	p.Pause()
-	if p.Playing {
+	if p.isPlaying {
 		t.Error("not paused")
 	}
 	p.Seek(-3)
-	if p.Position != 0 {
-		t.Errorf("sought before the start: at %v", p.Position)
+	if p.position != 0 {
+		t.Errorf("sought before the start: at %v", p.position)
 	}
 	p.Seek(42)
 	p.Seek(math.NaN())
-	if p.Position != 42 {
-		t.Errorf("at %v, want 42", p.Position)
+	if p.position != 42 {
+		t.Errorf("at %v, want 42", p.position)
 	}
-	p.Muted = true
+	p.isMuted = true
 	p.SetVolume(1.5)
-	if p.Volume != 1 || p.Muted {
-		t.Errorf("volume %v, muted %v", p.Volume, p.Muted)
+	if p.volume != 1 || p.isMuted {
+		t.Errorf("volume %v, muted %v", p.volume, p.isMuted)
 	}
 	p.SetVolume(math.NaN())
 	p.SetVolume(-1)
-	if p.Volume != 0 {
-		t.Errorf("volume %v, want 0", p.Volume)
+	if p.volume != 0 {
+		t.Errorf("volume %v, want 0", p.volume)
 	}
 }
 
@@ -237,7 +237,7 @@ func TestQueueGen(t *testing.T) {
 	gen := p.QueueGen()
 	p.Next()
 	p.Play("c")
-	p.Position = 10
+	p.position = 10
 	p.CycleRepeat()
 	if p.QueueGen() != gen {
 		t.Error("moving through the queue changed its gen")
@@ -321,12 +321,12 @@ func TestEnqueueQueuedSkipped(t *testing.T) {
 func TestEnqueueNextMovesQueued(t *testing.T) {
 	p := New([]string{"a", "b", "c", "d", "e"})
 	p.Play("b")
-	p.Position = 30
+	p.position = 30
 	p.Enqueue([]string{"d", "b", "x", "d", "a"}, true)
 	checkQueue(t, p, []string{"b", "d", "x", "a", "c", "e"}, "b")
 	checkOnce(t, p)
-	if p.Position != 30 || !p.Playing {
-		t.Errorf("playing %v at %v", p.Playing, p.Position)
+	if p.position != 30 || !p.isPlaying {
+		t.Errorf("playing %v at %v", p.isPlaying, p.position)
 	}
 	// Unshuffled, the queue moved too, so a shuffle undone keeps it.
 	p.ToggleShuffle()

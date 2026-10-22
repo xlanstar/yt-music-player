@@ -250,7 +250,7 @@ func (s *Service) stop(resumeBefore time.Time) {
 		return
 	}
 	s.stopping = true
-	wasPlaying := s.player.Playing
+	wasPlaying := s.player.IsPlaying()
 	s.player.Pause()
 	s.pb.Follow()
 	if s.store != nil {

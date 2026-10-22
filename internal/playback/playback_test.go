@@ -67,7 +67,7 @@ type fixture struct {
 func newFixture(res stream.Resolver) *fixture {
 	cat := catalog.Placeholder()
 	x := &fixture{cat: cat, player: player.New(cat.SongIDs()), q: make(posts, 64)}
-	x.player.Position = 84
+	x.player.Seek(84)
 	var events func(audio.Event)
 	x.f = audio.NewFake(func(ev audio.Event) { events(ev) })
 	x.pb = New(x.cat, x.player, func(fn func()) { x.q <- fn })
@@ -77,6 +77,13 @@ func newFixture(res stream.Resolver) *fixture {
 		return x.f, nil
 	}
 	return x
+}
+
+// setRepeat cycles p's repeat mode to r, as a front-end does.
+func setRepeat(p *player.Player, r player.Repeat) {
+	for p.Repeat() != r {
+		p.CycleRepeat()
+	}
 }
 
 func (x *fixture) run(t testing.TB) {
@@ -108,8 +115,8 @@ func (x *fixture) wantCalls(t *testing.T, want ...string) {
 // startPlaying plays the current song from the start until it is ready.
 func (x *fixture) startPlaying(t testing.TB) {
 	t.Helper()
-	x.player.Position = 0
-	x.player.Playing = true
+	x.player.Seek(0)
+	x.player.Resume()
 	x.pb.Follow()
 	x.run(t)
 	x.f.Dur = 200
@@ -133,7 +140,7 @@ func TestLoadsAndPlays(t *testing.T) {
 	if len(res.Asked()) != 0 {
 		t.Fatalf("resolved %q while paused", res.Asked())
 	}
-	x.player.Playing = true
+	x.player.Resume()
 	x.pb.Follow()
 	x.run(t)
 	// The mock starts part-way into the song.
@@ -142,8 +149,8 @@ func TestLoadsAndPlays(t *testing.T) {
 		t.Errorf("info %+v", x.f.Info)
 	}
 	x.turn(90)
-	if x.player.Position != 84 {
-		t.Errorf("at %v before the stream is ready, want 84", x.player.Position)
+	if x.player.Position() != 84 {
+		t.Errorf("at %v before the stream is ready, want 84", x.player.Position())
 	}
 	x.f.Dur, x.f.Pos = 201.5, 84.25
 	x.f.Emit(audio.Ready)
@@ -152,8 +159,8 @@ func TestLoadsAndPlays(t *testing.T) {
 	if got := x.pb.SongLength(song); got != 201.5 {
 		t.Errorf("length %v, want the engine's 201.5", got)
 	}
-	if x.pb.Follow(); x.player.Position != 84.25 {
-		t.Errorf("at %v once ready, want the engine's 84.25", x.player.Position)
+	if x.pb.Follow(); x.player.Position() != 84.25 {
+		t.Errorf("at %v once ready, want the engine's 84.25", x.player.Position())
 	}
 
 	x.player.Next()
@@ -212,7 +219,7 @@ func (r gatedResolver) Resolve(_ context.Context, id string) (stream.Stream, err
 func TestStaleResolveIsDropped(t *testing.T) {
 	res := gatedResolver{make(chan gatedReq, 4)}
 	x := newFixture(res)
-	x.player.Playing = true
+	x.player.Resume()
 	x.pb.Follow()
 	first := <-res.reqs
 	x.player.Next()
@@ -238,24 +245,24 @@ func TestEndedMovesOnOrRepeats(t *testing.T) {
 	x.f.Emit(audio.Ended)
 	x.run(t)
 	x.run(t)
-	if x.player.Current() == first || !x.player.Playing {
-		t.Fatalf("after the end at %q (playing %v)", x.player.Current(), x.player.Playing)
+	if x.player.Current() == first || !x.player.IsPlaying() {
+		t.Fatalf("after the end at %q (playing %v)", x.player.Current(), x.player.IsPlaying())
 	}
 	// The engine already paused at the end; pausing again is harmless.
 	x.wantCalls(t, "pause", "load https://audio/"+x.player.Current()+" at 0", "play")
 
 	x.f.Emit(audio.Ready)
 	x.run(t)
-	x.player.Repeat = player.RepeatOne
+	setRepeat(x.player, player.RepeatOne)
 	x.f.Pos = 200
 	x.f.Emit(audio.Ended)
 	x.run(t)
 	x.wantCalls(t, "seek 0", "play")
-	if x.player.Position != 0 || !x.player.Playing {
-		t.Errorf("repeat one at %v playing %v", x.player.Position, x.player.Playing)
+	if x.player.Position() != 0 || !x.player.IsPlaying() {
+		t.Errorf("repeat one at %v playing %v", x.player.Position(), x.player.IsPlaying())
 	}
 	// Events of a stream replaced since are stale.
-	x.player.Repeat = player.RepeatOff
+	setRepeat(x.player, player.RepeatOff)
 	x.pb.audioEvent(audio.Event{Kind: audio.Ended, Load: x.f.Loads - 1})
 	x.wantCalls(t)
 }
@@ -266,13 +273,13 @@ func TestEndOfQueueStops(t *testing.T) {
 	x.startPlaying(t)
 	x.f.Emit(audio.Ended)
 	x.run(t)
-	if x.player.Playing {
+	if x.player.IsPlaying() {
 		t.Error("still playing past the end of the queue")
 	}
 	x.wantCalls(t, "seek 0")
 
-	x.player.Repeat = player.RepeatAll
-	x.player.Playing = true
+	setRepeat(x.player, player.RepeatAll)
+	x.player.Resume()
 	x.pb.Follow()
 	x.f.TakeCalls()
 	x.f.Emit(audio.Ended)
@@ -297,8 +304,8 @@ func (x *fixture) failAll() {
 func TestFailuresSkipThenStop(t *testing.T) {
 	res := &instantResolver{err: stream.ErrUnplayable}
 	x := newFixture(res)
-	x.player.Repeat = player.RepeatAll
-	x.player.Playing = true
+	setRepeat(x.player, player.RepeatAll)
+	x.player.Resume()
 	x.pb.Follow()
 	x.failAll()
 	if n := len(res.Asked()); n != maxSkips {
@@ -309,8 +316,8 @@ func TestFailuresSkipThenStop(t *testing.T) {
 		Kind: notice.Failure, Title: notice.Unplayable, Detail: notice.PlaybackStoppedAfter,
 		Args: []string{last.Title}, N: maxSkips, Topic: notice.Playback,
 	}
-	if n, ok := x.pb.TakeNotice(); x.player.Playing || !ok || !reflect.DeepEqual(n, want) {
-		t.Errorf("playing %v, notice %+v, want %+v", x.player.Playing, n, want)
+	if n, ok := x.pb.TakeNotice(); x.player.IsPlaying() || !ok || !reflect.DeepEqual(n, want) {
+		t.Errorf("playing %v, notice %+v, want %+v", x.player.IsPlaying(), n, want)
 	}
 	if _, ok := x.pb.TakeNotice(); ok {
 		t.Error("a notice told twice")
@@ -348,23 +355,23 @@ func TestFailuresStopWithinTheQueue(t *testing.T) {
 	x := newFixture(res)
 	ids := x.cat.SongIDs()[:3]
 	x.player.PlayAll(ids, 0)
-	x.player.Repeat = player.RepeatAll
-	x.player.Playing = true
+	setRepeat(x.player, player.RepeatAll)
+	x.player.Resume()
 	x.pb.Follow()
 	x.failAll()
 	// A queue shorter than maxSkips stops once each song failed.
 	if n := len(res.Asked()); n != len(ids) {
 		t.Errorf("tried %d songs, want %d", n, len(ids))
 	}
-	if n, _ := x.pb.TakeNotice(); x.player.Playing || n.Detail != notice.PlaybackStoppedAfter || n.N != 3 {
-		t.Errorf("playing %v, notice %+v", x.player.Playing, n)
+	if n, _ := x.pb.TakeNotice(); x.player.IsPlaying() || n.Detail != notice.PlaybackStoppedAfter || n.N != 3 {
+		t.Errorf("playing %v, notice %+v", x.player.IsPlaying(), n)
 	}
 }
 
 func TestEngineFails(t *testing.T) {
 	x := newFixture(&instantResolver{})
 	x.pb.NewEngine = func(func(audio.Event)) (audio.Engine, error) { return nil, errNoAudio }
-	x.player.Playing = true
+	x.player.Resume()
 	x.pb.Follow()
 	x.run(t)
 	if n, ok := x.pb.TakeNotice(); !ok || n.Title != notice.NoAudio || !slices.Equal(n.Args, []string{errNoAudio.Error()}) {
@@ -380,8 +387,8 @@ func TestEngineFails(t *testing.T) {
 func TestSeekAndVolumeAreForwarded(t *testing.T) {
 	x := newFixture(&instantResolver{})
 	x.startPlaying(t)
-	x.player.Position = 42
-	x.player.Volume = 0.3
+	x.player.Seek(42)
+	x.player.SetVolume(0.3)
 	x.pb.Follow()
 	x.wantCalls(t, "volume 0.3", "seek 42")
 	x.player.ToggleMute()
@@ -401,21 +408,21 @@ func TestSystemSeekIsChecked(t *testing.T) {
 	x.startPlaying(t)
 	x.turn(42)
 	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: math.NaN()})
-	if x.player.Position != 42 {
-		t.Errorf("NaN moved to %v, want 42", x.player.Position)
+	if x.player.Position() != 42 {
+		t.Errorf("NaN moved to %v, want 42", x.player.Position())
 	}
 	x.wantCalls(t)
 	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: -5})
-	if x.player.Position != 0 {
-		t.Errorf("-5 moved to %v, want 0", x.player.Position)
+	if x.player.Position() != 0 {
+		t.Errorf("-5 moved to %v, want 0", x.player.Position())
 	}
 	x.wantCalls(t, "seek 0")
 	x.player.Clear()
 	x.pb.Follow()
 	x.f.TakeCalls()
 	x.pb.audioEvent(audio.Event{Kind: audio.CommandSeek, At: 30})
-	if x.player.Position != 0 {
-		t.Errorf("an empty queue moved to %v, want 0", x.player.Position)
+	if x.player.Position() != 0 {
+		t.Errorf("an empty queue moved to %v, want 0", x.player.Position())
 	}
 	x.wantCalls(t)
 }
@@ -424,14 +431,14 @@ func TestSystemSeekIsChecked(t *testing.T) {
 func TestPositionStandsStill(t *testing.T) {
 	x := newFixture(&instantResolver{})
 	x.startPlaying(t)
-	if x.turn(10.5); x.player.Position != 10.5 {
-		t.Fatalf("playing at %v, want 10.5", x.player.Position)
+	if x.turn(10.5); x.player.Position() != 10.5 {
+		t.Fatalf("playing at %v, want 10.5", x.player.Position())
 	}
 	x.player.TogglePlay()
 	x.pb.Follow()
 	x.wantCalls(t, "pause")
-	if x.turn(30); x.player.Position != 10.5 {
-		t.Errorf("paused at %v, want 10.5", x.player.Position)
+	if x.turn(30); x.player.Position() != 10.5 {
+		t.Errorf("paused at %v, want 10.5", x.player.Position())
 	}
 	x.noPost(t, 1200*time.Millisecond)
 
@@ -439,13 +446,13 @@ func TestPositionStandsStill(t *testing.T) {
 	x.pb.Follow()
 	x.f.Emit(audio.Buffering)
 	x.run(t)
-	if x.turn(40); x.player.Position != 30 {
-		t.Errorf("buffering at %v, want 30", x.player.Position)
+	if x.turn(40); x.player.Position() != 30 {
+		t.Errorf("buffering at %v, want 30", x.player.Position())
 	}
 	x.f.Emit(audio.Playing)
 	x.run(t)
-	if x.turn(41); x.player.Position != 41 {
-		t.Errorf("playing on at %v, want 41", x.player.Position)
+	if x.turn(41); x.player.Position() != 41 {
+		t.Errorf("playing on at %v, want 41", x.player.Position())
 	}
 }
 
@@ -554,20 +561,20 @@ func TestSystemCommands(t *testing.T) {
 	first := x.player.Current()
 	x.f.Command(audio.CommandToggle, 0)
 	x.run(t)
-	if x.player.Playing {
+	if x.player.IsPlaying() {
 		t.Error("toggle did not pause")
 	}
 	x.f.Command(audio.CommandPlay, 0)
 	x.run(t)
-	if !x.player.Playing {
+	if !x.player.IsPlaying() {
 		t.Error("play did not play")
 	}
 	x.wantCalls(t, "pause", "play")
 	// Prev 30 s into the song restarts it, reading where the engine is.
 	x.f.Pos = 30
 	x.pb.audioEvent(audio.Event{Kind: audio.CommandPrev})
-	if x.player.Current() != first || x.player.Position != 0 {
-		t.Errorf("prev 30 s in went to %q at %v", x.player.Current(), x.player.Position)
+	if x.player.Current() != first || x.player.Position() != 0 {
+		t.Errorf("prev 30 s in went to %q at %v", x.player.Current(), x.player.Position())
 	}
 	x.pb.audioEvent(audio.Event{Kind: audio.CommandNext})
 	x.run(t)
@@ -582,7 +589,7 @@ func TestNoPlaybackWithoutResolver(t *testing.T) {
 		t.Error("made an engine with no resolver")
 		return nil, errNoAudio
 	}
-	x.player.Playing = true
+	x.player.Resume()
 	if x.pb.Follow(); len(x.q) != 0 || x.pb.state != unloaded {
 		t.Errorf("no resolver: %d posts, state %v", len(x.q), x.pb.state)
 	}
@@ -633,7 +640,7 @@ func TestWaiting(t *testing.T) {
 	if x.pb.IsWaiting() {
 		t.Error("waiting while paused")
 	}
-	x.player.Playing = true
+	x.player.Resume()
 	x.pb.Follow()
 	if !x.pb.IsWaiting() {
 		t.Error("not waiting while resolving")
@@ -660,7 +667,7 @@ func TestWaiting(t *testing.T) {
 	}
 
 	silent := newFixture(nil)
-	silent.player.Playing = true
+	silent.player.Resume()
 	if !silent.pb.IsWaiting() {
 		t.Error("playing without a Resolver moves on")
 	}
@@ -704,21 +711,21 @@ func TestReleasesAPausedStream(t *testing.T) {
 		song := x.player.Current()
 		x.startPlaying(t)
 		x.turn(50)
-		x.player.Playing = false
+		x.player.Pause()
 		x.pb.Follow()
 		x.released(t)
 		x.pb.Follow()
 		x.wantCalls(t, "pause", "release")
-		if x.pb.IsWaiting() || x.player.Position != 50 {
-			t.Errorf("released: waiting %v, at %v", x.pb.IsWaiting(), x.player.Position)
+		if x.pb.IsWaiting() || x.player.Position() != 50 {
+			t.Errorf("released: waiting %v, at %v", x.pb.IsWaiting(), x.player.Position())
 		}
 		// Seeks move Now Playing.
-		x.player.Position = 60
+		x.player.Seek(60)
 		x.pb.Follow()
 		x.wantCalls(t, "seek 60")
 
 		// Play loads the same stream again, where the song was.
-		x.player.Playing = true
+		x.player.Resume()
 		x.pb.Follow()
 		x.wantCalls(t, "load https://audio/"+song+" at 60", "play")
 		if got := res.Asked(); len(got) != 1 {
@@ -743,10 +750,10 @@ func TestReleaseWaitsForThePause(t *testing.T) {
 		synctest.Sleep(releaseAfter + time.Second)
 		x.none(t)
 		// Played again a second before it is due.
-		x.player.Playing = false
+		x.player.Pause()
 		x.pb.Follow()
 		synctest.Sleep(releaseAfter - time.Second)
-		x.player.Playing = true
+		x.player.Resume()
 		x.pb.Follow()
 		synctest.Sleep(2 * time.Second)
 		x.none(t)
@@ -760,10 +767,10 @@ func TestReleasedStreamThatExpiresResolvesAnew(t *testing.T) {
 		x := newFixture(res)
 		song := x.player.Current()
 		x.startPlaying(t)
-		x.player.Playing = false
+		x.player.Pause()
 		x.pb.Follow()
 		x.released(t)
-		x.player.Playing = true
+		x.player.Resume()
 		x.pb.Follow()
 		x.posted(t) // the resolve
 		x.wantCalls(t, "pause", "release", "load https://audio/"+song+" at 0", "play")

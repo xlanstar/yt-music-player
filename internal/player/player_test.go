@@ -9,21 +9,21 @@ var abcd = []string{"a", "b", "c", "d"}
 
 func TestPlayTogglesCurrentAndStartsOthers(t *testing.T) {
 	p := New(abcd)
-	if p.Current() != "a" || p.Playing {
-		t.Fatalf("new player at %q playing %v", p.Current(), p.Playing)
+	if p.Current() != "a" || p.isPlaying {
+		t.Fatalf("new player at %q playing %v", p.Current(), p.isPlaying)
 	}
 	p.Play("a")
-	if !p.Playing {
+	if !p.isPlaying {
 		t.Error("playing the current song did not resume it")
 	}
 	p.Play("a")
-	if p.Playing {
+	if p.isPlaying {
 		t.Error("playing the current song again did not pause it")
 	}
-	p.Position = 40
+	p.position = 40
 	p.Play("c")
-	if p.Current() != "c" || !p.Playing || p.Position != 0 {
-		t.Errorf("at %q playing %v position %v", p.Current(), p.Playing, p.Position)
+	if p.Current() != "c" || !p.isPlaying || p.position != 0 {
+		t.Errorf("at %q playing %v position %v", p.Current(), p.isPlaying, p.position)
 	}
 }
 
@@ -44,8 +44,8 @@ func TestPlayOutsideQueueQueuesNext(t *testing.T) {
 
 	empty := New(nil)
 	empty.Play("x")
-	if empty.Current() != "x" || !empty.Playing {
-		t.Errorf("empty queue: current %q playing %v", empty.Current(), empty.Playing)
+	if empty.Current() != "x" || !empty.isPlaying {
+		t.Errorf("empty queue: current %q playing %v", empty.Current(), empty.isPlaying)
 	}
 }
 
@@ -53,15 +53,15 @@ func TestNextWrapsAndPlaysOn(t *testing.T) {
 	p := New(abcd)
 	p.Play("d")
 	p.Next()
-	if p.Current() != "a" || !p.Playing {
-		t.Errorf("past the end without repeat: at %q playing %v", p.Current(), p.Playing)
+	if p.Current() != "a" || !p.isPlaying {
+		t.Errorf("past the end without repeat: at %q playing %v", p.Current(), p.isPlaying)
 	}
 	one := New([]string{"a"})
 	one.Play("a")
-	one.Position = 42
+	one.position = 42
 	one.Next()
-	if one.Current() != "a" || !one.Playing || one.Position != 0 {
-		t.Errorf("one song: at %q playing %v position %v", one.Current(), one.Playing, one.Position)
+	if one.Current() != "a" || !one.isPlaying || one.position != 0 {
+		t.Errorf("one song: at %q playing %v position %v", one.Current(), one.isPlaying, one.position)
 	}
 }
 
@@ -77,11 +77,11 @@ func TestNextAndPrevKeepPaused(t *testing.T) {
 		{"next", p.Next, "c"},
 		{"prev", p.Prev, "b"},
 		{"next past the end", func() { p.Play("d"); p.Pause(); p.Next() }, "a"},
-		{"prev restarting", func() { p.Position = restartAfter + 1; p.Prev() }, "a"},
+		{"prev restarting", func() { p.position = restartAfter + 1; p.Prev() }, "a"},
 	} {
 		step.do()
-		if p.Current() != step.want || p.Playing {
-			t.Errorf("%s: at %q playing %v, want %q paused", step.name, p.Current(), p.Playing, step.want)
+		if p.Current() != step.want || p.isPlaying {
+			t.Errorf("%s: at %q playing %v, want %q paused", step.name, p.Current(), p.isPlaying, step.want)
 		}
 	}
 }
@@ -90,30 +90,30 @@ func TestSkipWrapsAndStopsUnlessRepeating(t *testing.T) {
 	p := New(abcd)
 	p.Play("d")
 	p.Skip()
-	if p.Current() != "a" || p.Playing {
-		t.Errorf("past the end without repeat: at %q playing %v", p.Current(), p.Playing)
+	if p.Current() != "a" || p.isPlaying {
+		t.Errorf("past the end without repeat: at %q playing %v", p.Current(), p.isPlaying)
 	}
-	p.Repeat = RepeatAll
+	p.repeat = RepeatAll
 	p.Play("d")
 	p.Skip()
-	if p.Current() != "a" || !p.Playing {
-		t.Errorf("past the end repeating: at %q playing %v", p.Current(), p.Playing)
+	if p.Current() != "a" || !p.isPlaying {
+		t.Errorf("past the end repeating: at %q playing %v", p.Current(), p.isPlaying)
 	}
-	p.Repeat = RepeatOff
+	p.repeat = RepeatOff
 	p.Play("d")
 	p.Finished()
-	if p.Current() != "a" || p.Playing {
-		t.Errorf("finished past the end: at %q playing %v", p.Current(), p.Playing)
+	if p.Current() != "a" || p.isPlaying {
+		t.Errorf("finished past the end: at %q playing %v", p.Current(), p.isPlaying)
 	}
 }
 
 func TestPrevRestartsSongUnderWay(t *testing.T) {
 	p := New(abcd)
 	p.Play("c")
-	p.Position = restartAfter + 1
+	p.position = restartAfter + 1
 	p.Prev()
-	if p.Current() != "c" || p.Position != 0 {
-		t.Fatalf("at %q position %v, want c restarted", p.Current(), p.Position)
+	if p.Current() != "c" || p.position != 0 {
+		t.Fatalf("at %q position %v, want c restarted", p.Current(), p.position)
 	}
 	p.Prev()
 	if p.Current() != "b" {
@@ -124,7 +124,7 @@ func TestPrevRestartsSongUnderWay(t *testing.T) {
 	if p.Current() != "a" {
 		t.Errorf("before the first song without repeat went to %q", p.Current())
 	}
-	p.Repeat = RepeatAll
+	p.repeat = RepeatAll
 	p.Prev()
 	if p.Current() != "d" {
 		t.Errorf("before the first song repeating went to %q", p.Current())
@@ -133,17 +133,17 @@ func TestPrevRestartsSongUnderWay(t *testing.T) {
 
 func TestFinishedHonorsRepeatOne(t *testing.T) {
 	p := New(abcd)
-	p.Repeat = RepeatOne
-	p.Position = 100
+	p.repeat = RepeatOne
+	p.position = 100
 	p.Finished()
-	if p.Current() != "a" || p.Position != 0 {
-		t.Errorf("repeat one: at %q position %v", p.Current(), p.Position)
+	if p.Current() != "a" || p.position != 0 {
+		t.Errorf("repeat one: at %q position %v", p.Current(), p.position)
 	}
 	p.Next()
 	if p.Current() != "b" {
 		t.Errorf("a skip under repeat one stayed at %q", p.Current())
 	}
-	p.Repeat = RepeatOff
+	p.repeat = RepeatOff
 	p.Finished()
 	if p.Current() != "c" {
 		t.Errorf("finished without repeat went to %q", p.Current())
@@ -156,7 +156,7 @@ func TestUpNext(t *testing.T) {
 	if got := p.AppendUpNext(nil, 8); !slices.Equal(got, []string{"d"}) {
 		t.Errorf("without repeat %q", got)
 	}
-	p.Repeat = RepeatAll
+	p.repeat = RepeatAll
 	if got := p.AppendUpNext(nil, 8); !slices.Equal(got, []string{"d", "a", "b"}) {
 		t.Errorf("repeating %q", got)
 	}
@@ -206,8 +206,8 @@ func TestCycleRepeat(t *testing.T) {
 	p := New(abcd)
 	for _, want := range []Repeat{RepeatAll, RepeatOne, RepeatOff} {
 		p.CycleRepeat()
-		if p.Repeat != want {
-			t.Fatalf("repeat %d, want %d", p.Repeat, want)
+		if p.repeat != want {
+			t.Fatalf("repeat %d, want %d", p.repeat, want)
 		}
 	}
 }
@@ -215,30 +215,30 @@ func TestCycleRepeat(t *testing.T) {
 func TestToggleMute(t *testing.T) {
 	p := New(abcd)
 	p.ToggleMute()
-	if !p.Muted || !p.IsSilent() {
+	if !p.isMuted || !p.IsSilent() {
 		t.Fatal("not muted")
 	}
 	p.ToggleMute()
-	if p.Muted || p.Volume != defaultVolume {
-		t.Fatalf("unmuted %v at volume %v", !p.Muted, p.Volume)
+	if p.isMuted || p.volume != defaultVolume {
+		t.Fatalf("unmuted %v at volume %v", !p.isMuted, p.volume)
 	}
-	p.Volume = 0
+	p.volume = 0
 	if !p.IsSilent() {
 		t.Fatal("zero volume is not silent")
 	}
 	p.ToggleMute()
-	if p.IsSilent() || p.Volume != unmuteVolume {
-		t.Errorf("unmuting at zero volume left volume %v", p.Volume)
+	if p.IsSilent() || p.volume != unmuteVolume {
+		t.Errorf("unmuting at zero volume left volume %v", p.volume)
 	}
 }
 
 func TestPlayAllReplacesTheQueue(t *testing.T) {
 	p := New(abcd)
 	p.Play("c")
-	p.Position = 30
+	p.position = 30
 	p.PlayAll([]string{"x", "y", "z"}, 0)
-	if p.Current() != "x" || !p.Playing || p.Position != 0 {
-		t.Fatalf("at %q playing %v position %v", p.Current(), p.Playing, p.Position)
+	if p.Current() != "x" || !p.isPlaying || p.position != 0 {
+		t.Fatalf("at %q playing %v position %v", p.Current(), p.isPlaying, p.position)
 	}
 	if got := p.AppendUpNext(nil, 5); !slices.Equal(got, []string{"y", "z"}) {
 		t.Errorf("up next %q", got)

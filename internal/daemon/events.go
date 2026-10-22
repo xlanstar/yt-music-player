@@ -58,13 +58,13 @@ func (s *Service) state() api.State {
 		song.ID = current
 	}
 	return api.State{
-		Playing:  p.Playing,
+		Playing:  p.IsPlaying(),
 		Waiting:  s.pb.IsWaiting(),
-		Position: p.Position,
+		Position: p.Position(),
 		Duration: s.pb.SongLength(song),
-		Volume:   p.Volume,
-		Muted:    p.Muted,
-		Repeat:   wireRepeat(p.Repeat),
+		Volume:   p.Volume(),
+		Muted:    p.IsMuted(),
+		Repeat:   wireRepeat(p.Repeat()),
 		Shuffled: p.IsShuffled(),
 		Current:  current,
 		Index:    p.Index(),

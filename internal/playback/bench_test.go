@@ -19,7 +19,7 @@ var followCases = []struct {
 	ready func(x *fixture)
 }{
 	{"playing", func(*fixture) {}},
-	{"paused", func(x *fixture) { x.player.Playing = false }},
+	{"paused", func(x *fixture) { x.player.Pause() }},
 }
 
 // playing is a fixture 30.5 s into a song on the fake engine.
@@ -97,7 +97,7 @@ func BenchmarkNext(b *testing.B) {
 		}
 		b.Run(name, func(b *testing.B) {
 			x := playing(b)
-			x.player.Repeat = player.RepeatAll
+			setRepeat(x.player, player.RepeatAll)
 			b.ReportAllocs()
 			for b.Loop() {
 				nextSong(x, prefetched)

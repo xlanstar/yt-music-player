@@ -137,16 +137,16 @@ func (pb *Playback) Follow() {
 		pb.volume = volume
 		pb.engine.SetVolume(volume)
 	}
-	if p.Position != pb.pos {
-		pb.pos = p.Position
+	if p.Position() != pb.pos {
+		pb.pos = p.Position()
 		if pb.state >= released {
-			pb.engine.Seek(p.Position)
+			pb.engine.Seek(p.Position())
 		}
 	}
-	if p.Playing != pb.isPlaying {
-		pb.isPlaying = p.Playing
+	if p.IsPlaying() != pb.isPlaying {
+		pb.isPlaying = p.IsPlaying()
 		switch {
-		case !p.Playing:
+		case !p.IsPlaying():
 			pb.readPosition()
 			if pb.state >= loading {
 				pb.engine.Pause()
@@ -173,7 +173,8 @@ func (pb *Playback) follow() {
 	if pb.seconds > 0 {
 		pos = min(pos, pb.seconds)
 	}
-	pb.player.Position, pb.pos = pos, pos
+	pb.player.Seek(pos)
+	pb.pos = pos
 	pb.armPrefetch(pos)
 }
 
@@ -181,26 +182,26 @@ func (pb *Playback) follow() {
 // still: its stream resolving or loading, or stalled; always so without a
 // Resolver.
 func (pb *Playback) IsWaiting() bool {
-	return pb.player.Playing && pb.player.Current() != "" && !pb.isAdvancing()
+	return pb.player.IsPlaying() && pb.player.Current() != "" && !pb.isAdvancing()
 }
 
 // isAdvancing reports whether the song's position moves on its own.
 func (pb *Playback) isAdvancing() bool {
-	return pb.player.Playing && pb.state == loaded && !pb.isStalled
+	return pb.player.IsPlaying() && pb.state == loaded && !pb.isStalled
 }
 
 func (pb *Playback) readPosition() {
 	if pb.state == loaded {
 		pb.pos = pb.engine.Position()
-		pb.player.Position = pb.pos
+		pb.player.Seek(pb.pos)
 	}
 }
 
 func gain(p *player.Player) float64 {
-	if p.Muted {
+	if p.IsMuted() {
 		return 0
 	}
-	return p.Volume
+	return p.Volume()
 }
 
 func expiring(s stream.Stream) bool {
@@ -222,7 +223,7 @@ func (pb *Playback) switchSong(id string) {
 	pb.song, pb.state, pb.stream, pb.seconds = id, unloaded, stream.Stream{}, 0
 	pb.isStalled, pb.hasRetried = false, false
 	// Not playing yet, so Follow loads it if the player plays.
-	pb.isPlaying, pb.pos = false, pb.player.Position
+	pb.isPlaying, pb.pos = false, pb.player.Position()
 }
 
 // resolve finds the current song's stream: the one released if it still
@@ -263,8 +264,8 @@ func (pb *Playback) resolved(s stream.Stream, err error) {
 		Title: song.Title, Artist: song.Artist, Album: song.Album,
 		Seconds: float64(song.Seconds),
 	})
-	pb.engine.Load(audio.Media{URL: s.URL, Seconds: s.Seconds, Header: s.Header}, p.Position)
-	pb.pos, pb.release.holds = p.Position, true
+	pb.engine.Load(audio.Media{URL: s.URL, Seconds: s.Seconds, Header: s.Header}, p.Position())
+	pb.pos, pb.release.holds = p.Position(), true
 	if pb.isPlaying {
 		pb.engine.Play()
 	}
@@ -346,9 +347,9 @@ func (pb *Playback) songEnded() {
 	}
 	// RepeatOne, or a one-song queue repeating: the engine paused at the
 	// end while the player still plays.
-	pb.pos = p.Position
-	pb.engine.Seek(p.Position)
-	pb.isPlaying = p.Playing
+	pb.pos = p.Position()
+	pb.engine.Seek(p.Position())
+	pb.isPlaying = p.IsPlaying()
 	if pb.isPlaying {
 		pb.engine.Play()
 	}
@@ -380,7 +381,8 @@ func (pb *Playback) playFailed(err error) {
 		if pb.failures > 1 {
 			pb.notice.Detail, pb.notice.N = notice.PlaybackStoppedAfter, pb.failures
 		}
-		pb.failures, p.Playing = 0, false
+		pb.failures = 0
+		p.Pause()
 		return
 	}
 	pb.notice = failure(heading, notice.Skipped, title)

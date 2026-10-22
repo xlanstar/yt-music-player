@@ -42,7 +42,7 @@ func TestBudgetNext(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			x := playing(t)
-			x.player.Repeat = player.RepeatAll
+			setRepeat(x.player, player.RepeatAll)
 			budget.Allocs(t, tc.limit, 100, func() { nextSong(x, tc.prefetched) })
 		})
 	}

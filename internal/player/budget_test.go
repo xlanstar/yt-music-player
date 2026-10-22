@@ -16,7 +16,7 @@ func TestBudgetMoves(t *testing.T) {
 	for _, r := range repeats {
 		t.Run(r.name, func(t *testing.T) {
 			p := bigPlayer()
-			p.Repeat = r.repeat
+			p.repeat = r.repeat
 			// 0 allocs today, for each.
 			budget.Allocs(t, 0, 100, func() { sinkString = p.Current() })
 			budget.Allocs(t, 0, 100, p.Next)
