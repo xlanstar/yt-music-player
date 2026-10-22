@@ -99,13 +99,13 @@ func (a *app) cachedCollection(res fetchstate.Resource) collection {
 }
 
 // albumKind says an album's release type in the app's language.
-func albumKind(k catalog.AlbumKind) string {
+func albumKind(k catalog.Release) string {
 	switch k {
-	case catalog.KindAlbum:
+	case catalog.ReleaseAlbum:
 		return locales.Album()
-	case catalog.KindEP:
+	case catalog.ReleaseEP:
 		return locales.AlbumEP()
-	case catalog.KindSingle:
+	case catalog.ReleaseSingle:
 		return locales.AlbumSingle()
 	}
 	return string(k)

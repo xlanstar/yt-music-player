@@ -99,16 +99,16 @@ func placeholderSongs() []Song {
 
 func placeholderAlbums() []Album {
 	return []Album{
-		{"neon-tide", "Neon Tide", "Lumen Drive", 2025, KindAlbum, "neon-tide"},
-		{"paper-moons", "Paper Moons", "Ivy Calder", 2024, KindAlbum, "paper-moons"},
-		{"low-orbit", "Low Orbit", "Orbit Kids", 2025, KindEP, "low-orbit"},
-		{"velvet-static", "Velvet Static", "The Velvet Hours", 2023, KindAlbum, "velvet-static"},
-		{"glasshouse", "Glasshouse", "Fern & Folly", 2025, KindSingle, "glasshouse"},
-		{"afterglow-fm", "Afterglow FM", "Coastline", 2024, KindAlbum, "afterglow-fm"},
-		{"northbound", "Northbound", "Mara Holt", 2022, KindAlbum, "northbound"},
-		{"saffron-hours", "Saffron Hours", "Saffron", 2025, KindEP, "saffron-hours"},
-		{"small-hours", "Small Hours", "Nightjar", 2024, KindAlbum, "small-hours"},
-		{"blue-cassette", "Blue Cassette", "Kasette", 2023, KindAlbum, "blue-cassette"},
+		{"neon-tide", "Neon Tide", "Lumen Drive", 2025, ReleaseAlbum, "neon-tide"},
+		{"paper-moons", "Paper Moons", "Ivy Calder", 2024, ReleaseAlbum, "paper-moons"},
+		{"low-orbit", "Low Orbit", "Orbit Kids", 2025, ReleaseEP, "low-orbit"},
+		{"velvet-static", "Velvet Static", "The Velvet Hours", 2023, ReleaseAlbum, "velvet-static"},
+		{"glasshouse", "Glasshouse", "Fern & Folly", 2025, ReleaseSingle, "glasshouse"},
+		{"afterglow-fm", "Afterglow FM", "Coastline", 2024, ReleaseAlbum, "afterglow-fm"},
+		{"northbound", "Northbound", "Mara Holt", 2022, ReleaseAlbum, "northbound"},
+		{"saffron-hours", "Saffron Hours", "Saffron", 2025, ReleaseEP, "saffron-hours"},
+		{"small-hours", "Small Hours", "Nightjar", 2024, ReleaseAlbum, "small-hours"},
+		{"blue-cassette", "Blue Cassette", "Kasette", 2023, ReleaseAlbum, "blue-cassette"},
 	}
 }
 

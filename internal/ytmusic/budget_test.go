@@ -160,7 +160,7 @@ func TestBudgetHelpers(t *testing.T) {
 			sinkString = m.artist()
 		}},
 		// 1 alloc today: the artists.
-		{"subtitle", 1, func() { sinkKind, sinkString, sinkInt = subtitle(albumRuns) }},
+		{"subtitle", 1, func() { sinkRelease, sinkString, sinkInt = subtitle(albumRuns) }},
 		{"tint", 0, func() { sinkTint = tint(0xff1db954) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) { budget.Allocs(t, tc.limit, 100, tc.f) })

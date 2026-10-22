@@ -65,7 +65,7 @@ func benchAlbum() (Album, []Song) {
 		Title:  "Bench Album",
 		Artist: "Bench Artist",
 		Year:   2026,
-		Kind:   KindAlbum,
+		Kind:   ReleaseAlbum,
 		Art:    "neon-tide",
 	}
 	tracks := make([]Song, 12)

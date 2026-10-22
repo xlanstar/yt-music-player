@@ -130,7 +130,7 @@ func canceled(call catalogtest.Call) bool {
 // remoteAlbum and remoteTracks are not in the placeholder catalog.
 var (
 	remoteAlbum = catalog.Album{
-		ID: "remote", Title: "Far Signals", Artist: "Nova Static", Year: 2026, Kind: catalog.KindEP, Art: "neon-tide",
+		ID: "remote", Title: "Far Signals", Artist: "Nova Static", Year: 2026, Kind: catalog.ReleaseEP, Art: "neon-tide",
 	}
 	remoteTracks = []catalog.Song{
 		{

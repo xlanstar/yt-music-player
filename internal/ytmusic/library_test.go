@@ -48,11 +48,11 @@ func TestLibrary(t *testing.T) {
 	wantAlbums := []catalog.Album{
 		{
 			ID: "MPREb_fakealbum0001", Title: "Pretend Album", Artist: "The Fictional Band",
-			Year: 2019, Kind: catalog.KindAlbum,
+			Year: 2019, Kind: catalog.ReleaseAlbum,
 		},
 		{
 			ID: "MPREb_fakealbum0002", Title: "Imaginary EP", Artist: "Example Singer",
-			Year: 2023, Kind: catalog.KindEP,
+			Year: 2023, Kind: catalog.ReleaseEP,
 		},
 	}
 	if len(lib.Albums) != 2 || withoutAlbumArt(lib.Albums[0]) != wantAlbums[0] ||

@@ -38,7 +38,7 @@ func testSong(i int) catalog.Song {
 }
 
 func testAlbum() catalog.Album {
-	return catalog.Album{ID: "MPREb_a", Title: "Album", Artist: "Artist", Year: 2024, Kind: catalog.KindEP, Art: "art-a"}
+	return catalog.Album{ID: "MPREb_a", Title: "Album", Artist: "Artist", Year: 2024, Kind: catalog.ReleaseEP, Art: "art-a"}
 }
 
 func testPlaylist() catalog.Playlist {

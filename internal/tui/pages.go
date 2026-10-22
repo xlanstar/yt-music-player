@@ -304,9 +304,9 @@ func (m *model) collectionPage(o opened) page {
 func albumLine(album catalog.Album, songs []catalog.Song) string {
 	kind := locales.Album()
 	switch album.Kind {
-	case catalog.KindEP:
+	case catalog.ReleaseEP:
 		kind = locales.AlbumEP()
-	case catalog.KindSingle:
+	case catalog.ReleaseSingle:
 		kind = locales.AlbumSingle()
 	}
 	parts := []string{kind}

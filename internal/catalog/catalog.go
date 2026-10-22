@@ -22,21 +22,21 @@ type Song struct {
 	Art            Art
 }
 
-// AlbumKind is YouTube Music's release type.
-type AlbumKind string
+// Release is YouTube Music's release type.
+type Release string
 
 // Release types, by size.
 const (
-	KindAlbum  AlbumKind = "Album"
-	KindEP     AlbumKind = "EP"
-	KindSingle AlbumKind = "Single"
+	ReleaseAlbum  Release = "Album"
+	ReleaseEP     Release = "EP"
+	ReleaseSingle Release = "Single"
 )
 
 // Album is a release by one artist.
 type Album struct {
 	ID, Title, Artist string
 	Year              int
-	Kind              AlbumKind
+	Kind              Release
 	Art               Art
 }
 

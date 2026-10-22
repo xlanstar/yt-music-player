@@ -35,7 +35,7 @@ var (
 	sinkArt      catalog.Art
 	sinkTint     catalog.Tint
 	sinkFloat    float64
-	sinkKind     catalog.AlbumKind
+	sinkRelease  catalog.Release
 	sinkResults  catalog.Results
 	sinkHome     catalog.Home
 	sinkExplore  catalog.Explore
@@ -374,7 +374,7 @@ func BenchmarkSubtitle(b *testing.B) {
 	runs := rows[0].ListItem.column(1)
 	b.ReportAllocs()
 	for b.Loop() {
-		sinkKind, sinkString, sinkInt = subtitle(runs)
+		sinkRelease, sinkString, sinkInt = subtitle(runs)
 	}
 }
 

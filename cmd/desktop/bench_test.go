@@ -104,7 +104,7 @@ func feedHome() catalog.Home {
 	album := func(i int) catalog.Item {
 		return catalog.Item{Kind: catalog.ItemAlbum, Album: catalog.Album{
 			ID: "MPREb_feed" + itoa(i), Title: "Feed Album " + itoa(i), Artist: "Feed Artist " + itoa(i%7),
-			Year: 2000 + i, Kind: catalog.KindAlbum, Art: art("album", i),
+			Year: 2000 + i, Kind: catalog.ReleaseAlbum, Art: art("album", i),
 		}}
 	}
 	playlist := func(i int) catalog.Item {

@@ -42,14 +42,14 @@ func year(s string) int {
 	return n
 }
 
-func kind(s string) (catalog.AlbumKind, bool) {
+func release(s string) (catalog.Release, bool) {
 	switch strings.TrimSpace(s) {
 	case "Album":
-		return catalog.KindAlbum, true
+		return catalog.ReleaseAlbum, true
 	case "EP":
-		return catalog.KindEP, true
+		return catalog.ReleaseEP, true
 	case "Single":
-		return catalog.KindSingle, true
+		return catalog.ReleaseSingle, true
 	}
 	return "", false
 }
@@ -239,15 +239,15 @@ func parseAlbumRow(row item) (catalog.Album, bool) {
 
 // subtitle reads "Album • Daft Punk • 2001"; a missing kind is an album,
 // which is what YouTube Music calls anything it does not label.
-func subtitle(rs runs) (catalog.AlbumKind, string, int) {
-	albumKind := catalog.KindAlbum
+func subtitle(rs runs) (catalog.Release, string, int) {
+	rel := catalog.ReleaseAlbum
 	if len(rs) > 0 {
-		if found, ok := kind(rs[0].Text); ok {
-			albumKind = found
+		if found, ok := release(rs[0].Text); ok {
+			rel = found
 			rs = rs[1:]
 		}
 	}
 	var m meta
 	m.read(rs, true)
-	return albumKind, m.artist(), m.year
+	return rel, m.artist(), m.year
 }

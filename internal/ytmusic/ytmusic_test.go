@@ -38,13 +38,13 @@ func TestSearch(t *testing.T) {
 		Title:  "Discovery",
 		Artist: "Daft Punk",
 		Year:   2001,
-		Kind:   catalog.KindAlbum,
+		Kind:   catalog.ReleaseAlbum,
 	}
 	if got := results.Albums[1]; withoutAlbumArt(got) != wantAlbum || !strings.Contains(string(got.Art), "w544-h544") {
 		t.Errorf("second album = %+v, want %+v with the 544px art", got, wantAlbum)
 	}
 	got := results.Albums[6]
-	if got.Title != "Robot Rock (Edit)" || got.Kind != catalog.KindSingle || got.Year != 2005 {
+	if got.Title != "Robot Rock (Edit)" || got.Kind != catalog.ReleaseSingle || got.Year != 2005 {
 		t.Errorf("seventh album = %+v, want the single Robot Rock (Edit) of 2005", got)
 	}
 	for _, al := range results.Albums {
@@ -66,7 +66,7 @@ func TestAlbum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := catalog.Album{ID: albumID, Title: "Discovery", Artist: "Daft Punk", Year: 2001, Kind: catalog.KindAlbum}
+	want := catalog.Album{ID: albumID, Title: "Discovery", Artist: "Daft Punk", Year: 2001, Kind: catalog.ReleaseAlbum}
 	if withoutAlbumArt(al) != want || !strings.HasSuffix(string(al.Art), "=w544-h544-l90-rj") {
 		t.Errorf("album = %+v, want %+v with the 544px art", al, want)
 	}

@@ -79,7 +79,7 @@ func TestHome(t *testing.T) {
 		t.Errorf("first mix = %+v, want Pop Certified with its artists", mix)
 	}
 	ep := withoutAlbumArt(home.Shelves[1].Items[6].Album)
-	if want := (catalog.Album{ID: "MPREb_ods9q7HQQGq", Title: "27", Artist: "YUQI", Kind: catalog.KindEP}); ep != want {
+	if want := (catalog.Album{ID: "MPREb_ods9q7HQQGq", Title: "27", Artist: "YUQI", Kind: catalog.ReleaseEP}); ep != want {
 		t.Errorf("seventh new release = %+v, want %+v", ep, want)
 	}
 	song := withoutArt(home.Shelves[4].Items[0].Song)
@@ -183,19 +183,19 @@ func TestExplore(t *testing.T) {
 		ID:     "MPREb_0A7WM2d0SJl",
 		Title:  "自由的你 - Free to Be You",
 		Artist: "G.E.M.",
-		Kind:   catalog.KindSingle,
+		Kind:   catalog.ReleaseSingle,
 	}
 	if got := withoutAlbumArt(ex.NewReleases[0]); got != first {
 		t.Errorf("first new release = %+v, want %+v", got, first)
 	}
-	kinds := map[catalog.AlbumKind]int{}
+	kinds := map[catalog.Release]int{}
 	for _, al := range ex.NewReleases {
 		kinds[al.Kind]++
 		if !complete(catalog.Item{Kind: catalog.ItemAlbum, Album: al}) {
 			t.Errorf("incomplete new release %+v", al)
 		}
 	}
-	if kinds[catalog.KindSingle] != 18 || kinds[catalog.KindAlbum] != 6 {
+	if kinds[catalog.ReleaseSingle] != 18 || kinds[catalog.ReleaseAlbum] != 6 {
 		t.Errorf("new releases by kind = %v, want 18 singles and 6 albums", kinds)
 	}
 	if got := ex.NewReleases[9].Artist; got != "Rubikdice, Chilx, WAA" {
@@ -404,7 +404,7 @@ func TestParseShelf(t *testing.T) {
 			ID: "RDTMAK5uy_x", Name: "Supermix", Owner: "Daft Punk, Justice",
 		}},
 		{Kind: catalog.ItemAlbum, Album: catalog.Album{
-			ID: "MPREb_h", Title: "Homework", Artist: "Daft Punk", Year: 1997, Kind: catalog.KindAlbum,
+			ID: "MPREb_h", Title: "Homework", Artist: "Daft Punk", Year: 1997, Kind: catalog.ReleaseAlbum,
 		}},
 		{Kind: catalog.ItemPlaylist, Playlist: catalog.Playlist{ID: "RDCLAK5uy_z", Name: "Mix"}},
 	}
