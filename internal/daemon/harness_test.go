@@ -246,8 +246,8 @@ func (c *client) reply(id uint32) api.Reply {
 		switch {
 		case f.Event != nil:
 			c.events = append(c.events, *f.Event)
-		case f.Reply != nil && f.ID == id && f.Reply.Ahead != nil:
-			c.ahead = append(c.ahead, f.Reply.Ahead)
+		case f.Ahead != nil && f.ID == id:
+			c.ahead = append(c.ahead, f.Ahead)
 		case f.Reply != nil && f.ID == id:
 			f.Reply.Join(c.ahead)
 			return *f.Reply
@@ -255,6 +255,19 @@ func (c *client) reply(id uint32) api.Reply {
 			c.t.Fatalf("reply to %d while waiting for %d's", f.ID, id)
 		}
 	}
+}
+
+// sendInParts sends cl after its long lists, as front-ends do, and
+// returns its ID.
+func (c *client) sendInParts(cl api.Call) uint32 {
+	c.t.Helper()
+	id := c.nextID + 1
+	for _, a := range cl.Split() {
+		if err := c.c.Send(api.Frame{ID: id, Ahead: a}); err != nil {
+			c.t.Fatal(err)
+		}
+	}
+	return c.send(cl)
 }
 
 // call sends cl and waits for its reply, which must not fail.
@@ -295,18 +308,23 @@ func (c *client) eventWith(has func(api.Event) bool) api.Event {
 }
 
 // songsAhead returns the next event last accepts, with the queue's songs
-// that came ahead of it in events of their own. Other events are dropped.
+// that came ahead of it in events of their own, each of a part's size.
+// Other events are dropped.
 func (c *client) songsAhead(last func(api.Event) bool) (ev api.Event, queued []catalog.Song) {
 	c.t.Helper()
+	var sizes []int
 	for {
 		ev = c.event()
 		switch {
 		case last(ev):
+			for _, n := range sizes {
+				if n == 0 || n > api.PartSize(len(queued)) {
+					c.t.Errorf("an event of %d songs of %d", n, len(queued))
+				}
+			}
 			return ev, queued
 		case reflect.DeepEqual(ev, api.Event{Songs: ev.Songs}):
-			if len(ev.Songs) == 0 || len(ev.Songs) > songsPerFrame {
-				c.t.Errorf("an event of %d songs", len(ev.Songs))
-			}
+			sizes = append(sizes, len(ev.Songs))
 			queued = append(queued, ev.Songs...)
 		}
 	}

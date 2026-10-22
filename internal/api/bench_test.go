@@ -20,39 +20,48 @@ func songs5000() ([]string, []catalog.Song) {
 	return ids, songs
 }
 
-// encodeCases are frames a daemon sends often (state) or large. limit holds
-// allocations per steady Encode, types already sent: 0.1, not 0, as a GC
-// under load empties gob's buffer sync.Pool, which a call may refill.
+// encodeCases are frames a daemon sends often (state) or large, and a
+// front-end's largest. limit holds allocations per steady Encode, types
+// already sent: 0.1, not 0, as a GC under load empties gob's buffer
+// sync.Pool, which a call may refill.
 var encodeCases = []struct {
 	name  string
 	frame func() *Frame
 	limit float64
 }{
 	{"state", func() *Frame { return &Frame{Event: &Event{State: testState()}} }, 0.1}, // 0 allocs today.
+	// A snapshot of 5000 queued, its songs gone ahead in 16 events of 313.
 	{"queue-5000", func() *Frame {
-		ids, songs := songs5000()
-		return &Frame{Event: &Event{Queue: &Queue{IDs: ids}, Songs: songs}}
+		ids, _ := songs5000()
+		return &Frame{Event: &Event{State: testState(), Queue: &Queue{IDs: ids}}}
 	}, 0.1}, // 0 allocs today.
 	// A playlist of 5000 as ytmd replies: 16 parts of 313 songs, then the
 	// playlist with its IDs.
 	{"part-313", func() *Frame {
 		ahead, _ := splitPlaylist5000()
-		return &Frame{ID: 9, Reply: &Reply{Ahead: ahead[0]}}
+		return &Frame{ID: 9, Ahead: ahead[0]}
 	}, 0.1}, // 0 allocs today.
 	{"playlist-5000", func() *Frame {
 		_, r := splitPlaylist5000()
 		return &Frame{ID: 9, Reply: r}
 	}, 0.1}, // 0 allocs today.
+	// 5000 songs enqueued, as a front-end sends them after 16 parts.
+	{"enqueue-5000", func() *Frame {
+		ids, songs := songs5000()
+		call := &Call{Method: MethodEnqueue, IDs: &IDsArgs{IDs: ids, Songs: songs}}
+		call.Split()
+		return &Frame{ID: 9, Call: call}
+	}, 0.1}, // 0 allocs today.
 }
 
 // splitPlaylist5000 is a reply of a playlist of 5000 songs, split as ytmd
-// does (daemon's songsPerFrame and maxSongFrames).
+// does.
 func splitPlaylist5000() ([]*Ahead, *Reply) {
 	ids, songs := songs5000()
 	list := testPlaylist()
 	list.Songs = ids
 	r := &Reply{Playlist: &PlaylistReply{Playlist: list, Songs: songs}}
-	return r.Split(256, 16), r
+	return r.Split(), r
 }
 
 // steadyEncoder is an encoder that has sent f's types, writing into a
@@ -127,9 +136,9 @@ func BenchmarkCleanCredentials(b *testing.B) {
 	}
 }
 
-// partCases are long replies, sent in parts of 256 items, or more so that a
-// reply takes about 16 (daemon's songsPerFrame and maxSongFrames). split
-// and join hold each one's allocations (TestBudgetSplit, TestBudgetJoin).
+// partCases are long replies, sent in parts of PartItems, or more so that
+// a reply takes about MaxParts. split and join hold each one's allocations
+// (TestBudgetSplit, TestBudgetJoin).
 var partCases = []struct {
 	name        string
 	reply       func() *Reply
@@ -193,7 +202,7 @@ func BenchmarkSplit(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				undo()
-				sinkAhead = r.Split(256, 16)
+				sinkAhead = r.Split()
 			}
 		})
 	}
@@ -203,7 +212,7 @@ func BenchmarkJoin(b *testing.B) {
 	for _, tc := range partCases {
 		b.Run(tc.name, func(b *testing.B) {
 			r := tc.reply()
-			ahead := r.Split(256, 16)
+			ahead := r.Split()
 			b.ReportAllocs()
 			for b.Loop() {
 				r.Join(ahead)

@@ -91,7 +91,7 @@ type pending struct {
 	// ctx is a Go's; stop stops watching it.
 	ctx  context.Context
 	stop func() bool
-	// ahead are the parts of a long reply come so far (api.Ahead).
+	// ahead are the parts of a long reply come so far (api.Frame.Ahead).
 	ahead []*api.Ahead
 }
 
@@ -190,8 +190,8 @@ func (c *Client) read(l *link) {
 			c.sup.heard()
 		}
 		switch {
-		case f.Reply != nil && f.Reply.Ahead != nil:
-			c.keepAhead(l, f.ID, f.Reply.Ahead)
+		case f.Ahead != nil:
+			c.keepAhead(l, f.ID, f.Ahead)
 		case f.Reply != nil:
 			if p := c.take(l, f.ID); p != nil {
 				f.Reply.Join(p.ahead)
@@ -264,6 +264,7 @@ func (c *Client) send(l *link, call *api.Call, p *pending) (*link, uint32, error
 	if err := call.Validate(); err != nil {
 		return nil, 0, err
 	}
+	ahead := call.Split()
 	c.mu.Lock()
 	if l == nil {
 		l = c.link
@@ -286,7 +287,7 @@ func (c *Client) send(l *link, call *api.Call, p *pending) (*link, uint32, error
 		p.timer = time.AfterFunc(controlTimeout, func() { c.expire(l, id) })
 	}
 	c.mu.Unlock()
-	if err := l.conn.Send(api.Frame{ID: id, Call: call}); err != nil {
+	if err := sendCall(l.conn, id, call, ahead); err != nil {
 		if c.take(l, id) == nil {
 			// The reader failed it already.
 			return nil, 0, api.ErrDisconnected
@@ -294,6 +295,17 @@ func (c *Client) send(l *link, call *api.Call, p *pending) (*link, uint32, error
 		return nil, 0, fmt.Errorf("%w: %w", api.ErrDisconnected, err)
 	}
 	return l, id, nil
+}
+
+// sendCall sends call id after the parts of its lists that go ahead of it;
+// a failure closed conn, which drops the parts sent.
+func sendCall(conn *ipc.Conn, id uint32, call *api.Call, ahead []*api.Ahead) error {
+	for _, a := range ahead {
+		if err := conn.Send(api.Frame{ID: id, Ahead: a}); err != nil {
+			return err
+		}
+	}
+	return conn.Send(api.Frame{ID: id, Call: call})
 }
 
 // abandon ends Go's call id of l, whose ctx ended.

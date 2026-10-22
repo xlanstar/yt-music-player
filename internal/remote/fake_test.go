@@ -66,20 +66,27 @@ func (d *daemon) serve(ctx context.Context, conn *ipc.Conn) {
 	if d.greeted != nil {
 		d.greeted(conn)
 	}
+	// ahead are the parts of calls to come, as ytmd keeps them.
+	ahead := map[uint32][]*api.Ahead{}
 	for conn.Receive(&f) == nil {
 		d.mu.Lock()
 		d.frames = append(d.frames, f)
 		d.mu.Unlock()
+		if f.Ahead != nil {
+			ahead[f.ID] = append(ahead[f.ID], f.Ahead)
+		}
 		if f.Call == nil {
 			continue
 		}
+		f.Call.Join(ahead[f.ID])
+		delete(ahead, f.ID)
 		reply := &api.Reply{}
 		if d.answer != nil {
 			reply = d.answer(f.Call)
 		}
 		if reply != nil && d.ahead != nil {
 			for _, a := range d.ahead(f.Call) {
-				_ = conn.Send(api.Frame{ID: f.ID, Reply: &api.Reply{Ahead: a}})
+				_ = conn.Send(api.Frame{ID: f.ID, Ahead: a})
 			}
 		}
 		if reply != nil {
@@ -134,6 +141,19 @@ func (d *daemon) calls() []api.Method {
 		}
 	}
 	return methods
+}
+
+// lastCall returns the ID of the last call of method received.
+func (d *daemon) lastCall(method api.Method) uint32 {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var id uint32
+	for _, f := range d.frames {
+		if f.Call != nil && f.Call.Method == method {
+			id = f.ID
+		}
+	}
+	return id
 }
 
 // received returns the frames received after the hellos.

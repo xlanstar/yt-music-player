@@ -36,7 +36,7 @@ func TestBudgetSplit(t *testing.T) {
 			undo := unsplit(r)
 			budget.Allocs(t, tc.split, 20, func() {
 				undo()
-				sinkAhead = r.Split(256, 16)
+				sinkAhead = r.Split()
 			})
 		})
 	}
@@ -46,7 +46,7 @@ func TestBudgetJoin(t *testing.T) {
 	for _, tc := range partCases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := tc.reply()
-			ahead := r.Split(256, 16)
+			ahead := r.Split()
 			budget.Allocs(t, tc.join, 20, func() {
 				r.Join(ahead)
 				unjoin(r)

@@ -320,9 +320,9 @@ func TestRemoteFetchSignedOut(t *testing.T) {
 	}
 }
 
-// Lists too long for one frame come in parts (daemon's carry, and a
-// reply's api.Ahead): front-ends connected then and later end with every
-// song.
+// Lists too long for one frame go in parts (daemon's carry, and those of
+// a call or reply, api.Frame.Ahead): front-ends connected then and later
+// end with every song.
 func TestRemoteLongLists(t *testing.T) {
 	f := newRemoteFixture(t)
 	liked := catalogtest.Decoded(1000)

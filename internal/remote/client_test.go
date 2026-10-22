@@ -11,6 +11,7 @@ import (
 	"time"
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/catalog/catalogtest"
 	"yt-music-player/internal/ipc"
 	"yt-music-player/internal/leakcheck"
 	"yt-music-player/internal/notice"
@@ -154,18 +155,107 @@ func TestReplyInParts(t *testing.T) {
 			errs <- err
 		}()
 		synctest.Wait()
-		d.send(api.Frame{ID: 3, Reply: &api.Reply{Ahead: &api.Ahead{Songs: songs}}})
+		home := d.lastCall(api.MethodHome)
+		d.send(api.Frame{ID: home, Ahead: &api.Ahead{Songs: songs}})
 		synctest.Wait()
 		cancel()
 		if err := <-errs; !errors.Is(err, context.Canceled) {
 			t.Errorf("Home = %v, want canceled", err)
 		}
-		d.send(api.Frame{ID: 3, Reply: &api.Reply{Ahead: &api.Ahead{Songs: songs}}})
-		d.send(api.Frame{ID: 3, Reply: &api.Reply{Home: &catalog.Home{}}})
+		d.send(api.Frame{ID: home, Ahead: &api.Ahead{Songs: songs}})
+		d.send(api.Frame{ID: home, Reply: &api.Reply{Home: &catalog.Home{}}})
 		pl, got, err = f.client.Playlist(t.Context(), "PL")
 		if err != nil || pl.ID != "PL" || !reflect.DeepEqual(got, songs) {
 			t.Errorf("Playlist after = %+v, %+v, %v", pl, got, err)
 		}
+		noPending(t, f)
+	})
+}
+
+// noPending fails t if f's Client has calls pending.
+func noPending(t *testing.T, f *front) {
+	t.Helper()
+	l := f.client.current()
+	f.client.mu.Lock()
+	defer f.client.mu.Unlock()
+	if len(l.pending) > 0 {
+		t.Errorf("%d calls pending", len(l.pending))
+	}
+}
+
+// A call's songs too many for one frame go ahead of it, in parts of its
+// ID; the daemon gets the call whole, the caller's arguments unchanged.
+func TestCallInParts(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newDaemon("1.0.0")
+		f := newFront()
+		attach(t, f, d)
+		songs := catalogtest.Decoded(5000)
+		ids := make([]string, len(songs))
+		for i, s := range songs {
+			ids[i] = s.ID
+		}
+		whole := slices.Clone(songs)
+		f.client.Enqueue(ids, true, songs)
+		synctest.Wait()
+		got := d.received()
+		if len(got) != api.MaxParts+1 {
+			t.Fatalf("daemon got %d frames, want %d parts and the call", len(got), api.MaxParts)
+		}
+		call := got[api.MaxParts]
+		for _, part := range got[:api.MaxParts] {
+			if part.Ahead == nil || part.ID != call.ID {
+				t.Errorf("frame %+v, want a part of call %d", part, call.ID)
+			}
+		}
+		want := &api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: ids, Songs: songs, Next: true}}
+		if !reflect.DeepEqual(call.Call, want) {
+			t.Errorf("call of %d songs, want %d", len(call.Call.IDs.Songs), len(songs))
+		}
+		if !reflect.DeepEqual(songs, whole) {
+			t.Error("the caller's songs changed")
+		}
+		f.ui.run()
+		if len(f.notices) > 0 {
+			t.Errorf("notices %+v", f.notices)
+		}
+	})
+}
+
+// A call in parts canceled leaves nothing pending; the daemon gets its
+// parts, the call and the Cancel, in order.
+func TestCallInPartsCanceled(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := newDaemon("1.0.0")
+		d.answer = func(*api.Call) *api.Reply { return nil }
+		f := newFront()
+		attach(t, f, d)
+		songs := catalogtest.Decoded(1000)
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		call := api.Call{Method: api.MethodPlayAll, IDs: &api.IDsArgs{IDs: []string{songs[0].ID}, Songs: songs}}
+		if _, err := f.client.Call(ctx, call); !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Call = %v, want the ctx's error", err)
+		}
+		synctest.Wait()
+		var kinds []string
+		for _, f := range d.received() {
+			switch {
+			case f.Ahead != nil:
+				kinds = append(kinds, "part")
+			case f.Call != nil:
+				kinds = append(kinds, "call")
+			case f.Cancel:
+				kinds = append(kinds, "cancel")
+			}
+		}
+		if want := []string{"part", "part", "part", "part", "call", "cancel"}; !slices.Equal(kinds, want) {
+			t.Errorf("daemon got %q, want %q", kinds, want)
+		}
+		if len(call.IDs.Songs) != len(songs) {
+			t.Errorf("the caller's IDsArgs hold %d songs, want %d", len(call.IDs.Songs), len(songs))
+		}
+		noPending(t, f)
 	})
 }
 

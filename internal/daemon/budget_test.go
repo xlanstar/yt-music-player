@@ -124,7 +124,7 @@ func TestBudgetLiveConn(t *testing.T) {
 	h.do(func() {}) // its unregister
 	live := (with - liveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 143 KB today, mostly gob's buffer for an event of 313 songs gone
+	// 145 KB today, mostly gob's buffer for an event of 313 songs gone
 	// ahead (carry: 5000 in 16), 10 the queue's frames.
 	if live > 160 {
 		t.Errorf("%d KB live, budget 160", live)
@@ -152,11 +152,62 @@ func TestBudgetLiveReply(t *testing.T) {
 	h.do(func() {}) // its unregister
 	live := (with - liveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 143 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
+	// 145 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
 	// 5000 in 16); the reply whole, 1435.
 	if live > 160 {
 		t.Errorf("%d KB live, budget 160", live)
 	}
+}
+
+// TestBudgetLiveCall holds the heap a connection keeps once it enqueued
+// 5000 songs, sent in parts as front-ends send them: with the connection,
+// less once it closed.
+func TestBudgetLiveCall(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	h := newHarness(t, Options{})
+	ours, theirs := net.Pipe()
+	served := make(chan struct{})
+	go func() {
+		h.svc.Serve(theirs)
+		close(served)
+	}()
+	enqueue(t, ours, catalogtest.Decoded(5000))
+	go io.Copy(io.Discard, ours) //nolint:errcheck // ends as the pipe closes
+	// The call's batch settled.
+	h.do(func() {})
+	with := liveHeap()
+	_ = ours.Close()
+	<-served
+	h.do(func() {}) // its unregister
+	live := (with - liveHeap()) / 1024
+	t.Logf("%d KB live", live)
+	// 136 KB today, mostly gob's decoder holding the call, its 5000 IDs
+	// (60 KB); the call whole, 1230.
+	if live > 157 {
+		t.Errorf("%d KB live, budget 157", live)
+	}
+}
+
+// enqueue greets the daemon over nc and enqueues songs, their details in
+// parts ahead of the call, reading frames up to its reply; the encoder
+// goes with it, so that only the daemon's side stays.
+func enqueue(t *testing.T, nc net.Conn, songs []catalog.Song) {
+	t.Helper()
+	enc, dec := gob.NewEncoder(nc), gob.NewDecoder(nc)
+	hello := api.Hello{Proto: api.Proto, Version: "1.2.3", Role: api.RoleDesktop, PID: 81}
+	call := api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: ids(songs), Songs: songs}}
+	frames := []api.Frame{{Hello: &hello}}
+	for _, a := range call.Split() {
+		frames = append(frames, api.Frame{ID: 1, Ahead: a})
+	}
+	for _, f := range append(frames, api.Frame{ID: 1, Call: &call}) {
+		if err := enc.Encode(&f); err != nil {
+			t.Fatal(err)
+		}
+	}
+	readReply(t, dec, 1)
 }
 
 // TestBudgetLiveLikes holds the heap a signed-in ytmd keeps once a
@@ -232,7 +283,7 @@ func readReply(t *testing.T, dec *gob.Decoder, id uint32) {
 		if err := dec.Decode(&f); err != nil {
 			t.Fatal(err)
 		}
-		if f.ID == id && f.Reply != nil && f.Reply.Ahead == nil {
+		if f.ID == id && f.Reply != nil {
 			return
 		}
 	}

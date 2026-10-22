@@ -26,14 +26,17 @@ import (
 const Proto uint16 = 2
 
 // Frame is one message on the socket; exactly one of Hello, Call, Reply,
-// Cancel and Event is set.
+// Ahead, Cancel and Event is set.
 type Frame struct {
 	Hello *Hello
 	Call  *Call
 	Reply *Reply
 	Event *Event
-	// ID numbers a front-end's requests from 1; a Reply or Cancel carries
-	// its request's. Events are 0.
+	// Ahead is a part of the long lists of the Call or Reply of ID, which
+	// follows its parts (Split).
+	Ahead *Ahead
+	// ID numbers a front-end's requests from 1; a Reply, Ahead or Cancel
+	// carries its request's. Events are 0.
 	ID     uint32
 	Cancel bool // cancels the request ID
 }
@@ -66,7 +69,7 @@ type Call struct {
 
 // Reply answers a Call: Err, or at most one result. Methods without a
 // result reply with neither. A long result's lists may come first, in
-// Replies of the request's ID with Ahead alone.
+// frames of the request's ID with Ahead alone.
 type Reply struct {
 	Err      *Error
 	Results  *catalog.Results
@@ -77,7 +80,6 @@ type Reply struct {
 	Account  *catalog.Account
 	Library  *catalog.Library
 	Status   *Status
-	Ahead    *Ahead
 }
 
 // Event is what changed in the daemon, sent to subscribed connections:
@@ -99,7 +101,8 @@ type Event struct {
 type IDsArgs struct {
 	IDs []string
 	// Songs describe the songs of IDs the caller knows, so the daemon,
-	// which keeps no catalog of its own, can show and announce them.
+	// which keeps no catalog of its own, can show and announce them. Too
+	// many for one frame, they come ahead (Frame.Ahead).
 	Songs []catalog.Song
 	// Start is the index in IDs Play and PlayAll start at.
 	Start int

@@ -110,14 +110,14 @@ func fullFrame() *Frame {
 			},
 			Account: new(testAccount()),
 			Library: testLibrary(),
-			Ahead: &Ahead{
-				Songs: songs, Albums: []catalog.Album{testAlbum()},
-				Artists: []catalog.Artist{testArtist()}, Playlists: []catalog.Playlist{testPlaylist()},
-			},
 			Status: &Status{
 				Version: "1.2.3", Proto: Proto, State: *testState(), Song: testSong(3),
 				Length: 42, SignedIn: true, Account: testAccount(),
 			},
+		},
+		Ahead: &Ahead{
+			Songs: songs, Albums: []catalog.Album{testAlbum()},
+			Artists: []catalog.Artist{testArtist()}, Playlists: []catalog.Playlist{testPlaylist()},
 		},
 		Cancel: true,
 		Event: &Event{

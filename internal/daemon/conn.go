@@ -46,7 +46,7 @@ func (c *conn) reply(id uint32, r *api.Reply) { c.send(api.Frame{ID: id, Reply: 
 // send that fails.
 func (c *conn) replyAhead(id uint32, ahead []*api.Ahead, r *api.Reply) {
 	for _, a := range ahead {
-		if !c.send(api.Frame{ID: id, Reply: &api.Reply{Ahead: a}}) {
+		if !c.send(api.Frame{ID: id, Ahead: a}) {
 			return
 		}
 	}
@@ -92,18 +92,64 @@ func (s *Service) Serve(nc net.Conn) {
 	}
 	s.post(func() { s.register(c) })
 	defer s.post(func() { s.unregister(c) })
+	var ahead parts
 	for {
 		if err := ic.Receive(&f); err != nil {
 			return
 		}
 		id := f.ID
 		switch {
+		case f.Ahead != nil:
+			if !ahead.keep(id, f.Ahead) {
+				log.Debug().Int("pid", c.hello.PID).Msg("parts without their calls")
+				return
+			}
 		case f.Cancel:
 			s.post(func() { s.cancelCall(c, id) })
 		case f.Call != nil:
 			cl := f.Call
+			ahead.join(id, cl)
 			s.post(func() { s.dispatch(c, id, cl) })
 		}
+	}
+}
+
+// maxAhead bounds the parts a connection's calls have ahead of them at
+// once: front-ends send a call right after its parts, one at a time.
+const maxAhead = 8 * api.MaxParts
+
+// parts are those of a connection's calls yet to come, by ID; its reader
+// goroutine's alone.
+type parts struct {
+	byID map[uint32][]*api.Ahead
+	n    int
+}
+
+// keep keeps a, a part of call id; false once more than maxAhead wait.
+func (p *parts) keep(id uint32, a *api.Ahead) bool {
+	if p.n == maxAhead {
+		return false
+	}
+	if p.byID == nil {
+		p.byID = map[uint32][]*api.Ahead{}
+	}
+	p.byID[id] = append(p.byID[id], a)
+	p.n++
+	return true
+}
+
+// join puts back into cl the parts of call id, dropping the map once none
+// wait, so that an idle connection keeps nothing.
+func (p *parts) join(id uint32, cl *api.Call) {
+	ahead, ok := p.byID[id]
+	if !ok {
+		return
+	}
+	cl.Join(ahead)
+	delete(p.byID, id)
+	p.n -= len(ahead)
+	if p.n == 0 {
+		p.byID = nil
 	}
 }
 

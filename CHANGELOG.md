@@ -9,7 +9,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 - The app and `ytm` show your library and liked songs as soon as they open, from a copy kept since last time, while fetching them anew. Signing out, or in to another account, deletes the copy.
 - The app and `ytm` download covers as WebP, about a third smaller at the same sharpness, so pages fill sooner and the cover cache holds more.
 - In `ytm`, iTerm2 3.7.5 and later show covers as Kitty's placeholders, text the terminal keeps, so covers are never redrawn and never vanish.
-- The background player uses less memory: it no longer keeps your library and liked songs (1.3 MB with 5000 liked), which the app and `ytm` fetch through it, and, for each open window or `ytm`, keeps about 1.3 MB less once it showed a list of thousands of songs (the queue, Liked music, a playlist).
+- The background player uses less memory: it no longer keeps your library and liked songs (1.3 MB with 5000 liked), which the app and `ytm` fetch through it, and, for each open window or `ytm`, keeps about 1.3 MB less once it showed a list of thousands of songs (the queue, Liked music, a playlist), and 1.1 MB less once it played one.
 - After updating while the background player of 0.2.0 still runs (started at login, say), `ytm`'s commands, such as `ytm play` or `ytm status`, refuse to work, saying so, until the app or the `ytm` player opens or `ytm daemon restart` runs.
 
 ### Fixed

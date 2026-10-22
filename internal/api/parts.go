@@ -5,10 +5,23 @@ import (
 	"yt-music-player/internal/catalog"
 )
 
-// Ahead is a part of a reply too long for one frame, sent as a Reply of
-// its own with the request's ID before the reply: gob keeps a connection's
-// buffer as large as the largest frame it sent. Its lists go, in the order
-// the parts came, before the reply's own (Reply.Join).
+const (
+	// PartItems bounds the items of a part (about 70 KB of songs): gob
+	// keeps a connection's buffer as large as the largest frame it sent.
+	PartItems = 256
+	// MaxParts is about the most parts a list takes, an eighth of a
+	// connection's queue (ipc.QueueLen), whose overflow closes it.
+	MaxParts = 16
+)
+
+// PartSize is how many of n items go in a part: PartItems, or more so
+// that they take MaxParts.
+func PartSize(n int) int { return max(PartItems, (n+MaxParts-1)/MaxParts) }
+
+// Ahead is a part of a call's or reply's lists too long for one frame,
+// sent in a Frame of its own with the request's ID before the call or
+// reply. Its lists go, in the order the parts came, before the call's or
+// reply's own (Join).
 type Ahead struct {
 	Songs     []catalog.Song
 	Albums    []catalog.Album
@@ -16,8 +29,8 @@ type Ahead struct {
 	Playlists []catalog.Playlist
 }
 
-// lists points at the lists of r's result that may be long, nil for those
-// it lacks; a Playlist's IDs stay, 5000 taking 60 KB.
+// lists points at the lists of a call or reply that may be long, nil for
+// those it lacks; IDs stay, 5000 taking 60 KB.
 type lists struct {
 	songs     *[]catalog.Song
 	albums    *[]catalog.Album
@@ -40,17 +53,43 @@ func (r *Reply) lists() lists {
 	return lists{}
 }
 
-// Split moves r's lists ahead if they hold more than per items together:
-// each whole, in parts of per items, or more so that all take about parts
-// parts (one more per list but the first, at most). The parts are r's:
-// they must not change until sent.
-func (r *Reply) Split(per, parts int) []*Ahead {
-	l := r.lists()
-	n := size(l.songs) + size(l.albums) + size(l.artists) + size(l.playlists)
-	if n <= per {
+func (c *Call) lists() lists {
+	if c.IDs != nil {
+		return lists{songs: &c.IDs.Songs}
+	}
+	return lists{}
+}
+
+// Split moves c's songs ahead if too many for one frame (Reply.Split).
+// The parts are the caller's songs, which must not change until sent; c
+// gets IDsArgs of its own, the caller's staying whole.
+func (c *Call) Split() []*Ahead {
+	if c.IDs == nil || len(c.IDs.Songs) <= PartItems {
 		return nil
 	}
-	per = max(per, (n+parts-1)/parts)
+	ids := *c.IDs
+	c.IDs = &ids
+	return c.lists().split()
+}
+
+// Join puts back the songs that went ahead of c (Reply.Join).
+func (c *Call) Join(ahead []*Ahead) { c.lists().join(ahead) }
+
+// Split moves r's lists ahead if they hold more than PartItems together:
+// each whole, in parts of PartSize items (one more part per list but the
+// first, at most). The parts are r's: they must not change until sent.
+func (r *Reply) Split() []*Ahead { return r.lists().split() }
+
+// Join puts back the lists that went ahead of r, in the order they came,
+// before r's own. Those of a list r's result lacks are dropped.
+func (r *Reply) Join(ahead []*Ahead) { r.lists().join(ahead) }
+
+func (l lists) split() []*Ahead {
+	n := size(l.songs) + size(l.albums) + size(l.artists) + size(l.playlists)
+	if n <= PartItems {
+		return nil
+	}
+	per := PartSize(n)
 	count := chunks(l.songs, per) + chunks(l.albums, per) + chunks(l.artists, per) + chunks(l.playlists, per)
 	// One slab for the parts, which go together.
 	slab, ahead := make([]Ahead, count), make([]*Ahead, count)
@@ -87,13 +126,10 @@ func split[T any](ahead []*Ahead, list *[]T, per int, put func(*Ahead, []T)) []*
 	return ahead
 }
 
-// Join puts back the lists that went ahead of r, in the order they came,
-// before r's own. Those of a list r's result lacks are dropped.
-func (r *Reply) Join(ahead []*Ahead) {
+func (l lists) join(ahead []*Ahead) {
 	if len(ahead) == 0 {
 		return
 	}
-	l := r.lists()
 	join(l.songs, ahead, func(a *Ahead) []catalog.Song { return a.Songs })
 	join(l.albums, ahead, func(a *Ahead) []catalog.Album { return a.Albums })
 	join(l.artists, ahead, func(a *Ahead) []catalog.Artist { return a.Artists })

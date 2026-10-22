@@ -395,14 +395,14 @@ func TestLongReplies(t *testing.T) {
 	wantParts(t, c.ahead, 3)
 }
 
-// wantParts fails unless ahead are n parts of at most songsPerFrame items.
+// wantParts fails unless ahead are n parts of at most PartItems items.
 func wantParts(t *testing.T, ahead []*api.Ahead, n int) {
 	t.Helper()
 	if len(ahead) != n {
 		t.Errorf("%d parts ahead, want %d", len(ahead), n)
 	}
 	for i, a := range ahead {
-		if items := len(a.Songs) + len(a.Albums) + len(a.Artists) + len(a.Playlists); items == 0 || items > songsPerFrame {
+		if items := len(a.Songs) + len(a.Albums) + len(a.Artists) + len(a.Playlists); items == 0 || items > api.PartItems {
 			t.Errorf("part %d of %d items", i, items)
 		}
 	}
@@ -425,7 +425,7 @@ func TestReplyAheadStops(t *testing.T) {
 	out := &failing{}
 	c := &conn{out: out}
 	r := &api.Reply{Playlist: &api.PlaylistReply{Songs: songs(5000)}}
-	c.replyAhead(1, r.Split(songsPerFrame, maxSongFrames), r)
+	c.replyAhead(1, r.Split(), r)
 	if out.sent != 2 {
 		t.Errorf("%d sends, want 2", out.sent)
 	}
@@ -553,8 +553,8 @@ func TestBackpressureReplies(t *testing.T) {
 		}
 		frames++
 		switch {
-		case f.Reply != nil && f.Reply.Ahead != nil:
-			ahead[f.ID] = append(ahead[f.ID], f.Reply.Ahead)
+		case f.Ahead != nil:
+			ahead[f.ID] = append(ahead[f.ID], f.Ahead)
 		case f.Reply != nil:
 			f.Reply.Join(ahead[f.ID])
 			replies[f.ID] = f.Reply
@@ -772,15 +772,63 @@ func TestLongLists(t *testing.T) {
 	}
 }
 
+// A front-end's call too long for one frame comes in parts of its songs,
+// ahead of it with its ID, and dispatches whole.
+func TestLongCalls(t *testing.T) {
+	h := newHarness(t, Options{})
+	sub := h.connect(true)
+	sub.event()
+	c := h.connect(false)
+	// Another call's parts in between change nothing.
+	other := playAll(songs(api.PartItems+1), 0)
+	for _, a := range other.Split() {
+		if err := c.c.Send(api.Frame{ID: 99, Ahead: a}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	queue := catalogtest.Decoded(5000)
+	if r := c.reply(c.sendInParts(playAll(queue, 2))); r.Err != nil {
+		t.Fatal(r.Err.Err())
+	}
+	ev, ahead := sub.songsAhead(func(ev api.Event) bool { return ev.Queue != nil })
+	if !slices.Equal(ev.Queue.IDs, ids(queue)) || !reflect.DeepEqual(ahead, queue) {
+		t.Errorf("queue %d IDs, %d songs, want %d", len(ev.Queue.IDs), len(ahead), len(queue))
+	}
+	if ev.State.Index != 2 {
+		t.Errorf("playing %d, want 2", ev.State.Index)
+	}
+}
+
+// Parts whose calls never come close the connection once more wait than
+// front-ends send at once.
+func TestPartsWithoutCalls(t *testing.T) {
+	h := newHarness(t, Options{})
+	c := h.connect(false)
+	part := &api.Ahead{Songs: songs(1)}
+	for id := range uint32(maxAhead) {
+		if err := c.c.Send(api.Frame{ID: 100 + id, Ahead: part}); err != nil {
+			t.Fatal(err)
+		}
+		if id%api.MaxParts == 0 {
+			c.ping() // within the test's own queue
+		}
+	}
+	c.ping()
+	if err := c.c.Send(api.Frame{ID: 1, Ahead: part}); err != nil {
+		t.Fatal(err)
+	}
+	c.closed()
+}
+
 // carry sends an event's long list of songs whole ahead, in at most
-// maxSongFrames frames.
+// api.MaxParts frames.
 func TestCarry(t *testing.T) {
 	for _, tc := range []struct{ n, frames, kept int }{
 		{0, 0, 0},
-		{songsPerFrame, 0, songsPerFrame},
-		{songsPerFrame + 1, 2, 0},
-		{songsPerFrame * maxSongFrames, maxSongFrames, 0},
-		{100_000, maxSongFrames, 0},
+		{api.PartItems, 0, api.PartItems},
+		{api.PartItems + 1, 2, 0},
+		{api.PartItems * api.MaxParts, api.MaxParts, 0},
+		{100_000, api.MaxParts, 0},
 	} {
 		list := songs(tc.n)
 		ev := api.Event{Songs: list}

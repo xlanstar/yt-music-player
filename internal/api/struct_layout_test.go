@@ -13,7 +13,7 @@ func TestBudgetLayouts(t *testing.T) {
 		name       string
 		size, want uintptr
 	}{
-		{name: "Frame", size: unsafe.Sizeof(Frame{}), want: 40},
+		{name: "Frame", size: unsafe.Sizeof(Frame{}), want: 48},
 		{name: "Hello", size: unsafe.Sizeof(Hello{}), want: 32},
 		{name: "State", size: unsafe.Sizeof(State{}), want: 56},
 		{name: "Status", size: unsafe.Sizeof(Status{}), want: 240},

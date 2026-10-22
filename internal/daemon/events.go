@@ -16,17 +16,6 @@ import (
 // loop's drift apart a little.
 const jumpSlack = 1
 
-const (
-	// songsPerFrame bounds the songs of an event, or the items of a reply's
-	// part (about 70 KB): gob keeps a connection's buffer as large as the
-	// largest frame it sent.
-	songsPerFrame = 256
-	// maxSongFrames bounds the frames of an event's songs, or about those
-	// of a reply's parts, an eighth of a connection's queue (ipc.QueueLen),
-	// whose overflow closes it.
-	maxSongFrames = 16
-)
-
 // sentState is what the subscribers were last told, to send only what
 // changed.
 type sentState struct {
@@ -186,11 +175,11 @@ func (s *Service) snapshot() []api.Frame {
 // alone, appended to ahead, to go first: every front-end keeps them.
 func carry(ahead []api.Frame, ev *api.Event) []api.Frame {
 	songs := ev.Songs
-	if len(songs) <= songsPerFrame {
+	if len(songs) <= api.PartItems {
 		return ahead
 	}
 	ev.Songs = nil
-	size := max(songsPerFrame, (len(songs)+maxSongFrames-1)/maxSongFrames)
+	size := api.PartSize(len(songs))
 	ahead = slices.Grow(ahead, (len(songs)+size-1)/size)
 	for part := range slices.Chunk(songs, size) {
 		ahead = append(ahead, api.Frame{Event: &api.Event{Songs: part}})

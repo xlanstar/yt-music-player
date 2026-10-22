@@ -184,7 +184,7 @@ func (s *Service) fetch(c *conn, id uint32, cl *api.Call) {
 		if ctx.Err() != nil {
 			return
 		}
-		ahead := r.Split(songsPerFrame, maxSongFrames)
+		ahead := r.Split()
 		s.post(func() {
 			if ctx.Err() != nil {
 				return
