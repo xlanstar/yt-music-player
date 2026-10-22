@@ -1,7 +1,6 @@
 package session
 
 import (
-	"runtime"
 	"testing"
 	"weak"
 	"yt-music-player/internal/budget"
@@ -95,29 +94,16 @@ func TestBudgetLiveLikes(t *testing.T) {
 	if s.LikedCount() != 5000 {
 		t.Fatalf("%d liked, want 5000", s.LikedCount())
 	}
-	with := liveHeap()
+	with := budget.LiveHeap()
 	gone := weak.Make(s)
 	s = nil
-	for range 10 {
-		if gone.Value() == nil {
-			break
-		}
-		runtime.GC()
-	}
-	if gone.Value() != nil {
+	if !budget.IsCollected(gone) {
 		t.Fatal("the dropped Session stays reachable")
 	}
-	live := (with - liveHeap()) / 1024
+	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
 	// 1845 to 1850 KB today; 2317 without catalog.ShareStrings.
 	if live > 2130 {
 		t.Errorf("%d KB live, budget 2130", live)
 	}
-}
-
-func liveHeap() int64 {
-	runtime.GC()
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return int64(m.HeapAlloc)
 }

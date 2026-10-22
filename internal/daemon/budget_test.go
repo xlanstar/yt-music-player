@@ -5,7 +5,6 @@ import (
 	"io"
 	"net"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"weak"
 	"yt-music-player/internal/api"
@@ -81,19 +80,13 @@ func TestBudgetLiveQueue(t *testing.T) {
 	if s.player.Len() != 5000 {
 		t.Fatalf("%d songs queued, want 5000", s.player.Len())
 	}
-	with := liveHeap()
+	with := budget.LiveHeap()
 	gone := weak.Make(s)
 	s = nil
-	for range 10 {
-		if gone.Value() == nil {
-			break
-		}
-		runtime.GC()
-	}
-	if gone.Value() != nil {
+	if !budget.IsCollected(gone) {
 		t.Fatal("the dropped Service stays reachable")
 	}
-	live := (with - liveHeap()) / 1024
+	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
 	// 2104 KB today, the songs' strings shared (catalog.ShareStrings);
 	// unshared, 2575.
@@ -110,19 +103,12 @@ func TestBudgetLiveConn(t *testing.T) {
 		t.Skip("the race detector allocates on its own")
 	}
 	h := newHarness(t, Options{Seed: catalogtest.Decoded(5000)})
-	ours, theirs := net.Pipe()
-	served := make(chan struct{})
-	go func() {
-		h.svc.Serve(theirs)
-		close(served)
-	}()
+	ours, leave := h.serveOne()
 	readSnapshot(t, ours)
 	go io.Copy(io.Discard, ours) //nolint:errcheck // ends as the pipe closes
-	with := liveHeap()
-	_ = ours.Close()
-	<-served
-	h.do(func() {}) // its unregister
-	live := (with - liveHeap()) / 1024
+	with := budget.LiveHeap()
+	leave()
+	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
 	// 145 KB today, mostly gob's buffer for an event of 313 songs gone
 	// ahead (carry: 5000 in 16), 10 the queue's frames.
@@ -138,19 +124,12 @@ func TestBudgetLiveReply(t *testing.T) {
 		t.Skip("the race detector allocates on its own")
 	}
 	h := newHarness(t, Options{})
-	ours, theirs := net.Pipe()
-	served := make(chan struct{})
-	go func() {
-		h.svc.Serve(theirs)
-		close(served)
-	}()
+	ours, leave := h.serveOne()
 	fetchLiked(t, h, ours, false)
 	go io.Copy(io.Discard, ours) //nolint:errcheck // ends as the pipe closes
-	with := liveHeap()
-	_ = ours.Close()
-	<-served
-	h.do(func() {}) // its unregister
-	live := (with - liveHeap()) / 1024
+	with := budget.LiveHeap()
+	leave()
+	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
 	// 145 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
 	// 5000 in 16); the reply whole, 1435.
@@ -167,21 +146,14 @@ func TestBudgetLiveCall(t *testing.T) {
 		t.Skip("the race detector allocates on its own")
 	}
 	h := newHarness(t, Options{})
-	ours, theirs := net.Pipe()
-	served := make(chan struct{})
-	go func() {
-		h.svc.Serve(theirs)
-		close(served)
-	}()
+	ours, leave := h.serveOne()
 	enqueue(t, ours, catalogtest.Decoded(5000))
 	go io.Copy(io.Discard, ours) //nolint:errcheck // ends as the pipe closes
 	// The call's batch settled.
 	h.do(func() {})
-	with := liveHeap()
-	_ = ours.Close()
-	<-served
-	h.do(func() {}) // its unregister
-	live := (with - liveHeap()) / 1024
+	with := budget.LiveHeap()
+	leave()
+	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
 	// 136 KB today, mostly gob's decoder holding the call, its 5000 IDs
 	// (60 KB); the call whole, 1230.
@@ -222,9 +194,9 @@ func TestBudgetLiveLikes(t *testing.T) {
 	h.until("signed in", func() bool { return h.svc.status().SignedIn })
 	// A first fetch makes what later ones share, such as gob's types.
 	fetchLikedAndLeave(t, h)
-	before := liveHeap()
+	before := budget.LiveHeap()
 	fetchLikedAndLeave(t, h)
-	live := (liveHeap() - before) / 1024
+	live := (budget.LiveHeap() - before) / 1024
 	t.Logf("%d KB live", live)
 	// -6 to 7 KB today, noise: ytmd keeps none of them.
 	if live > 9 {
@@ -236,16 +208,9 @@ func TestBudgetLiveLikes(t *testing.T) {
 // (fetchLiked), then leaves.
 func fetchLikedAndLeave(t *testing.T, h *harness) {
 	t.Helper()
-	ours, theirs := net.Pipe()
-	served := make(chan struct{})
-	go func() {
-		h.svc.Serve(theirs)
-		close(served)
-	}()
+	ours, leave := h.serveOne()
 	fetchLiked(t, h, ours, true)
-	_ = ours.Close()
-	<-served
-	h.do(func() {}) // its unregister
+	leave()
 }
 
 // fetchLiked greets the daemon over nc and fetches Liked music, which the
@@ -312,9 +277,18 @@ func readSnapshot(t *testing.T, nc net.Conn) {
 	}
 }
 
-func liveHeap() int64 {
-	runtime.GC()
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return int64(m.HeapAlloc)
+// serveOne serves a connection over net.Pipe, returning its end and
+// leave, which closes it and waits until the Service dropped it.
+func (h *harness) serveOne() (nc net.Conn, leave func()) {
+	ours, theirs := net.Pipe()
+	served := make(chan struct{})
+	go func() {
+		h.svc.Serve(theirs)
+		close(served)
+	}()
+	return ours, func() {
+		_ = ours.Close()
+		<-served
+		h.do(func() {}) // its unregister
+	}
 }

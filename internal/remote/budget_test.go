@@ -45,10 +45,10 @@ func TestBudgetLiveCall(t *testing.T) {
 	if err := ping(t.Context(), f.client); err != nil {
 		t.Fatal(err)
 	}
-	with := liveHeap()
+	with := budget.LiveHeap()
 	f.client.Close()
 	d.exit()
-	live := (with - liveHeap()) / 1024
+	live := (with - budget.LiveHeap()) / 1024
 	// The daemon keeps what it received in both.
 	runtime.KeepAlive(d)
 	t.Logf("%d KB live", live)
@@ -57,11 +57,4 @@ func TestBudgetLiveCall(t *testing.T) {
 	if live > 185 {
 		t.Errorf("%d KB live, budget 185", live)
 	}
-}
-
-func liveHeap() int64 {
-	runtime.GC()
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return int64(m.HeapAlloc)
 }

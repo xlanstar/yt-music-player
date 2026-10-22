@@ -9,6 +9,7 @@ import (
 	"time"
 	"weak"
 	"yt-music-player/internal/api"
+	"yt-music-player/internal/budget"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
 	"yt-music-player/internal/loader"
@@ -240,7 +241,7 @@ func (s *screen) steady() {
 // warmed, so a page would measure differently alone and after others.
 func retainedKB(tb testing.TB, s **screen) int64 {
 	tb.Helper()
-	with := liveHeap()
+	with := budget.LiveHeap()
 	// The daemon is another process in the app: its heap does not count.
 	// Its Service stays, only the app's connection to it goes.
 	(*s).q.ytmd.disconnect()
@@ -256,7 +257,7 @@ func retainedKB(tb testing.TB, s **screen) int64 {
 		}
 		runtime.GC()
 	}
-	return (with - liveHeap()) / 1024
+	return (with - budget.LiveHeap()) / 1024
 }
 
 // BenchmarkPages measures one steady frame per page: build, layout and scene
@@ -495,13 +496,6 @@ func BenchmarkInteractions(b *testing.B) {
 			b.ReportMetric(float64(retainedKB(b, &s)), "live-KB")
 		})
 	}
-}
-
-func liveHeap() int64 {
-	runtime.GC()
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	return int64(m.HeapAlloc)
 }
 
 // Sinks keep the compiler from optimizing measured calls away.

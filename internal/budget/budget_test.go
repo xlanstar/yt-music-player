@@ -1,8 +1,10 @@
 package budget
 
 import (
+	"runtime"
 	"runtime/metrics"
 	"testing"
+	"weak"
 )
 
 var sink []byte
@@ -45,5 +47,29 @@ func TestBudgetMeasureQuietsScavenger(t *testing.T) {
 	})
 	if got := free[0].Value.Uint64(); got > 1<<20 {
 		t.Errorf("%d bytes free but not returned when Measure starts", got)
+	}
+}
+
+func TestLiveHeap(t *testing.T) {
+	if Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	sink = make([]byte, 1<<20)
+	with := LiveHeap()
+	sink = nil
+	// Within 100 KB: the runtime and testing allocate meanwhile.
+	if freed := with - LiveHeap(); freed < 900<<10 {
+		t.Errorf("%d bytes freed, want the MB dropped", freed)
+	}
+}
+
+func TestIsCollected(t *testing.T) {
+	kept := new([64]byte)
+	if IsCollected(weak.Make(kept)) {
+		t.Error("a value still reachable collected")
+	}
+	runtime.KeepAlive(kept)
+	if !IsCollected(weak.Make(new([64]byte))) {
+		t.Error("a value dropped stays reachable")
 	}
 }
