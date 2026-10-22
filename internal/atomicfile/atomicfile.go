@@ -5,6 +5,7 @@ package atomicfile
 
 import (
 	"cmp"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -80,4 +81,26 @@ func tempOf(name string) (string, bool) {
 		}
 	}
 	return name[1:dash], true
+}
+
+// Remove removes path, if any, and the temporary files of its writes that
+// a crash left: they hold what it did.
+func Remove(path string) error {
+	dir, base := filepath.Dir(path), filepath.Base(path)
+	entries, err := os.ReadDir(dir)
+	errs := []error{unlessMissing(os.Remove(path)), unlessMissing(err)}
+	for _, e := range entries {
+		if of, ok := tempOf(e.Name()); ok && of == base {
+			errs = append(errs, unlessMissing(os.Remove(filepath.Join(dir, e.Name()))))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// unlessMissing is err unless it says a file is missing: none to remove.
+func unlessMissing(err error) error {
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	return err
 }

@@ -173,3 +173,31 @@ func leave(tb testing.TB, dir string, names ...string) {
 		}
 	}
 }
+
+// Remove removes the file and a crash's temporary ones, no other file.
+func TestRemove(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "account.json")
+	if err := Remove(path); err != nil {
+		t.Errorf("removing none: %v", err)
+	}
+	leave(t, dir, "account.json", ".account.json-123", ".account.json-4294967295",
+		".DS_Store", ".other.json-123", "account.json-123", ".account.json-x")
+	if err := Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := names(t, dir), []string{".DS_Store", ".account.json-x", ".other.json-123", "account.json-123"}; !slices.Equal(got, want) {
+		t.Errorf("dir holds %q, want %q", got, want)
+	}
+	// A leftover without the file goes too.
+	leave(t, dir, ".account.json-7")
+	if err := Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(names(t, dir), ".account.json-7") {
+		t.Error("the leftover stayed")
+	}
+	if err := Remove(filepath.Join(dir, "missing", "file")); err != nil {
+		t.Errorf("removing in a missing directory: %v", err)
+	}
+}

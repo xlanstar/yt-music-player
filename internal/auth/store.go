@@ -100,7 +100,8 @@ func (f *fileStore) Save(c Credentials) error {
 func (f *fileStore) Clear() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if err := os.Remove(f.path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	// With a crash's temporary files, which hold credentials too.
+	if err := atomicfile.Remove(f.path); err != nil {
 		return fmt.Errorf("auth: clear: %w", err)
 	}
 	return nil

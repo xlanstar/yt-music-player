@@ -75,6 +75,18 @@ func TestFileStore(t *testing.T) {
 	if len(entries) != 1 {
 		t.Errorf("left temporary files: %v", entries)
 	}
+
+	// Clearing removes a crash's temporary file, which holds cookies too.
+	leftover := filepath.Join(filepath.Dir(path), ".credentials-123")
+	if err := os.WriteFile(leftover, []byte("SID=x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(path)); len(entries) != 0 {
+		t.Errorf("cleared, left %v", entries)
+	}
 }
 
 func TestFileStoreCorrupt(t *testing.T) {
