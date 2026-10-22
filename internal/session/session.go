@@ -364,13 +364,13 @@ func (s *Session) likeFailed(id string, liked bool, err error) notice.Notice {
 	song, ok := s.cat.Song(id)
 	switch {
 	case !ok && liked:
-		return failed(notice.Failure, notice.LikeFailedSong, err)
+		return failed(notice.KindFailure, notice.LikeFailedSong, err)
 	case !ok:
-		return failed(notice.Failure, notice.UnlikeFailedSong, err)
+		return failed(notice.KindFailure, notice.UnlikeFailedSong, err)
 	case liked:
-		return failed(notice.Failure, notice.LikeFailed, err, song.Title)
+		return failed(notice.KindFailure, notice.LikeFailed, err, song.Title)
 	}
-	return failed(notice.Failure, notice.UnlikeFailed, err, song.Title)
+	return failed(notice.KindFailure, notice.UnlikeFailed, err, song.Title)
 }
 
 // failed is a notice of title, given its args, whose detail is err's text.
@@ -381,7 +381,7 @@ func failed(kind notice.Kind, title notice.Code, err error, args ...string) noti
 func (s *Session) notify(n notice.Notice) { s.notices = append(s.notices, n) }
 
 func signInToLike() notice.Notice {
-	return notice.Notice{Kind: notice.NeedsAccount, Title: notice.SignInToLike, Topic: notice.SignIn}
+	return notice.Notice{Kind: notice.KindNeedsAccount, Title: notice.SignInToLike, Topic: notice.TopicSignIn}
 }
 
 // TakeNotices returns and clears the notices since the last call.
@@ -434,9 +434,9 @@ func (s *Session) finishSignIn(seq uint64, user catalog.Account, err error) {
 	}
 	switch {
 	case err != nil && isLatest:
-		s.notify(failed(notice.SignInError, notice.SignInFailed, err))
+		s.notify(failed(notice.KindSignInError, notice.SignInFailed, err))
 	case err == nil:
-		s.notify(notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{user.Name}})
+		s.notify(notice.Notice{Kind: notice.KindSignedIn, Title: notice.SignedInAs, Args: []string{user.Name}})
 	}
 }
 
@@ -465,12 +465,12 @@ func (s *Session) SignOut() {
 func (s *Session) finishSignOut(err error) {
 	s.isSigningOut = false
 	if err != nil {
-		s.notify(failed(notice.Failure, notice.SignOutFailed, err))
+		s.notify(failed(notice.KindFailure, notice.SignOutFailed, err))
 		return
 	}
 	// The daemon dropped the sign-in in flight, which never answers.
 	s.CancelSignIn()
-	s.notify(notice.Notice{Kind: notice.Info, Title: notice.SignedOut})
+	s.notify(notice.Notice{Kind: notice.KindInfo, Title: notice.SignedOut})
 }
 
 // IsSigningOut reports whether a sign-out is in flight.

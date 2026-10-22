@@ -420,7 +420,7 @@ func TestReconnectRetries(t *testing.T) {
 
 func TestNotices(t *testing.T) {
 	h := placeholderHarness(t)
-	h.m.tell(notice.Notice{Kind: notice.Failure, Title: notice.ControlFailed, Detail: notice.Reason, Args: []string{"no song"}})
+	h.m.tell(notice.Notice{Kind: notice.KindFailure, Title: notice.ControlFailed, Detail: notice.Reason, Args: []string{"no song"}})
 	cmd := h.send(postedMsg{})
 	h.screenHas("Couldn’t change playback: no song")
 	seq := h.m.noticeSeq

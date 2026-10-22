@@ -129,8 +129,8 @@ func fullFrame() *Frame {
 			Library: testLibrary(),
 			Failed:  &FailedEvent{Part: PartLibrary, Err: &Error{Code: CodeInternal, Detail: "x"}},
 			Notice: &notice.Notice{
-				Kind: notice.Failure, Title: notice.PlayFailed, Detail: notice.Reason,
-				Args: []string{"Title", "why"}, N: 3, Topic: notice.Playback,
+				Kind: notice.KindFailure, Title: notice.PlayFailed, Detail: notice.Reason,
+				Args: []string{"Title", "why"}, N: 3, Topic: notice.TopicPlayback,
 			},
 			Handoff: &HandoffEvent{By: 4242, Wait: 5 * time.Second},
 		},

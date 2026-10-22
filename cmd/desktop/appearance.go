@@ -41,16 +41,16 @@ type themeOption struct {
 func (a *app) useSettings(dir settings.Dir) {
 	a.look.dir = dir
 	a.look.saver = settings.NewSaver(dir, func(err error) {
-		a.post(func() { a.tellLater(lookFailed(notice.SettingsSave, notice.SettingsSaveFailed, err.Error())) })
+		a.post(func() { a.tellLater(lookFailed(notice.TopicSettingsSave, notice.SettingsSaveFailed, err.Error())) })
 	})
 	set, err := dir.Load()
 	if err != nil {
-		a.tellLater(lookFailed(notice.SettingsRead, notice.SettingsReadFailed, err.Error()))
+		a.tellLater(lookFailed(notice.TopicSettingsRead, notice.SettingsReadFailed, err.Error()))
 	}
 	a.look.set = set
 	users, err := dir.Themes()
 	if err != nil {
-		a.tellLater(lookFailed(notice.Themes, notice.ThemesReadFailed, err.Error()))
+		a.tellLater(lookFailed(notice.TopicThemes, notice.ThemesReadFailed, err.Error()))
 	}
 	a.useThemes(users)
 }
@@ -85,14 +85,14 @@ func errText(err error) string {
 
 // lookFailed is a failure to read, save or apply the settings or themes;
 // a later one of the same topic replaces it.
-func lookFailed(topic string, title notice.Code, args ...string) notice.Notice {
-	return notice.Notice{Kind: notice.Failure, Title: title, Detail: notice.Reason, Args: args, Topic: topic}
+func lookFailed(topic notice.Topic, title notice.Code, args ...string) notice.Notice {
+	return notice.Notice{Kind: notice.KindFailure, Title: title, Detail: notice.Reason, Args: args, Topic: topic}
 }
 
 // themeFailed is a failure to read the theme in file, each file's
 // replacing its last.
 func themeFailed(file string, err error) notice.Notice {
-	return lookFailed(notice.Theme+file, notice.ThemeReadFailed, file, err.Error())
+	return lookFailed(notice.TopicTheme+notice.Topic(file), notice.ThemeReadFailed, file, err.Error())
 }
 
 func (a *app) applyLook() {
@@ -114,7 +114,7 @@ func (a *app) applyLook() {
 		a.tellLater(n)
 	}
 	if layoutErr != nil {
-		a.tellLater(lookFailed(notice.Layout, notice.LayoutFailed, layoutErr.Error()))
+		a.tellLater(lookFailed(notice.TopicLayout, notice.LayoutFailed, layoutErr.Error()))
 	}
 }
 
@@ -133,7 +133,7 @@ func (a *app) openLook() {
 		func(context.Context) ([]settings.UserTheme, error) { return dir.Themes() },
 		func(users []settings.UserTheme, err error) {
 			if err != nil {
-				a.tellLater(lookFailed(notice.Themes, notice.ThemesReadFailed, err.Error()))
+				a.tellLater(lookFailed(notice.TopicThemes, notice.ThemesReadFailed, err.Error()))
 				return
 			}
 			a.useThemes(users)

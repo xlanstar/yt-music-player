@@ -19,7 +19,7 @@ var renderCases = []struct {
 }{
 	{
 		name:  "plain",
-		n:     notice.Notice{Kind: notice.Info, Title: notice.SignedOut},
+		n:     notice.Notice{Kind: notice.KindInfo, Title: notice.SignedOut},
 		title: "Signed out",
 		// 0 allocs today.
 		limit: 0,
@@ -27,8 +27,8 @@ var renderCases = []struct {
 	{
 		name: "counted",
 		n: notice.Notice{
-			Kind: notice.Failure, Title: notice.Unplayable, Detail: notice.PlaybackStoppedAfter,
-			Args: []string{"Dead Air"}, N: 3, Topic: notice.Playback,
+			Kind: notice.KindFailure, Title: notice.Unplayable, Detail: notice.PlaybackStoppedAfter,
+			Args: []string{"Dead Air"}, N: 3, Topic: notice.TopicPlayback,
 		},
 		title:  "“Dead Air” isn’t available",
 		detail: "Playback stopped: 3 songs in a row couldn’t play.",
@@ -38,7 +38,7 @@ var renderCases = []struct {
 	{
 		name: "reason",
 		n: notice.Notice{
-			Kind: notice.Failure, Title: notice.UnlikeFailed, Detail: notice.Reason,
+			Kind: notice.KindFailure, Title: notice.UnlikeFailed, Detail: notice.Reason,
 			Args: []string{"Dead Air", "quota exceeded"},
 		},
 		title:  "Couldn’t unlike “Dead Air”",
@@ -49,8 +49,8 @@ var renderCases = []struct {
 	{
 		name: "fallback",
 		n: notice.Notice{
-			Kind: notice.Failure, Title: notice.ThemeReadFailed, Detail: notice.ThemeFallback,
-			Args: []string{"neon.json", "type.title: 400 is out of 6 to 96"}, Topic: notice.Theme + "neon.json",
+			Kind: notice.KindFailure, Title: notice.ThemeReadFailed, Detail: notice.ThemeFallback,
+			Args: []string{"neon.json", "type.title: 400 is out of 6 to 96"}, Topic: notice.TopicTheme + "neon.json",
 		},
 		title:  "Couldn’t read the theme neon.json",
 		detail: "type.title: 400 is out of 6 to 96. The default theme shows instead.",

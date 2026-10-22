@@ -235,14 +235,14 @@ func TestAppearanceFailuresAreNotices(t *testing.T) {
 		writeFile(t, filepath.Join(dir.ThemesDir(), "broken.json"), `{"color": {"accent": "teal"}}`)
 	})
 	want := []notice.Notice{
-		{Title: notice.SettingsReadFailed, Topic: notice.SettingsRead},
-		{Title: notice.ThemeReadFailed, Topic: notice.Theme + "broken.json"},
+		{Title: notice.SettingsReadFailed, Topic: notice.TopicSettingsRead},
+		{Title: notice.ThemeReadFailed, Topic: notice.TopicTheme + "broken.json"},
 	}
 	if len(a.notices) != len(want) {
 		t.Fatalf("notices %+v, want %d", a.notices, len(want))
 	}
 	for i, n := range a.notices {
-		isFailure := n.Kind == notice.Failure && n.Detail == notice.Reason
+		isFailure := n.Kind == notice.KindFailure && n.Detail == notice.Reason
 		if !isFailure || n.Title != want[i].Title || n.Topic != want[i].Topic {
 			t.Errorf("notice %d is %+v, want title %d of topic %q", i, n, want[i].Title, want[i].Topic)
 		}

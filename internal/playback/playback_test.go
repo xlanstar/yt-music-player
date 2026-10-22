@@ -314,8 +314,8 @@ func TestFailuresSkipThenStop(t *testing.T) {
 	}
 	last, _ := x.cat.Song(x.player.Current())
 	want := notice.Notice{
-		Kind: notice.Failure, Title: notice.Unplayable, Detail: notice.PlaybackStoppedAfter,
-		Args: []string{last.Title}, N: maxSkips, Topic: notice.Playback,
+		Kind: notice.KindFailure, Title: notice.Unplayable, Detail: notice.PlaybackStoppedAfter,
+		Args: []string{last.Title}, N: maxSkips, Topic: notice.TopicPlayback,
 	}
 	if n, ok := x.pb.TakeNotice(); x.player.IsPlaying() || !ok || !reflect.DeepEqual(n, want) {
 		t.Errorf("playing %v, notice %+v, want %+v", x.player.IsPlaying(), n, want)

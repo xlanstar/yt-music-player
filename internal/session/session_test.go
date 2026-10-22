@@ -122,7 +122,7 @@ var (
 	tracks   = []catalog.Song{{ID: "far-1", Title: "Carrier Wave"}, {ID: "far-2", Title: "Dead Air"}}
 	adaLikes = api.Likes{Full: true, IDs: []string{"far-2", "far-1"}, Songs: []catalog.Song{tracks[1], tracks[0]}}
 
-	signInToLikeNotice = notice.Notice{Kind: notice.NeedsAccount, Title: notice.SignInToLike, Topic: notice.SignIn}
+	signInToLikeNotice = notice.Notice{Kind: notice.KindNeedsAccount, Title: notice.SignInToLike, Topic: notice.TopicSignIn}
 )
 
 // adaLibrary has duplicates and is made anew each call, because keeping
@@ -339,7 +339,7 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 		t.Errorf("liked songs %+v", got)
 	}
 	wantNotices(t, f, notice.Notice{
-		Kind: notice.Failure, Title: notice.UnlikeFailed, Detail: notice.Reason,
+		Kind: notice.KindFailure, Title: notice.UnlikeFailed, Detail: notice.Reason,
 		Args: []string{"Dead Air", "quota exceeded"},
 	})
 
@@ -355,7 +355,7 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 	}
 	like.done(errors.New("no such song"))
 	wantNotices(t, f, notice.Notice{
-		Kind: notice.Failure, Title: notice.LikeFailedSong, Detail: notice.Reason,
+		Kind: notice.KindFailure, Title: notice.LikeFailedSong, Detail: notice.Reason,
 		Args: []string{"no such song"},
 	})
 }
@@ -446,7 +446,7 @@ func TestSignIn(t *testing.T) {
 	}
 	signIn.signedIn(catalog.Account{}, errors.New("these cookies are signed out"))
 	wantNotices(t, f, notice.Notice{
-		Kind: notice.SignInError, Title: notice.SignInFailed, Detail: notice.Reason,
+		Kind: notice.KindSignInError, Title: notice.SignInFailed, Detail: notice.Reason,
 		Args: []string{"these cookies are signed out"},
 	})
 	if f.s.IsSignedIn() || f.s.IsSigningIn() || f.changed() {
@@ -458,7 +458,7 @@ func TestSignIn(t *testing.T) {
 	signIn = f.d.next(t, "signin SID=good")
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true, Switched: true})
 	signIn.signedIn(ada, nil)
-	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
+	wantNotices(t, f, notice.Notice{Kind: notice.KindSignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
 	if !f.s.IsSignedIn() || f.s.Account() != ada || !f.changed() || f.s.IsSigningIn() {
 		t.Error("not signed in as Ada")
 	}
@@ -502,7 +502,7 @@ func TestCancelSignIn(t *testing.T) {
 	wantNotices(t, f)
 	f.s.CancelSignIn()
 	third.signedIn(ada, nil)
-	wantNotices(t, f, notice.Notice{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
+	wantNotices(t, f, notice.Notice{Kind: notice.KindSignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}})
 }
 
 func TestSignOut(t *testing.T) {
@@ -533,7 +533,7 @@ func TestSignOut(t *testing.T) {
 		wantState(t, f, res, fetchstate.SignedOut)
 	}
 	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
-	wantNotices(t, f, notice.Notice{Kind: notice.Info, Title: notice.SignedOut})
+	wantNotices(t, f, notice.Notice{Kind: notice.KindInfo, Title: notice.SignedOut})
 }
 
 func TestSignOutFails(t *testing.T) {
@@ -544,7 +544,7 @@ func TestSignOutFails(t *testing.T) {
 		t.Error("a failed sign-out signed out")
 	}
 	wantNotices(t, f, notice.Notice{
-		Kind: notice.Failure, Title: notice.SignOutFailed, Detail: notice.Reason,
+		Kind: notice.KindFailure, Title: notice.SignOutFailed, Detail: notice.Reason,
 		Args: []string{"keychain locked"},
 	})
 }

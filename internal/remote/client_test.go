@@ -273,10 +273,10 @@ func TestControlFailed(t *testing.T) {
 		}
 		f.ui.run()
 		want := []notice.Notice{
-			{Kind: notice.Failure, Title: notice.ControlFailed, Topic: notice.Control},
+			{Kind: notice.KindFailure, Title: notice.ControlFailed, Topic: notice.TopicControl},
 			{
-				Kind: notice.Failure, Title: notice.ControlFailed, Detail: notice.Reason,
-				Args: []string{"no such song"}, Topic: notice.Control,
+				Kind: notice.KindFailure, Title: notice.ControlFailed, Detail: notice.Reason,
+				Args: []string{"no such song"}, Topic: notice.TopicControl,
 			},
 		}
 		if !reflect.DeepEqual(f.notices, want) {

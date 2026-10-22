@@ -209,7 +209,7 @@ func TestRemoteSignIn(t *testing.T) {
 		notices = append(notices, f.s.TakeNotices()...)
 		return !f.s.IsSigningIn()
 	})
-	want := []notice.Notice{{Kind: notice.SignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}}}
+	want := []notice.Notice{{Kind: notice.KindSignedIn, Title: notice.SignedInAs, Args: []string{"Ada Lovelace"}}}
 	if !reflect.DeepEqual(notices, want) {
 		t.Errorf("notices %+v, want %+v", notices, want)
 	}

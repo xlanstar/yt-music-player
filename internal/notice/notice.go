@@ -12,11 +12,11 @@ type Kind uint8
 
 // The kinds of notice.
 const (
-	Info         Kind = iota // e.g. "Signed out"
-	Failure                  // Detail says why
-	NeedsAccount             // offer to sign in, if the source supports it
-	SignedIn                 // the submitted credentials worked
-	SignInError              // Detail says why
+	KindInfo         Kind = iota // e.g. "Signed out"
+	KindFailure                  // Detail says why
+	KindNeedsAccount             // offer to sign in, if the source supports it
+	KindSignedIn                 // the submitted credentials worked
+	KindSignInError              // Detail says why
 )
 
 // Code names a message. 0 is none.
@@ -67,18 +67,21 @@ type Notice struct {
 	N int
 	// Topic, when set, replaces a visible notice of the same topic instead
 	// of stacking, so a run of similar failures shows only the last.
-	Topic string
+	Topic Topic
 }
+
+// Topic groups notices that replace one another.
+type Topic string
 
 // Notice topics.
 const (
-	Playback = "playback" // a song failed to play
-	SignIn   = "sign-in"  // something needs an account
-	Control  = "control"  // the daemon failed a control or did not answer
+	TopicPlayback Topic = "playback" // a song failed to play
+	TopicSignIn   Topic = "sign-in"  // something needs an account
+	TopicControl  Topic = "control"  // the daemon failed a control or did not answer
 
-	SettingsSave = "settings-save" // the settings failed to save
-	SettingsRead = "settings-read" // the settings failed to read
-	Themes       = "themes"        // the user's themes failed to read
-	Theme        = "theme:"        // and a theme's file: it failed to read
-	Layout       = "layout"        // the user's layout failed to apply
+	TopicSettingsSave Topic = "settings-save" // the settings failed to save
+	TopicSettingsRead Topic = "settings-read" // the settings failed to read
+	TopicThemes       Topic = "themes"        // the user's themes failed to read
+	TopicTheme        Topic = "theme:"        // and a theme's file: it failed to read
+	TopicLayout       Topic = "layout"        // the user's layout failed to apply
 )

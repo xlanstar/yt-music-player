@@ -50,15 +50,15 @@ func (a *app) syncAccount(c *ui.Context) {
 // sheet's error.
 func (a *app) tell(c *ui.Context, n notice.Notice) {
 	title, detail := noticetext.Render(n)
-	t := ui.Toast{ID: n.Topic, Title: title, Description: detail}
+	t := ui.Toast{ID: string(n.Topic), Title: title, Description: detail}
 	switch n.Kind {
-	case notice.Failure:
+	case notice.KindFailure:
 		t.Type = "error"
-	case notice.NeedsAccount:
+	case notice.KindNeedsAccount:
 		t.Action, t.OnAction = locales.SignIn(), a.openSignIn
-	case notice.SignedIn:
+	case notice.KindSignedIn:
 		a.sheet.isOpen = false
-	case notice.SignInError:
+	case notice.KindSignInError:
 		a.sheet.failure = detail
 		c.Announce(locales.Announcement(title, detail))
 		return

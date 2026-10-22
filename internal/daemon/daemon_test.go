@@ -327,7 +327,7 @@ func TestNotice(t *testing.T) {
 	h.loaded()
 	h.do(func() { h.fake.Fail(stream.ErrUnplayable) })
 	ev := c.eventWith(func(ev api.Event) bool { return ev.Notice != nil })
-	if n := ev.Notice; n.Kind != notice.Failure || n.Topic != notice.Playback || !slices.Equal(n.Args, []string{"Song s0"}) {
+	if n := ev.Notice; n.Kind != notice.KindFailure || n.Topic != notice.TopicPlayback || !slices.Equal(n.Args, []string{"Song s0"}) {
 		t.Errorf("notice %+v", n)
 	}
 }

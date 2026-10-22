@@ -404,7 +404,7 @@ func (pb *Playback) playFailed(err error) {
 }
 
 func failure(title, detail notice.Code, args ...string) notice.Notice {
-	return notice.Notice{Kind: notice.Failure, Title: title, Detail: detail, Args: args, Topic: notice.Playback}
+	return notice.Notice{Kind: notice.KindFailure, Title: title, Detail: detail, Args: args, Topic: notice.TopicPlayback}
 }
 
 // TakeNotice returns and clears the failure to tell, if any.

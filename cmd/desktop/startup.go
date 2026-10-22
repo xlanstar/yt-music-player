@@ -195,5 +195,5 @@ func (a *app) setInTerminal(on bool) {
 }
 
 func switchFailed(title notice.Code, err error) notice.Notice {
-	return notice.Notice{Kind: notice.Failure, Title: title, Detail: notice.Reason, Args: []string{err.Error()}}
+	return notice.Notice{Kind: notice.KindFailure, Title: title, Detail: notice.Reason, Args: []string{err.Error()}}
 }

@@ -363,7 +363,7 @@ func (c *Client) control(call *api.Call) {
 // daemon's own errors add a detail, as the Link tells of a lost
 // connection.
 func controlFailed(err error) notice.Notice {
-	n := notice.Notice{Kind: notice.Failure, Title: notice.ControlFailed, Topic: notice.Control}
+	n := notice.Notice{Kind: notice.KindFailure, Title: notice.ControlFailed, Topic: notice.TopicControl}
 	if e, ok := errors.AsType[*api.Error](err); ok && e.Detail != "" {
 		n.Detail, n.Args = notice.Reason, []string{e.Detail}
 	}
