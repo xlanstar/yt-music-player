@@ -6,8 +6,10 @@
 // lacks, so adding a field needs no new Proto, changing its meaning does.
 // Never change a field's type, which makes gob refuse every Frame: give the
 // new type a new name. Gob omits zero values, so a receiver zeroes each
-// Frame before decoding, and every enum starts at 1: a 0 is a missing
-// field. No field is an interface, a func or a chan.
+// Frame before decoding, and every enum of this package starts at 1: a 0
+// is a missing field. Two enums it carries from elsewhere start at 0
+// (notice.KindInfo, catalog.ItemSong); the next Proto starts them at 1.
+// No field is an interface, a func or a chan.
 //
 // Frame.ID, Hello, Reply.Err, Error, HandoffArgs, HandoffEvent and the
 // numbers of Ping, Handoff and Shutdown never change, in any Proto, so a
