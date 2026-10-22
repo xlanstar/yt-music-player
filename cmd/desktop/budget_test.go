@@ -102,8 +102,8 @@ var interactionBudgets = map[string]interactionBudget{
 	"HoverPlay":  {664, 48380, 20, 3, false}, // 560 allocs, 27621 B today.
 	"HoverHero":  {31, 1180, 20, 3, true},    // 26.1 allocs, 1012 B a build today.
 	// The placeholder's painted sleeves.
-	"HoverHero/Painted": {601, 23290, 20, 3, false},  // 522 allocs, 20245 B today.
-	"ScrollSongs":       {451, 104340, 1, 10, false}, // 394 allocs, 65391 B today, up to 108 KiB in benchmarks: rows coming into view.
+	"HoverHero/Painted": {601, 23290, 20, 3, false}, // 522 allocs, 20245 B today.
+	"ScrollSongs":       {304, 29460, 1, 10, false}, // 264 allocs, 25617 B today: rows coming into view, their text laid out anew.
 	// 3 builds deleting a letter, 2 typing one: 53 over 21 ops.
 	"TypeSearch":  {114, 8130, 2.53, 20, false}, // 99 allocs, 7065 B today.
 	"LibraryTabs": {96, 115150, 1, 8, false},    // 83 allocs, 100124 B today.

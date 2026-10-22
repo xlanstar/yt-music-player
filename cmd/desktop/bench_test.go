@@ -343,6 +343,16 @@ var interactionCases = []struct {
 		if first, _ := list.Visible(); first == 0 {
 			dy = -dy
 		}
+		// MyGo's text cache is the process's: sweeping past the budget's rows
+		// holds their glyphs, then 241 frames drop their layouts (kept 240).
+		for _, step := range [2]float32{dy, -dy} {
+			for range 12 {
+				s.tt.Scroll(700, 500, 0, step)
+			}
+		}
+		for range 241 {
+			s.tt.Frame()
+		}
 		return func(i int) {
 			// 400 steps of 120 DIPs reach about row 800 of 2000.
 			step := dy
