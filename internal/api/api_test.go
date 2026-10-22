@@ -50,7 +50,7 @@ func testArtist() catalog.Artist {
 }
 
 func testAccount() catalog.Account {
-	return catalog.Account{Name: "Lan", Handle: "@lan", Photo: "photo"}
+	return catalog.Account{Name: "Lan", Handle: "@lan", Photo: "photo", ID: "sign-in"}
 }
 
 func testLibrary() *catalog.Library {

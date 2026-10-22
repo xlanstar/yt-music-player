@@ -26,6 +26,9 @@ type Account struct {
 	// Handle is the channel handle, e.g. "@lan"; often empty.
 	Handle string
 	Photo  Art
+	// ID tells this sign-in from any other, the same user's again too, as
+	// names do not: random, made at sign-in and kept with the credentials.
+	ID string
 }
 
 // Library is what the user saved, each list in the source's order.

@@ -20,7 +20,7 @@ func testFile(t *testing.T) File { return File(filepath.Join(t.TempDir(), "cache
 func adaSaved() *Saved {
 	songs := catalogtest.Decoded(20)
 	return &Saved{
-		Account: catalog.Account{Name: "Ada Lovelace", Handle: "@ada"},
+		Account: catalog.Account{ID: "ada-sign-in"},
 		Library: catalog.Library{
 			Playlists: []catalog.Playlist{{ID: "ada-mix", Name: "Engine Notes", Owner: "Ada Lovelace", Songs: []string{"x"}}},
 			Albums:    []catalog.Album{{ID: "MPREb_1", Title: "Far Signals", Artist: "Nova Static", Year: 2024, Kind: catalog.ReleaseAlbum}},
@@ -58,12 +58,12 @@ func TestSaveLoad(t *testing.T) {
 	}
 }
 
-// The account's photo, which YouTube serves under changing URLs, is not
-// kept: the name and handle name the account.
-func TestSaveDropsPhoto(t *testing.T) {
+// Only the sign-in's ID is kept of the account: it tells whose they are,
+// as names and handles do not, and a rename keeps them.
+func TestSaveKeepsOnlyID(t *testing.T) {
 	f := testFile(t)
 	saved := adaSaved()
-	saved.Account.Photo = "https://example.com/ada.jpg"
+	saved.Account = catalog.Account{Name: "Ada Lovelace", Handle: "@ada", Photo: "https://example.com/ada.jpg", ID: "ada-sign-in"}
 	if err := f.Save(saved); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestSaveDropsPhoto(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Account != (catalog.Account{Name: "Ada Lovelace", Handle: "@ada"}) {
+	if got.Account != (catalog.Account{ID: "ada-sign-in"}) {
 		t.Errorf("account %+v", got.Account)
 	}
 }
@@ -92,8 +92,9 @@ func TestLoadNone(t *testing.T) {
 // A file of another version, or broken, loads as nothing.
 func TestLoadUnreadable(t *testing.T) {
 	for name, data := range map[string]string{
-		"version": `{"v":99,"account":{"Name":"Ada Lovelace"}}`,
-		"broken":  `{"v":1,"account":`,
+		"version":  `{"v":99,"account":{"Name":"Ada Lovelace"}}`,
+		"by names": `{"v":1,"account":{"Name":"Ada Lovelace","Handle":""},"liked":["x"]}`,
+		"broken":   `{"v":2,"account":`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			f := testFile(t)
@@ -147,7 +148,7 @@ func TestLoadShares(t *testing.T) {
 	for i, song := range songs {
 		ids[i] = song.ID
 	}
-	if err := f.Save(&Saved{Account: catalog.Account{Name: "Ada"}, Library: catalog.Library{Songs: songs}, Liked: ids, LikedSongs: songs}); err != nil {
+	if err := f.Save(&Saved{Account: catalog.Account{ID: "ada-sign-in"}, Library: catalog.Library{Songs: songs}, Liked: ids, LikedSongs: songs}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := f.Load()
@@ -180,7 +181,7 @@ func TestSaveTogether(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	if got, err := f.Load(); err != nil || got.Account.Name != "Ada Lovelace" {
+	if got, err := f.Load(); err != nil || got.Account.ID != "ada-sign-in" {
 		t.Errorf("loaded %+v, %v", got.Account, err)
 	}
 	if entries, _ := os.ReadDir(filepath.Dir(string(f))); len(entries) != 1 {

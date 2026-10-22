@@ -213,14 +213,14 @@ func TestSignIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if acct != jane {
-		t.Errorf("SignIn = %+v, want %+v", acct, jane)
+	if acct.ID == "" || withoutID(acct) != jane {
+		t.Errorf("SignIn = %+v, want %+v with an ID", acct, jane)
 	}
-	if got, err := store.Load(); err != nil || got != mustParse(t, testCookie) {
+	if got, err := store.Load(); err != nil || !sameCookies(got, mustParse(t, testCookie)) || got.ID() != acct.ID {
 		t.Errorf("stored %v, %v", got, err)
 	}
-	if acct, err := c.Account(t.Context()); err != nil || acct != jane {
-		t.Errorf("Account = %+v, %v", acct, err)
+	if got, err := c.Account(t.Context()); err != nil || got != acct {
+		t.Errorf("Account = %+v, %v", got, err)
 	}
 	want := []served{{`account/account_menu {}`, live}, {`account/account_menu {}`, live}}
 	if got := s.served(); !slices.Equal(got, want) {
@@ -231,7 +231,10 @@ func TestSignIn(t *testing.T) {
 func TestSignInFailureKeepsAccount(t *testing.T) {
 	store := &auth.MemoryStore{}
 	c, s := signedIn(t, store)
-	good := mustParse(t, testCookie)
+	good, err := store.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	for _, tc := range []struct {
 		name, creds string
@@ -257,7 +260,7 @@ func TestSignInFailureKeepsAccount(t *testing.T) {
 		if got, _ := store.Load(); got != good {
 			t.Errorf("%s: the store lost the account", tc.name)
 		}
-		if acct, err := c.Account(t.Context()); err != nil || acct != jane {
+		if acct, err := c.Account(t.Context()); err != nil || withoutID(acct) != jane || acct.ID != good.ID() {
 			t.Errorf("%s: Account = %+v, %v; want the old account", tc.name, acct, err)
 		}
 	}
@@ -323,6 +326,8 @@ func TestSignOutStoreFailure(t *testing.T) {
 	}
 }
 
+// Credentials stored before sign-ins had IDs stay signed in, and get one,
+// stored for the next run.
 func TestStoredCredentials(t *testing.T) {
 	store := &auth.MemoryStore{}
 	if err := store.Save(mustParse(t, testCookie)); err != nil {
@@ -332,9 +337,60 @@ func TestStoredCredentials(t *testing.T) {
 	if len(s.served()) != 0 {
 		t.Error("New made requests")
 	}
-	if acct, err := c.Account(t.Context()); err != nil || acct != jane {
+	acct, err := c.Account(t.Context())
+	if err != nil || withoutID(acct) != jane || acct.ID == "" {
 		t.Errorf("Account = %+v, %v", acct, err)
 	}
+	if got, err := store.Load(); err != nil || got.ID() != acct.ID || !sameCookies(got, mustParse(t, testCookie)) {
+		t.Errorf("stored ID %q, %v; want %q", got.ID(), err, acct.ID)
+	}
+	restarted, _ := accountClient(t, store)
+	if again, err := restarted.Account(t.Context()); err != nil || again != acct {
+		t.Errorf("after a restart, Account = %+v, %v; want %+v", again, err, acct)
+	}
+}
+
+// Each sign-in has an ID of its own, the same credentials' again too,
+// which a restart keeps and signing out forgets.
+func TestSignInIDs(t *testing.T) {
+	store := &auth.MemoryStore{}
+	c, _ := accountClient(t, store)
+	first, err := c.SignIn(t.Context(), testCookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := c.SignIn(t.Context(), testCookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ID == "" || second.ID == first.ID {
+		t.Errorf("IDs %q then %q", first.ID, second.ID)
+	}
+	restarted, _ := accountClient(t, store)
+	if acct, err := restarted.Account(t.Context()); err != nil || acct.ID != second.ID {
+		t.Errorf("after a restart, Account = %+v, %v; want ID %q", acct, err, second.ID)
+	}
+	if err := restarted.SignOut(); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := store.Load(); !errors.Is(err, auth.ErrNotStored) || got.ID() != "" {
+		t.Errorf("signed out, stored ID %q, %v", got.ID(), err)
+	}
+	if acct, err := restarted.SignIn(t.Context(), testCookie); err != nil || acct.ID == second.ID || acct.ID == "" {
+		t.Errorf("signed in again, Account = %+v, %v", acct, err)
+	}
+}
+
+// withoutID is acct as the account menu tells it.
+func withoutID(acct catalog.Account) catalog.Account {
+	acct.ID = ""
+	return acct
+}
+
+// sameCookies reports whether stored holds the cookies of creds, parsed
+// with no ID: its secret starts with theirs, the ID following.
+func sameCookies(stored, creds auth.Credentials) bool {
+	return strings.HasPrefix(stored.Secret(), creds.Secret())
 }
 
 type brokenStore struct{ auth.MemoryStore }

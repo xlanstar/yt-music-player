@@ -5,6 +5,7 @@
 package auth
 
 import (
+	"crypto/rand"
 	"crypto/sha1" //nolint:gosec // SAPISIDHASH is SHA-1, see SAPISIDHash
 	"encoding/hex"
 	"encoding/json/v2"
@@ -30,12 +31,18 @@ func (invalidError) Error() string {
 
 func (invalidError) Unwrap() error { return catalog.ErrInvalidCredentials }
 
+// idHeader holds a sign-in's ID in Secret: a header, which Parse finds
+// as the others and older versions skip.
+const idHeader = "Sign-In-ID"
+
 // Credentials are a browser session's cookies. The zero value is none.
 type Credentials struct {
 	cookie  string
 	sapisid string
 	// authUser picks the account among those signed in to the browser.
 	authUser string
+	// id tells the sign-in from others (ID).
+	id string
 }
 
 // Parse reads credentials leniently from what a user copies out of devtools:
@@ -44,9 +51,10 @@ type Credentials struct {
 // browser.json. Without X-Goog-AuthUser the browser's first account is used.
 func Parse(pasted string) (Credentials, error) {
 	pasted = strings.TrimSpace(strings.TrimPrefix(pasted, "\ufeff"))
+	var id string
 	cookie, authUser, found := fromJSON(pasted)
 	if !found {
-		cookie, authUser, found = fromHeaders(pasted)
+		cookie, authUser, id, found = fromHeaders(pasted)
 	}
 	if !found {
 		cookie = unquote(pasted)
@@ -54,7 +62,12 @@ func Parse(pasted string) (Credentials, error) {
 			cookie = value
 		}
 	}
-	return newCredentials(cookie, authUser)
+	c, err := newCredentials(cookie, authUser)
+	if err != nil {
+		return Credentials{}, err
+	}
+	c.id = id
+	return c, nil
 }
 
 func newCredentials(cookie, authUser string) (Credentials, error) {
@@ -127,10 +140,10 @@ func fromJSON(s string) (cookie, authUser string, ok bool) {
 	return cookie, authUser, cookie != ""
 }
 
-// fromHeaders finds Cookie and X-Goog-AuthUser in a block of headers.
-// Chrome may copy a name and its value on separate lines, with or without
-// a colon after the name: pendingName holds the name until its value.
-func fromHeaders(block string) (cookie, authUser string, ok bool) {
+// fromHeaders finds Cookie, X-Goog-AuthUser and a stored ID in a block of
+// headers. Chrome may copy a name and its value on separate lines, with or
+// without a colon after the name: pendingName holds the name until its value.
+func fromHeaders(block string) (cookie, authUser, id string, ok bool) {
 	var pendingName string
 	for line := range strings.Lines(block) {
 		line = curlHeader(strings.TrimSpace(line))
@@ -162,9 +175,11 @@ func fromHeaders(block string) (cookie, authUser string, ok bool) {
 			cookie, ok = value, true
 		case strings.EqualFold(name, "x-goog-authuser"):
 			authUser = value
+		case strings.EqualFold(name, idHeader) && validValue(value):
+			id = value
 		}
 	}
-	return cookie, authUser, ok
+	return cookie, authUser, id, ok
 }
 
 // curlHeader turns a curl argument line ("-H 'cookie: …' \" or "-b '…'")
@@ -232,12 +247,27 @@ func (c Credentials) String() string {
 // GoString redacts %#v too.
 func (c Credentials) GoString() string { return c.String() }
 
-// Secret encodes the credentials for a Store; Parse reads it back. Never log it.
+// Secret encodes the credentials, and their ID, for a Store; Parse reads
+// it back. Never log it.
 func (c Credentials) Secret() string {
 	if c.IsZero() {
 		return ""
 	}
-	return "X-Goog-AuthUser: " + c.authUser + "\nCookie: " + c.cookie + "\n"
+	secret := "X-Goog-AuthUser: " + c.authUser + "\nCookie: " + c.cookie + "\n"
+	if c.id != "" {
+		secret += idHeader + ": " + c.id + "\n"
+	}
+	return secret
+}
+
+// ID tells this sign-in from others, the same cookies' again too: random,
+// never derived from them; "" for credentials stored before IDs.
+func (c Credentials) ID() string { return c.id }
+
+// WithNewID returns c with an ID of its own, for a sign-in.
+func (c Credentials) WithNewID() Credentials {
+	c.id = rand.Text()
+	return c
 }
 
 // Decorator returns a request signer for innertube's Auth. now stamps

@@ -41,8 +41,10 @@ type Client struct {
 	// Keychain may prompt.
 	load func()
 	// mu serializes sign-in and sign-out, which pair a store write with a
-	// credentials switch.
+	// credentials switch, and guards id.
 	mu sync.Mutex
+	// id is the sign-in's (auth.Credentials.ID), "" signed out.
+	id string
 }
 
 // New returns a client sending requests through a copy of api (nil means

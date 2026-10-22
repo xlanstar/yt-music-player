@@ -164,8 +164,8 @@ func wantNotices(t *testing.T, f *fixture, want ...notice.Notice) {
 }
 
 var (
-	ada    = catalog.Account{Name: "Ada Lovelace", Handle: "@ada"}
-	grace  = catalog.Account{Name: "Grace Hopper"}
+	ada    = catalog.Account{Name: "Ada Lovelace", Handle: "@ada", ID: "ada-sign-in"}
+	grace  = catalog.Account{Name: "Grace Hopper", ID: "grace-sign-in"}
 	adaMix = catalog.Playlist{ID: "ada-mix", Name: "Engine Notes", Songs: []string{"far-1", "far-2"}}
 	tracks = []catalog.Song{{ID: "far-1", Title: "Carrier Wave"}, {ID: "far-2", Title: "Dead Air"}}
 
@@ -313,7 +313,6 @@ func TestFetchedAgain(t *testing.T) {
 	f.none(t)
 
 	// Another account than the one shown: what it had goes at once.
-	grace := catalog.Account{Name: "Grace Hopper"}
 	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true})
 	if f.s.IsLiked("far-1") || !f.changed() {
 		t.Error("Ada's likes shown as Grace's, or Home kept")
@@ -415,6 +414,30 @@ func TestPhotoChanged(t *testing.T) {
 		t.Error("the pending unlike was dropped")
 	}
 	like.done(nil)
+}
+
+// A renamed account keeps its sign-in's ID: no switch, the library and
+// likes stay. Another sign-in of the same name and no handle is one.
+func TestRenamed(t *testing.T) {
+	f := signedIn(t)
+	renamed := ada
+	renamed.Name, renamed.Handle = "Ada King", ""
+	f.s.ApplyAccount(api.AccountEvent{Account: renamed, SignedIn: true})
+	if f.changed() || len(f.cat.LibraryPlaylists()) != 1 || !f.s.IsLiked("far-2") {
+		t.Error("a rename cleared the library, the likes or Home")
+	}
+	if f.s.DisplayName() != "Ada King" {
+		t.Errorf("display name %q", f.s.DisplayName())
+	}
+	f.fetched(t)
+
+	another := renamed
+	another.ID = "another-sign-in"
+	f.s.ApplyAccount(api.AccountEvent{Account: another, SignedIn: true})
+	if !f.changed() || f.s.IsLiked("far-2") {
+		t.Error("another sign-in of the same name kept the likes or Home")
+	}
+	f.fetched(t)
 }
 
 // Signing in after a known sign-out, as a reconnection's snapshot tells
@@ -760,7 +783,6 @@ func TestStaleFetchDropped(t *testing.T) {
 	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	library, liked := f.takeFetches(t)
-	grace := catalog.Account{Name: "Grace Hopper"}
 	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true, Switched: true})
 	if library.Ctx.Err() == nil || liked.Ctx.Err() == nil {
 		t.Error("switching accounts left Ada's fetches running")
@@ -912,7 +934,7 @@ func TestStaleLikeRejected(t *testing.T) {
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true, Switched: true})
 	f.s.SetLiked("far-2", true)
 	like = f.d.next(t, "like +far-2")
-	f.s.ApplyAccount(api.AccountEvent{Account: catalog.Account{Name: "Grace Hopper"}, SignedIn: true, Switched: true})
+	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true, Switched: true})
 	like.done(errors.New("Ada's"))
 	if f.s.IsLiked("far-2") || len(f.s.TakeNotices()) != 0 {
 		t.Error("Ada's like changed Grace's likes")

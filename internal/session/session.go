@@ -417,9 +417,9 @@ func (s *Session) KeepLikes(ids []string) {
 	s.fetches.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
-// sameAccount reports whether a and b are one account: YouTube serves its
-// photo under changing URLs.
-func sameAccount(a, b catalog.Account) bool { return a.Name == b.Name && a.Handle == b.Handle }
+// sameAccount reports whether a and b are one sign-in, by its ID: names
+// and handles are no one's own, and change.
+func sameAccount(a, b catalog.Account) bool { return a.ID == b.ID }
 
 func (s *Session) setAccount(user catalog.Account) {
 	s.isSignedIn, s.account, s.displayName = true, user, user.Name

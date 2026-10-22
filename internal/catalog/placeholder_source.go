@@ -199,7 +199,7 @@ func (s *PlaceholderSource) Account(ctx context.Context) (Account, error) {
 	if err := s.wait(ctx); err != nil {
 		return Account{}, err
 	}
-	return Account{Name: placeholderUser, Handle: "@lan"}, nil
+	return Account{Name: placeholderUser, Handle: "@lan", ID: "placeholder"}, nil
 }
 
 // Library implements Source: the saved playlists and every song, album

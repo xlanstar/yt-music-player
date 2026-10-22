@@ -22,7 +22,7 @@ func bigSaved() *Saved {
 		ids[i] = song.ID
 	}
 	return &Saved{
-		Account:    catalog.Account{Name: "Ada Lovelace", Handle: "@ada"},
+		Account:    catalog.Account{ID: "ada-sign-in"},
 		Library:    catalog.Library{Songs: catalogtest.Decoded(500)},
 		Liked:      ids,
 		LikedSongs: liked,

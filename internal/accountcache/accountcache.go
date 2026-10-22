@@ -18,12 +18,12 @@ import (
 )
 
 // version is the file's "v"; a file of another loads as none.
-const version = 1
+const version = 2
 
 // Saved is what a File keeps.
 type Saved struct {
-	// Account is whose they are; only its Name and Handle are kept, as
-	// YouTube serves the photo under changing URLs.
+	// Account is whose they are; only its ID is kept, which tells
+	// sign-ins apart (catalog.Account.ID).
 	Account catalog.Account
 	Library catalog.Library
 	// Liked are the liked songs' IDs, newest first; LikedSongs describe
@@ -34,11 +34,11 @@ type Saved struct {
 
 // file is a File's contents.
 type file struct {
-	V          int                           `json:"v"`
-	Account    struct{ Name, Handle string } `json:"account"`
-	Library    catalog.Library               `json:"library"`
-	Liked      []string                      `json:"liked"`
-	LikedSongs []catalog.Song                `json:"likedSongs"`
+	V          int                 `json:"v"`
+	Account    struct{ ID string } `json:"account"`
+	Library    catalog.Library     `json:"library"`
+	Liked      []string            `json:"liked"`
+	LikedSongs []catalog.Song      `json:"likedSongs"`
 }
 
 // File is the path of a cache; "" keeps nothing.
@@ -67,7 +67,7 @@ func (f File) Load() (Saved, error) {
 	catalog.ShareStrings(in.Library.Songs)
 	catalog.ShareStrings(in.LikedSongs)
 	return Saved{
-		Account:    catalog.Account{Name: in.Account.Name, Handle: in.Account.Handle},
+		Account:    catalog.Account{ID: in.Account.ID},
 		Library:    in.Library,
 		Liked:      in.Liked,
 		LikedSongs: in.LikedSongs,
@@ -80,7 +80,7 @@ func (f File) Save(s *Saved) error {
 		return nil
 	}
 	out := file{V: version, Library: s.Library, Liked: s.Liked, LikedSongs: s.LikedSongs}
-	out.Account.Name, out.Account.Handle = s.Account.Name, s.Account.Handle
+	out.Account.ID = s.Account.ID
 	// Into the file, not to bytes first: it takes megabytes. No Sync: a
 	// cache a crash loses costs a fetch.
 	return atomicfile.Write(string(f), atomicfile.Options{}, func(w io.Writer) error { return json.MarshalWrite(w, &out) })

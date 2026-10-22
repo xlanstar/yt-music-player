@@ -83,7 +83,7 @@ var oldMix = catalog.Playlist{ID: "old-mix", Name: "Old Notes"}
 func adaCached() *accountcache.Saved {
 	old := catalog.Song{ID: "old-1", Title: "Old Song", Artist: "Nova Static"}
 	return &accountcache.Saved{
-		Account:    catalog.Account{Name: ada.Name, Handle: ada.Handle},
+		Account:    catalog.Account{ID: ada.ID},
 		Library:    catalog.Library{Playlists: []catalog.Playlist{oldMix}, Songs: []catalog.Song{old}},
 		Liked:      []string{"old-1", "far-1"},
 		LikedSongs: []catalog.Song{old, tracks[0]},
@@ -177,7 +177,7 @@ func TestCacheShownAtOnce(t *testing.T) {
 // needed.
 func TestCacheOfAnother(t *testing.T) {
 	cached := adaCached()
-	cached.Account = catalog.Account{Name: "Grace Hopper"}
+	cached.Account = catalog.Account{ID: grace.ID}
 	c := &fakeCache{saved: cached}
 	f, _, _ := cachedFixture(t, c)
 	f.run(t)
@@ -190,10 +190,37 @@ func TestCacheOfAnother(t *testing.T) {
 	c.took(t, "load", "remove")
 }
 
+// Another sign-in's cache shows nothing, though both accounts have the
+// same name and no handle, as YouTube's often have none; a rename's shows.
+func TestCacheOfSameName(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		id      string
+		isShown bool
+	}{
+		{"another sign-in", "another-sign-in", false},
+		{"renamed", ada.ID, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cached := adaCached()
+			cached.Account = catalog.Account{Name: "Ada", ID: ada.ID}
+			c := &fakeCache{saved: cached}
+			f := newFixture(t)
+			f.s.cache = c
+			f.s.ApplyAccount(api.AccountEvent{Account: catalog.Account{Name: "Ada", ID: tc.id}, SignedIn: true})
+			f.takeFetches(t)
+			f.run(t)
+			if shown := f.s.IsLiked("old-1"); shown != tc.isShown {
+				t.Errorf("cache shown %v, want %v", shown, tc.isShown)
+			}
+		})
+	}
+}
+
 // Read once the fetch was saved, another account's cache stays replaced.
 func TestCacheOfAnotherAfterSave(t *testing.T) {
 	cached := adaCached()
-	cached.Account = catalog.Account{Name: "Grace Hopper"}
+	cached.Account = catalog.Account{ID: grace.ID}
 	c := &fakeCache{saved: cached, loadGate: make(chan struct{})}
 	f, library, liked := cachedFixture(t, c)
 	library.Reply <- catalogtest.Reply{Library: adaLibrary()}
@@ -223,7 +250,6 @@ func TestCacheRemovedOnSwitch(t *testing.T) {
 	f.run(t)
 	f.run(t)
 	f.run(t) // the save
-	grace := catalog.Account{Name: "Grace Hopper"}
 	f.s.ApplyAccount(api.AccountEvent{Account: grace, SignedIn: true, Switched: true})
 	f.run(t)
 	c.took(t, "load", "save", "remove")
@@ -316,14 +342,18 @@ func TestCacheRemovedOnSignOut(t *testing.T) {
 	}
 }
 
-// An unreadable cache shows nothing, and the fetch goes on.
+// An unreadable cache, of another version say, shows nothing and goes;
+// the fetch goes on.
 func TestCacheUnreadable(t *testing.T) {
-	f, _, _ := cachedFixture(t, &fakeCache{loadErr: errors.New("accountcache: version 9")})
+	c := &fakeCache{loadErr: errors.New("accountcache: version 1")}
+	f, _, _ := cachedFixture(t, c)
 	f.run(t)
 	wantState(t, f, LibraryRes, fetchstate.Loading)
 	if !f.s.IsBusy() {
 		t.Error("the fetch stopped")
 	}
+	f.run(t)
+	c.took(t, "load", "remove")
 }
 
 // The cache keeps the library's playlists without the songs the catalog

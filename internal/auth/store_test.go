@@ -26,7 +26,7 @@ func testStore(t *testing.T, s Store) {
 	if _, err := s.Load(); !errors.Is(err, ErrNotStored) {
 		t.Fatalf("load empty: err = %v, want ErrNotStored", err)
 	}
-	c := testCreds(t)
+	c := testCreds(t).WithNewID()
 	if err := s.Save(c); err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,8 @@ import (
 	"yt-music-player/internal/auth"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/innertube"
+
+	"github.com/rs/zerolog/log"
 )
 
 var errRejected = errors.New("ytmusic: YouTube Music did not accept these credentials; " +
@@ -23,7 +25,23 @@ func (c *Client) loadStored() {
 	if err != nil {
 		return
 	}
+	if creds.ID() == "" {
+		// Stored before sign-ins had IDs. Unsaved, it lasts this run: the
+		// next makes another, and front-ends fetch what they cached anew.
+		creds = creds.WithNewID()
+		if err := c.store.Save(creds); err != nil {
+			log.Debug().Err(err).Msg("saving the credentials with a new sign-in ID failed")
+		}
+	}
+	c.id = creds.ID()
 	c.api.Auth.Set(creds.Decorator(nil))
+}
+
+// signInID returns the ID of the credentials in use, "" for none.
+func (c *Client) signInID() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.id
 }
 
 func (c *Client) signedCall(ctx context.Context, endpoint string, body map[string]any) (*response, error) {
@@ -88,6 +106,7 @@ func (c *Client) SignIn(ctx context.Context, credentials string) (catalog.Accoun
 	if err != nil {
 		return catalog.Account{}, fmt.Errorf("ytmusic: sign in: %w", err)
 	}
+	creds = creds.WithNewID()
 	decorator := creds.Decorator(nil)
 	trial := *c.api
 	trial.Auth = &innertube.Auth{}
@@ -108,6 +127,8 @@ func (c *Client) SignIn(ctx context.Context, credentials string) (catalog.Accoun
 		}
 	}
 	c.api.Auth.Set(decorator)
+	c.id = creds.ID()
+	acct.ID = c.id
 	return acct, nil
 }
 
@@ -118,6 +139,7 @@ func (c *Client) SignOut() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.api.Auth.Set(nil)
+	c.id = ""
 	if c.store != nil {
 		if err := c.store.Clear(); err != nil {
 			return fmt.Errorf("ytmusic: sign out: %w", err)
@@ -126,13 +148,18 @@ func (c *Client) SignOut() error {
 	return nil
 }
 
-// Account returns who is signed in, from the account menu.
+// Account returns who is signed in, from the account menu, with the
+// sign-in's ID.
 func (c *Client) Account(ctx context.Context) (catalog.Account, error) {
 	c.load()
+	// Taken first: a sign-in meanwhile makes the account package drop
+	// this answer.
+	id := c.signInID()
 	acct, err := account(ctx, c.api)
 	if err != nil {
 		return catalog.Account{}, fmt.Errorf("ytmusic: account: %w", err)
 	}
+	acct.ID = id
 	return acct, nil
 }
 

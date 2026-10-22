@@ -130,6 +130,28 @@ func TestSecretRoundTrip(t *testing.T) {
 	}
 }
 
+// A sign-in's ID is random, never the cookies': each new one differs. It
+// goes with the stored credentials, and those stored before IDs have none.
+func TestCredentialsID(t *testing.T) {
+	c, err := Parse("X-Goog-AuthUser: 2\nCookie: " + fakeCookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.ID() != "" {
+		t.Errorf("parsed ID %q, want none", c.ID())
+	}
+	a, b := c.WithNewID(), c.WithNewID()
+	if a.ID() == "" || a.ID() == b.ID() || strings.Contains(a.ID(), "fake") {
+		t.Errorf("IDs %q and %q", a.ID(), b.ID())
+	}
+	if back, err := Parse(a.Secret()); err != nil || back != a {
+		t.Errorf("round trip = ID %q (%v), want %q", back.ID(), err, a.ID())
+	}
+	if s := fmt.Sprintf("%v", a); strings.Contains(s, a.ID()) {
+		t.Errorf("printed %s", s)
+	}
+}
+
 func TestDecorator(t *testing.T) {
 	c, err := Parse("X-Goog-AuthUser: 1\nCookie: " + fakeCookie)
 	if err != nil {

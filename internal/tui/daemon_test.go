@@ -41,7 +41,7 @@ type daemonApp struct {
 type signingSource struct{ catalog.Source }
 
 func (signingSource) SignIn(context.Context, string) (catalog.Account, error) {
-	return catalog.Account{Name: "Grace Hopper"}, nil
+	return catalog.Account{Name: "Grace Hopper", ID: "grace-sign-in"}, nil
 }
 
 func (signingSource) SignOut() error { return nil }
@@ -132,7 +132,7 @@ func TestAccountCached(t *testing.T) {
 	m := d.a.m
 	d.until("fetched the account", func() bool { return m.session.IsSignedIn() && !m.session.IsBusy() })
 	saved, err := file.Load()
-	if err != nil || saved.Account.Name != "Lan" || len(saved.Liked) != m.session.LikedCount() || len(saved.Liked) == 0 {
+	if err != nil || saved.Account.ID != m.session.Account().ID || len(saved.Liked) != m.session.LikedCount() || len(saved.Liked) == 0 {
 		t.Errorf("kept %+v, %d liked, %v", saved.Account, len(saved.Liked), err)
 	}
 }

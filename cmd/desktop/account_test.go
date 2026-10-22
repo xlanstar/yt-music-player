@@ -34,7 +34,7 @@ func signedOut(t *testing.T, src catalogtest.Source, a *app, q posts) *ui.Tester
 }
 
 var (
-	ada    = catalog.Account{Name: "Ada Lovelace", Handle: "@ada"}
+	ada    = catalog.Account{Name: "Ada Lovelace", Handle: "@ada", ID: "ada-sign-in"}
 	adaMix = catalog.Playlist{
 		ID: "ada-mix", Name: "Engine Notes", Owner: "Ada Lovelace", Songs: []string{"far-1", "far-2"},
 	}

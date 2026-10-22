@@ -16,7 +16,7 @@ func TestBudgetLayouts(t *testing.T) {
 		{name: "Frame", size: unsafe.Sizeof(Frame{}), want: 48},
 		{name: "Hello", size: unsafe.Sizeof(Hello{}), want: 32},
 		{name: "State", size: unsafe.Sizeof(State{}), want: 56},
-		{name: "Status", size: unsafe.Sizeof(Status{}), want: 240},
+		{name: "Status", size: unsafe.Sizeof(Status{}), want: 256},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.size != tc.want {

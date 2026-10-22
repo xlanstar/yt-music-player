@@ -43,16 +43,14 @@ func (s *Session) cacheRead(saved accountcache.Saved, err error) {
 	case errors.Is(err, fs.ErrNotExist):
 		return
 	case err != nil:
+		// Of another version, say: of no use.
 		log.Debug().Err(err).Msg("reading the account's cache failed")
+		s.dropCache()
 		return
 	case !s.isSignedIn:
 		return
 	case !sameAccount(saved.Account, s.account):
-		// Another account's, kept no longer than needed; once both were
-		// fetched, their save replaces it, which a removal must not follow.
-		if !s.isLibraryFresh || !s.isLikesFresh {
-			s.removeCache()
-		}
+		s.dropCache()
 		return
 	}
 	if !s.isLibraryFresh {
@@ -63,6 +61,14 @@ func (s *Session) cacheRead(saved accountcache.Saved, err error) {
 		s.cat.Add(saved.LikedSongs, nil, nil)
 		s.seedLikes(saved.Liked)
 		s.fetches.Set(LikedRes, fetchstate.Fetch{State: fetchstate.Loaded, Err: s.fetches.Get(LikedRes).Err})
+	}
+}
+
+// dropCache removes a cache read of no use, unless both fetches ended:
+// their save replaced it.
+func (s *Session) dropCache() {
+	if !s.isLibraryFresh || !s.isLikesFresh {
+		s.removeCache()
 	}
 }
 
