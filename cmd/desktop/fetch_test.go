@@ -84,8 +84,8 @@ func heldPost(t testing.TB, q posts) func() {
 }
 
 // answer replies to call and waits until the app has the answer: ytmd
-// took it, the loader's result for a page came back, and what the daemon
-// sent with it arrived.
+// took it, the loader's result for a page or the reply to a sign-in or out
+// came back, and what the daemon sent with it arrived.
 func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply) {
 	t.Helper()
 	call.Reply <- r
@@ -93,6 +93,11 @@ func answer(t *testing.T, tt *ui.Tester, q posts, call catalogtest.Call, r reply
 	q.ytmd.until(t, "took the "+call.Kind, func() bool { return len(call.Reply) == 0 })
 	if isPage(call) {
 		heldPost(t, q)()
+	}
+	if call.Kind == "signin" || call.Kind == "signout" {
+		// ytmd replies once its account's job posts the result, maybe after the Pings.
+		s := q.ytmd.a.session
+		q.ytmd.until(t, "answered the "+call.Kind, func() bool { return !s.IsSigningIn() && !s.IsSigningOut() })
 	}
 	syncDaemon(t, q)
 	tt.Frame()
