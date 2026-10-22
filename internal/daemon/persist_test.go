@@ -366,7 +366,7 @@ func TestOpen(t *testing.T) {
 	crashed.SetUnlinkOnClose(false)
 	_ = crashed.Close()
 
-	opts := func() Options { return Options{Source: catalogtest.New()} }
+	opts := func() Options { return Options{Source: catalogtest.New(t)} }
 	svc, err := Open(paths, opts())
 	if err != nil {
 		t.Fatal(err)

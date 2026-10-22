@@ -34,8 +34,8 @@ type (
 	signedOut struct{ err error }
 )
 
-func newFixture() *fixture {
-	f := &fixture{src: catalogtest.Accounts{Source: catalogtest.New()}, q: make(posts, 16)}
+func newFixture(tb testing.TB) *fixture {
+	f := &fixture{src: catalogtest.Accounts{Source: catalogtest.New(tb)}, q: make(posts, 16)}
 	f.a = New(f.src, func(fn func()) { f.q <- fn }, func(c Change) { f.log = append(f.log, c) })
 	return f
 }
@@ -94,7 +94,7 @@ var (
 )
 
 func TestFetch(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.a.Fetch(Profile)
 	f.src.Next(t, nil, "account", "").Reply <- catalogtest.Reply{Account: ada}
 	f.run(t)
@@ -151,7 +151,7 @@ func TestFetchSharesStrings(t *testing.T) {
 		}
 	}
 
-	f := newFixture()
+	f := newFixture(t)
 	f.a.Fetch(Liked)
 	f.src.Next(t, nil, "playlist", "LM").Reply <- catalogtest.Reply{Songs: described()}
 	f.run(t)
@@ -164,7 +164,7 @@ func TestFetchSharesStrings(t *testing.T) {
 }
 
 func TestFetchFails(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.a.Fetch(Library)
 	first := f.src.Next(t, nil, "library", "")
 	// Fetching again drops the fetch in flight.
@@ -181,7 +181,7 @@ func TestFetchFails(t *testing.T) {
 }
 
 func TestSignedOut(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	for p := range f.a.fetches {
 		f.a.Fetch(Part(p))
 	}
@@ -201,7 +201,7 @@ func TestSignedOut(t *testing.T) {
 }
 
 func TestLike(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.like("far-1", true)
 	if !f.a.IsBusy() {
 		t.Error("not busy liking")
@@ -234,7 +234,7 @@ func TestLike(t *testing.T) {
 }
 
 func TestLaterLikeDecides(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.like("far-1", false)
 	first := f.src.Next(t, nil, "like", "-far-1")
 	f.like("far-1", true)
@@ -250,7 +250,7 @@ func TestLaterLikeDecides(t *testing.T) {
 }
 
 func TestLikeSignedOut(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.a.Fetch(Library)
 	lib := f.src.Next(t, nil, "library", "")
 	f.like("far-1", true)
@@ -263,7 +263,7 @@ func TestLikeSignedOut(t *testing.T) {
 }
 
 func TestStaleLikes(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.like("far-1", true)
 	like := f.src.Next(t, nil, "like", "+far-1")
 	f.signOut()
@@ -292,7 +292,7 @@ func TestStaleLikes(t *testing.T) {
 }
 
 func TestSignIn(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	if !f.a.CanSignIn() {
 		t.Fatal("Accounts cannot sign in")
 	}
@@ -324,7 +324,7 @@ func TestSignIn(t *testing.T) {
 }
 
 func TestSignInCanceled(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.signIn("SID=slow")
 	signIn := f.src.Next(t, nil, "signin", "SID=slow")
 	f.a.CancelSignIn()
@@ -362,7 +362,7 @@ func TestSignInCanceled(t *testing.T) {
 }
 
 func TestSignInWithoutAccounts(t *testing.T) {
-	src := catalogtest.New()
+	src := catalogtest.New(t)
 	a := New(src, nil, nil)
 	if a.CanSignIn() {
 		t.Error("a source without accounts signs in")
@@ -373,7 +373,7 @@ func TestSignInWithoutAccounts(t *testing.T) {
 }
 
 func TestSignOut(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.signIn("SID=slow")
 	signIn := f.src.Next(t, nil, "signin", "SID=slow")
 	f.signOut()
@@ -404,7 +404,7 @@ func TestSignOut(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	for p := range f.a.fetches {
 		f.a.Fetch(Part(p))
 	}
@@ -429,7 +429,7 @@ func TestStop(t *testing.T) {
 }
 
 func TestLatest(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	if got := f.a.Latest(); !reflect.DeepEqual(got, Latest{}) {
 		t.Fatalf("latest before any fetch %+v", got)
 	}
@@ -518,7 +518,7 @@ func TestLatest(t *testing.T) {
 }
 
 func TestLatestAfterSignIn(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.a.Fetch(Library)
 	f.src.Next(t, nil, "library", "").Reply <- catalogtest.Reply{Library: catalog.Library{Songs: tracks}}
 	f.run(t)

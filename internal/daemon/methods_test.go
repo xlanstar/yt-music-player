@@ -206,7 +206,7 @@ func TestUnknownMethod(t *testing.T) {
 	if err := s.control(ping); !errors.Is(err, errUnknownMethod) {
 		t.Errorf("control of a Ping: %v, want errUnknownMethod", err)
 	}
-	if r := ask(t.Context(), catalogtest.New(), ping); r.Err == nil || r.Err.Code != api.CodeInternal {
+	if r := ask(t.Context(), catalogtest.New(t), ping); r.Err == nil || r.Err.Code != api.CodeInternal {
 		t.Errorf("ask of a Ping: %+v, want an internal error", r)
 	}
 }

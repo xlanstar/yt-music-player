@@ -24,7 +24,7 @@ var ytmdFailed = api.ErrInternal.Error()
 // anonApp is signed out, so only its pages ask the source for music.
 func anonApp(tb testing.TB) (catalogtest.Source, *app, posts) {
 	tb.Helper()
-	src := catalogtest.New()
+	src := catalogtest.New(tb)
 	a, q := startApp(tb, src, ytmdOptions{signedOut: true})
 	q.ytmd.until(tb, "signed out", func() bool {
 		return a.fetches.State(session.AccountRes).State == fetchstate.SignedOut
@@ -45,7 +45,7 @@ func scriptedApp(tb testing.TB) (catalogtest.Source, *app, posts) {
 // fetched, so ytmd asks first for the account, library and likes.
 func accountApp(tb testing.TB) (catalogtest.Accounts, *app, posts) {
 	tb.Helper()
-	src := catalogtest.Accounts{Source: catalogtest.New()}
+	src := catalogtest.Accounts{Source: catalogtest.New(tb)}
 	a, q := sourceApp(tb, src)
 	fetchedFeeds(a)
 	return src, a, q

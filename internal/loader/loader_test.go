@@ -14,8 +14,8 @@ type posts chan func()
 
 // scripted returns a Loader over a catalogtest.Source the test answers,
 // with an empty catalog.
-func scripted() (catalogtest.Source, *Loader, *catalog.Catalog, posts) {
-	src, cat, queue := catalogtest.New(), catalog.New(nil, nil, nil), make(posts, 16)
+func scripted(tb testing.TB) (catalogtest.Source, *Loader, *catalog.Catalog, posts) {
+	src, cat, queue := catalogtest.New(tb), catalog.New(nil, nil, nil), make(posts, 16)
 	l := New(src, &fetchstate.Registry{}, cat, func(fn func()) { queue <- fn })
 	return src, l, cat, queue
 }
@@ -60,7 +60,7 @@ var (
 )
 
 func TestShowFetchesOnce(t *testing.T) {
-	src, l, cat, queue := scripted()
+	src, l, cat, queue := scripted(t)
 	wantState(t, l, remote, fetchstate.Idle)
 	l.Show(remote)
 	call := src.Next(t, nil, "album", "remote")
@@ -84,7 +84,7 @@ func TestShowFetchesOnce(t *testing.T) {
 }
 
 func TestLeavingCancels(t *testing.T) {
-	src, l, cat, queue := scripted()
+	src, l, cat, queue := scripted(t)
 	l.Show(remote)
 	first := src.Next(t, nil, "album", "remote")
 	// The result is already posted when the page is left; showing the page
@@ -121,7 +121,7 @@ func TestLeavingCancels(t *testing.T) {
 }
 
 func TestFailedThenRetry(t *testing.T) {
-	src, l, cat, queue := scripted()
+	src, l, cat, queue := scripted(t)
 	res := fetchstate.Resource{Kind: fetchstate.Playlist, ID: "remote-list"}
 	l.Show(res)
 	src.Next(t, nil, "playlist", res.ID).Reply <- catalogtest.Reply{Err: errors.New("network is down")}
@@ -160,7 +160,7 @@ func TestFailedThenRetry(t *testing.T) {
 }
 
 func TestOnLoad(t *testing.T) {
-	src, l, _, queue := scripted()
+	src, l, _, queue := scripted(t)
 	res := fetchstate.Resource{Kind: fetchstate.Playlist, ID: "mix"}
 	ran := 0
 	l.OnLoad(res, func() { ran++ })
@@ -196,7 +196,7 @@ func TestOnLoad(t *testing.T) {
 }
 
 func TestFeedsKeptUnique(t *testing.T) {
-	src, l, cat, queue := scripted()
+	src, l, cat, queue := scripted(t)
 	l.Show(HomeFeed)
 	albumItem := catalog.Item{Kind: catalog.ItemAlbum, Album: remoteAlbum}
 	mix := catalog.Item{Kind: catalog.ItemPlaylist, Playlist: catalog.Playlist{ID: "mix", Name: "Mix"}}
@@ -239,7 +239,7 @@ func TestFeedsKeptUnique(t *testing.T) {
 }
 
 func TestForget(t *testing.T) {
-	src, l, _, queue := scripted()
+	src, l, _, queue := scripted(t)
 	l.Show(HomeFeed)
 	call := src.Next(t, nil, "home", "")
 	// Shown: refetched at once.
@@ -263,7 +263,7 @@ func TestForget(t *testing.T) {
 }
 
 func TestSearchDebouncesAndCancels(t *testing.T) {
-	src, l, cat, queue := scripted()
+	src, l, cat, queue := scripted(t)
 	l.Debounce = 200 * time.Millisecond
 	l.Search("o")
 	l.Search("or")
@@ -310,7 +310,7 @@ func TestSearchDebouncesAndCancels(t *testing.T) {
 }
 
 func TestSearchErrorThenRetry(t *testing.T) {
-	src, l, _, queue := scripted()
+	src, l, _, queue := scripted(t)
 	l.Debounce = 0
 	l.Search("zzz")
 	src.Next(t, nil, "search", "zzz").Reply <- catalogtest.Reply{Err: errors.New("rate limited")}
@@ -350,7 +350,7 @@ func TestSearchErrorThenRetry(t *testing.T) {
 }
 
 func TestRetryFailed(t *testing.T) {
-	src, l, _, queue := scripted()
+	src, l, _, queue := scripted(t)
 	l.Debounce = 0
 	// Nothing failed: nothing is asked.
 	l.RetryFailed()

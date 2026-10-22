@@ -86,10 +86,10 @@ type fixture struct {
 	cat    *catalog.Catalog
 }
 
-func newFixture() *fixture {
+func newFixture(tb testing.TB) *fixture {
 	f := &fixture{d: &fakeDaemon{}, cat: catalog.New(nil, nil, nil)}
 	// The loader only forgets Home here: it never runs its post.
-	load := loader.New(catalogtest.New(), &f.states, f.cat, func(func()) { panic("the loader fetched") })
+	load := loader.New(catalogtest.New(tb), &f.states, f.cat, func(func()) { panic("the loader fetched") })
 	f.s = New(f.d, &f.states, load, f.cat)
 	// Loaded so changed can see an account change forget it.
 	f.states.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
@@ -144,7 +144,7 @@ func fetched(s *Session) {
 
 func signedIn(t *testing.T) *fixture {
 	t.Helper()
-	f := newFixture()
+	f := newFixture(t)
 	fetched(f.s)
 	if f.s.IsBusy() {
 		t.Fatal("busy once fetched")
@@ -154,13 +154,13 @@ func signedIn(t *testing.T) *fixture {
 
 func signedOut(t *testing.T) *fixture {
 	t.Helper()
-	f := newFixture()
+	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{})
 	return f
 }
 
 func TestFetched(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	if !f.s.IsBusy() {
 		t.Error("not busy while fetching")
 	}
@@ -192,7 +192,7 @@ func TestFetched(t *testing.T) {
 
 // seedLikes must not alias its argument.
 func TestLiked(t *testing.T) {
-	s := newFixture().s
+	s := newFixture(t).s
 	if s.Liked("a") {
 		t.Fatal("a new session likes a song")
 	}
@@ -260,7 +260,7 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 }
 
 func TestLibraryFailsAndRetries(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartProfile, Err: &api.Error{Code: api.CodeInternal}})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal, Detail: "network is down"}})
 	f.s.ApplyLikes(adaLikes)
@@ -415,7 +415,7 @@ func TestLikesReported(t *testing.T) {
 }
 
 func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	// A like sent meanwhile is newer than the list.
 	f.s.SetLiked("midnight-arcade", true)
@@ -571,7 +571,7 @@ func TestStaleLikeRejected(t *testing.T) {
 }
 
 func TestRetryFailed(t *testing.T) {
-	f := newFixture()
+	f := newFixture(t)
 	f.s.ApplyAccount(api.AccountEvent{Account: ada, SignedIn: true})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLibrary, Err: &api.Error{Code: api.CodeInternal}})
 	f.s.ApplyFailed(api.FailedEvent{Part: api.PartLiked, Err: &api.Error{Code: api.CodeInternal}})

@@ -77,7 +77,7 @@ type harness struct {
 // and clock; the test may set opts' State, Seed and SaveDelay.
 func newHarness(t *testing.T, opts Options) *harness {
 	t.Helper()
-	h := &harness{t: t, src: catalogtest.Accounts{Source: catalogtest.New()}, clock: newClock()}
+	h := &harness{t: t, src: catalogtest.Accounts{Source: catalogtest.New(t)}, clock: newClock()}
 	var emit func(audio.Event)
 	h.fake = audio.NewFake(func(ev audio.Event) { emit(ev) })
 	opts.Source = h.src

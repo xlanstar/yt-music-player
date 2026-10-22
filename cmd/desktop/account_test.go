@@ -103,7 +103,7 @@ func TestSignedOut(t *testing.T) {
 
 // A ytmd whose source signs no one in says so when asked to.
 func TestSignedOutWithoutAccounts(t *testing.T) {
-	src := catalogtest.New()
+	src := catalogtest.New(t)
 	a, q := sourceApp(t, src)
 	fetchedFeeds(a)
 	tt := signedOut(t, src, a, q)

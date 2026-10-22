@@ -4,6 +4,7 @@ package catalogtest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -41,6 +42,9 @@ type Reply struct {
 // cancellation, as a real source may, so callers must drop stale results.
 type Source struct {
 	Calls chan Call
+	// done closes when the test ends, failing the requests left unanswered
+	// so that their goroutines return rather than leak.
+	done <-chan struct{}
 }
 
 var (
@@ -48,14 +52,30 @@ var (
 	_ catalog.Accounts = Accounts{}
 )
 
+// errEnded answers the requests left when the test ended.
+var errEnded = errors.New("catalogtest: the test ended")
+
 // New returns a Source whose Calls channel buffers a burst of concurrent
-// requests.
-func New() Source { return Source{Calls: make(chan Call, 16)} }
+// requests, until tb ends: then requests unanswered fail.
+func New(tb testing.TB) Source {
+	done := make(chan struct{})
+	tb.Cleanup(func() { close(done) })
+	return Source{Calls: make(chan Call, 16), done: done}
+}
 
 func (s Source) ask(ctx context.Context, kind, id string) Reply {
 	call := Call{kind, id, ctx, make(chan Reply, 1)}
-	s.Calls <- call
-	return <-call.Reply
+	select {
+	case s.Calls <- call:
+	case <-s.done:
+		return Reply{Err: errEnded}
+	}
+	select {
+	case reply := <-call.Reply:
+		return reply
+	case <-s.done:
+		return Reply{Err: errEnded}
+	}
 }
 
 // Search asks for "search query".

@@ -810,7 +810,7 @@ func TestCancelSignIn(t *testing.T) {
 }
 
 func TestSignInWithoutAccounts(t *testing.T) {
-	h := &harness{t: t, svc: New(Options{Source: catalogtest.New()})}
+	h := &harness{t: t, svc: New(Options{Source: catalogtest.New(t)})}
 	t.Cleanup(h.close)
 	c := h.connect(false)
 	for _, cl := range []api.Call{
