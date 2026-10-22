@@ -139,7 +139,7 @@ func New(src catalog.Source, post func(func()), report func(Change)) *Account {
 // reports it or its failure.
 func (a *Account) Fetch(p Part) {
 	src := a.src
-	job.Run(&a.fetches[p], a.post,
+	a.fetches[p].Run(a.post,
 		func(ctx context.Context) (Change, error) { return fetch(ctx, src, p) },
 		func(c Change, err error) { a.finishFetch(p, c, err) })
 }
@@ -396,7 +396,7 @@ func (a *Account) SignOut(done func(error)) {
 	if accounts == nil || a.signOutJob.IsRunning() {
 		return
 	}
-	job.Run(&a.signOutJob, a.post,
+	a.signOutJob.Run(a.post,
 		func(context.Context) (struct{}, error) { return struct{}{}, accounts.SignOut() },
 		func(_ struct{}, err error) { a.finishSignOut(err, done) })
 }

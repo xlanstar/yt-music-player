@@ -31,7 +31,7 @@ func (j *Job) Stop() {
 // Run stops j's run in flight and starts work on a goroutine. post runs a
 // func on the UI thread; through it done gets the result unless j was
 // stopped or run again meanwhile. The context is canceled when the run ends.
-func Run[T any](j *Job, post func(func()), work func(context.Context) (T, error), done func(T, error)) {
+func (j *Job) Run[T any](post func(func()), work func(context.Context) (T, error), done func(T, error)) {
 	j.Stop()
 	ctx, cancel := context.WithCancel(context.Background())
 	j.ctx, j.cancel = ctx, cancel

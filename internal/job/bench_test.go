@@ -16,7 +16,7 @@ func instant(context.Context) (string, error) { return "done", nil }
 // roundTrip costs a fetch whose source answers at once: the overhead a
 // page fetch or search adds to the source's own.
 func roundTrip(j *Job, queue posts) {
-	Run(j, queue.post, instant, func(v string, _ error) { sinkString = v })
+	j.Run(queue.post, instant, func(v string, _ error) { sinkString = v })
 	(<-queue)()
 }
 

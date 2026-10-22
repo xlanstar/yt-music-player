@@ -108,7 +108,7 @@ func (l *Loader) Retry(res fetchstate.Resource) {
 	l.shown = res
 	l.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	src := l.src
-	job.Run(&l.pageJob, l.post,
+	l.pageJob.Run(l.post,
 		func(ctx context.Context) (func(*Loader), error) { return fetch(ctx, src, res) },
 		func(keep func(*Loader), err error) { l.finish(res, keep, err) })
 }
@@ -292,7 +292,7 @@ func (l *Loader) startSearch(query string, delay time.Duration) {
 	l.pendingQuery = query
 	l.found.FailedQuery, l.found.Err = "", nil
 	src := l.src
-	job.Run(&l.searchJob, l.post,
+	l.searchJob.Run(l.post,
 		func(ctx context.Context) (catalog.Results, error) { return debouncedSearch(ctx, src, query, delay) },
 		func(results catalog.Results, err error) { l.finishSearch(query, results, err) })
 }

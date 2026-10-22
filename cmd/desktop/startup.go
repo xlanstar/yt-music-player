@@ -92,7 +92,7 @@ func (a *app) startStartup(sys startupSystem, dev bool) {
 		// movedPath is the Path's new folder, "" when unchanged.
 		movedPath string
 	}
-	job.Run(&st.login, a.post, func(context.Context) (found, error) {
+	st.login.Run(a.post, func(context.Context) (found, error) {
 		enabled, err := sys.status()
 		f := found{atLogin: enabled}
 		if err != nil || dev {
@@ -149,7 +149,7 @@ func daemonPath(sys startupSystem) (string, error) {
 func (a *app) setAtLogin(on bool) {
 	st := &a.startup
 	sys := st.sys
-	job.Run(&st.login, a.post, func(context.Context) (struct{}, error) {
+	st.login.Run(a.post, func(context.Context) (struct{}, error) {
 		if !on {
 			return struct{}{}, sys.disable()
 		}
@@ -171,7 +171,7 @@ func (a *app) setAtLogin(on bool) {
 func (a *app) setInTerminal(on bool) {
 	st := &a.startup
 	sys, old := st.sys, a.look.set.TerminalPath
-	job.Run(&st.terminal, a.post, func(context.Context) (string, error) {
+	st.terminal.Run(a.post, func(context.Context) (string, error) {
 		if !on {
 			if old == "" {
 				return "", nil

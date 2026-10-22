@@ -127,8 +127,7 @@ func (a *app) openLook() {
 	if dir == "" {
 		return
 	}
-	job.Run(
-		&a.look.scan,
+	a.look.scan.Run(
 		a.post,
 		func(context.Context) ([]settings.UserTheme, error) { return dir.Themes() },
 		func(users []settings.UserTheme, err error) {

@@ -201,7 +201,7 @@ func (cs *covers) claim(key coverKey) int {
 // holds another key, or none.
 func (cs *covers) encode(c *cover, img *image.RGBA, id uint8) {
 	key, tmux := c.key, cs.tmux
-	job.Run(&c.job, cs.post, func(context.Context) (termimage.Encoded, error) {
+	c.job.Run(cs.post, func(context.Context) (termimage.Encoded, error) {
 		return termimage.Encode(img, key.caps, key.cols, key.rows, id, tmux)
 	}, func(e termimage.Encoded, err error) {
 		if err != nil {

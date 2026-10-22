@@ -53,7 +53,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 `cmd/desktop` (`package main`, the MyGo app; `mygo.json`, `resources/` and `locales/` stay at the root, `mygo.json`'s `main` names this package):
 
 - `main.go` (the window, the menu bar, the updater plugin), `demo.go` (`demo_placeholder.go` under the `placeholder` tag starts with the placeholder's music), `post.go` (`a.post`, buffered until the window attaches), `network.go` (back online: ytmd and what failed are retried), `ytm_linux.go` (started as `ytm`, runs the `ytm` beside it).
-- `daemon.go`: the remote client and its supervisor; routes notices to `tell`, the daemon's health to `banner.go` (Retry, Restart, View Log); Quit and Stop Playback. `startup.go`: starting ytmd at login and, on Windows, ytm on the Path (package `autostart`, through `job.Run`).
+- `daemon.go`: the remote client and its supervisor; routes notices to `tell`, the daemon's health to `banner.go` (Retry, Restart, View Log); Quit and Stop Playback. `startup.go`: starting ytmd at login and, on Windows, ytm on the Path (package `autostart`, through `job.Job.Run`).
 - `app.go`: state, `reconcile` before each build, root layout from `th.Layout`. `memo.go`: `a.memo`, what builds derive, made again when its inputs change.
 - `fetch.go` (router → resource, `syncLoad`), `account.go` + `signin.go` (the session over ytmd, which gets the account's events, `tell`: the one path for every notice), `playback.go` (what plays, from the mirror: the position's frames, the current song and those up next, controls, sliders held while dragged), `appearance.go` (the settings sheet).
 - `routes.go`: `/home`, `/explore`, `/library?tab=`, `/album/{id}`, `/playlist/{id}`, `/liked`, `/search?q=`.
@@ -77,7 +77,7 @@ What each binary must not link: `docs/daemon.md` (Programs), held by `TestDeps`.
 ### Threading
 
 - ytmd's player, playback, account and engine live on its loop (`loop.Post`), which never waits on a socket; the Desktop and TUI only mirror them.
-- Never call a `Source` or touch `a.cat` from a goroutine: fetch off-thread with `job.Run`, whose `done` runs on the UI thread through `post`, dropped when stale, and merges.
+- Never call a `Source` or touch `a.cat` from a goroutine: fetch off-thread with `job.Job.Run`, whose `done` runs on the UI thread through `post`, dropped when stale, and merges.
 - Goroutines return plain values; loader, account, playback, artwork and settings change shared state only in posted funcs.
 
 ### UI

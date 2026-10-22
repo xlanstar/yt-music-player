@@ -254,7 +254,7 @@ func (pb *Playback) resolve() {
 		pb.resolved(s, nil)
 		return
 	}
-	job.Run(&pb.resolving, pb.post, pb.resolveFunc(pb.song), pb.onResolved)
+	pb.resolving.Run(pb.post, pb.resolveFunc(pb.song), pb.onResolved)
 }
 
 // resolveFunc captures the Resolver so the goroutine never reads pb.
@@ -454,7 +454,7 @@ func (pb *Playback) startPrefetch() {
 	id := upNext[0]
 	f.next = prefetch{song: id}
 	// A failure shows later, when the song plays and resolves again.
-	job.Run(&f.job, pb.post, pb.resolveFunc(id), func(s stream.Stream, err error) {
+	f.job.Run(pb.post, pb.resolveFunc(id), func(s stream.Stream, err error) {
 		if err != nil {
 			log.Debug().Str("song", id).Err(err).Msg("prefetch failed")
 		}

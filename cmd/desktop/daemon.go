@@ -101,7 +101,7 @@ func (a *app) quitAndStop() {
 		a.daemon.quit()
 		return
 	}
-	job.Run(&a.daemon.stopping, a.post, func(ctx context.Context) (struct{}, error) {
+	a.daemon.stopping.Run(a.post, func(ctx context.Context) (struct{}, error) {
 		ctx, cancel := context.WithTimeout(ctx, remote.RestartGrace)
 		defer cancel()
 		c, _, err := remote.Connect(ctx, d.dialer, false, api.RoleDesktop, d.version)
