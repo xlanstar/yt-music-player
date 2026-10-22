@@ -1,24 +1,24 @@
 # yt-music-player binary sizes, scripts/binsize.sh
 # platforms: released
-# date: 2026-10-22T13:43:50Z
+# date: 2026-10-22T16:35:58Z
 # go: go1.27.3
-# git: 55ff6c0, 1 files changed
+# git: bc5716b, 2 files changed
 # format: program, platform, bytes
-desktop darwin/arm64 15148450
-ytmd darwin/arm64 8293170
-ytm darwin/arm64 9840082
-desktop darwin/amd64 16317424
-ytmd darwin/amd64 8917264
-ytm darwin/amd64 10530000
+desktop darwin/arm64 15148482
+ytmd darwin/arm64 8293202
+ytm darwin/arm64 9840098
+desktop darwin/amd64 16317440
+ytmd darwin/amd64 8921392
+ytm darwin/amd64 10530016
 desktop linux/amd64 15565063
 ytmd linux/amd64 10375431
 ytm linux/amd64 10195104
 desktop linux/arm64 14352647
-ytmd linux/arm64 9568519
+ytmd linux/arm64 9634055
 ytm linux/arm64 9437344
-desktop windows/amd64 16187392
-ytmd windows/amd64 8823808
+desktop windows/amd64 16187904
+ytmd windows/amd64 8826368
 ytm windows/amd64 10546688
-desktop windows/arm64 14689280
-ytmd windows/arm64 8006144
-ytm windows/arm64 9628672
+desktop windows/arm64 14689792
+ytmd windows/arm64 8008192
+ytm windows/arm64 9629184
