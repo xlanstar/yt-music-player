@@ -268,7 +268,7 @@ func TestLibrary(t *testing.T) {
 	if got := h.daemon.calls; !slices.Contains(got, "Like satellite-hearts true") {
 		t.Errorf("l asked %q", got)
 	}
-	if !h.m.session.Liked("satellite-hearts") {
+	if !h.m.session.IsLiked("satellite-hearts") {
 		t.Error("the like does not show")
 	}
 }

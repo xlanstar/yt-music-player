@@ -358,7 +358,7 @@ func (m *model) drawBar(g region, f *frame) {
 	} else {
 		g.cover(f.bar.cover, slotBar, song.Art)
 		x, end := f.bar.textX, w-padX
-		if m.session.Liked(song.ID) {
+		if m.session.IsLiked(song.ID) {
 			hw := c.heart - 1 // a song's heart is a space and ♥
 			g.putText(end-hw, barSong, iconLiked, hw, styleAccent)
 			end -= hw + 1

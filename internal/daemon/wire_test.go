@@ -23,12 +23,12 @@ func TestWireRepeat(t *testing.T) {
 		}
 		told[tc.wire] = true
 	}
-	for r := api.RepeatOff; r.Valid(); r++ {
+	for r := api.RepeatOff; r.IsValid(); r++ {
 		if !told[r] {
 			t.Errorf("no player mode travels as %d", r)
 		}
 	}
-	if player.Repeat(len(modes)).Valid() {
+	if player.Repeat(len(modes)).IsValid() {
 		t.Errorf("player mode %d has no row", len(modes))
 	}
 }
@@ -45,7 +45,7 @@ func TestWirePart(t *testing.T) {
 		}
 	}
 	n := 0
-	for wire := api.PartAccount; wire.Valid(); wire++ {
+	for wire := api.PartAccount; wire.IsValid(); wire++ {
 		if got := wirePart(accountPart(wire)); got != wire {
 			t.Errorf("part %d comes back as %d", wire, got)
 		}

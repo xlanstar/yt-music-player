@@ -178,7 +178,7 @@ func TestFetched(t *testing.T) {
 	if f.s.Library().Playlists != nil || len(f.s.Library().Songs) != 2 {
 		t.Errorf("library kept %+v", f.s.Library())
 	}
-	if !f.s.Liked("far-1") || !f.s.Liked("far-2") || f.s.LikedCount() != 2 {
+	if !f.s.IsLiked("far-1") || !f.s.IsLiked("far-2") || f.s.LikedCount() != 2 {
 		t.Error("likes not seeded from Liked music")
 	}
 	if got := f.s.LikedSongs(); len(got) != 2 || got[0].ID != "far-2" {
@@ -193,28 +193,28 @@ func TestFetched(t *testing.T) {
 // seedLikes must not alias its argument.
 func TestLiked(t *testing.T) {
 	s := newFixture(t).s
-	if s.Liked("a") {
+	if s.IsLiked("a") {
 		t.Fatal("a new session likes a song")
 	}
 	s.seedLikes([]string{"a", "b"})
 	s.applyLike("c", true)
 	s.applyLike("c", true)
 	s.applyLike("a", false)
-	if s.Liked("a") || !s.Liked("b") || !s.Liked("c") {
+	if s.IsLiked("a") || !s.IsLiked("b") || !s.IsLiked("c") {
 		t.Fatal("applyLike did not set likes")
 	}
 	ids := []string{"d"}
 	s.seedLikes(ids)
 	ids[0] = "a"
-	if s.Liked("b") || s.Liked("c") || s.Liked("a") || !s.Liked("d") {
+	if s.IsLiked("b") || s.IsLiked("c") || s.IsLiked("a") || !s.IsLiked("d") {
 		t.Error("seedLikes did not replace the likes, or follows its argument")
 	}
 	s.seedLikes(nil)
-	if s.Liked("d") {
+	if s.IsLiked("d") {
 		t.Error("seedLikes(nil) left a like")
 	}
 	s.applyLike("a", true)
-	if !s.Liked("a") {
+	if !s.IsLiked("a") {
 		t.Error("liking after seedLikes(nil) failed")
 	}
 }
@@ -232,7 +232,7 @@ func TestSignedOutEverywhere(t *testing.T) {
 
 	// Liking asks to sign in, and asks the daemon nothing.
 	f.s.SetLiked("far-1", true)
-	if f.s.Liked("far-1") {
+	if f.s.IsLiked("far-1") {
 		t.Error("liked while signed out")
 	}
 	wantNotices(t, f, signInToLikeNotice)
@@ -250,7 +250,7 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 		t.Error("the like's answer did more than tell")
 	}
 	f.s.ApplyAccount(api.AccountEvent{})
-	if f.s.IsSignedIn() || f.s.Liked("far-2") || len(f.cat.LibraryPlaylists()) != 0 || len(f.s.Library().Songs) != 0 {
+	if f.s.IsSignedIn() || f.s.IsLiked("far-2") || len(f.cat.LibraryPlaylists()) != 0 || len(f.s.Library().Songs) != 0 {
 		t.Error("signed out, the account's library or likes stayed")
 	}
 	wantState(t, f, LibraryRes, fetchstate.SignedOut)
@@ -319,7 +319,7 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 	gen := f.s.LikesGen()
 	f.s.SetLiked("far-2", false)
 	// Unliking takes the song off at once, before the daemon answers.
-	if f.s.Liked("far-2") || f.s.LikedCount() != 1 || f.s.LikesGen() == gen || !f.s.IsBusy() {
+	if f.s.IsLiked("far-2") || f.s.LikedCount() != 1 || f.s.LikesGen() == gen || !f.s.IsBusy() {
 		t.Fatal("unliking waited for the daemon")
 	}
 	unlike := f.d.next(t, "like -far-2")
@@ -331,7 +331,7 @@ func TestLikeAppliesAtOnceAndReverts(t *testing.T) {
 	f.d.take(t)
 	gen = f.s.LikesGen()
 	unlike.done(errors.New("quota exceeded"))
-	if !f.s.Liked("far-2") || f.s.LikesGen() == gen || f.s.IsBusy() {
+	if !f.s.IsLiked("far-2") || f.s.LikesGen() == gen || f.s.IsBusy() {
 		t.Error("a failed unlike stayed")
 	}
 	// It kept its place.
@@ -371,11 +371,11 @@ func TestLaterLikeDecides(t *testing.T) {
 		t.Errorf("like described %+v, want %+v", second.song, tracks[0])
 	}
 	first.done(errors.New("late"))
-	if !f.s.Liked("far-1") {
+	if !f.s.IsLiked("far-1") {
 		t.Error("an outdated like's failure reverted the later one")
 	}
 	second.done(nil)
-	if !f.s.Liked("far-1") || len(f.s.TakeNotices()) != 0 || f.s.IsBusy() {
+	if !f.s.IsLiked("far-1") || len(f.s.TakeNotices()) != 0 || f.s.IsBusy() {
 		t.Error("far-1 unliked")
 	}
 }
@@ -395,14 +395,14 @@ func TestLikesReported(t *testing.T) {
 		Added:   []string{"far-2", "midnight-arcade"},
 		Removed: []string{"far-1"},
 	})
-	if f.s.Liked("far-2") || !f.s.Liked("midnight-arcade") || f.s.Liked("far-1") {
+	if f.s.IsLiked("far-2") || !f.s.IsLiked("midnight-arcade") || f.s.IsLiked("far-1") {
 		t.Error("reported likes not applied, or applied over a pending one")
 	}
 	if got := f.s.likeOrder; !slices.Equal(got, []string{"midnight-arcade", "far-2", "far-1"}) {
 		t.Errorf("likes %q, want newest first", got)
 	}
 	unlike.done(nil)
-	if f.s.Liked("far-2") || len(f.s.TakeNotices()) != 0 {
+	if f.s.IsLiked("far-2") || len(f.s.TakeNotices()) != 0 {
 		t.Error("the unlike that went through was undone")
 	}
 
@@ -421,14 +421,14 @@ func TestPendingLikeOutlivesLikedMusic(t *testing.T) {
 	f.s.SetLiked("midnight-arcade", true)
 	like := f.d.next(t, "like +midnight-arcade")
 	f.s.ApplyLikes(adaLikes)
-	if !f.s.Liked("far-1") || !f.s.Liked("far-2") || !f.s.Liked("midnight-arcade") {
+	if !f.s.IsLiked("far-1") || !f.s.IsLiked("far-2") || !f.s.IsLiked("midnight-arcade") {
 		t.Fatal("likes not seeded from Liked music")
 	}
 	if !slices.Equal(f.s.likeOrder, []string{"midnight-arcade", "far-2", "far-1"}) {
 		t.Errorf("likes %q, want newest first", f.s.likeOrder)
 	}
 	like.done(nil)
-	if !f.s.Liked("midnight-arcade") {
+	if !f.s.IsLiked("midnight-arcade") {
 		t.Error("a like that went through was undone")
 	}
 }
@@ -469,7 +469,7 @@ func TestSignIn(t *testing.T) {
 	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
 	f.d.take(t)
 	fetched(f.s)
-	if len(f.cat.LibraryPlaylists()) != 1 || !f.s.Liked("far-1") || f.s.IsBusy() {
+	if len(f.cat.LibraryPlaylists()) != 1 || !f.s.IsLiked("far-1") || f.s.IsBusy() {
 		t.Error("Ada's library or likes missing")
 	}
 }
@@ -521,7 +521,7 @@ func TestSignOut(t *testing.T) {
 	// The daemon tells no one is signed in, then answers.
 	f.s.ApplyAccount(api.AccountEvent{})
 	signOut.done(nil)
-	if f.s.IsSignedIn() || f.s.IsSigningOut() || f.s.DisplayName() != "" || f.s.Liked("far-2") ||
+	if f.s.IsSignedIn() || f.s.IsSigningOut() || f.s.DisplayName() != "" || f.s.IsLiked("far-2") ||
 		len(f.cat.LibraryPlaylists()) != 0 || len(f.s.Library().Songs) != 0 || f.s.LikedCount() != 0 {
 		t.Error("signing out kept the account, its likes or its library")
 	}
@@ -556,7 +556,7 @@ func TestStaleLikeRejected(t *testing.T) {
 	like := f.d.next(t, "like -far-1")
 	f.s.ApplyAccount(api.AccountEvent{})
 	like.done(errors.New("signed out meanwhile"))
-	if f.s.Liked("far-1") || len(f.s.TakeNotices()) != 0 || f.s.IsBusy() {
+	if f.s.IsLiked("far-1") || len(f.s.TakeNotices()) != 0 || f.s.IsBusy() {
 		t.Fatal("a stale like changed the signed-out session")
 	}
 
@@ -565,7 +565,7 @@ func TestStaleLikeRejected(t *testing.T) {
 	like = f.d.next(t, "like +far-2")
 	f.s.ApplyAccount(api.AccountEvent{Account: catalog.Account{Name: "Grace Hopper"}, SignedIn: true, Switched: true})
 	like.done(errors.New("Ada's"))
-	if f.s.Liked("far-2") || len(f.s.TakeNotices()) != 0 {
+	if f.s.IsLiked("far-2") || len(f.s.TakeNotices()) != 0 {
 		t.Error("Ada's like changed Grace's likes")
 	}
 }

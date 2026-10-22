@@ -107,7 +107,7 @@ func TestOverDaemon(t *testing.T) {
 
 	d.send(keyMsg("down"))
 	d.send(keyMsg("l"))
-	d.until("liked", func() bool { return m.session.Liked("satellite-hearts") && !m.session.IsBusy() })
+	d.until("liked", func() bool { return m.session.IsLiked("satellite-hearts") && !m.session.IsBusy() })
 
 	// Down skips the heading over the playlists.
 	d.send(keyMsg("shift+tab"))

@@ -151,7 +151,7 @@ func (m *model) songSegments(segs []segment, it *item, w int) []segment {
 		dur = duration.Clock(float64(s.Seconds))
 	}
 	heart := ""
-	if m.session.Liked(s.ID) {
+	if m.session.IsLiked(s.ID) {
 		heart = iconLiked
 	}
 	return append(segs,

@@ -81,8 +81,8 @@ func TestSignedOut(t *testing.T) {
 	// Liking signed out asks to sign in, and never asks the source.
 	current := a.currentID()
 	click(t, tt, "Like")
-	if a.session.Liked(current) || !toasted(tt, "Sign in to like songs") {
-		t.Errorf("liking signed out left liked %v, announced %q", a.session.Liked(current), tt.Announcements())
+	if a.session.IsLiked(current) || !toasted(tt, "Sign in to like songs") {
+		t.Errorf("liking signed out left liked %v, announced %q", a.session.IsLiked(current), tt.Announcements())
 	}
 	src.None(t, tt.Frame, 50*time.Millisecond)
 
@@ -177,7 +177,7 @@ func TestSignIn(t *testing.T) {
 	calls["playlist LM"].Reply <- reply{Playlist: adaLikes, Songs: remoteTracks}
 	calls["home"].Reply <- reply{}
 	settleLoads(t, tt, a, q)
-	if !tt.HasText("Engine Notes") || !a.session.Liked("far-1") || !a.session.Liked("far-2") {
+	if !tt.HasText("Engine Notes") || !a.session.IsLiked("far-1") || !a.session.IsLiked("far-2") {
 		t.Errorf("Ada's library or likes missing, texts %q", tt.Texts())
 	}
 }
@@ -205,7 +205,7 @@ func TestSignInClosedWhileSigningIn(t *testing.T) {
 
 func TestSignOut(t *testing.T) {
 	src, a, q, tt := signedInApp(t)
-	if !tt.HasText("Engine Notes") || !a.session.Liked("far-2") {
+	if !tt.HasText("Engine Notes") || !a.session.IsLiked("far-2") {
 		t.Fatalf("not signed in, texts %q", tt.Texts())
 	}
 	click(t, tt, "Ada Lovelace")
@@ -226,7 +226,7 @@ func TestSignOut(t *testing.T) {
 	if a.session.IsSignedIn() || tt.HasText("Ada") || tt.HasText("Engine Notes") || count(tt.Texts(), "Sign in") != 1 {
 		t.Errorf("Ada's account shows after signing out, texts %q", tt.Texts())
 	}
-	if a.session.Liked("far-2") || len(a.cat.LibraryPlaylists()) != 0 || len(a.session.Library().Songs) != 0 {
+	if a.session.IsLiked("far-2") || len(a.cat.LibraryPlaylists()) != 0 || len(a.session.Library().Songs) != 0 {
 		t.Error("signing out kept likes or the library")
 	}
 	if !toasted(tt, "Signed out") {
@@ -312,7 +312,7 @@ func TestLikedMusicSeedsLikes(t *testing.T) {
 	a.router.Push(pathLiked)
 	calls := src.Take(t, tt.Frame, "account", "library", "playlist LM")
 	answer(t, tt, q, calls["account"], reply{Account: ada})
-	if !tt.HasText("Loading…") || a.session.Liked("far-2") {
+	if !tt.HasText("Loading…") || a.session.IsLiked("far-2") {
 		t.Fatalf("liked music not loading, texts %q", tt.Texts())
 	}
 	// A like sent meanwhile is newer than the fetched list, so it stays.
@@ -322,7 +322,7 @@ func TestLikedMusicSeedsLikes(t *testing.T) {
 		Playlist: adaLikes,
 		Songs:    []catalog.Song{remoteTracks[1], remoteTracks[0]},
 	})
-	if !a.session.Liked("far-1") || !a.session.Liked("far-2") || !a.session.Liked("midnight-arcade") {
+	if !a.session.IsLiked("far-1") || !a.session.IsLiked("far-2") || !a.session.IsLiked("midnight-arcade") {
 		t.Fatal("likes not seeded from Liked music")
 	}
 	if a.router.Title() != "Liked music" || !tt.HasText("Ada Lovelace") {
@@ -340,7 +340,7 @@ func TestLikedMusicSeedsLikes(t *testing.T) {
 	like.Reply <- reply{}
 	calls["library"].Reply <- reply{}
 	settleLoads(t, tt, a, q)
-	if !a.session.Liked("midnight-arcade") {
+	if !a.session.IsLiked("midnight-arcade") {
 		t.Error("a like that went through was undone")
 	}
 }
@@ -358,12 +358,12 @@ func TestLikeRevertsOnError(t *testing.T) {
 	r, _ = tt.Find("Dead Air by Nova Static")
 	tt.ClickAt(r.X+r.W+16+18, r.Y+r.H/2)
 	c := src.Next(t, tt.Frame, "like", "-far-2")
-	if a.session.Liked("far-2") || tt.HasText("Dead Air by Nova Static") {
+	if a.session.IsLiked("far-2") || tt.HasText("Dead Air by Nova Static") {
 		t.Fatalf("unliking waited for the source, texts %q", tt.Texts())
 	}
 	answer(t, tt, q, c, reply{Err: errors.New("quota exceeded")})
 	frames(tt, 2)
-	if !a.session.Liked("far-2") || !tt.HasText("Dead Air by Nova Static") {
+	if !a.session.IsLiked("far-2") || !tt.HasText("Dead Air by Nova Static") {
 		t.Errorf("a failed unlike stayed, texts %q", tt.Texts())
 	}
 	if !toasted(tt, "Couldn’t unlike “Dead Air”") || !tt.HasText(ytmdFailed) {

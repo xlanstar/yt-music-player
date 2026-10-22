@@ -308,7 +308,7 @@ func (cs *covers) ready(key coverKey) *cover {
 
 // isBusy reports covers loading or encoding, for tests to wait on.
 func (cs *covers) isBusy() bool {
-	if cs.art != nil && cs.art.Loading() {
+	if cs.art != nil && cs.art.IsBusy() {
 		return true
 	}
 	for i := range cs.cache {

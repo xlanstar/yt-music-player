@@ -91,12 +91,12 @@ var methods = [numMethods]struct {
 	MethodRefresh:       {"Refresh", partArgs},
 }
 
-// Valid reports whether m is a method of this Proto.
-func (m Method) Valid() bool { return m > 0 && m < numMethods }
+// IsValid reports whether m is a method of this Proto.
+func (m Method) IsValid() bool { return m > 0 && m < numMethods }
 
 // String returns m's name, or its number when unknown.
 func (m Method) String() string {
-	if !m.Valid() {
+	if !m.IsValid() {
 		return "Method(" + strconv.Itoa(int(m)) + ")"
 	}
 	return methods[m].name
@@ -123,7 +123,7 @@ const (
 // Validate reports why c is not a call of this Proto: an unknown method,
 // more than one args field set, or not the one its method takes.
 func (c *Call) Validate() error {
-	if !c.Method.Valid() {
+	if !c.Method.IsValid() {
 		return fmt.Errorf("%w: %s", ErrInvalid, c.Method)
 	}
 	set := [...]bool{
@@ -150,7 +150,7 @@ func (c *Call) Validate() error {
 		return fmt.Errorf("%w: %s with %d args", ErrInvalid, c.Method, n)
 	case got != methods[c.Method].args:
 		return fmt.Errorf("%w: %s with the wrong args", ErrInvalid, c.Method)
-	case c.Part != nil && !c.Part.Part.Valid():
+	case c.Part != nil && !c.Part.Part.IsValid():
 		return fmt.Errorf("%w: %s of part %d", ErrInvalid, c.Method, c.Part.Part)
 	}
 	return nil
@@ -194,8 +194,8 @@ const (
 	numParts
 )
 
-// Valid reports whether p is a part of this Proto.
-func (p Part) Valid() bool { return p > 0 && p < numParts }
+// IsValid reports whether p is a part of this Proto.
+func (p Part) IsValid() bool { return p > 0 && p < numParts }
 
 // Repeat is what plays after a song or the queue ends (player.Repeat, which
 // counts from 0, plus 1).
@@ -210,5 +210,5 @@ const (
 	numRepeats
 )
 
-// Valid reports whether r is a repeat mode of this Proto.
-func (r Repeat) Valid() bool { return r > 0 && r < numRepeats }
+// IsValid reports whether r is a repeat mode of this Proto.
+func (r Repeat) IsValid() bool { return r > 0 && r < numRepeats }

@@ -67,7 +67,7 @@ func must(err error) {
 }
 
 func busy(a *app) bool {
-	return a.loader.IsBusy() || a.art != nil && a.art.Loading() || a.session.IsBusy()
+	return a.loader.IsBusy() || a.art != nil && a.art.IsBusy() || a.session.IsBusy()
 }
 
 // settleLoads draws frames and runs posts until nothing loads, no post is
@@ -179,7 +179,7 @@ func TestSongRowPlaysAndLikes(t *testing.T) {
 	// A liked row keeps its Like button, beside the song's, not inside it.
 	click(t, tt, "Late Night Drive")
 	click(t, tt, "Like")
-	if a.session.Liked("midnight-arcade") {
+	if a.session.IsLiked("midnight-arcade") {
 		t.Error("Unlike left midnight-arcade liked")
 	}
 }
@@ -418,15 +418,15 @@ func TestLikedEmptiesAndReturns(t *testing.T) {
 	click(t, tt, "Like")
 	frames(tt, 2)
 	isEmpty := tt.HasText("Nothing here yet") && !tt.HasText("TITLE")
-	if a.session.Liked(current) || !isEmpty {
-		t.Fatalf("unliking the last song left liked %v, texts %q", a.session.Liked(current), tt.Texts())
+	if a.session.IsLiked(current) || !isEmpty {
+		t.Fatalf("unliking the last song left liked %v, texts %q", a.session.IsLiked(current), tt.Texts())
 	}
 	// Now the panel's Like, for the same song.
 	click(t, tt, "Like")
 	frames(tt, 2)
 	isListed := !tt.HasText("Nothing here yet") && tt.HasText("TITLE")
-	if !a.session.Liked(current) || !isListed {
-		t.Errorf("liking it again left liked %v, texts %q", a.session.Liked(current), tt.Texts())
+	if !a.session.IsLiked(current) || !isListed {
+		t.Errorf("liking it again left liked %v, texts %q", a.session.IsLiked(current), tt.Texts())
 	}
 }
 
@@ -486,7 +486,7 @@ func TestRowActionsDoNotPlayTheRow(t *testing.T) {
 	r, _ = tt.Find("Paper Moons by Ivy Calder")
 	// Like follows the song's button, past the row's gap of 14.
 	tt.ClickAt(r.X+r.W+14+16, r.Y+r.H/2)
-	if !a.session.Liked("paper-moons") {
+	if !a.session.IsLiked("paper-moons") {
 		t.Fatal("the row's Like did not like the song")
 	}
 	if st := state(t, a); st.Current != before || st.Playing {

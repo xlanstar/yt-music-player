@@ -648,7 +648,7 @@ func (m *model) like() bool {
 	if id == "" {
 		return false
 	}
-	m.session.SetLiked(id, !m.session.Liked(id))
+	m.session.SetLiked(id, !m.session.IsLiked(id))
 	return true
 }
 

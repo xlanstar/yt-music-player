@@ -107,8 +107,8 @@ func idleCases(s *Session) []idleCase {
 		{"DisplayName", func() { sinkString = s.DisplayName() }},
 		{"Busy", func() { sinkBool = s.IsBusy() }},
 		{"LikesGen", func() { sinkInt = int(s.LikesGen()) }},
-		{"Liked", func() { sinkBool = s.Liked("liked-1234") }},
-		{"NotLiked", func() { sinkBool = s.Liked("nope") }},
+		{"Liked", func() { sinkBool = s.IsLiked("liked-1234") }},
+		{"NotLiked", func() { sinkBool = s.IsLiked("nope") }},
 	}
 }
 
@@ -155,7 +155,7 @@ func BenchmarkSeedLikes(b *testing.B) {
 func BenchmarkSetLiked(b *testing.B) {
 	s := idleSession(b, bigLikes)
 	id := catalog.Placeholder().Songs[0].ID
-	on := !s.Liked(id)
+	on := !s.IsLiked(id)
 	b.ReportAllocs()
 	for b.Loop() {
 		s.SetLiked(id, on)

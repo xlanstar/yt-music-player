@@ -138,7 +138,7 @@ func TestRemoteLikeSignedOut(t *testing.T) {
 		t.Errorf("notices %+v", notices)
 	}
 	f.until(t, "signed out", func() bool { return !f.s.IsSignedIn() })
-	if f.s.IsBusy() || f.s.Liked("far-2") {
+	if f.s.IsBusy() || f.s.IsLiked("far-2") {
 		t.Error("the sign-out left a like")
 	}
 }

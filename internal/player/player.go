@@ -39,8 +39,8 @@ const (
 	repeatModes
 )
 
-// Valid reports whether r is a repeat mode, as one read from a file may not.
-func (r Repeat) Valid() bool { return r < repeatModes }
+// IsValid reports whether r is a repeat mode, as one read from a file may not.
+func (r Repeat) IsValid() bool { return r < repeatModes }
 
 // Player is the playback state. It changes only through its methods, which
 // keep it whole: no position without a song, the volume within 0 to 1.
@@ -99,7 +99,7 @@ func Restore(s Saved) *Player {
 	p.Seek(s.Position)
 	p.SetVolume(s.Volume)
 	p.isMuted = s.Muted
-	if s.Repeat.Valid() {
+	if s.Repeat.IsValid() {
 		p.repeat = s.Repeat
 	}
 	return p

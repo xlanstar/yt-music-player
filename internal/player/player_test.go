@@ -275,11 +275,11 @@ func TestLen(t *testing.T) {
 // The modes' values are daemon.json's: changing one misreads saved files.
 func TestRepeatValues(t *testing.T) {
 	for _, tc := range []struct{ mode, value Repeat }{{RepeatOff, 0}, {RepeatAll, 1}, {RepeatOne, 2}} {
-		if tc.mode != tc.value || !tc.mode.Valid() {
+		if tc.mode != tc.value || !tc.mode.IsValid() {
 			t.Errorf("mode %d, want %d and valid", tc.mode, tc.value)
 		}
 	}
-	if repeatModes.Valid() || Repeat(255).Valid() {
+	if repeatModes.IsValid() || Repeat(255).IsValid() {
 		t.Error("a value past the modes is valid")
 	}
 }

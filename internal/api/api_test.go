@@ -254,10 +254,10 @@ func TestEnumsRejectZero(t *testing.T) {
 		zero, beyond bool
 		first        bool
 	}{
-		{"Method", Method(0).Valid(), numMethods.Valid(), MethodPing.Valid()},
-		{"Part", Part(0).Valid(), numParts.Valid(), PartAccount.Valid()},
-		{"Repeat", Repeat(0).Valid(), numRepeats.Valid(), RepeatOff.Valid()},
-		{"ErrorCode", ErrorCode(0).Valid(), numCodes.Valid(), CodeNotFound.Valid()},
+		{"Method", Method(0).IsValid(), numMethods.IsValid(), MethodPing.IsValid()},
+		{"Part", Part(0).IsValid(), numParts.IsValid(), PartAccount.IsValid()},
+		{"Repeat", Repeat(0).IsValid(), numRepeats.IsValid(), RepeatOff.IsValid()},
+		{"ErrorCode", ErrorCode(0).IsValid(), numCodes.IsValid(), CodeNotFound.IsValid()},
 	} {
 		if tc.zero || tc.beyond || !tc.first {
 			t.Errorf("%s: 0 valid %v, past the last valid %v, 1 valid %v", tc.name, tc.zero, tc.beyond, tc.first)

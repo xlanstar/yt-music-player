@@ -39,8 +39,8 @@ var sentinels = [numCodes]error{
 	CodeInternal:           ErrInternal,
 }
 
-// Valid reports whether c is a code of this Proto.
-func (c ErrorCode) Valid() bool { return c > 0 && c < numCodes }
+// IsValid reports whether c is a code of this Proto.
+func (c ErrorCode) IsValid() bool { return c > 0 && c < numCodes }
 
 // Error is an error on the wire, and the error a front-end reads:
 // errors.Is finds its code's sentinel (ErrInternal for a code unknown
@@ -90,7 +90,7 @@ func (e *Error) Error() string {
 
 // Unwrap returns the sentinel of e's code.
 func (e *Error) Unwrap() error {
-	if !e.Code.Valid() {
+	if !e.Code.IsValid() {
 		return ErrInternal
 	}
 	return sentinels[e.Code]

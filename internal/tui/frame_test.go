@@ -251,7 +251,7 @@ func (h *harness) drawState() drawState {
 		follows:    h.m.queueFollows,
 		memo:       h.m.memo,
 		frame:      g.frame,
-		loading:    g.art != nil && g.art.Loading(),
+		loading:    g.art != nil && g.art.IsBusy(),
 		published:  g.published,
 	}
 	for i := range g.cache {

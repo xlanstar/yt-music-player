@@ -116,7 +116,7 @@ func (a *app) songTitle(c *ui.Context, s catalog.Song, text *rowText, opts songR
 // enabled, then the duration, which More replaces on hover outside tables.
 func (a *app) songActions(c *ui.Context, s catalog.Song, opts songRowOpts, hovered bool) {
 	like := func() {
-		if opts.hasActions && (hovered || a.session.Liked(s.ID)) {
+		if opts.hasActions && (hovered || a.session.IsLiked(s.ID)) {
 			a.likeButton(c, s.ID, btnCompact)
 		}
 	}

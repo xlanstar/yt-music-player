@@ -194,7 +194,7 @@ func (h *footprintRun) quiet(d, limit time.Duration) {
 func (h *footprintRun) shown(path string) {
 	start := time.Now()
 	busy := func() bool {
-		return h.a.loader.IsBusy() || h.a.art != nil && h.a.art.Loading() || h.a.session.IsBusy()
+		return h.a.loader.IsBusy() || h.a.art != nil && h.a.art.IsBusy() || h.a.session.IsBusy()
 	}
 	for time.Since(start) < 5*time.Second {
 		last := h.frames.lastFrame()

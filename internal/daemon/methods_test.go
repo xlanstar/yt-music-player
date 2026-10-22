@@ -152,7 +152,7 @@ func TestEveryMethodServed(t *testing.T) {
 		}
 		served[step.call.Method] = true
 	}
-	for m := api.MethodPing; m.Valid(); m++ {
+	for m := api.MethodPing; m.IsValid(); m++ {
 		if !served[m] {
 			t.Errorf("%s has no step", m)
 		}

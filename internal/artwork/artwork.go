@@ -299,7 +299,7 @@ func (l *Loader) finish(k key, img *Image, err error) {
 	}
 	// Failures show nothing new, so post nothing. One post shows every
 	// load finished before it runs; claiming it under the lock keeps
-	// Loading true until then.
+	// IsBusy true until then.
 	canPost := err == nil && !l.isClosed && l.opts.Post != nil
 	post := canPost && l.postPending.CompareAndSwap(false, true)
 	l.mu.Unlock()
@@ -308,9 +308,9 @@ func (l *Loader) finish(k key, img *Image, err error) {
 	}
 }
 
-// Loading reports whether an image is loading, or loaded and not yet
+// IsBusy reports whether an image is loading, or loaded and not yet
 // posted, for tests to wait on.
-func (l *Loader) Loading() bool {
+func (l *Loader) IsBusy() bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return len(l.loading) > 0 || l.postPending.Load()

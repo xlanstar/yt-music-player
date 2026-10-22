@@ -99,7 +99,7 @@ var pressMotion = ui.Animation{Duration: 120 * time.Millisecond}
 
 // likeButton's label stays Like, pressed while liked.
 func (a *app) likeButton(c *ui.Context, id string, size btnSize) {
-	liked := a.session.Liked(id)
+	liked := a.session.IsLiked(id)
 	icon, opts := icHeart, iconOpts{isToggle: true, isChecked: liked}
 	if liked {
 		icon, opts.tip, opts.fg = icHeartFilled, locales.Unlike(), th.Color.Accent

@@ -172,7 +172,7 @@ func (s *Session) ApplyLibrary(lib catalog.Library) {
 // ApplyFailed keeps a fetch that failed (remote.AccountEvents); the
 // pages show its error with Retry.
 func (s *Session) ApplyFailed(f api.FailedEvent) {
-	if !f.Part.Valid() {
+	if !f.Part.IsValid() {
 		return
 	}
 	err := f.Err.Err()
@@ -205,7 +205,7 @@ func (s *Session) ApplyLikes(likes api.Likes) {
 // keepLike applies a like that went through, unless the user's own,
 // newer, is pending.
 func (s *Session) keepLike(id string, liked bool) {
-	if _, ok := s.pending[id]; ok || s.Liked(id) == liked {
+	if _, ok := s.pending[id]; ok || s.IsLiked(id) == liked {
 		return
 	}
 	s.applyLike(id, liked)
@@ -277,8 +277,8 @@ func (s *Session) applyLike(id string, liked bool) {
 	}
 }
 
-// Liked reports whether the user likes song id.
-func (s *Session) Liked(id string) bool { return s.liked[id] }
+// IsLiked reports whether the user likes song id.
+func (s *Session) IsLiked(id string) bool { return s.liked[id] }
 
 // IsSignedIn reports whether someone is signed in, as far as the app knows.
 func (s *Session) IsSignedIn() bool { return s.isSignedIn }
@@ -300,7 +300,7 @@ func (s *Session) LikesGen() uint64 { return s.likesGen }
 func (s *Session) LikedSongs() []catalog.Song {
 	songs := make([]catalog.Song, 0, len(s.likeOrder))
 	for _, id := range s.likeOrder {
-		if !s.Liked(id) {
+		if !s.IsLiked(id) {
 			continue
 		}
 		if song, ok := s.cat.Song(id); ok {
@@ -314,7 +314,7 @@ func (s *Session) LikedSongs() []catalog.Song {
 func (s *Session) LikedCount() int {
 	count := 0
 	for _, id := range s.likeOrder {
-		if s.Liked(id) {
+		if s.IsLiked(id) {
 			count++
 		}
 	}
@@ -324,7 +324,7 @@ func (s *Session) LikedCount() int {
 // SetLiked likes or unlikes song id at once, then has the account send it;
 // on failure it is undone and a notice tells why.
 func (s *Session) SetLiked(id string, liked bool) {
-	if id == "" || s.Liked(id) == liked {
+	if id == "" || s.IsLiked(id) == liked {
 		return
 	}
 	if s.fetches.Get(AccountRes).State == fetchstate.SignedOut {
