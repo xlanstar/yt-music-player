@@ -257,9 +257,10 @@ func TestHandoffUnlocksFirst(t *testing.T) {
 	h.svc.lock = lock
 	// Greets, then never reads: the daemon's hello to it never leaves.
 	ours, theirs := net.Pipe()
-	t.Cleanup(func() { _ = ours.Close() })
 	go h.svc.Serve(theirs)
-	if err := ipc.NewConn(ours).Send(api.Frame{Hello: &api.Hello{Proto: api.Proto, Role: api.RoleTUI}}); err != nil {
+	greeter := ipc.NewConn(ours)
+	t.Cleanup(func() { _ = greeter.Close() })
+	if err := greeter.Send(api.Frame{Hello: &api.Hello{Proto: api.Proto, Role: api.RoleTUI}}); err != nil {
 		t.Fatal(err)
 	}
 	c := h.connect(false)
