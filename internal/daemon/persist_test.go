@@ -134,6 +134,56 @@ func TestBadState(t *testing.T) {
 	}
 }
 
+// Values out of range in daemon.json are brought within range, or left
+// at their defaults.
+func TestRestoreOutOfRange(t *testing.T) {
+	queue := songs(2)
+	for _, tc := range []struct {
+		name  string
+		saved savedState
+		want  api.State
+	}{
+		{
+			name: "clamped",
+			saved: savedState{
+				Queue: ids(queue), Order: []int{0, 1}, Position: -5, Volume: 1.5,
+				Muted: true, Repeat: player.RepeatOne,
+			},
+			want: api.State{Volume: 1, Muted: true, Repeat: api.RepeatOne, Current: "s0"},
+		},
+		{
+			name: "no repeat mode",
+			saved: savedState{
+				Queue: ids(queue), Order: []int{0, 1}, Index: 1, Position: 30,
+				Volume: -1, Repeat: 9,
+			},
+			want: api.State{Position: 30, Repeat: api.RepeatOff, Current: "s1", Index: 1},
+		},
+		{
+			name:  "nothing queued",
+			saved: savedState{Position: 30, Volume: 0.4, Repeat: player.RepeatAll},
+			want:  api.State{Volume: 0.4, Repeat: api.RepeatAll},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "daemon.json")
+			tc.saved.V, tc.saved.Songs = stateVersion, savedSongs(queue)
+			data, err := json.Marshal(tc.saved)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			st := *newHarness(t, Options{State: path}).connect(true).event().State
+			st.Duration = 0
+			if st != tc.want {
+				t.Errorf("restored %+v, want %+v", st, tc.want)
+			}
+		})
+	}
+}
+
 // A state saved before the queue held each song once loads with each
 // once, at the same song.
 func TestStateRepeats(t *testing.T) {
