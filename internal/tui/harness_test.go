@@ -12,6 +12,7 @@ import (
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/fetchstate"
+	"yt-music-player/internal/leakcheck"
 	"yt-music-player/internal/loader"
 	"yt-music-player/internal/remote"
 	"yt-music-player/internal/session"
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	// Drawing over cells drawn is a layout's mistake.
 	panicOnOverlap = true
-	os.Exit(m.Run())
+	os.Exit(leakcheck.Run(m))
 }
 
 // epoch is the tests' clock: positions stand still.

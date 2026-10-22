@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"testing"
+	"yt-music-player/internal/leakcheck"
 
 	"github.com/ebitengine/purego"
 )
@@ -22,6 +23,6 @@ func runTests(m *testing.M) {
 	}
 	var run func()
 	purego.RegisterLibFunc(&run, coreFoundation, "CFRunLoopRun")
-	go func() { os.Exit(m.Run()) }()
+	go func() { os.Exit(leakcheck.Run(m)) }()
 	run()
 }

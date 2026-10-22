@@ -48,7 +48,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
 - `artwork`: thumbnail loader with memory and disk caches.
 - `httpclient`: a process's HTTP client, tuned for YouTube's hosts.
-- `budget`: allocation budgets for tests.
+- `budget`: allocation budgets for tests; `leakcheck`: fails a test binary that leaves goroutines blocked for good.
 
 `cmd/desktop` (`package main`, the MyGo app; `mygo.json`, `resources/` and `locales/` stay at the root, `mygo.json`'s `main` names this package):
 
@@ -114,6 +114,7 @@ Reasons and measurements: `docs/performance.md`.
 - Apps sit on ytmd in the test's process (`ytmd_test.go`: a `daemon.Service` over `net.Pipe`, the placeholder's queue, no saved state): `testApp(t)`/`sourceApp(t, src)`, `idleApp(t)` (feeds preloaded), `scriptedApp(t)` (only opened pages ask), `anonApp(t)`, `accountApp(t)` (over `catalogtest.Accounts`), `playbackApp(t, res)` (ytmd plays on `audio.Fake`), `lookApp(t, prepare)` (settings in a `TempDir`). Tests show English; `inLanguage(t, "zh-Hant")` switches.
 - `newScreen`/`showApp`/`newTester` show one on a Tester whose builds first run the Client's posts; `settleLoads`/`busy` wait for fetches, thumbnails, the session and ytmd's round trips (`syncDaemon`, `settled`); `answer` waits until ytmd took the reply and the app has it; scripted sources wait drawing frames: `src.Next(t, tt.Frame, …)`, `Take`, `None`.
 - Loader, account, session, playback, job and settings logic is tested in their packages.
+- A package whose tests start goroutines ends its `TestMain` with `os.Exit(leakcheck.Run(m))`: one left blocked for good (Go's `goroutineleak` profile) fails it. `catalogtest.New(t)` fails the requests still unanswered when `t` ends.
 
 ### Benchmarks and budgets
 

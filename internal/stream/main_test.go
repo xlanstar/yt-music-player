@@ -3,6 +3,7 @@ package stream
 import (
 	"os"
 	"testing"
+	"yt-music-player/internal/leakcheck"
 
 	"github.com/rs/zerolog"
 )
@@ -10,5 +11,5 @@ import (
 func TestMain(m *testing.M) {
 	// Tests would otherwise print every failure they provoke.
 	zerolog.SetGlobalLevel(zerolog.Disabled)
-	os.Exit(m.Run())
+	os.Exit(leakcheck.Run(m))
 }

@@ -16,6 +16,7 @@ import (
 	"time"
 	"yt-music-player/internal/artwork"
 	"yt-music-player/internal/catalog"
+	"yt-music-player/internal/leakcheck"
 
 	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 	// English whatever the machine's languages, read as cheaply as the
 	// running app reads its own; inLanguage switches it.
 	i18n.SetLocaleFunc(func() string { return testLocale })
-	os.Exit(m.Run())
+	os.Exit(leakcheck.Run(m))
 }
 
 var (

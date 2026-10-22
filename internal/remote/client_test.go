@@ -12,6 +12,7 @@ import (
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/ipc"
+	"yt-music-player/internal/leakcheck"
 	"yt-music-player/internal/notice"
 
 	"github.com/rs/zerolog"
@@ -21,7 +22,7 @@ func TestMain(m *testing.M) {
 	// Only main sets the level: tests would otherwise print every failure
 	// they provoke.
 	zerolog.SetGlobalLevel(zerolog.Disabled)
-	os.Exit(m.Run())
+	os.Exit(leakcheck.Run(m))
 }
 
 // attach connects f's Client to d, as a Supervisor does, until the test

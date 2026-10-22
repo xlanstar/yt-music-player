@@ -14,6 +14,7 @@ import (
 	"yt-music-player/internal/api"
 	"yt-music-player/internal/catalog"
 	"yt-music-player/internal/ipc"
+	"yt-music-player/internal/leakcheck"
 
 	"github.com/rs/zerolog"
 )
@@ -27,7 +28,7 @@ func TestMain(m *testing.M) {
 	// they provoke.
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	logTo(&logSink)
-	os.Exit(m.Run())
+	os.Exit(leakcheck.Run(m))
 }
 
 // logAtDebug logs at debug level until the test ends, and returns what
