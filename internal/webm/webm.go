@@ -494,17 +494,67 @@ func (w *Reader) unlace(kind byte, data []byte) ([][]byte, error) {
 	count := int(data[0]) + 1
 	data = data[1:]
 	sizes := w.sizes[:count]
-	var err error
+	total := 0
 	switch kind {
 	case laceFixed:
-		err = fixedSizes(data, sizes)
+		if len(data)%count != 0 {
+			return nil, fmt.Errorf("%w: uneven fixed lacing", ErrFormat)
+		}
+		for i := range sizes {
+			sizes[i] = len(data) / count
+		}
+		total = len(data)
 	case laceXiph:
-		data, err = xiphSizes(data, sizes)
+		for i := range count - 1 {
+			size := 0
+			for {
+				if len(data) == 0 {
+					return nil, fmt.Errorf("%w: short Xiph lacing", ErrFormat)
+				}
+				b := data[0]
+				data = data[1:]
+				size += int(b)
+				if b != 0xFF {
+					break
+				}
+			}
+			sizes[i] = size
+			total += size
+		}
 	case laceEBML:
-		data, err = ebmlSizes(data, sizes)
+		first, n := readVint(data, false)
+		if n == 0 {
+			return nil, fmt.Errorf("%w: short EBML lacing", ErrFormat)
+		}
+		data = data[n:]
+		if first > math.MaxInt32 {
+			return nil, fmt.Errorf("%w: laced size %d", ErrFormat, first)
+		}
+		size := int64(first)
+		sizes[0], total = int(size), int(size)
+		for i := 1; i < count-1; i++ {
+			raw, n := readVint(data, false)
+			if n == 0 {
+				return nil, fmt.Errorf("%w: short EBML lacing", ErrFormat)
+			}
+			data = data[n:]
+			if raw > math.MaxInt32 {
+				return nil, fmt.Errorf("%w: laced size difference %d", ErrFormat, raw)
+			}
+			// A signed difference from the previous size.
+			size += int64(raw) - (int64(1)<<(7*n-1) - 1)
+			if size < 0 || size > math.MaxInt32 {
+				return nil, fmt.Errorf("%w: negative laced size", ErrFormat)
+			}
+			sizes[i] = int(size)
+			total += int(size)
+		}
 	}
-	if err != nil {
-		return nil, err
+	if kind != laceFixed {
+		if total > len(data) {
+			return nil, fmt.Errorf("%w: laced sizes overflow the block", ErrFormat)
+		}
+		sizes[count-1] = len(data) - total
 	}
 	frames := w.laced[:0]
 	if cap(frames) < count {
@@ -516,90 +566,6 @@ func (w *Reader) unlace(kind byte, data []byte) ([][]byte, error) {
 		data = data[size:]
 	}
 	return frames, nil
-}
-
-// fixedSizes shares data evenly among the frames.
-func fixedSizes(data []byte, sizes []int) error {
-	if len(data)%len(sizes) != 0 {
-		return fmt.Errorf("%w: uneven fixed lacing", ErrFormat)
-	}
-	for i := range sizes {
-		sizes[i] = len(data) / len(sizes)
-	}
-	return nil
-}
-
-// xiphSizes reads the sizes of the frames but the last, which takes the
-// rest, and returns the data after them.
-func xiphSizes(data []byte, sizes []int) ([]byte, error) {
-	total := 0
-	for i := range len(sizes) - 1 {
-		size, n := xiphSize(data)
-		if n == 0 {
-			return nil, fmt.Errorf("%w: short Xiph lacing", ErrFormat)
-		}
-		data = data[n:]
-		sizes[i] = size
-		total += size
-	}
-	return data, lastSize(data, sizes, total)
-}
-
-// xiphSize reads one size: bytes summed through the first below 0xFF.
-// n is how many it took, 0 when data ends first.
-func xiphSize(data []byte) (size, n int) {
-	for i, b := range data {
-		size += int(b)
-		if b != 0xFF {
-			return size, i + 1
-		}
-	}
-	return 0, 0
-}
-
-// ebmlSizes reads the first frame's size, then each next one's signed
-// difference from the one before, up to the last, which takes the rest,
-// and returns the data after them. The first is read even for a lone
-// frame, whose size the format leaves out.
-func ebmlSizes(data []byte, sizes []int) ([]byte, error) {
-	first, n := readVint(data, false)
-	if n == 0 {
-		return nil, fmt.Errorf("%w: short EBML lacing", ErrFormat)
-	}
-	data = data[n:]
-	if first > math.MaxInt32 {
-		return nil, fmt.Errorf("%w: laced size %d", ErrFormat, first)
-	}
-	size := int64(first)
-	sizes[0] = int(size)
-	total := int(size)
-	for i := 1; i < len(sizes)-1; i++ {
-		raw, n := readVint(data, false)
-		if n == 0 {
-			return nil, fmt.Errorf("%w: short EBML lacing", ErrFormat)
-		}
-		data = data[n:]
-		if raw > math.MaxInt32 {
-			return nil, fmt.Errorf("%w: laced size difference %d", ErrFormat, raw)
-		}
-		// A signed difference from the previous size.
-		size += int64(raw) - (int64(1)<<(7*n-1) - 1)
-		if size < 0 || size > math.MaxInt32 {
-			return nil, fmt.Errorf("%w: negative laced size", ErrFormat)
-		}
-		sizes[i] = int(size)
-		total += int(size)
-	}
-	return data, lastSize(data, sizes, total)
-}
-
-// lastSize gives the last frame what the others leave of data.
-func lastSize(data []byte, sizes []int, total int) error {
-	if total > len(data) {
-		return fmt.Errorf("%w: laced sizes overflow the block", ErrFormat)
-	}
-	sizes[len(sizes)-1] = len(data) - total
-	return nil
 }
 
 // Seek moves to the last cue at or before t, from where the next
