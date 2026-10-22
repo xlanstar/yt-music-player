@@ -46,7 +46,7 @@ type Options struct {
 	// signs in and out.
 	Source catalog.Source
 	// Resolver finds songs' streams and NewEngine makes the engine as the
-	// first song plays, as playback.Playback's. Without a Resolver nothing
+	// first song plays (playback.Options). Without a Resolver nothing
 	// plays: the player acts as a mock.
 	Resolver  stream.Resolver
 	NewEngine func(events func(audio.Event)) (audio.Engine, error)
@@ -144,8 +144,12 @@ func newService(opts Options) *Service {
 		s.store = newStore(opts.State, delay)
 	}
 
-	s.pb = playback.New(s.cat, s.player, s.post)
-	s.pb.Resolver, s.pb.NewEngine = opts.Resolver, opts.NewEngine
+	s.pb = playback.New(
+		s.cat,
+		s.player,
+		s.post,
+		playback.Options{Resolver: opts.Resolver, NewEngine: opts.NewEngine},
+	)
 	s.acct = account.New(s.src, s.post, s.accountChanged)
 	s.sent.reset(s)
 	s.saves.reset(s.mark())

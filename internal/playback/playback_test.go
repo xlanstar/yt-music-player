@@ -70,12 +70,13 @@ func newFixture(res stream.Resolver) *fixture {
 	x.player.Seek(84)
 	var events func(audio.Event)
 	x.f = audio.NewFake(func(ev audio.Event) { events(ev) })
-	x.pb = New(x.cat, x.player, func(fn func()) { x.q <- fn })
-	x.pb.Resolver = res
-	x.pb.NewEngine = func(ev func(audio.Event)) (audio.Engine, error) {
-		events = ev
-		return x.f, nil
-	}
+	x.pb = New(x.cat, x.player, func(fn func()) { x.q <- fn }, Options{
+		Resolver: res,
+		NewEngine: func(ev func(audio.Event)) (audio.Engine, error) {
+			events = ev
+			return x.f, nil
+		},
+	})
 	return x
 }
 
@@ -370,7 +371,7 @@ func TestFailuresStopWithinTheQueue(t *testing.T) {
 
 func TestEngineFails(t *testing.T) {
 	x := newFixture(&instantResolver{})
-	x.pb.NewEngine = func(func(audio.Event)) (audio.Engine, error) { return nil, errNoAudio }
+	x.pb.newEngine = func(func(audio.Event)) (audio.Engine, error) { return nil, errNoAudio }
 	x.player.Resume()
 	x.pb.Follow()
 	x.run(t)
@@ -585,7 +586,7 @@ func TestSystemCommands(t *testing.T) {
 
 func TestNoPlaybackWithoutResolver(t *testing.T) {
 	x := newFixture(nil)
-	x.pb.NewEngine = func(func(audio.Event)) (audio.Engine, error) {
+	x.pb.newEngine = func(func(audio.Event)) (audio.Engine, error) {
 		t.Error("made an engine with no resolver")
 		return nil, errNoAudio
 	}

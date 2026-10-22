@@ -55,10 +55,10 @@ const (
 
 // Playback plays the player's songs.
 type Playback struct {
-	// Resolver finds streams; NewEngine makes the engine when the first song loads.
-	// A nil Resolver makes the player a mock; Stop or engine creation failure clears it.
-	Resolver  stream.Resolver
-	NewEngine func(events func(audio.Event)) (audio.Engine, error)
+	// resolver is Options.Resolver until Stop or a failure to make the
+	// engine clears it: nothing plays after.
+	resolver  stream.Resolver
+	newEngine func(events func(audio.Event)) (audio.Engine, error)
 
 	cat    *catalog.Catalog
 	player *player.Player
@@ -114,11 +114,25 @@ type releaser struct {
 	holds, isArmed bool
 }
 
-// New returns a Playback following p, whose songs cat describes; it is
-// silent until given a Resolver. post runs a func on the loop and is first
-// called once a song plays.
-func New(cat *catalog.Catalog, p *player.Player, post func(func())) *Playback {
-	pb := &Playback{cat: cat, player: p, post: post}
+// Options are what a Playback plays with.
+type Options struct {
+	// Resolver finds streams; without one the player is a mock: nothing
+	// plays.
+	Resolver stream.Resolver
+	// NewEngine makes the engine as the first song loads.
+	NewEngine func(events func(audio.Event)) (audio.Engine, error)
+}
+
+// New returns a Playback following p, whose songs cat describes. post runs
+// a func on the loop and is first called once a song plays.
+func New(cat *catalog.Catalog, p *player.Player, post func(func()), opts Options) *Playback {
+	pb := &Playback{
+		cat:       cat,
+		player:    p,
+		post:      post,
+		resolver:  opts.Resolver,
+		newEngine: opts.NewEngine,
+	}
 	pb.onResolved = pb.resolved
 	return pb
 }
@@ -126,7 +140,7 @@ func New(cat *catalog.Catalog, p *player.Player, post func(func())) *Playback {
 // Follow tells the engine what changed in the player since the last call,
 // and moves the player's position to where the engine is.
 func (pb *Playback) Follow() {
-	if pb.Resolver == nil {
+	if pb.resolver == nil {
 		return
 	}
 	p := pb.player
@@ -245,7 +259,7 @@ func (pb *Playback) resolve() {
 
 // resolveFunc captures the Resolver so the goroutine never reads pb.
 func (pb *Playback) resolveFunc(id string) func(context.Context) (stream.Stream, error) {
-	resolver := pb.Resolver
+	resolver := pb.resolver
 	return func(ctx context.Context) (stream.Stream, error) { return resolver.Resolve(ctx, id) }
 }
 
@@ -277,11 +291,11 @@ func (pb *Playback) startEngine() bool {
 	}
 	// Events come from any thread: capture post rather than read pb there.
 	post := pb.post
-	eng, err := pb.NewEngine(func(ev audio.Event) { post(func() { pb.audioEvent(ev) }) })
+	eng, err := pb.newEngine(func(ev audio.Event) { post(func() { pb.audioEvent(ev) }) })
 	if err != nil {
 		log.Debug().Err(err).Msg("no audio engine")
 		pb.notice = failure(notice.NoAudio, notice.Reason, err.Error())
-		pb.Resolver, pb.state = nil, unloaded
+		pb.resolver, pb.state = nil, unloaded
 		return false
 	}
 	pb.engine, pb.volume = eng, gain(pb.player)
@@ -365,7 +379,7 @@ func (pb *Playback) playFailed(err error) {
 	log.Debug().Str("song", pb.song).Bool("retry", retry).Err(err).Msg("play failed")
 	if retry {
 		pb.hasRetried = true
-		pb.Resolver.Forget(pb.song)
+		pb.resolver.Forget(pb.song)
 		pb.resolve()
 		return
 	}
@@ -529,5 +543,5 @@ func (pb *Playback) Stop() {
 		pb.engine.Close()
 		pb.engine = nil
 	}
-	pb.Resolver = nil
+	pb.resolver = nil
 }
