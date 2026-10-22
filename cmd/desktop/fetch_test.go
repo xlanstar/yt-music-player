@@ -52,8 +52,8 @@ func accountApp(tb testing.TB) (catalogtest.Accounts, *app, posts) {
 }
 
 func fetchedFeeds(a *app) {
-	a.fetches.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
-	a.fetches.Set(loader.ExploreFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	a.fetches.Set(loader.HomeRes, fetchstate.Fetch{State: fetchstate.Loaded})
+	a.fetches.Set(loader.ExploreRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // runPosts runs what was posted once ytmd answered all it was asked.

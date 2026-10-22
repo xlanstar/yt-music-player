@@ -23,9 +23,9 @@ func (a *app) explorePage(c *ui.Context, w float32) {
 		})
 		e := a.loader.Explore()
 		isEmpty := len(e.Moods) == 0 && len(e.NewReleases) == 0 && len(e.Trending) == 0
-		switch f := a.feedState(loader.ExploreFeed); {
+		switch f := a.feedState(loader.ExploreRes); {
 		case f.State == fetchstate.Failed:
-			loadFailed(c, locales.ExploreFailed(), f.Err, func() { a.loader.Retry(loader.ExploreFeed) })
+			loadFailed(c, locales.ExploreFailed(), f.Err, func() { a.loader.Retry(loader.ExploreRes) })
 		case f.State == fetchstate.Loading:
 			exploreSkeleton(c, w)
 		case isEmpty:

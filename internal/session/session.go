@@ -156,7 +156,7 @@ func (s *Session) ApplyAccount(status api.AccountEvent) {
 		for _, res := range Resources {
 			s.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 		}
-		s.loader.Forget(loader.HomeFeed)
+		s.loader.Forget(loader.HomeRes)
 	default:
 		s.setAccount(status.Account)
 		s.fetches.Set(AccountRes, fetchstate.Fetch{State: fetchstate.Loaded})
@@ -401,7 +401,7 @@ func (s *Session) forget() {
 	s.isSignedIn, s.account, s.displayName = false, catalog.Account{}, ""
 	s.clearLibrary()
 	if wasSignedIn {
-		s.loader.Forget(loader.HomeFeed)
+		s.loader.Forget(loader.HomeRes)
 	}
 }
 

@@ -93,7 +93,7 @@ func TestLeavingCancels(t *testing.T) {
 	stale.Title = "Stale Signals"
 	first.Reply <- catalogtest.Reply{Album: stale, Songs: remoteTracks}
 	finish := held(t, queue)
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	home := src.Next(t, nil, "home", "")
 	if first.Ctx.Err() == nil {
 		t.Fatal("leaving the page left its fetch running")
@@ -112,7 +112,7 @@ func TestLeavingCancels(t *testing.T) {
 	// A late failure of the page left is dropped too.
 	home.Reply <- catalogtest.Reply{Err: errors.New("late")}
 	drain(queue)
-	wantState(t, l, HomeFeed, fetchstate.Idle)
+	wantState(t, l, HomeRes, fetchstate.Idle)
 	second.Reply <- catalogtest.Reply{Album: remoteAlbum, Songs: remoteTracks}
 	held(t, queue)()
 	if album, _ := cat.Album("remote"); album.Title != "Far Signals" {
@@ -146,7 +146,7 @@ func TestFailedThenRetry(t *testing.T) {
 	l.Show(other)
 	src.Next(t, nil, "playlist", "other").Reply <- catalogtest.Reply{Err: errors.New("timeout")}
 	held(t, queue)()
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	src.Next(t, nil, "home", "").Reply <- catalogtest.Reply{}
 	held(t, queue)()
 	l.Show(other)
@@ -154,7 +154,7 @@ func TestFailedThenRetry(t *testing.T) {
 	held(t, queue)()
 	wantState(t, l, other, fetchstate.Missing)
 	// Missing is final: not asked again.
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	l.Show(other)
 	src.None(t, nil, 30*time.Millisecond)
 }
@@ -176,7 +176,7 @@ func TestOnLoad(t *testing.T) {
 	l.OnLoad(other, func() { ran++ })
 	l.Show(other)
 	call := src.Next(t, nil, "playlist", "other")
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	call.Reply <- catalogtest.Reply{}
 	home := src.Next(t, nil, "home", "")
 	l.Show(other)
@@ -197,7 +197,7 @@ func TestOnLoad(t *testing.T) {
 
 func TestFeedsKeptUnique(t *testing.T) {
 	src, l, cat, queue := scripted(t)
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	albumItem := catalog.Item{Kind: catalog.ItemAlbum, Album: remoteAlbum}
 	mix := catalog.Item{Kind: catalog.ItemPlaylist, Playlist: catalog.Playlist{ID: "mix", Name: "Mix"}}
 	home := catalog.Home{Shelves: []catalog.Shelf{
@@ -217,7 +217,7 @@ func TestFeedsKeptUnique(t *testing.T) {
 		t.Error("the feed's music did not join the catalog, or joined the library")
 	}
 
-	l.Show(ExploreFeed)
+	l.Show(ExploreRes)
 	moods := []catalog.Mood{{Name: "Night drive", ID: "night"}, {Name: "Night drive", ID: "night"}, {Name: "Chill"}}
 	src.Next(t, nil, "explore", "").Reply <- catalogtest.Reply{Explore: catalog.Explore{
 		Moods: moods, Trending: []catalog.Song{remoteTracks[1], remoteTracks[1]},
@@ -232,7 +232,7 @@ func TestFeedsKeptUnique(t *testing.T) {
 
 	// A feed kept from elsewhere counts as fetched.
 	l.KeepHome(catalog.Home{Shelves: []catalog.Shelf{{Items: []catalog.Item{mix, mix}}}})
-	wantState(t, l, HomeFeed, fetchstate.Loaded)
+	wantState(t, l, HomeRes, fetchstate.Loaded)
 	if count := len(l.Home().Shelves[0].Items); count != 1 {
 		t.Errorf("kept %d items", count)
 	}
@@ -240,26 +240,26 @@ func TestFeedsKeptUnique(t *testing.T) {
 
 func TestForget(t *testing.T) {
 	src, l, _, queue := scripted(t)
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	call := src.Next(t, nil, "home", "")
 	// Shown: refetched at once.
-	l.Forget(HomeFeed)
+	l.Forget(HomeRes)
 	if call.Ctx.Err() == nil {
 		t.Fatal("forgetting the feed left its fetch running")
 	}
 	call.Reply <- catalogtest.Reply{}
 	src.Next(t, nil, "home", "").Reply <- catalogtest.Reply{}
 	held(t, queue)()
-	wantState(t, l, HomeFeed, fetchstate.Loaded)
+	wantState(t, l, HomeRes, fetchstate.Loaded)
 	// Not shown: refetched when next shown.
 	l.Show(fetchstate.Resource{})
-	l.Forget(HomeFeed)
-	wantState(t, l, HomeFeed, fetchstate.Idle)
+	l.Forget(HomeRes)
+	wantState(t, l, HomeRes, fetchstate.Idle)
 	src.None(t, nil, 50*time.Millisecond)
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	src.Next(t, nil, "home", "").Reply <- catalogtest.Reply{}
 	held(t, queue)()
-	wantState(t, l, HomeFeed, fetchstate.Loaded)
+	wantState(t, l, HomeRes, fetchstate.Loaded)
 }
 
 func TestSearchDebouncesAndCancels(t *testing.T) {
@@ -375,7 +375,7 @@ func TestRetryFailed(t *testing.T) {
 	l.Search("zzz")
 	src.Next(t, nil, "search", "zzz").Reply <- catalogtest.Reply{Err: errors.New("offline")}
 	held(t, queue)()
-	l.Show(HomeFeed)
+	l.Show(HomeRes)
 	src.Next(t, nil, "home", "").Reply <- catalogtest.Reply{}
 	held(t, queue)()
 	l.Search("")

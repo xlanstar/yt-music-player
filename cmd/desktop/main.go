@@ -146,7 +146,7 @@ func appVersion() string {
 // development or placeholder build, and the ytmd found beside the app or
 // at YTMD_PATH to start.
 func systemYtmd() (ytmd, error) {
-	paths, err := ipc.Default(mygo.IsDev())
+	paths, err := ipc.DefaultPaths(mygo.IsDev())
 	if err != nil {
 		return ytmd{}, err
 	}

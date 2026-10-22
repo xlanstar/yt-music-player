@@ -26,9 +26,9 @@ func resourceAt(loc string) fetchstate.Resource {
 	path := u.EscapedPath()
 	switch path {
 	case pathHome, "/":
-		return loader.HomeFeed
+		return loader.HomeRes
 	case pathExplore:
-		return loader.ExploreFeed
+		return loader.ExploreRes
 	}
 	for _, route := range idRoutes {
 		rest, ok := strings.CutPrefix(path, route.prefix)

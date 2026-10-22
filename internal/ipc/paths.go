@@ -45,9 +45,9 @@ type Paths struct {
 	isShared bool
 }
 
-// Default returns the paths in the OS's directories; dev reports a
+// DefaultPaths returns the paths in the OS's directories; dev reports a
 // development build.
-func Default(dev bool) (Paths, error) {
+func DefaultPaths(dev bool) (Paths, error) {
 	config, err := os.UserConfigDir()
 	if err != nil {
 		return Paths{}, fmt.Errorf("ipc: %w", err)

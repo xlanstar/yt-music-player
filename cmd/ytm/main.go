@@ -75,7 +75,7 @@ func main() {
 func mainCode() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	paths, err := ipc.Default(version.IsDev(version.Version))
+	paths, err := ipc.DefaultPaths(version.IsDev(version.Version))
 	if err == nil {
 		closeLog := startLog(paths)
 		defer closeLog()

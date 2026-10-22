@@ -235,7 +235,7 @@ func TestStaleFeedRejected(t *testing.T) {
 	// A late failure of the page left is dropped too.
 	explore.Reply <- reply{Err: errors.New("late")}
 	runPosts(t, tt, q)
-	if a.fetches.Get(loader.ExploreFeed).State != fetchstate.Idle {
+	if a.fetches.Get(loader.ExploreRes).State != fetchstate.Idle {
 		t.Error("a canceled fetch's error was recorded")
 	}
 	answer(t, tt, q, second, reply{Home: remoteHome()})
@@ -246,7 +246,7 @@ func TestStaleFeedRejected(t *testing.T) {
 
 func TestExploreLoadsThenShows(t *testing.T) {
 	src, a, q := scriptedApp(t)
-	a.loader.Forget(loader.ExploreFeed)
+	a.loader.Forget(loader.ExploreRes)
 	tt := newTester(a)
 	a.router.Push(pathExplore)
 	call := src.Next(t, tt.Frame, "explore", "")
@@ -290,7 +290,7 @@ func TestExploreLoadsThenShows(t *testing.T) {
 
 func TestExploreEmpty(t *testing.T) {
 	src, a, q := scriptedApp(t)
-	a.loader.Forget(loader.ExploreFeed)
+	a.loader.Forget(loader.ExploreRes)
 	tt := newTester(a)
 	a.router.Push(pathExplore)
 	answer(t, tt, q, src.Next(t, tt.Frame, "explore", ""), reply{})

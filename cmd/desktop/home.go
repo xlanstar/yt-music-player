@@ -50,9 +50,9 @@ func (a *app) homePage(c *ui.Context, w float32) {
 				}
 			})
 		})
-		switch f := a.feedState(loader.HomeFeed); {
+		switch f := a.feedState(loader.HomeRes); {
 		case f.State == fetchstate.Failed:
-			loadFailed(c, locales.HomeFailed(), f.Err, func() { a.loader.Retry(loader.HomeFeed) })
+			loadFailed(c, locales.HomeFailed(), f.Err, func() { a.loader.Retry(loader.HomeRes) })
 		case f.State == fetchstate.Loading:
 			homeSkeleton(c, w)
 		case !hasItems(a.loader.Home().Shelves):

@@ -30,7 +30,7 @@ func main() {
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(gcPercent)
 	}
-	paths, err := ipc.Default(version.IsDev(version.Version))
+	paths, err := ipc.DefaultPaths(version.IsDev(version.Version))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ytmd:", err)
 		os.Exit(1)

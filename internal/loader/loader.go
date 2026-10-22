@@ -22,8 +22,8 @@ import (
 
 // Feed resources; feeds have no ID.
 var (
-	HomeFeed    = fetchstate.Resource{Kind: fetchstate.Home}
-	ExploreFeed = fetchstate.Resource{Kind: fetchstate.Explore}
+	HomeRes    = fetchstate.Resource{Kind: fetchstate.Home}
+	ExploreRes = fetchstate.Resource{Kind: fetchstate.Explore}
 )
 
 // SearchDebounce is how long typing must pause before a search, so a word
@@ -213,7 +213,7 @@ func (l *Loader) KeepHome(home catalog.Home) {
 	}
 	l.home = home
 	l.cat.Add(shelfMusic(home.Shelves))
-	l.fetches.Set(HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	l.fetches.Set(HomeRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // KeepExplore stores explore as the loaded explore feed; see KeepHome.
@@ -223,7 +223,7 @@ func (l *Loader) KeepExplore(explore catalog.Explore) {
 	explore.Trending = Unique(explore.Trending, func(song catalog.Song) string { return song.ID })
 	l.explore = explore
 	l.cat.Add(explore.Trending, explore.NewReleases, nil)
-	l.fetches.Set(ExploreFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	l.fetches.Set(ExploreRes, fetchstate.Fetch{State: fetchstate.Loaded})
 }
 
 // Unique removes items whose key repeats an earlier item's, in place.

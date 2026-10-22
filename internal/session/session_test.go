@@ -92,7 +92,7 @@ func newFixture(tb testing.TB) *fixture {
 	load := loader.New(catalogtest.New(tb), &f.fetches, f.cat, func(func()) { panic("the loader fetched") })
 	f.s = New(f.d, &f.fetches, load, f.cat)
 	// Loaded so changed can see an account change forget it.
-	f.fetches.Set(loader.HomeFeed, fetchstate.Fetch{State: fetchstate.Loaded})
+	f.fetches.Set(loader.HomeRes, fetchstate.Fetch{State: fetchstate.Loaded})
 	for _, res := range Resources {
 		f.fetches.Set(res, fetchstate.Fetch{State: fetchstate.Loading})
 	}
@@ -100,7 +100,7 @@ func newFixture(tb testing.TB) *fixture {
 }
 
 // changed reports whether an account change forgot Home.
-func (f *fixture) changed() bool { return f.fetches.Get(loader.HomeFeed).State == fetchstate.Idle }
+func (f *fixture) changed() bool { return f.fetches.Get(loader.HomeRes).State == fetchstate.Idle }
 
 func wantState(t *testing.T, f *fixture, res fetchstate.Resource, want fetchstate.State) {
 	t.Helper()
@@ -228,7 +228,7 @@ func TestSignedOutEverywhere(t *testing.T) {
 		t.Error("busy once signed out")
 	}
 	// No one was signed in, so Home stays.
-	wantState(t, f, loader.HomeFeed, fetchstate.Loaded)
+	wantState(t, f, loader.HomeRes, fetchstate.Loaded)
 
 	// Liking asks to sign in, and asks the daemon nothing.
 	f.s.SetLiked("far-1", true)
@@ -255,7 +255,7 @@ func TestLikeSignedOutMeanwhile(t *testing.T) {
 	}
 	wantState(t, f, LibraryRes, fetchstate.SignedOut)
 	// Home was Ada's, so it is refetched.
-	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
+	wantState(t, f, loader.HomeRes, fetchstate.Idle)
 	wantNotices(t, f)
 }
 
@@ -466,7 +466,7 @@ func TestSignIn(t *testing.T) {
 	for _, res := range Resources {
 		wantState(t, f, res, fetchstate.Loading)
 	}
-	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
+	wantState(t, f, loader.HomeRes, fetchstate.Idle)
 	f.d.take(t)
 	fetched(f.s)
 	if len(f.cat.LibraryPlaylists()) != 1 || !f.s.IsLiked("far-1") || f.s.IsBusy() {
@@ -532,7 +532,7 @@ func TestSignOut(t *testing.T) {
 	for _, res := range Resources {
 		wantState(t, f, res, fetchstate.SignedOut)
 	}
-	wantState(t, f, loader.HomeFeed, fetchstate.Idle)
+	wantState(t, f, loader.HomeRes, fetchstate.Idle)
 	wantNotices(t, f, notice.Notice{Kind: notice.KindInfo, Title: notice.SignedOut})
 }
 

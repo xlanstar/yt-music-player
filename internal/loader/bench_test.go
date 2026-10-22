@@ -21,7 +21,7 @@ func idleLoader(tb testing.TB) (*Loader, posts) {
 	cat, queue := catalog.Placeholder(), make(posts, 16)
 	l := New(catalog.NewPlaceholderSource(0), &fetchstate.Registry{}, cat, func(fn func()) { queue <- fn })
 	l.Debounce = 0
-	for _, res := range []fetchstate.Resource{HomeFeed, ExploreFeed, benchAlbum} {
+	for _, res := range []fetchstate.Resource{HomeRes, ExploreRes, benchAlbum} {
 		l.Show(res)
 		(<-queue)()
 	}
