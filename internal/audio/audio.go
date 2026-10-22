@@ -61,10 +61,12 @@ type Info struct {
 type Kind uint8
 
 // Stream events, then the system's commands (media keys, Now Playing).
-// Commands must stay last: IsCommand compares against CommandPlay.
+// Commands must stay last: IsCommand compares against CommandPlay. 0 is
+// none, so a zero Event says nothing.
 const (
+	_ Kind = iota
 	// StreamReady means the stream loaded: Duration is known and Seek works.
-	StreamReady Kind = iota
+	StreamReady
 	// StreamBuffering means playback waits for data; StreamPlaying that it
 	// resumed.
 	StreamBuffering
