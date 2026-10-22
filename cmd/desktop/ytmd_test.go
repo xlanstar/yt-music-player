@@ -301,7 +301,7 @@ func peer(tb testing.TB, q posts) *remote.Client {
 // call has c's daemon answer cl, failing tb otherwise.
 func call(tb testing.TB, c *remote.Client, cl api.Call) {
 	tb.Helper()
-	if _, err := c.Call(context.Background(), cl); err != nil {
+	if _, err := c.Call(tb.Context(), cl); err != nil {
 		tb.Fatalf("%s: %v", cl.Method, err)
 	}
 }

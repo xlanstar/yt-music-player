@@ -1,7 +1,6 @@
 package session
 
 import (
-	"context"
 	"strconv"
 	"testing"
 	"yt-music-player/internal/api"
@@ -41,7 +40,7 @@ func (instantDaemon) SignOut(done func(error)) { done(nil) }
 // event.
 func placeholderLikes(tb testing.TB) api.Likes {
 	tb.Helper()
-	pl, songs, err := catalog.NewPlaceholderSource(0).Playlist(context.Background(), catalog.LikedID)
+	pl, songs, err := catalog.NewPlaceholderSource(0).Playlist(tb.Context(), catalog.LikedID)
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -56,11 +55,11 @@ func idleSession(tb testing.TB, likeCount int) *Session {
 	cat, src := catalog.Placeholder(), catalog.NewPlaceholderSource(0)
 	var fetches fetchstate.Registry
 	s := New(instantDaemon{}, &fetches, loader.New(src, &fetches, cat, func(func()) {}), cat)
-	user, err := src.Account(context.Background())
+	user, err := src.Account(tb.Context())
 	if err != nil {
 		tb.Fatal(err)
 	}
-	lib, err := src.Library(context.Background())
+	lib, err := src.Library(tb.Context())
 	if err != nil {
 		tb.Fatal(err)
 	}
