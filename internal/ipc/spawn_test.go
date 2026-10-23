@@ -3,9 +3,11 @@ package ipc
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"yt-music-player/internal/api"
@@ -88,18 +90,29 @@ func TestDialOrSpawnDialsFirst(t *testing.T) {
 
 func TestDialOrSpawnWaits(t *testing.T) {
 	path := filepath.Join(shortDir(t), "s.sock")
-	spawned := 0
+	var (
+		spawned   int
+		listening sync.WaitGroup
+		l         *net.UnixListener
+		listenErr error
+	)
+	// Dial connects once ListenUnix returns, before Listen's chmod: wait
+	// for Listen before the temporary directory goes.
+	t.Cleanup(func() {
+		listening.Wait()
+		if listenErr != nil {
+			t.Error(listenErr)
+		}
+		if l != nil {
+			_ = l.Close()
+		}
+	})
 	d := Dialer{Socket: path, every: time.Millisecond, Spawn: func() error {
 		spawned++
-		go func() {
+		listening.Go(func() {
 			time.Sleep(20 * time.Millisecond)
-			l, err := Listen(path)
-			if err != nil {
-				t.Error(err)
-				return
-			}
-			t.Cleanup(func() { _ = l.Close() })
-		}()
+			l, listenErr = Listen(path)
+		})
 		return nil
 	}}
 	c, err := d.DialOrSpawn(t.Context())
