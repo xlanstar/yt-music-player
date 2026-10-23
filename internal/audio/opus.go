@@ -37,9 +37,9 @@ type opusStream struct {
 	dec opus.Decoder
 	src io.Closer
 
-	length  int64 // frames, -1 if unknown
+	// What r gives (the length, the first packet's position) is read from
+	// it: 4104 bytes and the malloc header's 8 took 4864, not 4096.
 	preSkip int64 // frames decoded before the start
-	first   int64 // the first packet's position
 	preRoll time.Duration
 
 	pcm []float32
@@ -81,7 +81,6 @@ func newOpusStream(src io.ReadSeeker, onErr func(error)) (*opusStream, error) {
 	s := &opusStream{
 		r:       r,
 		dec:     dec,
-		length:  -1,
 		preSkip: frameAt(tr.CodecDelay),
 		preRoll: tr.SeekPreRoll,
 		pcm:     make([]float32, maxOpusFrame*2),
@@ -97,10 +96,6 @@ func newOpusStream(src io.ReadSeeker, onErr func(error)) (*opusStream, error) {
 	if s.preRoll <= 0 {
 		s.preRoll = defaultPreRoll
 	}
-	if d := r.Duration(); d > 0 {
-		s.length = frameAt(d)
-	}
-	s.first = frameAt(r.Start()) - s.preSkip
 	return s, nil
 }
 
@@ -111,7 +106,14 @@ func frameAt(d time.Duration) int64 {
 
 func (s *opusStream) SampleRate() int { return opusRate }
 func (s *opusStream) Channels() int   { return 2 }
-func (s *opusStream) Len() int64      { return s.length }
+
+// Len is in frames, -1 if unknown.
+func (s *opusStream) Len() int64 {
+	if d := s.r.Duration(); d > 0 {
+		return frameAt(d)
+	}
+	return -1
+}
 
 // Read hands out decoded frames, dropping the codec's delay at the start
 // and those before a seek's target.
@@ -174,7 +176,9 @@ func (s *opusStream) place(t time.Duration, n int64) int64 {
 	if n <= 0 {
 		return at
 	}
-	grid := s.first + (at-s.first+n/2)/n*n
+	// The first packet's position.
+	first := frameAt(s.r.Start()) - s.preSkip
+	grid := first + (at-first+n/2)/n*n
 	if diff := grid - at; diff >= -opusRate/1000 && diff <= opusRate/1000 {
 		return grid
 	}
