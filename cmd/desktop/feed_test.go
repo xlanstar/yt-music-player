@@ -135,8 +135,10 @@ func TestHomeShelvesOpenAndPlay(t *testing.T) {
 	wantPath(t, a, playlistPath(remoteMix.ID))
 	answer(t, tt, q, src.Next(t, tt.Frame, "playlist", remoteMix.ID), reply{Playlist: remoteMix})
 
-	// Artists open nothing yet.
+	// Artists open nothing yet. Their shelf is at the bottom, out of view.
 	click(t, tt, "Back")
+	tt.Scroll(600, 400, 0, 2000)
+	frames(tt, 2)
 	click(t, tt, "Nova Static")
 	wantPath(t, a, pathHome)
 }

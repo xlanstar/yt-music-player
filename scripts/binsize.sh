@@ -91,7 +91,7 @@ unset GOAMD64 GOARM64
 sizes() {
 	tree=$1
 	version=$(jq -r .version "$tree/mygo.json")
-	# What mygo build links into the Desktop (cmd/mygo/build.go, v0.5.5):
+	# What mygo build links into the Desktop (cmd/mygo/build.go, v0.6.3):
 	# what mygo.json says of the app, the update feed and production.
 	desktop_ldflags=$(jq -r '
 		def quote: if test("[ \t\"'"'"']") then "'"'"'" + . + "'"'"'" else . end;

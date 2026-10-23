@@ -73,7 +73,7 @@ func (a *app) libraryPage(c *ui.Context, w float32, tab libraryTab) {
 		return
 	}
 	// Keyed by tab, each tab has its own list and keeps its scroll position
-	// while another shows. An int: MyGo formats other key types every build.
+	// while another shows. An int, which MyGo hashes without reflection.
 	c.Key(int(tab))
 	list := &a.page.library[tab]
 	lib := a.session.Library()

@@ -4,6 +4,18 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ## [Unreleased]
 
+### Changed
+
+- A mouse wheel scrolls pages smoothly, as browsers do, rather than jumping a notch at a time; a touchpad still follows your fingers.
+- The app checks for updates shortly after each launch, then once a day, so a version released since you last opened it shows at once.
+- The window redraws only what changed, using less GPU while a song plays; on macOS it draws nothing while other windows cover it entirely.
+- On Linux, the `.deb` no longer depends on WebKitGTK, and `install.sh` no longer warns about it: the app never used it.
+- On Windows 11, the menus look like the system's own.
+
+### Fixed
+
+- A song row that scrolls under the pointer highlights at once, without moving the pointer.
+
 ## [0.3.0] - 2026-10-23
 
 ### Changed

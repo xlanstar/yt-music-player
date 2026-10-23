@@ -333,7 +333,8 @@ var interactionCases = []struct {
 	{"HoverHero", useFeed, hoverHero},
 	// The placeholder's painted sleeves, some with motifs that clip.
 	{"HoverHero/Painted", func(*app) {}, hoverHero},
-	// A wheel scrolls 2000 songs down a step at a time, and back up.
+	// A touchpad scrolls 2000 songs down a step at a time, and back up: the
+	// Tester's Scroll moves at once, where its Wheel glides on the clock.
 	{"ScrollSongs", func(a *app) {
 		useCatalog(a, bigCatalog())
 		a.router.Push(libraryPath(tabSongs))

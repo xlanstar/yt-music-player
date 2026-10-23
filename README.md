@@ -24,7 +24,7 @@ A lightweight YouTube Music desktop player for macOS, Linux and Windows. Native,
 
 Downloads are on [Releases](../../releases). The app updates itself (the `.deb` updates through `apt`).
 
-- **Linux** needs GTK 3, and PulseAudio, PipeWire or ALSA for sound. `install.sh` may warn about WebKitGTK; the app doesn't use it.
+- **Linux** needs GTK 3, and PulseAudio, PipeWire or ALSA for sound; not WebKitGTK.
 - **Windows** builds aren't code-signed: in SmartScreen, choose *More info → Run anyway*. No media keys yet.
 
 ## Sign in

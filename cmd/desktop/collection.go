@@ -223,7 +223,7 @@ func (a *app) holdsCurrent(songs []catalog.Song) bool {
 const rowBleed = 12
 
 // pageHeaderKey can never equal a song ID, a string, and MyGo hashes an
-// int64 as it is: a struct key would go through fmt.Sprintf every frame.
+// int64 as it is: a struct key would go through reflection every frame.
 const pageHeaderKey int64 = -1
 
 // pageList is a page as one list, the header then count rows, building only

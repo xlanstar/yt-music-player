@@ -19,33 +19,34 @@ type frameBudget struct {
 	liveKB                int64
 }
 
-// frameBudgets are BenchmarkPages' ceilings.
+// frameBudgets are BenchmarkPages' ceilings. MyGo 0.6's element state keeps
+// each element's last layout, for its layout cache: about 15% more live KB.
 var frameBudgets = map[string]frameBudget{
-	"Home":              {30, 1160, 1, 2990}, // 26 allocs, 1008 B, 2594 KB today.
-	"Explore":           {11, 540, 1, 2590},  // 9 allocs, 464 B, 2200 KB today.
-	"Library/Playlists": {27, 1500, 1, 2030}, // 23 allocs, 1296 B, 1763 KB today.
-	"Library/Songs":     {33, 2030, 1, 2680}, // 28 allocs, 1760 B, 2329 KB today.
-	"Library/Albums":    {29, 1900, 1, 2090}, // 25 allocs, 1648 B, 1810 KB today.
-	"Library/Artists":   {29, 1880, 1, 2060}, // 25 allocs, 1632 B, 1785 KB today.
-	"Album":             {21, 1150, 1, 1710}, // 18 allocs, 992 B, 1485 KB today.
-	"Playlist":          {21, 1150, 1, 2150}, // 18 allocs, 992 B, 1866 KB today.
-	"LikedMusic":        {20, 1070, 1, 2130}, // 17 allocs, 928 B, 1849 KB today.
-	"Search":            {15, 1180, 1, 1760}, // 13 allocs, 1024 B, 1522 KB today.
-	"Home/PanelHidden":  {25, 980, 1, 2850},  // 21 allocs, 848 B, 2474 KB today.
+	"Home":              {30, 1160, 1, 3730}, // 26 allocs, 1008 B, 3236 KB today.
+	"Explore":           {11, 540, 1, 3260},  // 9 allocs, 464 B, 2829 KB today.
+	"Library/Playlists": {27, 1500, 1, 2430}, // 23 allocs, 1296 B, 2113 KB today.
+	"Library/Songs":     {33, 2030, 1, 3210}, // 28 allocs, 1760 B, 2788 KB today.
+	"Library/Albums":    {29, 1900, 1, 2500}, // 25 allocs, 1648 B, 2171 KB today.
+	"Library/Artists":   {29, 1880, 1, 2490}, // 25 allocs, 1632 B, 2163 KB today.
+	"Album":             {21, 1150, 1, 2140}, // 18 allocs, 992 B, 1858 KB today.
+	"Playlist":          {21, 1150, 1, 2620}, // 18 allocs, 992 B, 2277 KB today.
+	"LikedMusic":        {20, 1070, 1, 2470}, // 17 allocs, 928 B, 2144 KB today.
+	"Search":            {15, 1180, 1, 2220}, // 13 allocs, 1024 B, 1926 KB today.
+	"Home/PanelHidden":  {25, 980, 1, 3520},  // 21 allocs, 848 B, 3059 KB today.
 	// The equalizer only paints: the frame builds once.
-	"Home/Playing":       {30, 1160, 1, 3030}, // 26 allocs, 1008 B, 2627 KB today.
-	"Library/Songs/2000": {33, 2030, 1, 3800}, // 28 allocs, 1760 B (as 18 songs), 3299 KB today.
+	"Home/Playing":       {30, 1160, 1, 3730}, // 26 allocs, 1008 B, 3237 KB today.
+	"Library/Songs/2000": {33, 2030, 1, 4570}, // 28 allocs, 1760 B (as 18 songs), 3969 KB today.
 	// The covers' pixels at the size they show.
-	"Library/Albums/Thumbnails": {29, 1900, 1, 8460}, // 25 allocs, 1648 B, 7350 KB today.
+	"Library/Albums/Thumbnails": {29, 1900, 1, 8680}, // 25 allocs, 1648 B, 7547 KB today.
 	// Some 90 covers of 352 px.
-	"Home/Feed":     {30, 1160, 1, 52850}, // 26 allocs, 1008 B, 45949 KB today.
-	"Playlist/2000": {21, 1150, 1, 4010},  // 18 allocs, 992 B, 3486 KB today.
+	"Home/Feed":     {30, 1160, 1, 54070}, // 26 allocs, 1008 B, 47009 KB today.
+	"Playlist/2000": {21, 1150, 1, 4800},  // 18 allocs, 992 B, 4166 KB today.
 	// The sheet's radios and segmented controls, MyGo's, built only
 	// while it is open.
-	"Home/Appearance": {69, 2230, 1, 3450}, // 61 allocs, 1952 B, 3245 KB today, with the background player's switches.
+	"Home/Appearance": {69, 2230, 1, 4270}, // 61 allocs, 1952 B, 3710 KB today, with the background player's switches.
 	// The sheet cleans the pasted header once per edit, not per build.
-	"Home/SignIn":     {36, 1350, 1, 3400}, // 31 allocs, 1168 B, 2948 KB today.
-	"LikedMusic/2000": {20, 1070, 1, 4370}, // 17 allocs, 928 B, 3793 KB today.
+	"Home/SignIn":     {36, 1350, 1, 4150}, // 31 allocs, 1168 B, 3604 KB today.
+	"LikedMusic/2000": {20, 1070, 1, 5200}, // 17 allocs, 928 B, 4515 KB today.
 }
 
 // frameRuns is how many steady frames a budget averages; they cost the same.
@@ -103,10 +104,12 @@ var interactionBudgets = map[string]interactionBudget{
 	"HoverHero":  {31, 1180, 20, 3, true},    // 26.1 allocs, 1012 B a build today.
 	// The placeholder's painted sleeves.
 	"HoverHero/Painted": {601, 23290, 20, 3, false}, // 522 allocs, 20245 B today.
-	"ScrollSongs":       {304, 29460, 1, 10, false}, // 264 allocs, 25617 B today: rows coming into view, their text laid out anew.
+	// Rows coming into view, their text laid out anew, then the row the
+	// scroll brought under the pointer built hovered (MyGo 0.6).
+	"ScrollSongs": {518, 40650, 2, 10, false}, // 450 allocs, 35344 B today.
 	// 3 builds deleting a letter, 2 typing one: 53 over 21 ops.
 	"TypeSearch":  {114, 8130, 2.53, 20, false}, // 99 allocs, 7065 B today.
-	"LibraryTabs": {96, 115150, 1, 8, false},    // 83 allocs, 100124 B today.
+	"LibraryTabs": {111, 118140, 1, 8, false},   // 96 allocs, 102725 B today, with MyGo 0.6's layout cache.
 	// With the other front-end's request and ytmd's work, in this process.
 	"remote-event": {79, 6040, 1, 20, false}, // 68 allocs, 5248 B today.
 }

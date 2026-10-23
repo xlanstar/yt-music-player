@@ -18,7 +18,7 @@
 - Where a benchmark has a case table, the limits live in it, and the budget ranges over the same cases: a case without its limit does not compile.
 - Screens (`cmd/desktop/budget_test.go`), together about 7 s:
   - `TestBudgetFrames`: every `BenchmarkPages` case to allocs and bytes per steady frame, 1 build a frame, and the heap the screen retains (`retainedKB`: with it, less once it is collected; the same alone or after other pages).
-  - `TestBudgetInteractions`: every `BenchmarkInteractions` case to allocs, bytes and builds per op. The Tester's clock stands still between ops (MyGo 0.5.5), so a hover settles its 20 frames, each built, at the input's instant: the counts repeat on any machine; the hero's slow ones are held per build.
+  - `TestBudgetInteractions`: every `BenchmarkInteractions` case to allocs, bytes and builds per op. The Tester's clock stands still between ops (MyGo 0.6.3), so a hover settles its 20 frames, each built, at the input's instant: the counts repeat on any machine; the hero's slow ones are held per build.
   - Both use the cases as data (`pageCases`, `interactionCases`, `newScreen`, `interacting`): a new case needs its budget.
   - Screens run over ytmd in the test's process (`ytmd_test.go`), connected by `net.Pipe`: deterministic, unlike a socket. `remote-event` counts an event's whole way, another front-end's request and the daemon's work included; `live-KB` leaves the daemon out, another process in the app.
   - `TestBudgetIdleFrames`: settled pages with thumbnails, and a paused song, draw no frame while `tt.Advance` moves the Tester's clock past their quiet time (no build, no `FramePending`, the same pixels for repaint-only frames), with playing in the focused window as the control.
