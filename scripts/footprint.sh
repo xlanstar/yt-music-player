@@ -14,9 +14,10 @@
 #                                  its songs play aloud
 #   scripts/footprint.sh -daemon   ytmd alone instead, a placeholder one in a
 #                                  home of its own: its memory and wake-ups
-#                                  paused, playing, and after a Desktop toured
-#                                  every page through it (skipped without a
-#                                  window server); about 90 seconds, into
+#                                  idle (after two forced GCs), playing,
+#                                  paused, and after a Desktop toured every
+#                                  page through it (skipped without a window
+#                                  server); about 90 seconds, into
 #                                  perf/footprint-daemon-latest.txt, against
 #                                  perf/footprint-daemon-baseline.txt
 #   scripts/footprint.sh -daemon -live
@@ -30,7 +31,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,27s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,28s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
@@ -167,7 +168,8 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 1' INT TERM
-go build -tags "$tags" -o "$tmp/ytmd" ./cmd/ytmd
+# SIGUSR1 frees the heap of a footprint build (cmd/ytmd/footprint_unix.go).
+go build -tags "footprint,$tags" -o "$tmp/ytmd" ./cmd/ytmd
 go build -tags "$tags" -o "$ytm" ./cmd/ytm
 YTMD_PATH=$tmp/ytmd
 export YTMD_PATH
@@ -254,6 +256,12 @@ EOF
 	}
 
 	echo "footprint.sh: measuring ytmd ($source), about $([ -n "$desktop" ] && echo 90 || echo 50) seconds" >&2
+	# A fresh ytmd may not have collected yet, and its first collections'
+	# metadata and workers' threads (~1.6 MB in two, ~0.1 MB each after)
+	# would land in whichever phase follows: two now put them in every one.
+	kill -USR1 "$pid"
+	sleep 1
+	kill -USR1 "$pid"
 	measure ytmd-idle no
 	"$ytm" play >/dev/null
 	measure ytmd-playing yes
