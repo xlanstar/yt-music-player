@@ -4,6 +4,8 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-23
+
 ### Changed
 
 - The app and `ytm` show your library and liked songs as soon as they open, from a copy kept since last time, while fetching them anew. Signing out, or in to another account, deletes the copy.

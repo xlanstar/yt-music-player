@@ -1,7 +1,7 @@
 {
   "name": "YT Music Player",
   "identifier": "dev.lanstar.ytmusicplayer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "out": "build",
   "main": "./cmd/desktop",
   "resources": [
