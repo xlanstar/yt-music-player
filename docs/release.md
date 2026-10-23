@@ -3,7 +3,7 @@
 One command to release, one workflow on GitHub, one approval to publish to GitHub and Homebrew. Releases are for macOS (universal), Linux and Windows (amd64 and arm64 each) and ship ytmd and ytm beside the app. The macOS app is signed with a Developer ID and notarized; no certificate signs the Windows app, so SmartScreen warns at first run.
 
 - **The version** is `version` in `mygo.json`, the only place it is written: the app reads it, `mygo build` puts it in `Info.plist`, the disk image's name and the update manifest, `scripts/build.sh` in ytmd and ytm. `0.0.0` means never released.
-- **A release** is an annotated tag `vX.Y.Z` on `main`, made only by `scripts/release.sh`. Tags are never moved, deleted or reused.
+- **A release** is an annotated tag `vX.Y.Z` on `main` or [a branch `X.Y`](#older-versions), made only by `scripts/release.sh`. Tags are never moved, deleted or reused.
 - **Semantic Versioning**, before 1.0: `minor` for features and changes of behavior, `patch` for fixes only. From `0.0.0`, `minor` makes `v0.1.0`.
 - **CHANGELOG.md**: each change users notice goes under `## [Unreleased]`, in the same change as the code. That section becomes the release's notes, on GitHub and in the app's update window.
 
@@ -17,7 +17,7 @@ From a clean `main` equal to `origin/main`, a non-empty Unreleased section and `
 
 The tag starts `.github/workflows/release.yml` (`gh run watch` follows it):
 
-1. **tag**: `scripts/release.sh check` refuses a tag that is not `vX.Y.Z`, differs from `mygo.json`, has no CHANGELOG section or is not on `main`, and a `mygo.json` without `updates`.
+1. **tag**: `scripts/release.sh check` refuses a tag that is not `vX.Y.Z`, differs from `mygo.json`, has no CHANGELOG section or is on neither `main` nor `X.Y`, and a `mygo.json` without `updates`.
 2. **checks**: the CI workflow, prek on macOS, as on every push and pull request.
 3. **macos**, in the `release` environment: `scripts/build.sh -platform darwin/universal -sign <identity>` builds the helpers for both architectures into one app, signs it with the hardened runtime, notarizes and staples it and the disk image, and signs the update with `MYGO_UPDATER_PRIVATE_KEY`. It checks the signatures, the tickets and that ytmd and ytm are universal, and keeps `YT-Music-Player-X.Y.Z-macos-universal.dmg` and the update files.
 4. **linux-windows**, a job per system on Ubuntu, in the `release` environment: `scripts/build.sh -platform linux/amd64,linux/arm64` (or `windows/…`) cross-compiles everything, MyGo needing no cgo, and signs the updates; NSIS makes the Windows installers. It checks each executable's architecture, the consoles (none for `ytmd.exe`) and the Debian package's `/opt/yt-music-player/ytmd` and `/usr/bin/ytm`, and keeps the `.deb`s, `-setup.exe`s, Linux's `install.sh` and the update files.
@@ -33,6 +33,12 @@ Before approving, check the draft: download its files, `shasum -a 256 -c SHA256S
 Then approve: the run's page → *Review deployments* → `publish` → *Approve and deploy*. *Reject*, or no answer within 30 days, publishes nothing.
 
 `scripts/release.sh publish X.Y.Z` checks that the draft has every platform's downloads and `update-<platform>.json`, that `SHA256SUMS` lists every file and matches it, and each manifest against the version and the files it links to; publishes the release as the latest; then runs `tap`. **Publishing ships the update**: installed apps read the manifest of the latest release, never a draft's.
+
+## Older versions
+
+`minor` and `major` also push a branch for the version they leave, `X.Y` at its last release: releasing `0.3.0` after `0.2.1` makes `0.2` at `v0.2.1`.
+
+To patch it, cherry-pick fixes into `X.Y` (or open a pull request against it), note them under its Unreleased, then run `scripts/release.sh patch` on `X.Y`. The release is published but not marked latest, so installed apps and Homebrew stay on the newer version.
 
 ## The helpers
 
@@ -65,7 +71,7 @@ Only the workflow's `draft` and `publish` jobs can write to the repository; the 
 ## Once, on GitHub
 
 - Push the repository with `main` as its default branch, **public**: apps read their updates from its latest release without credentials.
-- Settings → Rules: protect `main` (require the CI check, no force pushes) and tags `v*` (no updates or deletions).
+- Settings → Rules: protect `main` and branches `[0-9]*.[0-9]*` (require the CI check, no force pushes) and tags `v*` (no updates or deletions).
 - Settings → General → Releases: turn on release immutability, so that a published release's files and tag cannot change.
 - Settings → Environments: `release`, its deployment branches and tags limited to the tag rule `v*`, with the secrets of [signing](#signing-and-notarization) and [updates](#updates).
 - Settings → Environments: `publish`, limited to `v*` likewise, *Required reviewers* yourself, and the secret `TAP_TOKEN`: a fine-grained token with *Contents: Read and write* on `xlanstar/homebrew-tap` only. Renew it before it expires.

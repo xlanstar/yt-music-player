@@ -5,19 +5,22 @@
 #       From a clean main equal to origin/main: runs the checks, moves
 #       CHANGELOG.md's Unreleased section under the next version, sets it in
 #       mygo.json, commits, tags vX.Y.Z and pushes main and the tag at once.
+#       minor and major also push branch X.Y at the version they leave;
+#       patch on that branch releases its next patch.
 #       The Release workflow builds the tag into a draft GitHub release,
 #       then its publish job, once approved, runs publish.
 #   scripts/release.sh check vX.Y.Z
 #       The workflow's gate: the tag names mygo.json's version, CHANGELOG.md
-#       has its section, mygo.json configures updates and main holds the
-#       tagged commit.
+#       has its section, mygo.json configures updates and main or branch
+#       X.Y holds the tagged commit.
 #   scripts/release.sh notes X.Y.Z|Unreleased
 #       A section of CHANGELOG.md, the release's notes.
 #   scripts/release.sh publish X.Y.Z
 #       Checks that the draft has every platform's downloads and update
 #       manifest, its files against its SHA256SUMS and the manifests
 #       against the version, publishes the release, which installed apps
-#       then update to, then runs tap.
+#       then update to, then runs tap; one older than the latest
+#       is published without becoming the latest or touching the tap.
 #   scripts/release.sh tap X.Y.Z
 #       Fills packaging/homebrew/yt-music-player.rb with the published disk
 #       image's SHA-256 and pushes it to the Homebrew tap: never an older
@@ -62,6 +65,10 @@ newer() {
 }
 
 current() { jq -r .version mygo.json; }
+
+# line X.Y.Z prints X.Y, the name of the version's branch once a minor or
+# major release leaves it.
+line() { echo "${1%.*}"; }
 
 # workdir sets tmp to a directory removed on exit.
 workdir() {
@@ -139,7 +146,9 @@ check() {
 	[ "$(current)" = "$version" ] || die "$1 but mygo.json has $(current)"
 	updates
 	[ -n "$(notes "$version")" ] || die "CHANGELOG.md has no section for $version"
-	git merge-base --is-ancestor "$1^{commit}" origin/main || die "$1 is not on main"
+	git merge-base --is-ancestor "$1^{commit}" origin/main ||
+		git merge-base --is-ancestor "$1^{commit}" "origin/$(line "$version")" 2>/dev/null ||
+		die "$1 is neither on main nor on $(line "$version")"
 }
 
 bump() {
@@ -160,18 +169,44 @@ release() {
 	version=$(bump "$1")
 	tag=v$version
 
-	[ "$(git symbolic-ref --short -q HEAD)" = main ] || die "not on main"
+	branch=$(git symbolic-ref --short -q HEAD) || die "not on a branch"
+	case $branch in
+	main) ;;
+	"$(line "$from")")
+		[ "$1" = patch ] || die "$branch releases only patches; minor and major come from main"
+		;;
+	*) die "not on main or $(line "$from")" ;;
+	esac
 	[ -z "$(git status --porcelain)" ] || die "the working tree has changes"
-	git fetch --quiet --tags origin main
-	[ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] ||
-		die "main differs from origin/main: pull or push first"
+	git fetch --quiet --tags origin "$branch"
+	[ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$branch")" ] ||
+		die "$branch differs from origin/$branch: pull or push first"
 	! git rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "$tag exists"
 	changes=$(notes Unreleased)
 	[ -n "$changes" ] || die "CHANGELOG.md's Unreleased section is empty"
 	updates
 
-	printf '%s → %s\n\n%s\n\nRun the checks, commit, tag %s and push? [y/N] ' \
-		"$from" "$version" "$changes" "$tag"
+	# Leaving a version's line keeps it on branch X.Y, at its last release,
+	# for its patches (docs/release.md#older-versions).
+	keep=
+	if [ "$1" != patch ] && [ "$from" != 0.0.0 ]; then
+		keep=$(line "$from")
+		keep_at=$(git rev-parse -q --verify "refs/tags/v$from^{commit}") || die "no tag v$from, $from's release"
+		remote=$(git ls-remote --heads origin "refs/heads/$keep") || die "cannot list origin's branches"
+		if [ -n "$remote" ]; then
+			git fetch --quiet origin "refs/heads/$keep:refs/remotes/origin/$keep"
+			{
+				git merge-base --is-ancestor "$keep_at" "origin/$keep" &&
+					[ "$(line "$(git show "origin/$keep:mygo.json" | jq -r .version)")" = "$keep" ]
+			} || die "origin/$keep exists but is not $from's line: v$from and its patches"
+			keep=
+		fi
+	fi
+	kept=
+	[ -z "$keep" ] || kept=", branch $keep at v$from"
+
+	printf '%s → %s\n\n%s\n\nRun the checks, commit, tag %s%s and push? [y/N] ' \
+		"$from" "$version" "$changes" "$tag" "$kept"
 	read -r answer
 	[ "$answer" = y ] || die "stopped, nothing changed"
 
@@ -190,11 +225,14 @@ release() {
 		die "the commit failed, mygo.json and CHANGELOG.md are restored"
 	fi
 	git tag -a "$tag" -m "$tag"
-	git push --atomic origin main "$tag" ||
-		die "the push failed; commit and tag are local: git push --atomic origin main $tag"
+	set -- "$branch" "$tag"
+	[ -z "$keep" ] || set -- "$@" "$keep_at:refs/heads/$keep"
+	git push --atomic origin "$@" ||
+		die "the push failed; commit and tag are local: git push --atomic origin $*"
 
 	echo "Pushed $tag. The Release workflow builds it into a draft release (gh run watch);"
 	echo "check the draft, then approve the run's publish job, which publishes it."
+	[ -z "$keep" ] || echo "Branch $keep keeps $from's line for its patches: git switch $keep"
 }
 
 publish() {
@@ -218,6 +256,14 @@ publish() {
 	for platform in $platforms; do
 		feed "$1" "$tmp/draft" "$platform"
 	done
+	# Installed apps update to the latest release and the tap holds it: an
+	# older version's patch must not take them back.
+	latest=$(gh release view --repo "$repo" --json tagName --jq .tagName 2>/dev/null || true)
+	if [ -n "$latest" ] && ! newer "$1" "${latest#v}"; then
+		gh release edit "v$1" --repo "$repo" --draft=false --latest=false >/dev/null
+		echo "Published v$1, older than $latest, which stays the latest: installed apps and the tap stay on it."
+		return
+	fi
 	gh release edit "v$1" --repo "$repo" --draft=false --latest >/dev/null
 	echo "Published v$1. Should the tap fail now: scripts/release.sh tap $1"
 	tap "$1"

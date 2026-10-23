@@ -1,11 +1,12 @@
-# The project's one check, prek, on every push to main and pull request;
-# the Release workflow calls it too before it builds a tag. Weekly, only
+# The project's one check, prek, on every push to main or an older
+# version's branch (X.Y) and pull request; the Release workflow calls it
+# too before it builds a tag. Weekly, only
 # govulncheck, for advisories published while main stands still.
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "[0-9]+.[0-9]+"]
   pull_request:
   workflow_call:
   schedule:
