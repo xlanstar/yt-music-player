@@ -52,9 +52,9 @@ func TestBudgetLiveCall(t *testing.T) {
 	// The daemon keeps what it received in both.
 	runtime.KeepAlive(d)
 	t.Logf("%d KB live", live)
-	// 155 to 160 KB today: gob's buffer for a part of 313 songs (72 KB),
-	// both ends' buffers and decoders; the call whole, 1456.
-	if live > 185 {
-		t.Errorf("%d KB live, budget 185", live)
+	// 127 to 132 KB today: gob's buffer for a part of 313 songs (72 KB),
+	// both ends' buffers and decoders; the call whole, 1427.
+	if live > 152 {
+		t.Errorf("%d KB live, budget 152", live)
 	}
 }

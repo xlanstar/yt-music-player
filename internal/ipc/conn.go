@@ -17,6 +17,10 @@ import (
 // for at most at once, a queue's songs, its library and two long lists.
 const QueueLen = 128
 
+// bufSize is each way's socket buffer: most frames are smaller (a State
+// event 39 B); larger ones go past it, straight to the socket.
+const bufSize = 512
+
 var (
 	// ErrClosed is returned by a Conn closed by Close or Shutdown.
 	ErrClosed = errors.New("ipc: connection closed")
@@ -32,8 +36,10 @@ type Conn struct {
 	nc  net.Conn
 	dec *gob.Decoder
 
-	mu    sync.Mutex
-	queue []api.Frame // FIFO; the writer swaps it with its emptied batch
+	mu sync.Mutex
+	// queue is FIFO; the writer swaps it with its emptied batch. Both grow
+	// with the bursts, not to QueueLen up front: a long list takes 17 frames.
+	queue []api.Frame
 	// state is the index in queue of the State event not yet taken by
 	// the writer, -1 if none.
 	state int
@@ -51,8 +57,7 @@ type Conn struct {
 func NewConn(nc net.Conn) *Conn {
 	c := &Conn{
 		nc:      nc,
-		dec:     gob.NewDecoder(nc),
-		queue:   make([]api.Frame, 0, QueueLen),
+		dec:     gob.NewDecoder(bufio.NewReaderSize(nc, bufSize)),
 		state:   -1,
 		wake:    make(chan struct{}, 1),
 		quit:    make(chan struct{}),
@@ -111,9 +116,9 @@ func stateOnly(f *api.Frame) bool {
 // and flushes them, until the Conn closes.
 func (c *Conn) write() {
 	defer close(c.written)
-	bw := bufio.NewWriter(c.nc)
+	bw := bufio.NewWriterSize(c.nc, bufSize)
 	enc := gob.NewEncoder(bw)
-	batch := make([]api.Frame, 0, QueueLen)
+	var batch []api.Frame
 	for {
 		c.mu.Lock()
 		batch, c.queue = c.queue, batch

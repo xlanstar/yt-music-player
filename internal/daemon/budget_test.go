@@ -110,10 +110,11 @@ func TestBudgetLiveConn(t *testing.T) {
 	leave()
 	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 145 KB today, mostly gob's buffer for an event of 313 songs gone
-	// ahead (carry: 5000 in 16), 10 the queue's frames.
-	if live > 160 {
-		t.Errorf("%d KB live, budget 160", live)
+	// 127 KB today: 99 any idle connection's (TestBudgetLiveIdle), the
+	// rest gob's buffer for an event of 313 songs gone ahead (carry: 5000
+	// in 16).
+	if live > 146 {
+		t.Errorf("%d KB live, budget 146", live)
 	}
 }
 
@@ -131,10 +132,10 @@ func TestBudgetLiveReply(t *testing.T) {
 	leave()
 	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 145 KB today, mostly gob's buffer for a part of 313 songs (api.Ahead:
-	// 5000 in 16); the reply whole, 1435.
-	if live > 160 {
-		t.Errorf("%d KB live, budget 160", live)
+	// 127 KB today, 28 of them gob's buffer for a part of 313 songs
+	// (api.Ahead: 5000 in 16); the reply whole, 1422.
+	if live > 146 {
+		t.Errorf("%d KB live, budget 146", live)
 	}
 }
 
@@ -155,10 +156,10 @@ func TestBudgetLiveCall(t *testing.T) {
 	leave()
 	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 136 KB today, mostly gob's decoder holding the call, its 5000 IDs
-	// (60 KB); the call whole, 1230.
-	if live > 157 {
-		t.Errorf("%d KB live, budget 157", live)
+	// 116 to 118 KB today, gob's decoder most of it, holding the call and
+	// its 5000 IDs (60 KB); the call whole, 1214.
+	if live > 136 {
+		t.Errorf("%d KB live, budget 136", live)
 	}
 }
 

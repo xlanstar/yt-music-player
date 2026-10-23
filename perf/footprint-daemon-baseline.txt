@@ -1,13 +1,13 @@
 # ytmd footprint, scripts/footprint.sh -daemon
 # source: placeholder
-# date: 2026-10-23T18:19:36Z
+# date: 2026-10-23T18:28:13Z
 # go: go version go1.27.3 darwin/arm64
 # cpu: Apple M4 Max, macOS 27.0
-# git: deeab2b, 3 files changed
+# git: b9b35ad, 0 files changed
 # phases: one line each, key=value; MB: footprint(1)'s, RSS-MB: ps's, sampled twice a second; idle-wakeups and csw (context switches): top's, over the phase
-phase=ytmd-idle playing=no secs=10 MB-min=7.7 MB-mean=7.7 MB-max=7.7 RSS-MB-mean=14.5 idle-wakeups=0 csw=0
-phase=ytmd-playing playing=yes secs=10 MB-min=7.9 MB-mean=7.9 MB-max=7.9 RSS-MB-mean=14.8 idle-wakeups=0 csw=0
-phase=ytmd-paused playing=no secs=10 MB-min=8.3 MB-mean=8.3 MB-max=8.3 RSS-MB-mean=15.4 idle-wakeups=0 csw=0
-phase=ytmd-after-desktop playing=no secs=10 MB-min=8.4 MB-mean=8.4 MB-max=8.4 RSS-MB-mean=15.6 idle-wakeups=0 csw=0
-# desktop: toured every page three times in 33 s, then quit
+phase=ytmd-idle playing=no secs=10 MB-min=7.5 MB-mean=7.5 MB-max=7.5 RSS-MB-mean=14.4 idle-wakeups=0 csw=0
+phase=ytmd-playing playing=yes secs=10 MB-min=7.8 MB-mean=7.8 MB-max=7.8 RSS-MB-mean=14.7 idle-wakeups=0 csw=0
+phase=ytmd-paused playing=no secs=10 MB-min=7.9 MB-mean=7.9 MB-max=7.9 RSS-MB-mean=15.0 idle-wakeups=0 csw=0
+phase=ytmd-after-desktop playing=no secs=10 MB-min=8.5 MB-mean=8.5 MB-max=8.5 RSS-MB-mean=15.6 idle-wakeups=0 csw=0
+# desktop: toured every page three times in 31 s, then quit
 # end
