@@ -155,11 +155,30 @@ func TestClearUpNext(t *testing.T) {
 	checkQueue(t, shuffled, order[:2], order[1])
 }
 
+// A short list played after a long one leaves the long one's arrays.
+func TestPlayAllShorter(t *testing.T) {
+	long := queueIDs(100)
+	p := New(long)
+	room, orderRoom := cap(p.queue), cap(p.order)
+	p.PlayAll(long[:50], 0)
+	if cap(p.queue) != room || cap(p.order) != orderRoom {
+		t.Errorf("half as long: room for %d, order %d; want the arrays kept", cap(p.queue), cap(p.order))
+	}
+	p.PlayAll(abcd, 2)
+	checkQueue(t, p, abcd, "c")
+	if cap(p.queue) > 2*len(abcd) || cap(p.order) > 2*len(abcd) {
+		t.Errorf("4 songs: room for %d, order %d", cap(p.queue), cap(p.order))
+	}
+}
+
 func TestClear(t *testing.T) {
 	p := New(abcd)
 	p.Play("b")
 	p.Clear()
 	checkQueue(t, p, nil, "")
+	if p.queue != nil || p.order != nil {
+		t.Error("the arrays stay")
+	}
 	if p.isPlaying || p.position != 0 || p.Len() != 0 {
 		t.Errorf("cleared: playing %v at %v, %d songs", p.isPlaying, p.position, p.Len())
 	}

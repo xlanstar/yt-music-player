@@ -25,6 +25,9 @@ const (
 	// fewIDs is how many IDs Enqueue looks for in the queue one by one;
 	// past it, it indexes the queue, which reaches thousands of songs.
 	fewIDs = 16
+	// shrinkBelow is how many times shorter than the queue's array a list
+	// played must be for the queue to drop the array.
+	shrinkBelow = 4
 )
 
 // Repeat is what plays after a song or the queue ends.
@@ -262,8 +265,12 @@ func (p *Player) PlayAll(ids []string, start int) {
 func (p *Player) setQueue(ids []string, start int) {
 	p.gen++
 	// The player alone holds its queue and order (Queued and Order copy):
-	// reuse their arrays, the old songs past the new ones cleared.
+	// reuse their arrays, the old songs past the new ones cleared, unless
+	// they would keep a long queue's room for a short one.
 	old := len(p.queue)
+	if cap(p.queue) > shrinkBelow*len(ids) {
+		p.queue, p.order, old = nil, nil, 0
+	}
 	p.queue = append(p.queue[:0], ids...)
 	if old > len(ids) {
 		clear(p.queue[len(ids):old])
@@ -539,9 +546,10 @@ func (p *Player) ClearUpNext() {
 	p.at = at
 }
 
-// Clear empties the queue and stops.
+// Clear empties the queue and stops, dropping its arrays: it was another
+// account's.
 func (p *Player) Clear() {
-	p.queue, p.order, p.at = p.queue[:0], p.order[:0], 0
+	p.queue, p.order, p.at = nil, nil, 0
 	p.position, p.isPlaying = 0, false
 	p.gen++
 }

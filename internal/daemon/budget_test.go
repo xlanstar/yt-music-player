@@ -84,6 +84,9 @@ func TestBudgetLiveQueue(t *testing.T) {
 		// 1604 to 1609 KB today: the catalog's songs and index sized for the
 		// second list, not both.
 		{"replaced", 5000, true, 1860},
+		// An album after a long list: 18 to 26 KB today, the long list's
+		// arrays gone.
+		{"shortened", 12, true, 30},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, c := benchService(t, 3)
