@@ -85,9 +85,11 @@ func (a Artist) Key() string {
 // ItemKind is the type of a feed Item.
 type ItemKind uint8
 
-// Feed item kinds.
+// Feed item kinds, from 1: 0 is none, as in a Frame that lacks it
+// (package api).
 const (
-	ItemSong ItemKind = iota
+	_ ItemKind = iota
+	ItemSong
 	ItemAlbum
 	ItemPlaylist
 	ItemArtist

@@ -10,13 +10,15 @@ package notice
 // Kind is the type of a Notice; it decides how the notice is shown.
 type Kind uint8
 
-// The kinds of notice.
+// The kinds of notice, from 1: 0 is none, as in a Frame that lacks it
+// (package api).
 const (
-	KindInfo         Kind = iota // e.g. "Signed out"
-	KindFailure                  // Detail says why
-	KindNeedsAccount             // offer to sign in, if the source supports it
-	KindSignedIn                 // the submitted credentials worked
-	KindSignInError              // Detail says why
+	_                Kind = iota
+	KindInfo              // e.g. "Signed out"
+	KindFailure           // Detail says why
+	KindNeedsAccount      // offer to sign in, if the source supports it
+	KindSignedIn          // the submitted credentials worked
+	KindSignInError       // Detail says why
 )
 
 // Code names a message. 0 is none.

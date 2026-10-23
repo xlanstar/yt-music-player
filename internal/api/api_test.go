@@ -279,6 +279,29 @@ func TestEnumsRejectZero(t *testing.T) {
 	}
 }
 
+// The enums a Frame carries from other packages start at 1 as api's do:
+// gob leaves a zero out, so a Kind that went missing reads as none, never
+// as the first kind.
+func TestCarriedEnumsStartAt1(t *testing.T) {
+	if notice.KindInfo != 1 || catalog.ItemSong != 1 {
+		t.Errorf("first kinds %d and %d, want 1", notice.KindInfo, catalog.ItemSong)
+	}
+	sent := &Frame{
+		Reply: &Reply{Home: &catalog.Home{Shelves: []catalog.Shelf{{
+			Items: []catalog.Item{{Kind: catalog.ItemSong, Song: testSong(1)}, {Song: testSong(2)}},
+		}}}},
+		Event: &Event{Notice: &notice.Notice{Kind: notice.KindInfo, Title: notice.SignedOut}},
+	}
+	got := roundTrip(t, sent)
+	items := got.Reply.Home.Shelves[0].Items
+	if items[0].Kind != catalog.ItemSong || items[1].Kind != 0 {
+		t.Errorf("item kinds %d and %d, want ItemSong and none", items[0].Kind, items[1].Kind)
+	}
+	if got.Event.Notice.Kind != notice.KindInfo {
+		t.Errorf("notice kind %d, want KindInfo", got.Event.Notice.Kind)
+	}
+}
+
 func TestMethodNames(t *testing.T) {
 	names := map[string]bool{}
 	for m := MethodPing; m < numMethods; m++ {
