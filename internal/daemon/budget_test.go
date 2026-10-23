@@ -61,38 +61,62 @@ func TestBudgetWrite(t *testing.T) {
 }
 
 // TestBudgetLiveQueue holds the heap a Service keeps for a queue of 5000
-// songs as front-ends send them, each string a copy of its own, played
-// twice, as the queue changes: with the Service, less once it is
-// collected.
+// songs as front-ends send them, each string a copy of its own, then
+// another list played: with the Service, less once it is collected.
 func TestBudgetLiveQueue(t *testing.T) {
 	if budget.Race {
 		t.Skip("the race detector allocates on its own")
 	}
-	s, c := benchService(t, 3)
-	for range 2 {
-		songs := catalogtest.Decoded(5000)
-		ids := make([]string, len(songs))
-		for i, song := range songs {
-			ids[i] = song.ID
+	for _, tc := range []struct {
+		name string
+		// then is the list played second: so many songs, other ones if
+		// other.
+		then  int
+		other bool
+		limit int
+	}{
+		// 1686 KB today, the songs' strings shared (catalog.ShareStrings);
+		// unshared, 2154.
+		{"replayed", 5000, false, 1940},
+		// 1609 KB today: the catalog's songs and index sized for the
+		// second list, not both.
+		{"replaced", 5000, true, 1860},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, c := benchService(t, 3)
+			playDecoded(s, c, 5000, false)
+			playDecoded(s, c, tc.then, tc.other)
+			if s.player.Len() != tc.then {
+				t.Fatalf("%d songs queued, want %d", s.player.Len(), tc.then)
+			}
+			with := budget.LiveHeap()
+			gone := weak.Make(s)
+			s = nil
+			if !budget.IsCollected(gone) {
+				t.Fatal("the dropped Service stays reachable")
+			}
+			live := int((with - budget.LiveHeap()) / 1024)
+			t.Logf("%d KB live", live)
+			if live > tc.limit {
+				t.Errorf("%d KB live, budget %d", live, tc.limit)
+			}
+		})
+	}
+}
+
+// playDecoded has s play n songs shaped as YouTube's, as a front-end sends
+// them, every string of the songs a copy of its own; other changes their
+// IDs.
+func playDecoded(s *Service, c *conn, n int, other bool) {
+	songs := catalogtest.Decoded(n)
+	ids := make([]string, n)
+	for i := range songs {
+		if other {
+			songs[i].ID = "w" + songs[i].ID[1:]
 		}
-		request(s, c, &api.Call{Method: api.MethodPlayAll, IDs: &api.IDsArgs{IDs: ids, Songs: songs}})
+		ids[i] = songs[i].ID
 	}
-	if s.player.Len() != 5000 {
-		t.Fatalf("%d songs queued, want 5000", s.player.Len())
-	}
-	with := budget.LiveHeap()
-	gone := weak.Make(s)
-	s = nil
-	if !budget.IsCollected(gone) {
-		t.Fatal("the dropped Service stays reachable")
-	}
-	live := (with - budget.LiveHeap()) / 1024
-	t.Logf("%d KB live", live)
-	// 1686 KB today, the songs' strings shared (catalog.ShareStrings);
-	// unshared, 2154.
-	if live > 1940 {
-		t.Errorf("%d KB live, budget 1940", live)
-	}
+	request(s, c, &api.Call{Method: api.MethodPlayAll, IDs: &api.IDsArgs{IDs: ids, Songs: songs}})
 }
 
 // TestBudgetLiveConn holds the heap a subscriber's connection keeps once

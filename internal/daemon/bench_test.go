@@ -79,12 +79,12 @@ var dispatchCases = []struct {
 	// 3 allocs today, as toggle's.
 	{"seek", 3, func(s *Service, c *conn, i int) { request(s, c, seekCalls[i%2]) }, 4},
 	// A song in and out of a long queue: each a reply, the event and its
-	// State, the queue's IDs, the new songs, the catalog kept. 13 allocs
-	// today.
+	// State, the queue's IDs; the new song, and the catalog kept without
+	// it. 12 allocs today.
 	{"enqueue-remove/" + strconv.Itoa(bigQueue), bigQueue, func(s *Service, c *conn, _ int) {
 		request(s, c, enqueueCall)
 		request(s, c, removeCall)
-	}, 15},
+	}, 14},
 }
 
 func BenchmarkDispatch(b *testing.B) {

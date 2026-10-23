@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"slices"
+	"strconv"
 	"testing"
 )
 
@@ -159,8 +160,8 @@ func TestKeepSongs(t *testing.T) {
 	if _, ok := c.Song("b"); ok || c.Gen() == gen {
 		t.Errorf("b kept, or the gen kept")
 	}
-	if i, ok := c.SongIndex("c"); !ok || i != 1 {
-		t.Errorf("c at %d, %v", i, ok)
+	if i, ok := c.SongIndex("c"); !ok || i != 1 || cap(c.Songs) != 2 {
+		t.Errorf("c at %d, %v; songs %d, room for %d", i, ok, len(c.Songs), cap(c.Songs))
 	}
 	if s, ok := c.Song("c"); !ok || s.ID != "c" || len(c.Songs) != 2 {
 		t.Errorf("c is %+v, %v; songs %+v", s, ok, c.Songs)
@@ -168,5 +169,15 @@ func TestKeepSongs(t *testing.T) {
 	c.Add([]Song{{ID: "b"}}, nil, nil)
 	if s, ok := c.Song("b"); !ok || s.ID != "b" {
 		t.Error("b not added back")
+	}
+	// One of many dropped leaves its room.
+	many := New(make([]Song, 9), nil, nil)
+	for i := range many.Songs {
+		many.Songs[i].ID = strconv.Itoa(i)
+	}
+	many.index()
+	many.KeepSongs(func(i int) bool { return i != 4 })
+	if i, ok := many.SongIndex("5"); !ok || i != 4 || len(many.Songs) != 8 || cap(many.Songs) != 9 {
+		t.Errorf("5 at %d, %v; songs %d, room for %d", i, ok, len(many.Songs), cap(many.Songs))
 	}
 }

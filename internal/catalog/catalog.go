@@ -266,20 +266,38 @@ func upsert[T any](items []T, index map[string]int, add []T, id func(T) string) 
 
 // KeepSongs drops the songs at the indexes of Songs that keep rejects, the
 // others in their order: a daemon's catalog holds only its queue's songs.
-// The slice Songs is new, as callers may hold the old one.
+// keep may be asked twice an index. The slice Songs is new, as callers may
+// hold the old one.
 func (c *Catalog) KeepSongs(keep func(i int) bool) {
-	kept := make([]Song, 0, len(c.Songs))
+	n := 0
+	for i := range c.Songs {
+		if keep(i) {
+			n++
+		}
+	}
+	if n == len(c.Songs) {
+		return
+	}
+	// Sized for n when many go, the index too (clear never shrinks it): a
+	// queue replaced leaves twice its songs. Else room for songs added next.
+	size := len(c.Songs)
+	many := size-n > n/4
+	if many {
+		size = n
+	}
+	kept := make([]Song, 0, size)
 	for i, s := range c.Songs {
 		if keep(i) {
 			kept = append(kept, s)
 		}
 	}
-	if len(kept) == len(c.Songs) {
-		return
-	}
 	c.gen++
 	c.Songs = kept
-	clear(c.songIndex)
+	if many {
+		c.songIndex = make(map[string]int, n)
+	} else {
+		clear(c.songIndex)
+	}
 	for i, s := range kept {
 		c.songIndex[s.ID] = i
 	}
