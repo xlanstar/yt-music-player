@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
+	"weak"
 	"yt-music-player/internal/budget"
 )
 
@@ -93,4 +96,44 @@ func TestBudgetResolveCached(t *testing.T) {
 	ctx := t.Context()
 	// 3 allocs today.
 	budget.Allocs(t, 4, 100, func() { sinkStream, sinkErr = y.Resolve(ctx, okID) })
+}
+
+// TestBudgetLiveCache holds the heap the cache keeps a song, which ytmd
+// keeps for the five hours its URL lives: a hundred songs, listening on.
+// With the resolver, less once it is collected.
+func TestBudgetLiveCache(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	pr := okPlayer(t)
+	now := okExpires.Add(-5 * time.Hour)
+	// googlevideo's URLs are about 1.3 KB long, the fixture's cut short.
+	url := pr.StreamingData.AdaptiveFormats[5].URL + strings.Repeat("&p=x", 280)
+	const songs = 100
+	y := New(Options{})
+	y.now = func() time.Time { return now }
+	for i := range songs {
+		s, err := pr.stream(visionOS, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.URL = strings.Clone(url)
+		y.mu.Lock()
+		y.keepLocked("song"+strconv.Itoa(i), s)
+		y.mu.Unlock()
+	}
+	// A GC first: what json's pools keep goes only at the second.
+	budget.LiveHeap()
+	with := budget.LiveHeap()
+	gone := weak.Make(y)
+	y = nil
+	if !budget.IsCollected(gone) {
+		t.Fatal("the dropped resolver stays reachable")
+	}
+	perSong := (with - budget.LiveHeap()) / songs
+	t.Logf("%d B a song", perSong)
+	// 1559 B today, 1408 of them the URL; with a Header each, 1970.
+	if perSong > 1800 {
+		t.Errorf("%d B a song, budget 1800", perSong)
+	}
 }

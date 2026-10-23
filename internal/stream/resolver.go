@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -69,7 +70,10 @@ type YouTube struct {
 	mu      sync.Mutex
 	visitor string
 	cache   map[string]Stream
-	calls   map[string]*call
+	// header is the Header cached last, which the next shares when equal:
+	// one copy per client's headers rather than ~400 bytes per song cached.
+	header http.Header
+	calls  map[string]*call
 }
 
 var _ Resolver = (*YouTube)(nil)
@@ -170,9 +174,8 @@ func (y *YouTube) run(ctx context.Context, videoID string, c *call) {
 	defer c.cancel()
 	s, err := y.resolve(ctx, videoID)
 	y.mu.Lock()
-	if err == nil && y.fresh(s) {
-		maps.DeleteFunc(y.cache, func(_ string, cached Stream) bool { return !y.fresh(cached) })
-		y.cache[videoID] = s
+	if err == nil {
+		s = y.keepLocked(videoID, s)
 	}
 	if y.calls[videoID] == c {
 		delete(y.calls, videoID)
@@ -339,6 +342,32 @@ func withoutURL(err error) error {
 		return fmt.Errorf("%s: %w", urlErr.Op, urlErr.Err)
 	}
 	return err
+}
+
+// keepLocked caches s, unless it expires soon, first dropping the cached
+// streams that do, and returns it as cached; the caller holds mu.
+func (y *YouTube) keepLocked(videoID string, s Stream) Stream {
+	if !y.fresh(s) {
+		return s
+	}
+	maps.DeleteFunc(y.cache, func(_ string, cached Stream) bool { return !y.fresh(cached) })
+	s.Header = y.shareHeader(s.Header)
+	y.cache[videoID] = s
+	return s
+}
+
+// shareHeader returns the Header cached last if equal to h, else h, which
+// the next then shares; the caller holds mu. Cached Headers are never
+// written: Resolve hands out clones.
+func (y *YouTube) shareHeader(h http.Header) http.Header {
+	if len(h) == 0 {
+		return h
+	}
+	if maps.EqualFunc(h, y.header, slices.Equal) {
+		return y.header
+	}
+	y.header = h
+	return h
 }
 
 // clone keeps callers from sharing, and racing on, the cached Header.

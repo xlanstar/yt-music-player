@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -259,6 +260,39 @@ func TestCache(t *testing.T) {
 	s, _ := y.Resolve(t.Context(), okID)
 	if got := s.Header.Get("User-Agent"); got != visionOS.UserAgent {
 		t.Errorf("cached User-Agent = %q, changed by a caller", got)
+	}
+}
+
+// Songs cached share their client's Header, which TestCache shows no
+// caller gets to write; another Header is kept as it is.
+func TestCacheSharesHeader(t *testing.T) {
+	pr := okPlayer(t)
+	now := okExpires.Add(-5 * time.Hour)
+	y := New(Options{})
+	y.now = func() time.Time { return now }
+	keep := func(id string, header http.Header) http.Header {
+		t.Helper()
+		s, err := pr.stream(visionOS, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if header != nil {
+			s.Header = header
+		}
+		y.mu.Lock()
+		defer y.mu.Unlock()
+		return y.keepLocked(id, s).Header
+	}
+	first, second := keep("a", nil), keep("b", nil)
+	if reflect.ValueOf(first).UnsafePointer() != reflect.ValueOf(second).UnsafePointer() {
+		t.Error("two songs of one client cache a Header each")
+	}
+	other := keep("c", http.Header{"User-Agent": {"yt-dlp"}})
+	if got := other.Get("User-Agent"); got != "yt-dlp" {
+		t.Errorf("User-Agent = %q, want the stream's own", got)
+	}
+	if got := y.cache["a"].Header.Get("User-Agent"); got != visionOS.UserAgent {
+		t.Errorf("first song's User-Agent = %q, want VisionOS's", got)
 	}
 }
 
