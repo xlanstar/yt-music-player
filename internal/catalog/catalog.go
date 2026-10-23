@@ -264,13 +264,13 @@ func upsert[T any](items []T, index map[string]int, add []T, id func(T) string) 
 	return items
 }
 
-// KeepSongs drops the songs whose ID keep rejects: a daemon's catalog
-// holds only its queue's songs. The slice Songs is new, as callers may
-// hold the old one.
-func (c *Catalog) KeepSongs(keep func(id string) bool) {
+// KeepSongs drops the songs at the indexes of Songs that keep rejects, the
+// others in their order: a daemon's catalog holds only its queue's songs.
+// The slice Songs is new, as callers may hold the old one.
+func (c *Catalog) KeepSongs(keep func(i int) bool) {
 	kept := make([]Song, 0, len(c.Songs))
-	for _, s := range c.Songs {
-		if keep(s.ID) {
+	for i, s := range c.Songs {
+		if keep(i) {
 			kept = append(kept, s)
 		}
 	}
@@ -292,6 +292,12 @@ func (c *Catalog) SongIDs() []string {
 		ids[i] = s.ID
 	}
 	return ids
+}
+
+// SongIndex returns the index in Songs of the song with the given ID.
+func (c *Catalog) SongIndex(id string) (int, bool) {
+	i, ok := c.songIndex[id]
+	return i, ok
 }
 
 // Song returns the song with the given ID.

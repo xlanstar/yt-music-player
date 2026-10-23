@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"slices"
 	"sync"
 	"time"
 	"yt-music-player/internal/api"
@@ -125,6 +126,7 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 		songs[i] = catalog.Song(song)
 	}
 	catalog.ShareStrings(songs)
+	queueFirst(songs, saved.Queue)
 	s.cat = catalog.New(songs, nil, nil)
 	p := player.Restore(player.Saved{
 		Queue:    saved.Queue,
@@ -138,6 +140,26 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	})
 	s.player = p
 	s.shouldResume = saved.ResumePlaying && s.now().Before(saved.ResumeBefore) && p.Current() != ""
+}
+
+// queueFirst moves, in place, the songs of queue ahead of the others, as
+// sentState takes the catalog's first songs as told; a save between a
+// call's songs and its settle may hold songs not queued.
+func queueFirst(songs []catalog.Song, queue []string) {
+	queued := make(map[string]struct{}, len(queue))
+	for _, id := range queue {
+		queued[id] = struct{}{}
+	}
+	rank := func(s catalog.Song) int {
+		if _, ok := queued[s.ID]; ok {
+			return 0
+		}
+		return 1
+	}
+	byRank := func(a, b catalog.Song) int { return rank(a) - rank(b) }
+	if !slices.IsSortedFunc(songs, byRank) {
+		slices.SortStableFunc(songs, byRank)
+	}
 }
 
 // saved is the state now, in slices of its own: it is written off the

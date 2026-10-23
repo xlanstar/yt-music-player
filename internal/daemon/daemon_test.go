@@ -258,6 +258,41 @@ func TestQueueOnce(t *testing.T) {
 	}
 }
 
+// A song queued without its details is told once, as an ID: details
+// sent later stay with the daemon until it leaves the queue.
+func TestQueuedUnknown(t *testing.T) {
+	h := newHarness(t, Options{})
+	c := h.connect(true)
+	c.event()
+	queue := songs(3)
+	c.call(api.Call{Method: api.MethodPlayAll, IDs: &api.IDsArgs{IDs: ids(queue), Songs: queue[:1]}})
+	ev := c.eventWith(func(ev api.Event) bool { return ev.Queue != nil })
+	if !reflect.DeepEqual(ev.Songs, queue[:1]) {
+		t.Errorf("new songs %+v", ev.Songs)
+	}
+	// Details of a queued song, the queue unchanged.
+	c.call(api.Call{Method: api.MethodPlay, IDs: &api.IDsArgs{IDs: []string{"s1"}, Songs: queue[1:2]}})
+	x := catalog.Song{ID: "x", Title: "X"}
+	c.call(api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: []string{"s2", "x"}, Songs: []catalog.Song{queue[2], x}}})
+	ev = c.eventWith(func(ev api.Event) bool { return ev.Queue != nil })
+	if !reflect.DeepEqual(ev.Songs, []catalog.Song{x}) {
+		t.Errorf("new songs %+v, want x alone", ev.Songs)
+	}
+	h.do(func() {
+		if got := slices.Sorted(slices.Values(ids(h.svc.cat.Songs))); !slices.Equal(got, []string{"s0", "s1", "s2", "x"}) {
+			t.Errorf("catalog %q", got)
+		}
+	})
+	// Out of the queue and back, it goes again.
+	c.call(api.Call{Method: api.MethodRemove, Index: &api.IndexArgs{Index: 2}})
+	c.eventWith(func(ev api.Event) bool { return ev.Queue != nil })
+	c.call(api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: []string{"s2"}, Songs: queue[2:]}})
+	ev = c.eventWith(func(ev api.Event) bool { return ev.Queue != nil })
+	if !reflect.DeepEqual(ev.Songs, queue[2:]) {
+		t.Errorf("new songs %+v, want s2", ev.Songs)
+	}
+}
+
 func TestPlayOne(t *testing.T) {
 	h := newHarness(t, Options{Seed: songs(3)})
 	c := h.connect(true)

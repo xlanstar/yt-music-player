@@ -206,6 +206,30 @@ func TestStateRepeats(t *testing.T) {
 	}
 }
 
+// A state saved between a call's songs and its batch's end holds songs
+// not queued: the first snapshot has them, and they go again once queued.
+func TestStateSongsNotQueued(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "daemon.json")
+	all := songs(3)
+	data, err := json.Marshal(savedState{V: stateVersion, Queue: []string{"s2", "s0"}, Volume: 0.5, Songs: savedSongs(all)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := newHarness(t, Options{State: path})
+	c := h.connect(true)
+	if snap := c.event(); len(snap.Songs) != 3 {
+		t.Errorf("snapshot songs %+v", snap.Songs)
+	}
+	c.call(api.Call{Method: api.MethodEnqueue, IDs: &api.IDsArgs{IDs: []string{"s1"}}})
+	ev := c.eventWith(func(ev api.Event) bool { return ev.Queue != nil })
+	if !slices.Equal(ev.Queue.IDs, []string{"s2", "s0", "s1"}) || !reflect.DeepEqual(ev.Songs, all[1:2]) {
+		t.Errorf("queue %q, new songs %+v", ev.Queue.IDs, ev.Songs)
+	}
+}
+
 func TestHandoff(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "daemon.json")
 	h := newHarness(t, Options{State: path})

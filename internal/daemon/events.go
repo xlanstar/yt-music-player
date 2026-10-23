@@ -21,21 +21,27 @@ const jumpSlack = 1
 type sentState struct {
 	state api.State
 	at    time.Time // when state was sent
-	// queueGen is the player's QueueGen when the queue was last told;
-	// queued holds its IDs, spare the next queued's room.
-	queueGen      uint64
-	queued, spare map[string]struct{}
+	// queueGen is the player's QueueGen when the queue was last told.
+	queueGen uint64
+	// told counts the catalog's songs of the queue last told, first in it
+	// as Add appends new songs; unknown holds that queue's other IDs.
+	told    int
+	unknown map[string]struct{}
+	// queued marks, by catalog index, the songs of the queue being told.
+	queued []bool
 	// catGen is the catalog's Gen once it held only the queue's songs.
 	catGen uint64
 }
 
-// reset takes the Service's state as told.
+// reset takes the Service's state as told: the catalog's songs of the
+// queue, which restore put first, too.
 func (t *sentState) reset(s *Service) {
 	t.state, t.at = s.state(), s.now()
 	t.queueGen = s.player.QueueGen()
-	t.queued, t.spare = map[string]struct{}{}, map[string]struct{}{}
-	for _, id := range s.player.Queued() {
-		t.queued[id] = struct{}{}
+	t.told, t.unknown = 0, nil
+	t.markQueued(s.cat, s.player.Queued(), nil)
+	for t.told < len(t.queued) && t.queued[t.told] {
+		t.told++
 	}
 	t.catGen = s.cat.Gen()
 }
@@ -121,34 +127,71 @@ func (s *Service) compare(st api.State, now time.Time) (changed, jumped bool) {
 // newSongs returns the songs of ids not in the queue last told, and drops
 // from the catalog the songs no longer queued.
 func (s *Service) newSongs(ids []string) []catalog.Song {
-	t := &s.sent
-	clear(t.spare)
+	t, cat := &s.sent, s.cat
 	var songs []catalog.Song
-	for _, id := range ids {
-		if _, ok := t.spare[id]; ok {
-			continue
+	t.markQueued(cat, ids, func(i int) {
+		if i < t.told {
+			return
 		}
-		t.spare[id] = struct{}{}
-		if _, ok := t.queued[id]; ok {
-			continue
+		if _, ok := t.unknown[cat.Songs[i].ID]; !ok {
+			songs = append(songs, cat.Songs[i])
 		}
-		if song, ok := s.cat.Song(id); ok {
-			songs = append(songs, song)
-		}
-	}
-	t.queued, t.spare = t.spare, t.queued
-	s.keepQueued()
+	})
+	queued := t.queued
+	cat.KeepSongs(func(i int) bool { return queued[i] })
+	t.told, t.catGen = len(cat.Songs), cat.Gen()
 	return songs
 }
 
-// keepQueued drops from the catalog the songs not in the queue last told.
+// markQueued marks in queued the catalog's songs of ids, calling found
+// once for each, and makes unknown the IDs it lacks.
+func (t *sentState) markQueued(cat *catalog.Catalog, ids []string, found func(i int)) {
+	queued := sized(t.queued, len(cat.Songs))
+	var unknown map[string]struct{}
+	for _, id := range ids {
+		i, ok := cat.SongIndex(id)
+		switch {
+		case !ok:
+			if unknown == nil {
+				unknown = map[string]struct{}{}
+			}
+			unknown[id] = struct{}{}
+		case !queued[i]:
+			queued[i] = true
+			if found != nil {
+				found(i)
+			}
+		}
+	}
+	t.queued, t.unknown = queued, unknown
+}
+
+// sized returns marks n long and all false, over its array when that has
+// room.
+func sized(marks []bool, n int) []bool {
+	if cap(marks) < n {
+		return make([]bool, n)
+	}
+	marks = marks[:n]
+	clear(marks)
+	return marks
+}
+
+// keepQueued drops from the catalog the songs not in the queue last told:
+// those added since, but for the queue's songs it lacked then.
 func (s *Service) keepQueued() {
-	queued := s.sent.queued
-	s.cat.KeepSongs(func(id string) bool {
-		_, ok := queued[id]
+	t, cat := &s.sent, s.cat
+	cat.KeepSongs(func(i int) bool {
+		if i < t.told {
+			return true
+		}
+		_, ok := t.unknown[cat.Songs[i].ID]
 		return ok
 	})
-	s.sent.catGen = s.cat.Gen()
+	for _, song := range cat.Songs[t.told:] {
+		delete(t.unknown, song.ID)
+	}
+	t.told, t.catGen = len(cat.Songs), cat.Gen()
 }
 
 // snapshot is what a new subscriber gets first: everything known.

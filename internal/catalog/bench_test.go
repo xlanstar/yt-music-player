@@ -382,8 +382,7 @@ func decodedIDs(n int) ([]Song, []string) {
 // queue: all songs scanned, one dropped, the index made again.
 func BenchmarkKeepSongs(b *testing.B) {
 	songs := scaledSongs(bigSongs)
-	drop := songs[bigSongs/2].ID
-	keep := func(id string) bool { return id != drop }
+	keep := func(i int) bool { return i != bigSongs/2 }
 	b.ReportAllocs()
 	for b.Loop() {
 		b.StopTimer()

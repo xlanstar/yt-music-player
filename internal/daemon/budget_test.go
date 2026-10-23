@@ -88,10 +88,10 @@ func TestBudgetLiveQueue(t *testing.T) {
 	}
 	live := (with - budget.LiveHeap()) / 1024
 	t.Logf("%d KB live", live)
-	// 2104 KB today, the songs' strings shared (catalog.ShareStrings);
-	// unshared, 2575.
-	if live > 2420 {
-		t.Errorf("%d KB live, budget 2420", live)
+	// 1686 KB today, the songs' strings shared (catalog.ShareStrings);
+	// unshared, 2154.
+	if live > 1940 {
+		t.Errorf("%d KB live, budget 1940", live)
 	}
 }
 
