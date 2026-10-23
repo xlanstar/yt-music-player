@@ -128,8 +128,9 @@ func (s *Service) control(cl *api.Call) error {
 			return errStart
 		}
 		// Decoded for this call, so the daemon's own to edit; kept until
-		// they leave the queue.
+		// they leave the queue, the IDs in the player's too.
 		catalog.ShareStrings(cl.IDs.Songs)
+		catalog.ShareIDs(ids, cl.IDs.Songs)
 		s.cat.Add(cl.IDs.Songs, nil, nil)
 		switch cl.Method {
 		case api.MethodPlay:

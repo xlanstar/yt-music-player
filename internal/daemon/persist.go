@@ -128,6 +128,12 @@ func (s *Service) restore(saved savedState, ok bool, seed []catalog.Song) {
 	catalog.ShareStrings(songs)
 	queueFirst(songs, saved.Queue)
 	s.cat = catalog.New(songs, nil, nil)
+	// One copy of each ID, the songs' and the player's.
+	for i, id := range saved.Queue {
+		if j, ok := s.cat.SongIndex(id); ok {
+			saved.Queue[i] = s.cat.Songs[j].ID
+		}
+	}
 	p := player.Restore(player.Saved{
 		Queue:    saved.Queue,
 		Order:    saved.Order,

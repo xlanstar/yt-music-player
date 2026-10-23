@@ -2,9 +2,12 @@ package daemon
 
 import (
 	"encoding/gob"
+	"encoding/json/v2"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"weak"
 	"yt-music-player/internal/api"
@@ -75,10 +78,10 @@ func TestBudgetLiveQueue(t *testing.T) {
 		other bool
 		limit int
 	}{
-		// 1686 KB today, the songs' strings shared (catalog.ShareStrings);
-		// unshared, 2154.
+		// 1683 to 1687 KB today, the songs' strings shared
+		// (catalog.ShareStrings), the queue's IDs theirs; unshared, 2153.
 		{"replayed", 5000, false, 1940},
-		// 1609 KB today: the catalog's songs and index sized for the
+		// 1604 to 1609 KB today: the catalog's songs and index sized for the
 		// second list, not both.
 		{"replaced", 5000, true, 1860},
 	} {
@@ -105,8 +108,7 @@ func TestBudgetLiveQueue(t *testing.T) {
 }
 
 // playDecoded has s play n songs shaped as YouTube's, as a front-end sends
-// them, every string of the songs a copy of its own; other changes their
-// IDs.
+// them, every string a copy of its own; other changes their IDs.
 func playDecoded(s *Service, c *conn, n int, other bool) {
 	songs := catalogtest.Decoded(n)
 	ids := make([]string, n)
@@ -114,9 +116,49 @@ func playDecoded(s *Service, c *conn, n int, other bool) {
 		if other {
 			songs[i].ID = "w" + songs[i].ID[1:]
 		}
-		ids[i] = songs[i].ID
+		ids[i] = strings.Clone(songs[i].ID)
 	}
 	request(s, c, &api.Call{Method: api.MethodPlayAll, IDs: &api.IDsArgs{IDs: ids, Songs: songs}})
+}
+
+// TestBudgetLiveRestored holds the heap a Service keeps for a queue of
+// 5000 songs it read from daemon.json: with the Service, less once it is
+// collected.
+func TestBudgetLiveRestored(t *testing.T) {
+	if budget.Race {
+		t.Skip("the race detector allocates on its own")
+	}
+	path := filepath.Join(t.TempDir(), "daemon.json")
+	writeQueue(t, path, catalogtest.Decoded(5000))
+	s := newService(Options{Source: catalog.NewPlaceholderSource(0), State: path})
+	if s.player.Len() != 5000 {
+		t.Fatalf("%d songs queued, want 5000", s.player.Len())
+	}
+	with := budget.LiveHeap()
+	gone := weak.Make(s)
+	s = nil
+	if !budget.IsCollected(gone) {
+		t.Fatal("the dropped Service stays reachable")
+	}
+	live := (with - budget.LiveHeap()) / 1024
+	t.Logf("%d KB live", live)
+	// 1605 to 1616 KB today, the songs' strings shared and the queue's
+	// IDs theirs; the IDs apart, 1694.
+	if live > 1860 {
+		t.Errorf("%d KB live, budget 1860", live)
+	}
+}
+
+// writeQueue writes a daemon.json at path that queues songs.
+func writeQueue(t *testing.T, path string, songs []catalog.Song) {
+	t.Helper()
+	data, err := json.Marshal(savedState{V: stateVersion, Queue: ids(songs), Volume: 0.5, Songs: savedSongs(songs)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // TestBudgetLiveConn holds the heap a subscriber's connection keeps once
