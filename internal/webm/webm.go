@@ -136,7 +136,6 @@ type Reader struct {
 	lacedNext int
 	lacedAt   time.Duration
 	lacedPad  time.Duration
-	sizes     [maxLaced]int
 }
 
 // Open reads r's header up to the first cluster and returns a Reader of
@@ -493,7 +492,10 @@ func (w *Reader) unlace(kind byte, data []byte) ([][]byte, error) {
 	}
 	count := int(data[0]) + 1
 	data = data[1:]
-	sizes := w.sizes[:count]
+	// On the stack, not in the Reader: 2 KB it would keep through every
+	// stream, when YouTube's blocks are never laced.
+	var buf [maxLaced]int
+	sizes := buf[:count]
 	total := 0
 	switch kind {
 	case laceFixed:
