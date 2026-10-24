@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
 	"syscall"
 	"yt-music-player/internal/daemon"
@@ -25,10 +26,18 @@ import (
 // at its goal. Half Go's default costs no measurable CPU (docs/performance.md).
 const gcPercent = 50
 
+// maxProcs caps ytmd's GOMAXPROCS: on 16 cores, 12 more Ps and their
+// threads cost ~0.7 MB of footprint and save no CPU; 4 keep the audio fed
+// under 8 busy goroutines, where 2 underrun (docs/performance.md).
+const maxProcs = 4
+
 func main() {
 	// One set in the environment wins, to compare.
 	if os.Getenv("GOGC") == "" {
 		debug.SetGCPercent(gcPercent)
+	}
+	if n := procs(os.Getenv("GOMAXPROCS"), runtime.GOMAXPROCS(0)); n > 0 {
+		runtime.GOMAXPROCS(n)
 	}
 	paths, err := ipc.DefaultPaths(version.IsDev(version.Version))
 	if err != nil {
@@ -59,6 +68,16 @@ func main() {
 		os.Exit(0)
 	}()
 	daemon.RunMain(svc.Start)
+}
+
+// procs is the GOMAXPROCS ytmd sets, 0 for none: setting one ends the
+// runtime's updates to its default, so only to lower it, unless the
+// environment set one.
+func procs(env string, current int) int {
+	if env != "" || current <= maxProcs {
+		return 0
+	}
+	return maxProcs
 }
 
 // startLog sends the global logger to the log file: started by a
