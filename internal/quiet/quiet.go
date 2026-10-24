@@ -2,10 +2,11 @@
 // gone quiet: busy, the heap grows to twice the live size, and the
 // scavenger takes minutes to return it (docs/performance.md). The Desktop
 // is quiet once it stops building, the TUI once Update rests, ytmd once its
-// loop stops running.
+// loop stops running; ytmd also frees what a released stream held.
 package quiet
 
 import (
+	"runtime"
 	"runtime/debug"
 	"runtime/metrics"
 	"sync/atomic"
@@ -20,6 +21,12 @@ const (
 	// make a full GC worth it: a step of a song playing unfocused
 	// allocates a few KB, a thumbnail or a long queue's snapshot about a MB.
 	minAllocated = 1 << 20
+	// droppedBit marks last for a free whatever the heap allocated; the
+	// heap's allocations never reach it.
+	droppedBit = 1 << 63
+	// maxYields bounds the wait for cleanups (~1 µs a yield) by count, not
+	// time: a test's synctest bubble stops its clock while goroutines run.
+	maxYields = 4096
 )
 
 // GC frees on its timer's goroutine, after a quiet stretch; activity only
@@ -27,8 +34,8 @@ const (
 // value never frees, as tests' apps and benchmarks' services.
 type GC struct {
 	timer *time.Timer
-	// last is the heap's total allocations at the last free; atomic as a
-	// free can outlast a wait.
+	// last is the heap's total allocations at the last free, droppedBit
+	// set by Dropped since; atomic as a free can outlast a wait.
 	last atomic.Uint64
 }
 
@@ -42,10 +49,18 @@ func (g *GC) Note() {
 	}
 }
 
-// Stop ends the frees.
+// Dropped has the next free, a quiet stretch from now, run however little
+// the heap allocated: memory let go of, as a released stream's, is garbage.
+func (g *GC) Dropped() {
+	g.last.Or(droppedBit)
+	g.Note()
+}
+
+// Stop ends the frees, also those a later Note or Dropped would start.
 func (g *GC) Stop() {
 	if g.timer != nil {
 		g.timer.Stop()
+		g.timer = nil
 	}
 }
 
@@ -54,9 +69,36 @@ func (g *GC) free() {
 	samples := [1]metrics.Sample{{Name: "/gc/heap/allocs:bytes"}}
 	metrics.Read(samples[:])
 	allocated := samples[0].Value.Uint64()
-	if allocated-g.last.Load() < minAllocated {
+	last := g.last.Load()
+	dropped := last&droppedBit != 0
+	if !dropped && allocated-last < minAllocated {
 		return
 	}
-	g.last.Store(allocated)
+	if !g.last.CompareAndSwap(last, allocated) {
+		// Dropped meanwhile: the next free collects twice.
+		g.last.Store(allocated | droppedBit)
+	}
+	if dropped {
+		// MyGo's cleanup of a dropped player keeps its decoder and second
+		// of samples until it ran: this GC queues it, FreeOSMemory's frees.
+		runtime.GC()
+		awaitCleanups()
+	}
 	debug.FreeOSMemory()
+}
+
+// awaitCleanups yields until the cleanups queued so far ran, a few
+// thousand yields at most: the next GC would otherwise often start first.
+func awaitCleanups() {
+	s := [2]metrics.Sample{
+		{Name: "/gc/cleanups/queued:cleanups"},
+		{Name: "/gc/cleanups/executed:cleanups"},
+	}
+	for range maxYields {
+		metrics.Read(s[:])
+		if s[0].Value.Kind() != metrics.KindUint64 || s[1].Value.Uint64() >= s[0].Value.Uint64() {
+			return
+		}
+		runtime.Gosched()
+	}
 }

@@ -59,6 +59,8 @@ type Playback struct {
 	// engine clears it: nothing plays after.
 	resolver  stream.Resolver
 	newEngine func(events func(audio.Event)) (audio.Engine, error)
+	// released is Options.Released, or nil.
+	released func()
 
 	cat    *catalog.Catalog
 	player *player.Player
@@ -121,6 +123,9 @@ type Options struct {
 	Resolver stream.Resolver
 	// NewEngine makes the engine as the first song loads.
 	NewEngine func(events func(audio.Event)) (audio.Engine, error)
+	// Released, if set, runs on the loop once the engine let go of a
+	// stream, whose memory is garbage then (about 2 MB).
+	Released func()
 }
 
 // New returns a Playback following p, whose songs cat describes. post runs
@@ -132,6 +137,7 @@ func New(cat *catalog.Catalog, p *player.Player, post func(func()), opts Options
 		post:      post,
 		resolver:  opts.Resolver,
 		newEngine: opts.NewEngine,
+		released:  opts.Released,
 	}
 	pb.onResolved = pb.resolved
 	return pb
@@ -510,6 +516,9 @@ func (pb *Playback) releaseDue() {
 	pb.engine.Release()
 	if pb.state >= loading {
 		pb.state, pb.isStalled = released, false
+	}
+	if pb.released != nil {
+		pb.released()
 	}
 }
 

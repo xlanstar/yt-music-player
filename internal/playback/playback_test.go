@@ -62,6 +62,8 @@ type fixture struct {
 	cat    *catalog.Catalog
 	f      *audio.Fake
 	q      posts
+	// releases counts Options.Released's calls.
+	releases int
 }
 
 func newFixture(res stream.Resolver) *fixture {
@@ -76,6 +78,7 @@ func newFixture(res stream.Resolver) *fixture {
 			events = ev
 			return x.f, nil
 		},
+		Released: func() { x.releases++ },
 	})
 	return x
 }
@@ -730,6 +733,9 @@ func TestReleasesAPausedStream(t *testing.T) {
 		x.released(t)
 		x.pb.Follow()
 		x.wantCalls(t, "pause", "release")
+		if x.releases != 1 {
+			t.Errorf("Released ran %d times, want once", x.releases)
+		}
 		if x.pb.IsWaiting() || x.player.Position() != 50 {
 			t.Errorf("released: waiting %v, at %v", x.pb.IsWaiting(), x.player.Position())
 		}
@@ -772,6 +778,25 @@ func TestReleaseWaitsForThePause(t *testing.T) {
 		synctest.Sleep(2 * time.Second)
 		x.none(t)
 		x.wantCalls(t, "pause", "play")
+		if x.releases != 0 {
+			t.Errorf("Released ran %d times, want never", x.releases)
+		}
+	})
+}
+
+func TestStoppedPausedNeverReleases(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		x := newFixture(&instantResolver{})
+		x.startPlaying(t)
+		x.player.Pause()
+		x.pb.Follow()
+		x.pb.Stop()
+		synctest.Sleep(2 * releaseAfter)
+		x.none(t)
+		x.wantCalls(t, "pause", "close")
+		if x.releases != 0 {
+			t.Errorf("Released ran %d times, want never", x.releases)
+		}
 	})
 }
 

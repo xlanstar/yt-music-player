@@ -146,7 +146,13 @@ func newService(opts Options) *Service {
 		s.cat,
 		s.player,
 		s.post,
-		playback.Options{Resolver: opts.Resolver, NewEngine: opts.NewEngine},
+		playback.Options{
+			Resolver:  opts.Resolver,
+			NewEngine: opts.NewEngine,
+			// Paused, the loop allocates too little for quiet to free on
+			// its own: the released stream's ~2 MB would stay.
+			Released: s.quiet.Dropped,
+		},
 	)
 	s.acct = account.New(s.src, s.post, s.accountChanged)
 	s.sent.reset(s)

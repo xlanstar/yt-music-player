@@ -18,3 +18,12 @@ func BenchmarkNote(b *testing.B) {
 		g.Note()
 	}
 }
+
+// BenchmarkDropped is ytmd's every stream released.
+func BenchmarkDropped(b *testing.B) {
+	g := started(b)
+	b.ReportAllocs()
+	for b.Loop() {
+		g.Dropped()
+	}
+}
