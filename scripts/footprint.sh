@@ -15,9 +15,11 @@
 #   scripts/footprint.sh -daemon   ytmd alone instead, a placeholder one in a
 #                                  home of its own: its memory and wake-ups
 #                                  idle (after two forced GCs), playing,
-#                                  paused, and after a Desktop toured every
-#                                  page through it (skipped without a window
-#                                  server); about 90 seconds, into
+#                                  paused, paused past the stream's release
+#                                  a minute in (which only a real engine,
+#                                  -live, holds), and after a Desktop toured
+#                                  every page through it (skipped without a
+#                                  window server); about 140 seconds, into
 #                                  perf/footprint-daemon-latest.txt, against
 #                                  perf/footprint-daemon-baseline.txt
 #   scripts/footprint.sh -daemon -live
@@ -31,7 +33,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,28s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,30s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
@@ -255,7 +257,7 @@ EOF
 		' "$tmp/mb.txt" >>"$tmp/out.txt"
 	}
 
-	echo "footprint.sh: measuring ytmd ($source), about $([ -n "$desktop" ] && echo 90 || echo 50) seconds" >&2
+	echo "footprint.sh: measuring ytmd ($source), about $([ -n "$desktop" ] && echo 140 || echo 100) seconds" >&2
 	# A fresh ytmd may not have collected yet, and its first collections'
 	# metadata and workers' threads (~1.6 MB in two, ~0.1 MB each after)
 	# would land in whichever phase follows: two now put them in every one.
@@ -266,7 +268,13 @@ EOF
 	"$ytm" play >/dev/null
 	measure ytmd-playing yes
 	"$ytm" pause >/dev/null
+	paused=$(date +%s)
 	measure ytmd-paused no
+	# Past the stream's release a minute into the pause (internal/playback)
+	# and what follows it: measure's 5 s wait starts 62 s in.
+	left=$((paused + 62 - $(date +%s)))
+	[ "$left" -le 0 ] || sleep "$left"
+	measure ytmd-released no
 
 	if [ -n "$desktop" ]; then
 		# The memprof harness tours every page three times, playing as it
