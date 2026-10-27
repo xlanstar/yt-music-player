@@ -1,8 +1,6 @@
 module yt-music-player
 
-go 1.27.2
-
-toolchain go1.27.3
+go 1.27.3
 
 tool github.com/egoist/mygo/cmd/mygo
 
@@ -14,7 +12,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/ebitengine/purego v0.11.2
-	github.com/egoist/mygo v0.6.3
+	github.com/egoist/mygo v0.7.1
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/pion/opus v0.1.0
 	github.com/rs/zerolog v1.35.1

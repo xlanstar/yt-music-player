@@ -1,5 +1,7 @@
 {
   "name": "YT Music Player",
+  "slug": "yt-music-player",
+  "publisher": "xlanstar",
   "identifier": "dev.lanstar.ytmusicplayer",
   "version": "0.3.0",
   "out": "build",

@@ -90,7 +90,7 @@ jobs:
       - name: Check the signature and the tickets
         run: |
           app="build/darwin-universal/YT Music Player.app"
-          dmg="build/darwin-universal/YT Music Player ${GITHUB_REF_NAME#v}.dmg"
+          dmg="build/darwin-universal/yt-music-player-${GITHUB_REF_NAME#v}.dmg"
           codesign --verify --deep --strict "$app"
           spctl --assess --type execute -vv "$app"
           spctl --assess --type open --context context:primary-signature -vv "$dmg"
@@ -117,7 +117,7 @@ jobs:
             exit 1
           fi
           mkdir dist
-          cp "$out/YT Music Player $version.dmg" \
+          cp "$out/yt-music-player-$version.dmg" \
             "dist/YT-Music-Player-$version-macos-universal.dmg"
           cp "$archive" "$manifest" dist/
           # Deltas from the published versions; the first release has none.
@@ -205,7 +205,7 @@ jobs:
               # ytmd runs without a console window, ytm in the terminal.
               file -b "$out/ytmd.exe" | grep -q '(GUI)' || { echo "::error::$out/ytmd.exe opens a console"; exit 1; }
               file -b "$out/ytm.exe" | grep -q '(console)' || { echo "::error::$out/ytm.exe has no console"; exit 1; }
-              cp "$out/YT Music Player Setup $version $arch.exe" "dist/YT-Music-Player-$version-$target-setup.exe"
+              cp "$out/yt-music-player-setup-$version-$arch.exe" "dist/YT-Music-Player-$version-$target-setup.exe"
             fi
             cp "$archive" "$manifest" dist/
             for delta in "$out"/*.delta; do

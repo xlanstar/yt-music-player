@@ -20,12 +20,6 @@ const (
 	stallGrace  = 200 * time.Millisecond
 	resumeAhead = opusRate / 2
 	stallPoll   = 100 * time.Millisecond
-	// endSlack is how long after the computed end the engine looks for it,
-	// so that the output has played the last frames.
-	endSlack = 50 * time.Millisecond
-	// endPoll is how often the end is looked for when the length is
-	// unknown, or the output is late.
-	endPoll = 250 * time.Millisecond
 )
 
 // output plays a decoder: MyGo's audio.Player, or a fake in tests.
@@ -37,12 +31,17 @@ type output interface {
 	Position() time.Duration
 	Duration() time.Duration
 	setVolume(v float64)
+	// onEnd calls fn on a goroutine of its own each time the output plays
+	// to its end.
+	onEnd(fn func())
 	Close()
 }
 
 type mygoOutput struct{ *mygoaudio.Player }
 
 func (o mygoOutput) setVolume(v float64) { o.SetVolume(v) }
+
+func (o mygoOutput) onEnd(fn func()) { o.OnEnd(fn) }
 
 func newMyGoOutput(d mygoaudio.Decoder) output { return mygoOutput{mygoaudio.NewPlayer(d)} }
 
@@ -82,7 +81,7 @@ type load struct {
 	startAt float64
 
 	wantsPlay, isReady, isStalled, isDone bool
-	endTimer, stallTimer                  *time.Timer
+	stallTimer                            *time.Timer
 }
 
 // New returns the engine, fetching through client (nil: http.DefaultClient),
@@ -92,6 +91,9 @@ func New(events func(Event), client *http.Client) (Engine, error) {
 	if client == nil {
 		client = http.DefaultClient
 	}
+	// Mixing 250 ms ahead plays on through the moments the system keeps
+	// ytmd waiting; plays, pauses and seeks are heard that much later.
+	mygoaudio.SetLatency(mygoaudio.LatencyPlayback)
 	e := newEngine(events, client, newMyGoOutput)
 	e.controls = newControls(e.command)
 	return e, nil
@@ -145,6 +147,7 @@ func (e *engine) open(l *load) {
 		return
 	}
 	out := e.newOutput(stream)
+	out.onEnd(func() { e.ended(n) })
 	e.mu.Lock()
 	if e.cur != l {
 		e.mu.Unlock()
@@ -188,7 +191,6 @@ func (e *engine) dropLocked() {
 	}
 	e.cur = nil
 	l.isDone = true
-	stopTimer(l.endTimer)
 	stopTimer(l.stallTimer)
 	if l.out != nil {
 		l.out.Close()
@@ -222,7 +224,6 @@ func (e *engine) Play() {
 // startLocked plays a ready stream; the caller holds mu.
 func (e *engine) startLocked(l *load) {
 	l.out.Play()
-	e.armEndLocked(l)
 	switch {
 	case l.isStalled:
 		e.armStallLocked(l, 0)
@@ -238,7 +239,6 @@ func (e *engine) Pause() {
 		if l.out != nil {
 			l.out.Pause()
 		}
-		stopTimer(l.endTimer)
 		stopTimer(l.stallTimer)
 	}
 	e.mu.Unlock()
@@ -256,9 +256,6 @@ func (e *engine) Seek(sec float64) {
 			l.startAt = sec
 		} else {
 			l.out.Seek(seconds(sec))
-			if l.wantsPlay {
-				e.armEndLocked(l)
-			}
 		}
 	}
 	e.mu.Unlock()
@@ -349,37 +346,17 @@ func (e *engine) Close() {
 	e.controls.close()
 }
 
-// armEndLocked sets the timer that finds the end of a playing stream: MyGo
-// tells no one when a player ends. The caller holds mu.
-func (e *engine) armEndLocked(l *load) {
-	wait := endPoll
-	if d := l.out.Duration(); d > 0 {
-		wait = max(d-l.out.Position(), 0) + endSlack
-	}
-	if l.endTimer == nil {
-		l.endTimer = time.AfterFunc(wait, func() { e.checkEnd(l) })
-		return
-	}
-	l.endTimer.Reset(wait)
-}
-
-func (e *engine) checkEnd(l *load) {
+// ended hears from load n's output, on a goroutine of MyGo's, that it
+// mixed its end, which is heard up to the output's latency later. The end
+// pauses, as the system players do.
+func (e *engine) ended(n uint64) {
 	e.mu.Lock()
-	if l.isDone || !l.wantsPlay {
+	l := e.liveLocked(n)
+	if l == nil || !l.wantsPlay || l.out.Playing() {
+		// Paused, or played again since.
 		e.mu.Unlock()
 		return
 	}
-	if l.out.Playing() {
-		// Late, as after a stall, or the file is longer than it said.
-		wait := endPoll
-		if d := l.out.Duration(); d > 0 {
-			wait = max(d-l.out.Position()+endSlack, endPoll)
-		}
-		l.endTimer.Reset(wait)
-		e.mu.Unlock()
-		return
-	}
-	// The end pauses, as the system players do.
 	l.wantsPlay = false
 	stopTimer(l.stallTimer)
 	e.emitLocked(l, Event{Kind: StreamEnded})
@@ -413,7 +390,7 @@ func (e *engine) armStallLocked(l *load, wait time.Duration) {
 	l.stallTimer.Reset(wait)
 }
 
-// aheadLocked is how many frames were decoded past what the output played.
+// aheadLocked is how many frames were decoded past what is heard.
 func (e *engine) aheadLocked(l *load) int64 {
 	return l.stream.decoded.Load() - int64(l.out.Position().Seconds()*opusRate)
 }
@@ -430,7 +407,6 @@ func (e *engine) checkStall(l *load) {
 	switch {
 	case l.isStalled && (ahead >= resumeAhead || l.stream.atEnd.Load()):
 		l.isStalled = false
-		e.armEndLocked(l)
 		e.emitLocked(l, Event{Kind: StreamPlaying})
 	case l.isStalled:
 		e.armStallLocked(l, stallPoll)
@@ -462,7 +438,6 @@ func (e *engine) fail(n uint64, err error) {
 		return
 	}
 	l.isDone, l.wantsPlay = true, false
-	stopTimer(l.endTimer)
 	stopTimer(l.stallTimer)
 	e.emitLocked(l, Event{Kind: StreamFailed, Err: err})
 	e.mu.Unlock()

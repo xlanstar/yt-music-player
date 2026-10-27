@@ -30,6 +30,7 @@ type fakeOutput struct {
 	volume   float64
 	seeks    []time.Duration
 	frames   int64 // decoded
+	endFn    func()
 	playing  bool
 	ended    bool
 	isClosed bool
@@ -93,6 +94,12 @@ func (o *fakeOutput) setVolume(v float64) {
 	o.volume = v
 }
 
+func (o *fakeOutput) onEnd(fn func()) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.endFn = fn
+}
+
 func (o *fakeOutput) Close() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -104,6 +111,9 @@ func (o *fakeOutput) end() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.pos, o.playing, o.ended = o.Duration(), false, true
+	if o.endFn != nil {
+		go o.endFn()
+	}
 }
 
 type engineFixture struct {
@@ -225,6 +235,20 @@ func TestEngineEnds(t *testing.T) {
 		if !x.out().Playing() {
 			t.Error("not playing again")
 		}
+	})
+}
+
+func TestEngineIgnoresEndsWhilePaused(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		srv := serveTone(t)
+		x := newEngineFixture(t, srv.Client())
+		x.Load(Media{URL: srv.URL}, 0)
+		x.expect(t, StreamReady, 1)
+		x.Play()
+		x.Pause()
+		// Mixed to its end before the pause was heard.
+		x.out().end()
+		x.none(t)
 	})
 }
 

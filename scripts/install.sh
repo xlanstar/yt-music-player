@@ -26,7 +26,7 @@ die() {
 
 [ $# -le 1 ] || usage
 case ${1-} in
-'') platform=darwin/$(go env GOARCH) arch=" $(go env GOARCH)" ;;
+'') platform=darwin/$(go env GOARCH) arch="-$(go env GOARCH)" ;;
 -universal) platform=darwin/universal arch= ;;
 *) usage ;;
 esac
@@ -41,9 +41,9 @@ cask=$tap/yt-music-player
 
 scripts/build.sh -platform "$platform"
 
-name=$(jq -r .name mygo.json)
+slug=$(jq -r .slug mygo.json)
 version=$(jq -r .version mygo.json)
-dmg="$PWD/build/$(echo "$platform" | tr / -)/$name $version$arch.dmg"
+dmg="$PWD/build/$(echo "$platform" | tr / -)/$slug-$version$arch.dmg"
 [ -f "$dmg" ] || die "no $dmg"
 sha=$(shasum -a 256 "$dmg" | cut -d ' ' -f 1)
 

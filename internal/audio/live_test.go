@@ -133,7 +133,7 @@ func TestLiveStream(t *testing.T) {
 		t.Errorf("a second after seeking to 10, at %v", p)
 	}
 	l.Pause()
-	time.Sleep(50 * time.Millisecond) // MyGo fades out over 5 ms
+	time.Sleep(300 * time.Millisecond) // what the output holds plays out (LatencyPlayback)
 	p := l.Position()
 	time.Sleep(time.Second)
 	if q := l.Position(); q != p {

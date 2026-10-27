@@ -11,10 +11,18 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 - The window redraws only what changed, using less GPU while a song plays; on macOS it draws nothing while other windows cover it entirely.
 - On Linux, the `.deb` no longer depends on WebKitGTK, and `install.sh` no longer warns about it: the app never used it.
 - On Windows 11, the menus look like the system's own.
+- On Windows, Settings > Apps names xlanstar as the app's publisher.
+- On macOS, swiping between pages on a touchpad, or with a mouse that sends swipes, goes back and forward.
+- The background player keeps a quarter of a second of sound ready rather than 40 ms, so a song plays on while the system briefly holds it up; pausing and seeking are heard that much later.
 
 ### Fixed
 
 - A song row that scrolls under the pointer highlights at once, without moving the pointer.
+- On macOS, the window no longer shakes while you drag it by its top bar, and the app no longer starts the AutoFill helper, which used CPU and could stall scrolling.
+- On macOS, an update keeps the app's single Dock tile, and one found in the background shows in front of the window, or once the app comes to the front.
+- Quit (⌘Q on macOS) always closes the app.
+- On Windows, a hidden or minimized window no longer stalls the app for a second each frame, and with accent colors on title bars no colored strip shows at the window's top.
+- On Linux, a quick touchpad tap no longer leaves the pointer stuck pressed.
 
 ## [0.3.0] - 2026-10-23
 

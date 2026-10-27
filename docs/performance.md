@@ -78,7 +78,8 @@ One engine on every system (`internal/audio`): YouTube's Opus in WebM, fetched i
 - Paused, the loop allocates far below `quiet`'s 1 MB, so a released stream stayed garbage: `playback` calls `quiet.Dropped`, whose free 3 s on runs regardless, after a GC and MyGo's cleanup (`awaitCleanups`: else FreeOSMemory's GC often ran first). A real ytmd past the release keeps 0.9 MB of live heap, not 2.6, for one free of 0.7–4 ms.
 - Its footprint drops 0–1 MB (`-daemon -live`'s `ytmd-released`): macOS 27 often keeps the pages Go returns (MADV_FREE_REUSABLE) in footprint(1). A player still reachable at the free (2 runs in 26) keeps its ~640 KB until a later GC.
 - `quiet` needs no hook while a song plays: nothing posts to the loop then, but chunks are reused and nothing per packet allocates, so streaming allocates about 100 KB per MB (requests, TLS, HTTP/2 frames), below the 1 MB a free waits for. What a song held goes at its end, with the loop's batch for the next.
-- MyGo reports no end or underrun, yet a song on time polls nothing: timers fire at the computed end and, the source 200 ms into waiting for the network, when the decoded lead runs out. Only a stall (every 100 ms, until half a second is decoded) and an unknown or late end (every 250 ms) are polled.
+- A song polls nothing: MyGo reports its end (`Player.OnEnd`), as it mixes it, and a timer fires, the source 200 ms into waiting for the network, when the decoded lead runs out. MyGo reports no underrun, so only a stall is polled (every 100 ms, until half a second is decoded).
+- The output mixes 250 ms ahead (`audio.LatencyPlayback`), not 40 ms: a song plays on through the moments the system keeps ytmd waiting, and plays, pauses and seeks are heard that much later. `Player.Position` is what is heard, so the decoded lead counts what the output holds.
 
 ## Network
 

@@ -97,7 +97,7 @@ On your Mac, once, for `notarytool log` and to try a signed build (the password 
 ```sh
 xcrun notarytool store-credentials notary --apple-id <Apple ID> --team-id LJJN3L2PS6
 scripts/build.sh -platform darwin/universal -sign "Developer ID Application: PENG HUAN CHENG (LJJN3L2PS6)"
-xcrun notarytool submit "build/darwin-universal/YT Music Player X.Y.Z.dmg" --keychain-profile notary --wait
+xcrun notarytool submit build/darwin-universal/yt-music-player-X.Y.Z.dmg --keychain-profile notary --wait
 ```
 
 The certificate expires after five years, and a revoked app-specific password fails notarization: replace its secret. A new certificate of the same team keeps the app's identity, so the Keychain still trusts it.
