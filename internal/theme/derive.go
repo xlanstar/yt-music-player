@@ -68,7 +68,7 @@ func Derive(seed Seed) Theme {
 
 	// The accent tints icons on the surfaces: 3:1, as for graphics.
 	c.Accent, _ = lighten(accent, 3, surfaces...)
-	accentL, accentC, accentH = lch(c.Accent)
+	accentL, _, _ = lch(c.Accent)
 	c.AccentHover = c.Accent.Mix(white, 0.1)
 	c.AccentPressed = c.Accent.Mix(black, 0.1)
 	c.AccentText = white
@@ -78,7 +78,6 @@ func Derive(seed Seed) Theme {
 	c.Focus = c.Accent.Alpha(0.8)
 	c.Selection = c.Accent.Alpha(0.35)
 	c.Charts = c.Accent
-	c.Brand = Oklch(accentL-0.18, min(accentC+0.02, 0.3), accentH-23)
 	c.CoverFrom, c.CoverTo, c.CoverInk = surface(0.21), c.Raised, c.Muted
 
 	hc := &t.Contrast

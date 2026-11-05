@@ -14,7 +14,7 @@ MyGo docs: https://mygo.egoist.dev/docs.md (always read the `.md` pages, never `
 - Live checks (never in CI): `go test -run Record -update -v ./internal/ytmusic/` (re-records `testdata/`, `Record/catalog` or `Record/feeds` for one half; `YTM_COOKIE=…` with `Record/library` for signed-in, writes nothing); `go test ./internal/stream/ -run Live -live -v`; `go test -tags audiolive -run Live -v ./internal/audio/` and `go test -tags audiolive -run LiveDaemon -v ./internal/daemon/` (play sound); `scripts/footprint.sh -daemon` (below); `TestMPRIS` runs where there is a session bus (`dbus-run-session -- go test -run MPRIS ./internal/audio/`); `YTM_KEYCHAIN_TEST=1` for the Keychain.
 - `go tool mygo generate .`: writes `locales/catalog_gen.go` (committed) from `locales/en.json` (the source, with descriptions) and `zh-Hant.json`, in ICU MessageFormat; `prek` checks it.
 - `scripts/fetch-lucide-icons.sh <name>…`: fetches and compresses Lucide icons into `cmd/desktop/icons/`.
-- `scripts/render-app-icon.sh`: renders the icon's one source, `assets/icon/icon.svg`, into `resources/icon.png` and `assets/icon/` (PNGs of every size, `.icns`, `.ico`); edit the SVG, never the renders.
+- `scripts/render-app-icon.sh`: renders the icon's one source, `assets/icon/icon.svg`, into `resources/icon.png` and `assets/icon/` (PNGs of every size, `.icns`, `.ico`); edit the SVG, never the renders. `scripts/brandkit.py` renders the identity's board and mark into `assets/brand/`; the mark is drawn in four places that change together (`docs/brand.md#mark`).
 - `scripts/repo-images.sh [-readme]`: renders the social preview (uploaded in the repository's settings, not committed) and README's top image from `assets/repo-images/` and captures of the placeholder build and its `ytm` in kitty; `-readme` updates `docs/images/`. Run it with `-readme` when the window's look changes.
 - `scripts/build.sh [mygo build flags]`: the only way to build the app; a bare `go tool mygo build` ships old ytmd and ytm or none. `scripts/install.sh [-universal]` installs a build on macOS through the release's cask from a local Homebrew tap.
 - `scripts/release.sh patch|minor|major` (`patch` on a branch `X.Y` patches an older version), then, after checking the draft, approve the Release workflow's `publish` job, which publishes it and updates the Homebrew tap (`docs/release.md`). The version lives only in `mygo.json`. The cask is `packaging/homebrew/yt-music-player.rb`; never edit it in the tap.
@@ -143,6 +143,7 @@ Details: `docs/benchmarks.md`.
 - `docs/performance.md`: why the performance rules, measuring, memory, the background player's and the TUI's costs
 - `docs/benchmarks.md`: benchmarks, allocation budgets, comparing time, binary size
 - `docs/theme.md`: themes and theme files
+- `docs/brand.md`: the identity: strategy, the mark, the wordmark, color, type, images and where each is drawn
 - `docs/release.md`: releasing, older versions, the helpers, signing, updates, Homebrew
 - `roadmap/daemon.md`: what ytmd still needs checked on real installs
 - `CHANGELOG.md`: changes users notice, by version

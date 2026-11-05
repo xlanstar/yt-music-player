@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Three grooves of a record, their gaps lined up toward the upper right:
-       a record and a level meter at once. Colors: theme ink, accent, cream. -->
+  <!-- Five queue rows whose lengths (1:3:5:3:1) draw a play triangle; the
+       middle one, amber, is the song playing. Colors: ink, bone, amber
+       (docs/brand.md#mark, which lists where else the mark is drawn). -->
   <!-- macOS body: an 824 px superellipse (n = 4) inside the 1024 px canvas. -->
-  <path fill="#1c1824" d="M 924 512 C 924 890.23 890.23 924 512 924 C 133.77 924 100 890.23 100 512 C 100 133.77 133.77 100 512 100 C 890.23 100 924 133.77 924 512 Z"/>
-  <g fill="none" stroke-width="66" stroke-linecap="round">
-    <path stroke="#fb5c3d" d="M 799.56 461.29 A 292 292 0 1 1 562.71 224.44"/>
-    <path stroke="#f6eee2" d="M 705.02 477.96 A 196 196 0 1 1 546.04 318.98"/>
-    <path stroke="#fb5c3d" d="M 610.48 494.64 A 100 100 0 1 1 529.36 413.52"/>
+  <path fill="#0E0D0B" d="M 924 512 C 924 890.23 890.23 924 512 924 C 133.77 924 100 890.23 100 512 C 100 133.77 133.77 100 512 100 C 890.23 100 924 133.77 924 512 Z"/>
+  <path fill="none" stroke="#FFFFFF" stroke-opacity=".08" stroke-width="6" d="M 924 512 C 924 890.23 890.23 924 512 924 C 133.77 924 100 890.23 100 512 C 100 133.77 133.77 100 512 100 C 890.23 100 924 133.77 924 512 Z"/>
+  <!-- The mark at 540 px, 14 px right of center: its rows weigh left. -->
+  <g fill="none" stroke-width="63" stroke-linecap="round">
+    <path stroke="#EEE7D9" d="M 359.5 314 H 426.1 M 359.5 413 H 559.3 M 359.5 611 H 559.3 M 359.5 710 H 426.1"/>
+    <path stroke="#FFA630" d="M 359.5 512 H 692.5"/>
   </g>
-  <circle cx="512" cy="512" r="28" fill="#f6eee2"/>
 </svg>

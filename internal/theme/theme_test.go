@@ -10,21 +10,22 @@ import (
 // Pins Default's hand-tuned look.
 func TestDefault(t *testing.T) {
 	d := Default()
-	accent := ui.Oklch(0.68, 0.2, 33).SRGB()
+	accent := ui.Hex("#FFA630")
 	white := ui.RGB(255, 255, 255)
 	for name, gotWant := range map[string][2]ui.Color{
-		"Base":        {d.Color.Base, ui.Hex("#09090B")},
-		"Panel":       {d.Color.Panel, ui.Hex("#131316")},
-		"Raised":      {d.Color.Raised, ui.Hex("#1C1C21")},
-		"Text":        {d.Color.Text, ui.Hex("#F5F2ED")},
-		"Muted":       {d.Color.Muted, ui.Hex("#A19DA7")},
-		"Faint":       {d.Color.Faint, ui.Hex("#8E8B94")},
+		"Base":        {d.Color.Base, ui.Hex("#0E0D0B")},
+		"Panel":       {d.Color.Panel, ui.Hex("#161512")},
+		"Raised":      {d.Color.Raised, ui.Hex("#1D1B18")},
+		"Text":        {d.Color.Text, ui.Hex("#EEE7D9")},
+		"Muted":       {d.Color.Muted, ui.Hex("#A8A196")},
+		"Faint":       {d.Color.Faint, ui.Hex("#938C81")},
 		"Line":        {d.Color.Line, white.Alpha(0.07)},
 		"Focus":       {d.Color.Focus, accent.Alpha(0.8)},
 		"Accent":      {d.Color.Accent, accent},
 		"AccentHover": {d.Color.AccentHover, accent.Mix(white, 0.1)},
 		"RowHover":    {d.Color.RowHover, white.Alpha(0.05)},
-		"Inverse":     {d.Color.Inverse, ui.Hex("#2B2B31")},
+		"AccentText":  {d.Color.AccentText, d.Color.Base},
+		"Inverse":     {d.Color.Inverse, ui.Hex("#2D2A25")},
 	} {
 		if gotWant[0] != gotWant[1] {
 			t.Errorf("%s = %v, want %v", name, gotWant[0], gotWant[1])
@@ -172,7 +173,7 @@ func TestSized(t *testing.T) {
 }
 
 func TestHex(t *testing.T) {
-	if got := Hex(Default().Color.Base); got != "#09090B" {
+	if got := Hex(Default().Color.Base); got != "#0E0D0B" {
 		t.Errorf("Hex = %q", got)
 	}
 }

@@ -25,9 +25,10 @@ var presets = []Preset{
 		return Derive(Seed{Accent: Oklch(0.7, 0.18, 340), Base: Oklch(0.16, 0.03, 320)})
 	}},
 	// Denser, for long sessions at a desk: more songs per screen, and the
-	// player bar on top.
+	// player bar on top. Coral, the accent Default had before the brand's
+	// amber, keeps it apart from Default.
 	{"studio", "Studio", func() Theme {
-		t := Derive(Seed{Accent: Oklch(0.8, 0.14, 75), Base: Oklch(0.15, 0.006, 70)})
+		t := Derive(Seed{Accent: Oklch(0.68, 0.2, 33), Base: Oklch(0.15, 0.006, 70)})
 		t.Layout.Density, t.Layout.PlayerBar = Compact, Top
 		return t
 	}},

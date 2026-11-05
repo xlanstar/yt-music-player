@@ -58,8 +58,6 @@ type Colors struct {
 
 	// Rise and Fall are chart trends.
 	Rise, Fall, Error ui.Color
-	// Brand is the brand mark gradient's second stop, after Accent.
-	Brand ui.Color
 	// Releases, Charts and Moods tint Explore's tiles.
 	Releases, Charts, Moods ui.Color
 	// Drawn covers for art of no known kind.
@@ -102,7 +100,6 @@ type Radius struct {
 	Thumb   float32 // covers in rows, key hints
 	Cover   float32 // covers in the sidebar
 	Small   float32 // the player bar's cover, small buttons
-	Mark    float32 // the brand mark
 	Control float32 // rows, navigation, tiles, toasts
 	Card    float32 // cards' covers
 	Sleeve  float32 // the hero's fanned covers
@@ -224,32 +221,34 @@ var (
 	black = ui.RGB(0, 0, 0)
 )
 
-// Default returns the player's look.
+// Default returns the player's look: the brand's ink, bone and amber
+// (assets/brand), on warm grays.
 func Default() Theme {
-	accent := Oklch(0.68, 0.2, 33)
-	text := ui.Hex("#F5F2ED")
+	accent := ui.Hex("#FFA630")
+	text := ui.Hex("#EEE7D9")
 	fall := Oklch(0.68, 0.18, 25)
 	return Theme{
 		Color: Colors{
-			Base:    ui.Hex("#09090B"),
-			Panel:   ui.Hex("#131316"),
-			Raised:  ui.Hex("#1C1C21"),
-			Hover:   ui.Hex("#25252B"),
-			Pressed: ui.Hex("#303037"),
+			Base:    ui.Hex("#0E0D0B"),
+			Panel:   ui.Hex("#161512"),
+			Raised:  ui.Hex("#1D1B18"),
+			Hover:   ui.Hex("#27241F"),
+			Pressed: ui.Hex("#322E28"),
 			Text:    text,
-			Muted:   ui.Hex("#A19DA7"),
-			Faint:   ui.Hex("#8E8B94"),
+			Muted:   ui.Hex("#A8A196"),
+			Faint:   ui.Hex("#938C81"),
 			Line:    white.Alpha(0.07),
 			Focus:   accent.Alpha(0.8),
 
 			Accent:        accent,
 			AccentHover:   accent.Mix(white, 0.1),
 			AccentPressed: accent.Mix(black, 0.1),
-			AccentText:    white,
-			Selection:     accent.Alpha(0.35),
-			Inverse:       ui.Hex("#2B2B31"),
-			InverseText:   text,
-			Scrollbar:     white.Alpha(0.18),
+			// White reads on amber at under 2:1; ink at 9.9:1.
+			AccentText:  ui.Hex("#0E0D0B"),
+			Selection:   accent.Alpha(0.35),
+			Inverse:     ui.Hex("#2D2A25"),
+			InverseText: text,
+			Scrollbar:   white.Alpha(0.18),
 
 			Light:  white,
 			Shadow: black,
@@ -271,19 +270,18 @@ func Default() Theme {
 			Rise:     Oklch(0.78, 0.16, 150),
 			Fall:     fall,
 			Error:    fall,
-			Brand:    Oklch(0.5, 0.22, 10),
 			Releases: Oklch(0.72, 0.15, 200),
 			Charts:   accent,
 			Moods:    Oklch(0.75, 0.15, 110),
 
-			CoverFrom: ui.Hex("#3A3A42"),
-			CoverTo:   ui.Hex("#1C1C21"),
-			CoverInk:  ui.Hex("#A19DA7"),
+			CoverFrom: ui.Hex("#3B3731"),
+			CoverTo:   ui.Hex("#1D1B18"),
+			CoverInk:  ui.Hex("#A8A196"),
 		},
 		Contrast: Contrast{
 			Line:  white.Alpha(0.24),
-			Muted: ui.Hex("#D2CED7"),
-			Faint: ui.Hex("#B3AFB8"),
+			Muted: ui.Hex("#D6CFC3"),
+			Faint: ui.Hex("#B8B1A5"),
 			Focus: accent,
 		},
 		Type: Type{
@@ -294,7 +292,7 @@ func Default() Theme {
 		},
 		Unit: 4,
 		Radius: Radius{
-			Thumb: 6, Cover: 7, Small: 8, Mark: 9, Control: 10, Card: 12,
+			Thumb: 6, Cover: 7, Small: 8, Control: 10, Card: 12,
 			Sleeve: 14, Large: 16, Dialog: 18, Hero: 22, Pill: 999,
 		},
 		Layout: Layout{
@@ -324,7 +322,7 @@ func (t Theme) SRGB() Theme {
 
 // colors returns every color of t; TestColorsReachEveryColor checks none
 // is missed.
-func (t *Theme) colors() [47]*ui.Color {
+func (t *Theme) colors() [46]*ui.Color {
 	c, k := &t.Color, &t.Contrast
 	return [...]*ui.Color{
 		&c.Base, &c.Panel, &c.Raised, &c.Hover, &c.Pressed,
@@ -333,7 +331,7 @@ func (t *Theme) colors() [47]*ui.Color {
 		&c.Inverse, &c.InverseText, &c.Scrollbar, &c.Light, &c.Shadow,
 		&c.NavHover, &c.RowHover, &c.RowCurrent, &c.GhostHover, &c.GhostPressed,
 		&c.GhostBorder, &c.Field, &c.Track, &c.Glass, &c.GlassHover, &c.Badge,
-		&c.LyricSung, &c.LyricAhead, &c.Rise, &c.Fall, &c.Error, &c.Brand,
+		&c.LyricSung, &c.LyricAhead, &c.Rise, &c.Fall, &c.Error,
 		&c.Releases, &c.Charts, &c.Moods, &c.CoverFrom, &c.CoverTo, &c.CoverInk,
 		&k.Line, &k.Muted, &k.Faint, &k.Focus,
 	}

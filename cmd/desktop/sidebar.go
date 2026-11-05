@@ -39,22 +39,27 @@ func (a *app) sidebar(c *ui.Context) {
 }
 
 func brand(c *ui.Context) {
-	col := &th.Color
 	ui.Row(c).Padding(0, th.Space(6)).Gap(th.Space(2.5)).AlignItems(ui.Center).Children(func() {
-		mark := ui.Box(c).Size(30, 30).Radius(th.Radius.Mark).Center().
-			LinearGradient(ui.LinearGradient{From: col.Accent, To: col.Brand, Angle: 150, Oklab: true}).
-			Shadow(0, 4, 14, 0, col.Accent.Alpha(0.35))
-		mark.Draw(paintMark)
-		mark.Children(func() { ui.Icon(c, icPlay).Size(10, 10).TextColor(col.Light).Translate(0.8, 0) })
-		ui.Column(c).Children(func() {
-			ui.Text(c, "YT Music").FontSize(th.Type.Brand).FontWeight(700).LetterSpacing(-0.3)
-			ui.Text(c, "PLAYER").FontSize(th.Type.Micro).FontWeight(600).LetterSpacing(2).TextColor(th.Color.Faint)
-		})
+		ui.Box(c).Size(26, 26).Shrink(0).Draw(paintMark)
+		ui.Text(c, "yt music player").FontSize(th.Type.Brand).FontWeight(600).LetterSpacing(-0.3)
 	})
 }
 
+// paintMark draws the brand mark (docs/brand.md#mark) in r: five queue rows
+// whose lengths draw a play triangle, the middle one, playing, in the accent.
 func paintMark(p *ui.Painter, r ui.Rect) {
-	ring(p, r.X+r.W/2, r.Y+r.H/2, r.W*0.32, 1.6, th.Color.Light.Alpha(0.9))
+	// The mark's 120-unit box: rows 14 thick, 22 apart, from x 23 to 23+74·(1-|k|/2.5).
+	s := r.W / 120
+	w := 14 * s
+	for k := -2; k <= 2; k++ {
+		c := th.Color.Text
+		if k == 0 {
+			c = th.Color.Accent
+		}
+		length := 74 * (1 - float32(max(k, -k))/2.5) * s
+		y := r.Y + (60+22*float32(k))*s
+		p.Fill(ui.Rect{X: r.X + 23*s - w/2, Y: y - w/2, W: length + w, H: w}, c, w/2)
+	}
 }
 
 // navTarget is a sidebar item or an Explore tile. key is the English

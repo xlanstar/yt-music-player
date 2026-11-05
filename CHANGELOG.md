@@ -6,6 +6,9 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ### Changed
 
+- A new app icon and mark: five queue rows that draw a play button, the song playing in the accent.
+- The Default theme takes the new brand's amber on warm grays; Studio takes the coral Default had.
+- `ytm` names the app in the brand's wordmark, *yt music player*.
 - A mouse wheel scrolls pages smoothly, as browsers do, rather than jumping a notch at a time; a touchpad still follows your fingers.
 - The app checks for updates shortly after each launch, then once a day, so a version released since you last opened it shows at once.
 - The window redraws only what changed, using less GPU while a song plays; on macOS it draws nothing while other windows cover it entirely.

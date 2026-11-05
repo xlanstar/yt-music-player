@@ -97,7 +97,7 @@ func TestLayoutArrangements(t *testing.T) {
 				// Whatever reaches the window's top corners keeps clear of
 				// the window controls.
 				w := float32(1040)
-				for _, s := range []string{"Back", "Notifications", "Hide panel", "YT Music", "Midnight Arcade"} {
+				for _, s := range []string{"Back", "Notifications", "Hide panel", "yt music player", "Midnight Arcade"} {
 					r, ok := tt.Find(s)
 					if !ok || r.Y >= bar.bar.Height {
 						continue

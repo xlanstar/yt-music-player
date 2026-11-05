@@ -33,8 +33,8 @@ const barCoverRows = barProgress - barSong + 1
 // and subtitle.
 const headerCoverRows = 2
 
-// appName is the app's name, untranslated.
-const appName = "YT Music Player"
+// appName is the brand's wordmark (docs/brand.md#wordmark), untranslated.
+const appName = "yt music player"
 
 // render prepares the screen's frame, draws it into the scene, readies
 // the covers drawn and composes the screen.
