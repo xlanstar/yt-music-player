@@ -1,31 +1,64 @@
-/* Shared by the repo images: the brand's colors (assets/brand), type and
-   the windows' shadow. scripts/repo-images.sh copies it beside the pages
-   it renders. */
+/* Shared by the repo images (philosophy.md): the brand's colors and faces
+   (docs/brand.md), the labels and the windows' shadow. repo-images.sh
+   copies it beside the pages, with the faces in fonts/. */
+@font-face { font-family: "Inter Display"; font-weight: 300; src: url(fonts/InterDisplay-Light.woff2); }
+@font-face { font-family: "Inter Display"; font-weight: 500; src: url(fonts/InterDisplay-Medium.woff2); }
+@font-face { font-family: "Inter Display"; font-weight: 600; src: url(fonts/InterDisplay-SemiBold.woff2); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 300; src: url(fonts/JetBrainsMono-Light.woff2); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url(fonts/JetBrainsMono-Regular.woff2); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; src: url(fonts/JetBrainsMono-Medium.woff2); }
+
+/* Bone day; .dark is the Ink night. art.js reads the --art-* colors. */
 :root {
-  --bg: #eee7d9;
-  --glow: rgba(255, 166, 48, .34);
-  --ink: #0e0d0b;
-  --muted: #5e5850;
-  --faint: #6f7a88;
-  --accent: #ffa630;
-  --window-shadow: drop-shadow(0 30px 50px rgba(40, 20, 30, .30)) drop-shadow(0 6px 14px rgba(40, 20, 30, .18));
+  --ground: #eee7d9;
+  --text: #0e0d0b;
+  --label: #6f7a88;
+  --amber: #ffa630;
+  --art-line: rgba(14, 13, 11, .30);
+  --art-tick: rgba(14, 13, 11, .22);
+  --art-water: rgba(14, 13, 11, .045);
+  --art-glow: rgba(255, 166, 48, .12);
+  --art-grain: 14, 13, 11;
+  --art-grain-alpha: .05;
+  --window-shadow: drop-shadow(0 28px 44px rgba(46, 32, 14, .26)) drop-shadow(0 4px 10px rgba(46, 32, 14, .16));
 }
 .dark {
-  --bg: #0e0d0b;
-  --glow: rgba(255, 166, 48, .22);
-  --ink: #eee7d9;
-  --muted: #a8a196;
-  --faint: #6f7a88;
-  --window-shadow: drop-shadow(0 30px 60px rgba(0, 0, 0, .55)) drop-shadow(0 0 1px rgba(255, 255, 255, .35));
+  --ground: #0e0d0b;
+  --text: #eee7d9;
+  --label: #6f7a88;
+  --art-line: rgba(238, 231, 217, .26);
+  --art-tick: rgba(238, 231, 217, .18);
+  --art-water: rgba(238, 231, 217, .045);
+  --art-glow: rgba(255, 166, 48, .075);
+  --art-grain: 238, 231, 217;
+  --art-grain-alpha: .03;
+  --window-shadow: drop-shadow(0 28px 56px rgba(0, 0, 0, .62)) drop-shadow(0 0 .5px rgba(238, 231, 217, .45));
 }
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 1280px; height: 640px; }
 body {
   position: relative;
   overflow: hidden;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: "Inter Display", Inter, -apple-system, "SF Pro Display", sans-serif;
+  background: var(--ground);
+  color: var(--text);
+  font-family: "Inter Display", sans-serif;
   -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
 }
-.glow { position: absolute; background: radial-gradient(closest-side, var(--glow), transparent); }
+#art { position: absolute; inset: 0; width: 1280px; height: 640px; }
 .app-window, .app-terminal { position: absolute; filter: var(--window-shadow); }
+
+/* Labels: upper case mono, tracked wide, in Dusk. */
+.label {
+  position: absolute;
+  font: 400 11px/1 "JetBrains Mono", monospace;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--label);
+  white-space: nowrap;
+}
+.label.right { text-align: right; margin-right: -.16em; } /* the tracking after the last letter */
+.label .lc { text-transform: none; letter-spacing: .06em; }
+.label b { font-weight: 500; color: var(--text); }
+.label i { font-style: normal; color: var(--amber); }

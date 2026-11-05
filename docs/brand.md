@@ -52,9 +52,9 @@ The mark is drawn in four places, which change together: `scripts/brandkit.py` (
 
 ## Wordmark
 
-**yt music player**, lower case, Inter Display SemiBold, tracked tight (−0.02 to −0.03 em). The lockup is the mark, then the wordmark, about a third of the mark's width apart and centered on it.
+**YT Music Player**, in title case, Inter Display SemiBold, tracked tight (−0.02 to −0.03 em). The lockup is the mark, then the wordmark, about a third of the mark's width apart and centered on it.
 
-The wordmark is the logo only. In sentences, menus, the app bundle, Now Playing, MPRIS and the Keychain the product is *YT Music Player*, in title case.
+The name reads the same everywhere it is shown: the lockup, the sidebar, `ytm`, sentences, menus, the app bundle, Now Playing, MPRIS and the Keychain.
 
 ## Color
 
@@ -95,5 +95,5 @@ Album art carries color in the app; the brand's images stay in Ink, Graphite and
 | Sidebar | The mark at 26 DIPs and the wordmark | `cmd/desktop/sidebar.go` |
 | `ytm` | The wordmark at the tabs' left, in the terminal's accent | `internal/tui/view.go` (`appName`) |
 | Terminal captures | kitty in Ink, Bone and Amber | `assets/repo-images/kitty.conf` |
-| README and social preview | Bone (light) or Ink (dark) grounds, an Amber glow | `assets/repo-images/`, rendered by `scripts/repo-images.sh` |
+| README and social preview | The image direction drawn as a figure: the windows on the water below the sun; in the social preview, *Plays on.* beside a sun standing at 1:24 on a timeline | `assets/repo-images/` (its philosophy in `philosophy.md`), rendered by `scripts/repo-images.sh` |
 | The board | The 3 × 3 identity board | `scripts/brandkit.py` |

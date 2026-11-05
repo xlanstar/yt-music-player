@@ -103,7 +103,7 @@ parts.append(
         INK,
         mark(x + 92, y + PH / 2 - 44, 88)
         + text(
-            x + 206, y + PH / 2 + 15, "yt music player", 44, BONE, weight=600, ls=-1.2
+            x + 206, y + PH / 2 + 15, "YT Music Player", 44, BONE, weight=600, ls=-1.2
         )
         + label(x, y, "Identity", "01")
         + text(
@@ -301,7 +301,7 @@ rec.append(mark(rcx - 15, rcy - 15, 30, fg=INK, accent=BONE))
 sleeve = (
     f'<rect x="{sx}" y="{sy}" width="{ss}" height="{ss}" rx="3" fill="{BONE}" filter="url(#shadow)"/>'
     + mark(sx + 26, sy + 26, 56, fg=INK, accent=AMBER)
-    + text(sx + 26, sy + ss - 44, "yt music player", 15, INK, weight=600, ls=-0.3)
+    + text(sx + 26, sy + ss - 44, "YT Music Player", 15, INK, weight=600, ls=-0.3)
     + text(
         sx + 26,
         sy + ss - 24,

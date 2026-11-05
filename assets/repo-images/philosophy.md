@@ -1,0 +1,13 @@
+# Nocturne Ledger
+
+The visual philosophy the repository's images are drawn in (`readme-hero.html`, `social-preview.html`), within the identity of [docs/brand.md](../../docs/brand.md).
+
+**Light, kept on record after dark.** Nocturne Ledger treats a warm light that refuses to set as a phenomenon worth measuring. Its pictures read like plates from an observatory's logbook: one luminous body, one horizon, and the patient marks of someone who stayed up to watch. Nothing is explained; everything is observed. The work should feel as if it took a season of nights to draw, every mark placed by a hand that has done this for decades.
+
+**Space and form.** A single horizon is the spine of every composition: what lies above it is emitted, what lies below it is reflected. Form is built from two units only, the dot and the row. Light is a field of dots on a strict grid, small and sparse where it fades, swelling until neighbours touch and fuse into solid rows where it is strongest. Below the line, the same light returns as rows that shorten and thin as they fall. Perfect circles, round caps, true horizontals: no stray angle survives. Each element is the product of painstaking construction, measured, never estimated.
+
+**Color and material.** A near-black night or a bone-paper day, and a single amber light within it. Amber appears once, as the one thing that is lit; everything else is ground, graphite or hairline. The surface is matter, not screen: a grain at the edge of perception, faint rows across the water like the scanlines of an old monitor or the tooth of fine printing paper. No gloss, no neon, no second accent. Restraint is the material, applied with master-level care.
+
+**Scale and rhythm.** Meaning accumulates through repetition: hundreds of dots at an even pitch, tick marks at even intervals, reflection rows spaced wider as they near the viewer. One monumental form stands against minute annotations, and the gulf between them is the drama. Hidden ratios carry the meter, quoted rather than announced, so that a patient viewer finds order where a hurried one sees only calm.
+
+**Composition and hierarchy.** Gravity sits off-center, on a third, never in the middle. Margins are as generous as a museum mat and identical on every side. Text is a whisper: monospaced labels, tracked wide, in a muted grey, set like coordinates and plate numbers; at most one phrase is allowed to speak large. Nothing touches, nothing crowds, nothing runs off the page. Each alignment is the result of countless small refinements, the kind of exactness that only deep expertise notices and only it can produce.

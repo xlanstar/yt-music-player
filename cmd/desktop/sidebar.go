@@ -41,7 +41,7 @@ func (a *app) sidebar(c *ui.Context) {
 func brand(c *ui.Context) {
 	ui.Row(c).Padding(0, th.Space(6)).Gap(th.Space(2.5)).AlignItems(ui.Center).Children(func() {
 		ui.Box(c).Size(26, 26).Shrink(0).Draw(paintMark)
-		ui.Text(c, "yt music player").FontSize(th.Type.Brand).FontWeight(600).LetterSpacing(-0.3)
+		ui.Text(c, "YT Music Player").FontSize(th.Type.Brand).FontWeight(600).LetterSpacing(-0.3)
 	})
 }
 

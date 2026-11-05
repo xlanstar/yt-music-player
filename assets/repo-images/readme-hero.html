@@ -1,7 +1,8 @@
 <!doctype html>
-<!-- README's top image (1280×640): the window and ytm in a terminal over
-     its right side, no text (the README's title says it). ?theme=dark
-     renders the one for GitHub's dark mode. -->
+<!-- README's top image (1280×640), in philosophy.md: the window, and ytm
+     in a terminal over its corner, on the water below a halftone sun, the
+     light both doors open on. No headline: the README's title says it.
+     ?theme=dark renders the one for GitHub's dark mode. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -12,16 +13,16 @@
   }
 </script>
 <style>
-  html, body { width: 1280px; height: 640px; }
-  .glow { left: 50%; top: 50%; width: 1300px; height: 1100px; transform: translate(-50%, -45%); }
-  .app-window { left: 64px; top: 36px; width: 900px; }
+  .app-window { left: 56px; top: 56px; width: 760px; }
   /* Over the window's queue, which it shows too. */
-  .app-terminal { right: 56px; bottom: 32px; width: 560px; }
+  .app-terminal { right: 56px; bottom: 56px; width: 450px; }
 </style>
 </head>
-<body>
-  <div class="glow"></div>
+<body data-horizon="232" data-sun="1048 176" data-reflection="6">
+  <canvas id="art"></canvas>
   <img class="app-window" src="app-window.png" alt="">
   <img class="app-terminal" src="app-terminal.png" alt="">
+  <div class="label" style="left: 56px; bottom: 56px">Fig. 1 <span class="lc">&nbsp; one player, three doors</span></div>
+  <script src="art.js"></script>
 </body>
 </html>

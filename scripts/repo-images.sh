@@ -1,15 +1,17 @@
 #!/bin/sh
 # Renders the repository's images, 2560×1280 JPEGs, from the pages in
-# assets/repo-images/ into build/repo-images/:
+# assets/repo-images/ into build/repo-images/ (docs/brand.md#applications):
 #
 #   social-preview.jpg      the link card: upload it in the repository's
 #                           Settings → General → Social preview; not committed
 #   readme-hero-light.jpg   README's top image, GitHub's light mode
 #   readme-hero-dark.jpg    README's top image, GitHub's dark mode
 #
-#   scripts/repo-images.sh [-readme] [-terminal terminal.png] [window.png]
+#   scripts/repo-images.sh [-readme] [-again | [-terminal terminal.png] [window.png]]
 #
 #   -readme      copy readme-hero-*.jpg to docs/images/, which README shows
+#   -again       render from the last run's captures, kept in build/repo-images/:
+#                for changes to the pages alone
 #   window.png   the window to show; without it, the placeholder build is
 #                opened with a fresh home (default theme and window size),
 #                over a placeholder ytmd of its own 84 s into a song, and its
@@ -21,22 +23,26 @@
 #                the same ytmd, and its window captured.
 #
 # macOS only (screencapture, sips), with Google Chrome, and kitty unless
-# -terminal. Capture on a Retina display: the pages draw at twice their size.
+# -terminal. The brand's faces are fetched once into build/fonts/. Capture
+# on a Retina display: the pages draw at twice their size.
 set -eu
 
 cd "$(dirname "$0")/.."
 
 usage() {
-	sed -n '2,24s/^# \{0,1\}//p' "$0" >&2
+	sed -n '2,28s/^# \{0,1\}//p' "$0" >&2
 	exit 2
 }
 
+out=build/repo-images
 readme=
 window=
 terminal=
+again=
 while [ $# -gt 0 ]; do
 	case $1 in
 	-readme) readme=1 ;;
+	-again) again=1 ;;
 	-terminal)
 		[ $# -gt 1 ] || usage
 		terminal=$2
@@ -47,6 +53,11 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
+if [ -n "$again" ]; then
+	[ -z "$window$terminal" ] || usage
+	window=$out/app-window.png
+	terminal=$out/app-terminal.png
+fi
 
 chrome="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 [ -x "$chrome" ] || {
@@ -65,7 +76,28 @@ kitty=/Applications/kitty.app/Contents/MacOS/kitty
 	exit 1
 }
 
-out=build/repo-images
+# fonts fetches the brand's faces (docs/brand.md#type), both under the SIL
+# Open Font License, so the images never fall back to whatever is installed.
+fonts=build/fonts
+fetch() { # url, then the files to keep from its zip
+	url=$1
+	shift
+	curl -fsSL -o "$fonts/font.zip" "$url"
+	unzip -jqo "$fonts/font.zip" "$@" -d "$fonts"
+	rm "$fonts/font.zip"
+}
+mkdir -p "$fonts"
+[ -f "$fonts/InterDisplay-SemiBold.woff2" ] ||
+	fetch https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip \
+		'extras/woff-hinted/InterDisplay-Light.woff2' \
+		'extras/woff-hinted/InterDisplay-Medium.woff2' \
+		'extras/woff-hinted/InterDisplay-SemiBold.woff2'
+[ -f "$fonts/JetBrainsMono-Regular.woff2" ] ||
+	fetch https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip \
+		'fonts/webfonts/JetBrainsMono-Light.woff2' \
+		'fonts/webfonts/JetBrainsMono-Regular.woff2' \
+		'fonts/webfonts/JetBrainsMono-Medium.woff2'
+
 # In /tmp, short: the placeholder ytmd's socket, under a home in it, must
 # fit in 103 bytes.
 tmp=$(mktemp -d /tmp/repo-images.XXXXXX)
@@ -130,6 +162,7 @@ capture() {
 	pid=
 }
 
+mkdir -p "$out"
 if [ -z "$window" ] || [ -z "$terminal" ]; then
 	# The captures play through ytmd, which the app or ytm starts: a
 	# placeholder one, found through YTMD_PATH, and ytm to seek.
@@ -153,18 +186,22 @@ if [ -z "$terminal" ]; then
 	capture "$pid" "$terminal" "kitty"
 fi
 
-mkdir -p "$out"
-cp assets/repo-images/* assets/icon/icon.svg "$tmp/"
+cp assets/repo-images/*.html assets/repo-images/*.css assets/repo-images/*.js "$tmp/"
+cp -R "$fonts" "$tmp/fonts"
 [ "$window" = "$tmp/app-window.png" ] || cp "$window" "$tmp/app-window.png"
 [ "$terminal" = "$tmp/app-terminal.png" ] || cp "$terminal" "$tmp/app-terminal.png"
+# Kept for -again.
+[ -n "$again" ] || cp "$tmp/app-window.png" "$tmp/app-terminal.png" "$out/"
 
 # render renders page (with its query) at 1280×640 and twice the scale, as
-# a JPEG: GitHub takes images up to 1 MB.
+# a JPEG: GitHub takes images up to 1 MB. The pages draw with scripts, so
+# Chrome waits for them and for the fonts before it shoots.
 render() {
 	"$chrome" --headless=new --disable-gpu --hide-scrollbars \
 		--force-device-scale-factor=2 --window-size=1280,640 \
+		--virtual-time-budget=4000 \
 		--screenshot="$tmp/$2.png" "file://$tmp/$1" 2>/dev/null
-	sips -s format jpeg -s formatOptions 88 "$tmp/$2.png" --out "$out/$2.jpg" >/dev/null
+	sips -s format jpeg -s formatOptions 90 "$tmp/$2.png" --out "$out/$2.jpg" >/dev/null
 	echo "$out/$2.jpg"
 }
 
