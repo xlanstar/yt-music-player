@@ -213,11 +213,12 @@ func TestSignOut(t *testing.T) {
 		t.Fatalf("not signed in, texts %q", tt.Texts())
 	}
 	click(t, tt, "Ada Lovelace")
-	if m := tt.Menu(); !slices.Equal(m, []string{"Signed in as Ada Lovelace (@ada)", "-", "Sign out"}) {
-		t.Fatalf("account menu %q", m)
+	if tt.Menu() != nil || !tt.HasText("Signed in as Ada Lovelace (@ada)") || !tt.HasText("Sign out") {
+		t.Fatalf("account menu not drawn in the window, system's %q, texts %q", tt.Menu(), tt.Texts())
 	}
-	if err := tt.ChooseMenuItem("Sign out"); err != nil {
-		t.Fatal(err)
+	click(t, tt, "Sign out")
+	if tt.HasText("Signed in as Ada Lovelace (@ada)") {
+		t.Error("the account menu stayed open")
 	}
 	c := src.Next(t, tt.Frame, "signout", "")
 	// Ada stays signed in until the source dropped the credentials.
@@ -241,9 +242,7 @@ func TestSignOut(t *testing.T) {
 func TestSignOutFails(t *testing.T) {
 	src, a, q, tt := signedInApp(t)
 	click(t, tt, "Ada Lovelace")
-	if err := tt.ChooseMenuItem("Sign out"); err != nil {
-		t.Fatal(err)
-	}
+	click(t, tt, "Sign out")
 	answer(t, tt, q, src.Next(t, tt.Frame, "signout", ""), reply{Err: errors.New("keychain locked")})
 	if !a.session.IsSignedIn() || !tt.HasText("Engine Notes") || !toasted(tt, ytmdFailed) {
 		t.Errorf("a failed sign-out, texts %q, announced %q", tt.Texts(), tt.Announcements())
@@ -463,9 +462,7 @@ func TestAccountCached(t *testing.T) {
 	}
 
 	click(t, tt, "Ada Lovelace")
-	if err := tt.ChooseMenuItem("Sign out"); err != nil {
-		t.Fatal(err)
-	}
+	click(t, tt, "Sign out")
 	answer(t, tt, q, src.Next(t, tt.Frame, "signout", ""), reply{})
 	settleLoads(t, tt, a, q)
 	if _, err := file.Load(); !errors.Is(err, fs.ErrNotExist) {

@@ -95,6 +95,23 @@ func TestNewResumesTLS(t *testing.T) {
 	}
 }
 
+// Requests follow the system's proxy, or the environment's when set.
+func TestNewProxy(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://proxy.test:3128")
+	tr := New(0).Transport.(*http.Transport)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://music.youtube.com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u, err := tr.Proxy(req); err != nil || u == nil || u.Host != "proxy.test:3128" {
+		t.Errorf("proxy %v, %v, want HTTPS_PROXY's", u, err)
+	}
+	req.URL.Host = "127.0.0.1:8080"
+	if u, err := tr.Proxy(req); err != nil || u != nil {
+		t.Errorf("loopback through %v, %v, want direct", u, err)
+	}
+}
+
 func TestNewTimeout(t *testing.T) {
 	if got := New(time.Second).Timeout; got != time.Second {
 		t.Errorf("Timeout = %v, want 1s", got)

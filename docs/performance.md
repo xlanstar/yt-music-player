@@ -90,6 +90,7 @@ One `httpclient` client per process; YouTube's hosts speak HTTP/2, one connectio
 - YouTube keeps idle connections 1.5–5 minutes; Go's 90 s is now 2 minutes.
 - Resuming a TLS session saves a reconnect 3–6 ms.
 - Prefetching the next song probes its URL, so its stream starts on an open connection.
+- Requests go through the system's proxy (`netproxy.Proxy`), whose answer for a host is kept 5 s: one lookup, not one a request; the proxy keys idle connections, so a changed setting opens new ones.
 
 ## Messages
 

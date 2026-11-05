@@ -1,5 +1,6 @@
 // Package httpclient makes a process's HTTP client, tuned for YouTube's
-// hosts, which all speak HTTP/2 (docs/performance.md, Network).
+// hosts, which all speak HTTP/2 (docs/performance.md, Network), and sent
+// through the proxy of the system's settings.
 package httpclient
 
 import (
@@ -7,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/egoist/mygo/netproxy"
 )
 
 // idleTimeout: YouTube keeps idle connections 1.5–5 minutes, Go 90 s.
@@ -16,6 +19,9 @@ const idleTimeout = 2 * time.Minute
 // A zero timeout means none, as streams need.
 func New(timeout time.Duration) *http.Client {
 	t := defaultTransport()
+	// Apps opened from the Dock or at login get no HTTPS_PROXY; the system's
+	// settings (PAC files too) apply, unless a variable is set.
+	t.Proxy = netproxy.Proxy
 	// Requests starting together on a new host would each dial, all but
 	// one connection dropped once HTTP/2 is agreed.
 	t.MaxConnsPerHost = 1

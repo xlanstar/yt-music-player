@@ -39,7 +39,8 @@ func (a *app) accountButton(c *ui.Context) {
 			ui.Avatar(c, user.Name, nil).Size(34, 34)
 		}
 	})
-	button.Menu(func(m *ui.Menu) {
+	// Drawn in the window, in the theme, rather than the system's menu.
+	button.PopoverMenuButton(func(m *ui.Menu) {
 		m.Item(locales.SignedInAs(name)).Disabled(true)
 		m.Separator()
 		if m.Item(locales.SignOut()).Disabled(a.session.IsSigningOut()).Chosen() {

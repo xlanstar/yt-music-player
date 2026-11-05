@@ -14,6 +14,11 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 - On Windows, Settings > Apps names xlanstar as the app's publisher.
 - On macOS, swiping between pages on a touchpad, or with a mouse that sends swipes, goes back and forward.
 - The background player keeps a quarter of a second of sound ready rather than 40 ms, so a song plays on while the system briefly holds it up; pausing and seeking are heard that much later.
+- The app, the background player and `ytm` reach YouTube through the proxy set in the system's settings, setup scripts (PAC files) included, as browsers do; `HTTPS_PROXY` and the other proxy variables still win when set.
+- The account menu is drawn in the app's theme, like the rest of the window, rather than as the system's menu.
+- The Edit menu's Undo, Cut, Copy, Paste and Select All are enabled only when the focused field can do them.
+- On macOS, an idle window no longer wakes the app over a hundred times a second, using less power.
+- On Windows, the window opens fully drawn, without a white flash.
 
 ### Fixed
 
@@ -23,6 +28,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 - Quit (⌘Q on macOS) always closes the app.
 - On Windows, a hidden or minimized window no longer stalls the app for a second each frame, and with accent colors on title bars no colored strip shows at the window's top.
 - On Linux, a quick touchpad tap no longer leaves the pointer stuck pressed.
+- On Windows, the window shows its background, not black, along its edges while it is resized; on Windows 11 at high scaling, menus no longer cut off their longest label.
 
 ## [0.3.0] - 2026-10-23
 

@@ -48,7 +48,7 @@ Details live in each package's doc comment (`go doc ./internal/<pkg>`).
 - `duration`: lengths of time as the Desktop, the TUI and `ytm status` say them (`Clock`, `Minutes`); knows no UI.
 - `theme`: design tokens, presets, derived palettes, theme files (`docs/theme.md`); `settings`: preferences and user themes on disk.
 - `artwork`: thumbnail loader with memory and disk caches.
-- `httpclient`: a process's HTTP client, tuned for YouTube's hosts.
+- `httpclient`: a process's HTTP client, tuned for YouTube's hosts, through the system's proxy (MyGo's `netproxy`).
 - `atomicfile`: files replaced whole (a temporary file renamed over them), for every file the programs replace.
 - `budget`: allocation budgets for tests; `leakcheck`: fails a test binary that leaves goroutines blocked for good.
 
