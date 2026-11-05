@@ -54,12 +54,12 @@ func (a *app) connect(d ytmd) {
 }
 
 // linked keeps the connection's state for the banner. A new connection
-// after the first sent the daemon's state anew: what failed meanwhile is
-// fetched again.
+// sent the daemon's state anew: what failed meanwhile is fetched again,
+// the first one too, as a page asked for before ytmd answered.
 func (a *app) linked(l remote.Link) {
-	isAgain := a.daemon.link.Connection > 0 && l.Connection > a.daemon.link.Connection
+	isNew := l.Connection > a.daemon.link.Connection
 	a.daemon.link = l
-	if isAgain {
+	if isNew {
 		a.retryFailed()
 	}
 }

@@ -22,6 +22,7 @@ What changes for users, by version ([Semantic Versioning](https://semver.org)). 
 
 ### Fixed
 
+- A page opened before the background player first answers, such as Home at launch, loads once it does, rather than showing Retry.
 - A song row that scrolls under the pointer highlights at once, without moving the pointer.
 - On macOS, the window no longer shakes while you drag it by its top bar, and the app no longer starts the AutoFill helper, which used CPU and could stall scrolling.
 - On macOS, an update keeps the app's single Dock tile, and one found in the background shows in front of the window, or once the app comes to the front.
