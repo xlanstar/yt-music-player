@@ -111,8 +111,18 @@ id = "short-prose"
 name = "Comments and docs stay short"
 language = "system"
 entry = "scripts/check-prose.sh"
-files = '(\.go|^docs/.+\.md)$'
+files = '(\.go|^(docs|roadmap)/.+\.md)$'
 exclude = '(/testdata/|_gen\.go$)'
+
+# Links and anchors in the docs, the docs/ anchors code cites, and
+# AGENTS.md's list of pages; on any file that may cite or hold one.
+[[repos.hooks]]
+id = "docs-links"
+name = "Docs links and anchors"
+language = "system"
+entry = "scripts/check-docs.sh"
+files = '(\.(go|md|sh|toml|ya?ml)$|^scripts/)'
+pass_filenames = false
 
 # Only the staged SVGs, as every hook takes; scripts/fetch-lucide-icons.sh
 # runs this hook on the icons it fetches. Pinned like golangci-lint.

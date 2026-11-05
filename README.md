@@ -62,7 +62,7 @@ YT_LOG=debug go run ./cmd/ytmd                             # why fetches, sign-i
 prek run --all-files                                       # every check; must pass
 ```
 
-Tools are pinned in `.tool-versions`; `prek install` adds the checks as a pre-commit hook. Project rules and layout: [AGENTS.md](AGENTS.md). Releasing: [docs/release.md](docs/release.md). Performance: [docs/performance.md](docs/performance.md).
+Tools are pinned in `.tool-versions`; `prek install` adds the checks as a pre-commit hook. Project rules: [AGENTS.md](AGENTS.md); layout: [docs/architecture.md](docs/architecture.md). Releasing: [docs/release.md](docs/release.md). Performance: [docs/performance.md](docs/performance.md).
 
 ## License
 

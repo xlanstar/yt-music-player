@@ -4,7 +4,7 @@
 set -euo pipefail
 
 max_lines=4  # a Go comment block's lines, package docs aside
-max_words=60 # a docs/ paragraph's words, one line each
+max_words=60 # a docs/ or roadmap/ paragraph's words, one line each
 
 status=0
 for f in "$@"; do
