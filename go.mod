@@ -5,13 +5,13 @@ go 1.27.3
 tool github.com/egoist/mygo/cmd/mygo
 
 require (
-	charm.land/bubbletea/v2 v2.1.0
+	charm.land/bubbletea/v2 v2.1.1
 	charm.land/lipgloss/v2 v2.0.6
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/ultraviolet v0.0.0-20261023060817-a45b7c86333f
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/term v0.2.2
-	github.com/ebitengine/purego v0.11.2
+	github.com/ebitengine/purego v0.11.3
 	github.com/egoist/mygo v0.7.4
 	github.com/godbus/dbus/v5 v5.2.4
 	github.com/pion/opus v0.1.0
